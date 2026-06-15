@@ -1,0 +1,52 @@
+# XFunNote - 小方的万用本
+
+> e**X**ploratory **Fun**damental **Note**book  
+> —— 探索性万用笔记本，个人效率与 AI 助手的实验场。
+
+## 项目简介
+
+XFunNote 是一个个人知识管理与效率工具，核心目标是：
+
+- 整合日常计划、日记、学习记录、财务、屏幕时间等碎片信息
+- 借助 AI 自动生成日报/周报，辅助决策与复盘
+- 作为技术实验场：Python + AI Agent + 快速原型开发
+
+**当前阶段**：准大一暑假 MVP 开发
+
+## 技术栈
+
+| 类别 | 选择 |
+|------|------|
+| 后端 | Python + FastAPI |
+| 前端/界面 | Streamlit | 
+| 数据库 | SQLite |
+| AI | OpenAI API / LangChain |
+
+## 快速开始
+
+### 1. 重建虚拟环境
+
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+### 2. 激活虚拟环境
+
+```bash
+source .venv/bin/activate        # Mac/Linux
+.venv\Scripts\activate           # Windows
+```
+
+### 3. 运行示例
+
+
+## 目录结构
+
+
+## 许可证
+
+
+## 作者
+
+@小_方_
