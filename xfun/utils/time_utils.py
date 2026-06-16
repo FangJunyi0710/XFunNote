@@ -1,11 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timezone, tzinfo
 
 
 def now_str() -> str:
-    """返回当前时间字符串，格式 "YYYY/MM/DD HH:MM:SS"。"""
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-
-def today_str() -> str:
-    """返回今天日期字符串，格式 "YYYY/MM/DD"。"""
-    return datetime.now().strftime("%Y-%m-%d")
+    """返回当前时间字符串，包含 UTC 偏移，如 "2026-06-16 14:30:00+08:00"。"""
+    return datetime.now(timezone.utc).isoformat(sep=" ", timespec="seconds")
