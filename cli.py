@@ -3,6 +3,7 @@
 import sys
 import typer
 from xfun import db,registry
+import json
 
 app = typer.Typer()
 
@@ -13,9 +14,9 @@ def init():
 	# 其他初始化操作
 
 @app.command()
-def add(notename:str,entry:object):
+def add(notename:str,entry:str):
 	# 向指定的某本子添加条目
-	registry.notebook(notename).add(entry)
+	registry.notebook(notename).add(json.loads(entry))
 
 
 if __name__ == "__main__":
