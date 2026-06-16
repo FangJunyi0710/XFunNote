@@ -9,7 +9,7 @@ app = typer.Typer(no_args_is_help=True)
 
 @app.command()
 def init():
-	db.init()
+	db.init(registry)
 	# ...
 	# 其他初始化操作
 

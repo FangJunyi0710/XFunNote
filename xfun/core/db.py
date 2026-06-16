@@ -1,5 +1,9 @@
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+import os
+import sqlite3
+from dataclasses import dataclass
+from typing import Any, Optional, Sequence
+
+from .. import config
 
 
 # ---------------------------------------------------------------------------
@@ -73,19 +77,59 @@ class Filter:
 
 
 # ---------------------------------------------------------------------------
-# DB 类（骨架，后续完善）
+# DB 类
 # ---------------------------------------------------------------------------
 
 class DB:
     """数据库管理器，封装 SQLite 连接与基本操作。"""
 
-    def __init__(self, db_path: str = "data/xfun.db"):
+    def __init__(self, db_path: Optional[str] = None):
+        self.db_path = db_path or config.DB_PATH
         self.db_path = db_path
+        self._conn: Optional[sqlite3.Connection] = None
 
-    def execute(self, sql: str, params: tuple = ()) -> Any:
-        """执行一条 SQL。"""
-        raise NotImplementedError
+    # ---- 连接管理 ----
 
-    def init(self) -> None:
-        """初始化数据库：建库、建所有表。"""
-        raise NotImplementedError
+    @property
+    def conn(self) -> sqlite3.Connection:
+        if self._conn is None:
+            self._ensure_data_dir()
+            self._conn = sqlite3.connect(self.db_path)
+            self._conn.row_factory = sqlite3.Row
+        return self._conn
+
+    def _ensure_data_dir(self) -> None:
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+
+    def close(self) -> None:
+        if self._conn is not None:
+            self._conn.close()
+            self._conn = None
+
+    # ---- 执行 SQL ----
+
+    def execute(self, sql: str, params: Sequence = ()) -> sqlite3.Cursor:
+        """执行一条 SQL，返回 cursor。"""
+        return self.conn.execute(sql, params)
+
+    def executemany(self, sql: str, seq_of_params: Sequence) -> sqlite3.Cursor:
+        """批量执行同一条 SQL。"""
+        return self.conn.executemany(sql, seq_of_params)
+
+    def commit(self) -> None:
+        self.conn.commit()
+
+    # ---- 初始化 ----
+
+    def init(self, registry) -> None:
+        """
+        初始化数据库：为 registry 中所有已注册的 notebook 建表。
+
+        Parameters
+        ----------
+        registry : Registry
+            Notebook 注册中心，遍历其中每个 notebook 调用 init_table()。
+        """
+        for nb in registry:
+            nb.init_table(self)
+        self.commit()
