@@ -5,7 +5,7 @@ import typer
 from xfun import db,registry
 import json
 
-app = typer.Typer()
+app = typer.Typer(no_args_is_help=True)
 
 @app.command()
 def init():
@@ -21,3 +21,12 @@ def add(notename:str,entry:str):
 
 if __name__ == "__main__":
 	app()
+
+'''
+测试语句：
+
+./cli.py
+./cli.py init
+./cli.py add plan '{"month": "2607", "content": "测试内容"}'
+
+'''
