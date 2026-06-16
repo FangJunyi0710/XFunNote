@@ -27,22 +27,28 @@ class Notebook(ABC):
     name: str = ""                     # 本子名称，如 "plan"
     columns: List[Column] = []         # 数据库列定义
 
-    # ---- 数据库操作 ----
+    # ---- 构造注入 ----
 
-    def init_table(self, db) -> None:
+    def __init__(self, db=None) -> None:
         """
-        根据 self.columns 自动建表。
-
         Parameters
         ----------
-        db : DB
-            数据库实例，需提供 execute(sql, params) 方法。
+        db : DB, optional
+            数据库实例，通过构造函数注入。
+        """
+        self.db = db
+
+    # ---- 数据库操作 ----
+
+    def init_table(self) -> None:
+        """
+        根据 self.columns 自动建表。
         """
         if not self.columns:
             return
         cols_sql = ", ".join(col.sql for col in self.columns)
         sql = f"CREATE TABLE IF NOT EXISTS {self.name} ({cols_sql})"
-        db.execute(sql)
+        self.db.execute(sql)
         # 建索引
         for col in self.columns:
             if col.index:
@@ -50,7 +56,7 @@ class Notebook(ABC):
                     f"CREATE INDEX IF NOT EXISTS idx_{self.name}_{col.name} "
                     f"ON {self.name}({col.name})"
                 )
-                db.execute(idx_sql)
+                self.db.execute(idx_sql)
 
     # ---- 序列化 / 反序列化 ----
 

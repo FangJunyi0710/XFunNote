@@ -130,5 +130,5 @@ class DB:
             Notebook 注册中心，遍历其中每个 notebook 调用 init_table()。
         """
         for nb in registry:
-            nb.init_table(self)
+            nb.init_table()
         self.commit()

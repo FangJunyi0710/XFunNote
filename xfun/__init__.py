@@ -7,6 +7,6 @@ db       = DB()
 registry = Registry()
 
 # 注册所有 Notebook
-registry.register("plan", PlanNotebook())
+registry.register("plan", PlanNotebook(db))
 
 __all__ = ["db", "registry"]

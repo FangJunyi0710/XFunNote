@@ -39,8 +39,13 @@ class PlanNotebook(Notebook):
         # 用户只需提供 month, content
         self._validate(entry)
         self._autofill(entry)
-        # TODO: db.insert(...) — 等 DB 实现后补上
-        raise NotImplementedError("DB 尚未实现")
+        self.db.execute(
+            "INSERT INTO plan (id, no, month, content, done, created_at) "
+            "VALUES (:id, :no, :month, :content, :done, :created_at)",
+            entry,
+        )
+        self.db.commit()
+        return entry["id"]
 
     def list(self, filters: List[Filter], *,
              order_by: Optional[str] = None,
@@ -48,12 +53,28 @@ class PlanNotebook(Notebook):
              offset: int = 0) -> List[Dict[str, Any]]:
         if not filters:
             raise ValueError("filters 不能为空")
-        # TODO: db.select(...) — 等 DB 实现后补上
-        raise NotImplementedError("DB 尚未实现")
+
+        where_clauses = []
+        params: Dict[str, Any] = {}
+        for i, f in enumerate(filters):
+            key = f"v_{i}"
+            where_clauses.append(f"{f.column} {f.op} :{key}")
+            params[key] = f.value
+
+        sql = "SELECT * FROM plan WHERE " + " AND ".join(where_clauses)
+        if order_by:
+            sql += f" ORDER BY {order_by}"
+        sql += " LIMIT :limit OFFSET :offset"
+        params["limit"] = limit
+        params["offset"] = offset
+
+        rows = self.db.execute(sql, params).fetchall()
+        return [dict(row) for row in rows]
 
     def delete(self, entry_id: str) -> bool:
-        # TODO: db.delete(...)
-        raise NotImplementedError("DB 尚未实现")
+        cur = self.db.execute("DELETE FROM plan WHERE id = :id", {"id": entry_id})
+        self.db.commit()
+        return cur.rowcount > 0
 
     def search(self, query: str, *, limit: int = 50) -> List[Dict[str, Any]]:
         return self.list(
@@ -84,12 +105,24 @@ class PlanNotebook(Notebook):
 
     def _next_no(self, month: str) -> int:
         """返回指定月份的下一个编号。"""
-        # TODO: db.count(...) 按 month 统计 — 等 DB 实现后补上
-        return 1
+        row = self.db.execute(
+            "SELECT COUNT(*) AS cnt FROM plan WHERE month = :month",
+            {"month": month},
+        ).fetchone()
+        return row["cnt"] + 1
 
     # ---- 摘要 ----
 
     def summary(self) -> str:
         """供 AI 使用的计划概览。"""
-        # TODO: 统计各月 done/总数
-        return "[plan] (暂无统计 — DB 尚未实现)"
+        rows = self.db.execute(
+            "SELECT month, COUNT(*) AS total, SUM(done) AS done_cnt "
+            "FROM plan GROUP BY month ORDER BY month DESC"
+        ).fetchall()
+        if not rows:
+            return "[plan] 暂无计划"
+
+        lines = ["[plan]"]
+        for r in rows:
+            lines.append(f"  {r['month']}: {r['done_cnt']}/{r['total']} 已完成")
+        return "\n".join(lines)
