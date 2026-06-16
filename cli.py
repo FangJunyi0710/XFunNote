@@ -2,7 +2,7 @@
 # cli.py
 import sys
 import typer
-from xfun import *
+from xfun import db,registry
 
 app = typer.Typer()
 
