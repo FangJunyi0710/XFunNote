@@ -7,3 +7,4 @@ langchain-openai    # LangChain 的 OpenAI 专用包（新版本）
 sqlalchemy          # ORM 管理 SQLite（可选，也可以直接用 sqlite3）
 python-dotenv       # 管理环境变量
 httpx               # Streamlit 调用 FastAPI 时推荐
+typer               # 命令行工具
