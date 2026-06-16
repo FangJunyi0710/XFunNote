@@ -29,4 +29,16 @@ if __name__ == "__main__":
 ./cli.py init
 ./cli.py add plan '{"month": "2607", "content": "测试内容"}'
 
+
+
+./cli.py listcolumns plan
+./cli.py listid plan --filter month=2606,done=0
+./cli.py list plan plan-2607-001 plan-2607-005 --column id,month,content
+
+./cli.py delete plan plan-2607-001 plan-2607-005
+
+./cli.py update plan plan-2607-001 plan-2607-005 --set done=1
+
+
+
 '''
