@@ -85,7 +85,6 @@ class DB:
 
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path or config.DB_PATH
-        self.db_path = db_path
         self._conn: Optional[sqlite3.Connection] = None
 
     # ---- 连接管理 ----
