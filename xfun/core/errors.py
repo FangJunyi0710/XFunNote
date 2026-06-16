@@ -1,7 +1,3 @@
-#!/usr/bin/env python3
-# xfun/core/errors.py — 异常定义
-
-
 class XFunError(Exception):
     """XFunNote 所有异常的基类。"""
     pass

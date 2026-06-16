@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-# xfun/core/db.py — 数据库层基础定义
-"""
-数据库核心：列定义、筛选条件、DB 实例。
-"""
-
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 

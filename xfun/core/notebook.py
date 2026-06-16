@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# xfun/core/notebook.py — 抽象 Notebook 基类
 """
 所有 Notebook 的公共抽象基类。
 
