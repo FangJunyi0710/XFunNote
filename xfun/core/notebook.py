@@ -50,6 +50,31 @@ class Notebook(ABC):
         """合并基类通用列 + 子类特有列"""
         return BASE_COLUMNS + self._extra_columns
 
+    # ---- 通用查询方法 ----
+
+    def get_by_id(self, conn, entry_id: str) -> Optional[Dict[str, Any]]:
+        """根据 ID 查询单条条目，不存在则返回 None。"""
+        row = conn.execute(
+            f"SELECT * FROM {self.name} WHERE id = :id",
+            {"id": entry_id},
+        ).fetchone()
+        if row is None:
+            return None
+        return dict(row)
+
+    def get_by_ids(self, conn, entry_ids: List[str]) -> List[Dict[str, Any]]:
+        """根据 ID 列表批量查询，返回结果保持传入顺序，不存在的 ID 被跳过。"""
+        if not entry_ids:
+            return []
+        placeholders = ", ".join(f":id_{i}" for i in range(len(entry_ids)))
+        params = {f"id_{i}": eid for i, eid in enumerate(entry_ids)}
+        rows = conn.execute(
+            f"SELECT * FROM {self.name} WHERE id IN ({placeholders})",
+            params,
+        ).fetchall()
+        result = {r["id"]: dict(r) for r in rows}
+        return [result[eid] for eid in entry_ids if eid in result]
+
     # ---- 自动生成 INSERT SQL ----
 
     def _insert_sql(self) -> str:

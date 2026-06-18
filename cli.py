@@ -40,6 +40,14 @@ def listcolumns(notename: str):
 		[asdict(c) for c in nb.columns],
 		ensure_ascii=False, indent=4))
 
+@app.command()
+def list(notename: str, entry_ids: list[str]):
+	"""按 ID 列表查询条目并输出为 JSON 数组。"""
+	nb = registry.notebook(notename)
+	with db.transaction() as conn:
+		results = nb.get_by_ids(conn, entry_ids)
+	print(json.dumps(results, ensure_ascii=False, indent=4))
+
 
 if __name__ == "__main__":
 	app()
@@ -56,7 +64,7 @@ if __name__ == "__main__":
 
 ./cli.py listcolumns plan
 ./cli.py listid plan --filter month=2606,done=0
-./cli.py list plan plan-2607-001 plan-2607-005 --column id,month,content
+./cli.py list plan plan-2607-001 plan-2607-005
 
 ./cli.py delete plan plan-2607-001 plan-2607-005
 
