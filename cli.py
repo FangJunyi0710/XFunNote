@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # cli.py
 import sys
+import shutil
 import typer
 from xfun import db,registry
 import json
 from dataclasses import asdict
+from pathlib import Path
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -13,6 +15,15 @@ def init():
 	db.init(registry)
 	# ...
 	# 其他初始化操作
+
+@app.command()
+def reset():
+	"""删除 data 目录并重新创建，然后初始化数据库。"""
+	data_dir = Path("data")
+	if data_dir.exists():
+		shutil.rmtree(data_dir)
+	data_dir.mkdir()
+	init()
 
 @app.command()
 def add(notename:str,entry:str):
@@ -38,6 +49,7 @@ if __name__ == "__main__":
 
 ./cli.py
 ./cli.py init
+./cli.py reset
 ./cli.py add plan '{"month": "2607", "content": "测试内容"}'
 
 
