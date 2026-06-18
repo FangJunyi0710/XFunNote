@@ -1,7 +1,7 @@
-"""测试核心查询逻辑：Condition 运算符、build_where AND/OR 组合、自定义运算符注册。"""
+"""测试核心查询逻辑：Condition 运算符、to_sql 递归 AND/OR 组合、自定义运算符注册。"""
 
 import pytest
-from xfun.core.db import Column, Condition, build_where, DB
+from xfun.core.db import Column, Condition, to_sql, DB
 from xfun.core.errors import InvalidConditionError, InvalidSQLError
 
 
@@ -57,25 +57,25 @@ class TestConditionEdgeCases:
             Condition("bad col", "val").to_sql()
 
 
-class TestBuildWhere:
-    """核心：二维 Filter → WHERE 子句是否正确。"""
+class TestToSql:
+    """核心：Filter → WHERE 子句是否正确。"""
 
     def test_empty(self):
-        assert build_where([]) == ("", [])
+        assert to_sql([]) == ("", [])
 
     def test_and_group(self):
-        sql, params = build_where([[Condition("a", 1), Condition("b", 2)]])
+        sql, params = to_sql([[Condition("a", 1), Condition("b", 2)]])
         assert "(a = ? AND b = ?)" in sql
 
     def test_or_of_ands(self):
-        sql, params = build_where([
+        sql, params = to_sql([
             [Condition("a", 1)],
             [Condition("b", 2)],
         ])
         assert sql.count("OR") == 1
 
     def test_null_in_filter(self):
-        sql, params = build_where([[Condition("ai_note", None, "=")]])
+        sql, params = to_sql([[Condition("ai_note", None, "=")]])
         assert "IS NULL" in sql
 
 
@@ -112,15 +112,15 @@ class TestBetweenEdgeCases:
             Condition("col", [1, 2, 3], "BETWEEN").to_sql()
 
 
-class TestBuildWhereEdgeCases:
-    """build_where 边界情况。"""
+class TestToSqlEdgeCases:
+    """to_sql 边界情况。"""
 
     def test_empty_group_skipped(self):
-        sql, params = build_where([[]])
+        sql, params = to_sql([[]])
         assert sql == "" and params == []
 
     def test_mixed_empty_and_normal(self):
-        sql, params = build_where([
+        sql, params = to_sql([
             [Condition("a", 1)],
             [],
         ])

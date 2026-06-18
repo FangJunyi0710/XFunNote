@@ -2,7 +2,7 @@ import os
 import re
 import sqlite3
 from dataclasses import dataclass
-from typing import Any, ClassVar, List, Optional, Sequence, Tuple
+from typing import Any, ClassVar, List, Optional, Sequence as Seq, Tuple, Union
 
 from .. import config
 from .errors import InvalidSQLError, InvalidConditionError
@@ -182,21 +182,22 @@ def _builtin_sql(column, value, op) -> Tuple[str, list]:
     return sql, params
 
 
-Filter = Sequence[Sequence[Condition]] # 外层 OR，内层 AND
+Filter = Seq[Seq[Union["Filter", Condition]]]  # 递归结构：外层 OR，内层 AND，元素可为子 Filter 或 Condition
 
-def build_where(filter: Filter) -> Tuple[str, list]:
+def to_sql(filter: Filter) -> Tuple[str, list]:
     """
-    生成二维 WHERE 子句：外层 OR（取并），内层 AND（取交）。
+    生成 WHERE 子句：外层 OR（取并），内层 AND（取交）。
+    内层元素可以是 Condition 或子 Filter（递归处理）。
 
     Parameters
     ----------
-    conditions_2d : list[list[Condition]]
-        二维条件列表，每个内层列表中的条件取 AND，外层列表取 OR。
+    filter : Filter
+        Filter 结构，外层为 OR 组，内层为 AND 组，元素可为 Condition 或子 Filter。
 
     Returns
     -------
     tuple[str, list]
-        (WHERE 子句 SQL 片段，可能为空，参数值列表，按 ? 出现顺序对应)
+        (WHERE 子句 SQL 片段，可能为空，参数值列表)
     """
     if not filter:
         return "", []
@@ -205,8 +206,11 @@ def build_where(filter: Filter) -> Tuple[str, list]:
     params: list = []
     for group in filter:
         and_clauses: List[str] = []
-        for cond in group:
-            clause, vals = cond.to_sql()
+        for item in group:
+            if isinstance(item, Condition):
+                clause, vals = item.to_sql()
+            else:
+                clause, vals = to_sql(item)
             and_clauses.append(clause)
             params.extend(vals)
         if not and_clauses:
