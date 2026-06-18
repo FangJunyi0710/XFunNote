@@ -101,13 +101,6 @@ class DB:
     def transaction(self):
         """
         返回事务上下文管理器。用于包裹跨多个 Notebook 的操作。
-
-        Usage::
-
-            with db.transaction() as tx:
-                tx.conn.execute(...)
-                tx.conn.execute(...)
-                # 正常退出自动 commit，异常自动 rollback
         """
         return _TransactionContext(self)
 
@@ -137,7 +130,7 @@ class _TransactionContext:
         self.db = db
         self.conn: Optional[sqlite3.Connection] = None
 
-    def __enter__(self) -> "_TransactionContext":
+    def __enter__(self) -> sqlite3.Connection:
         self.conn = self.db._connect()
         self.conn.execute("BEGIN IMMEDIATE") # 主动加写锁，避免高并发下的 SQLITE_BUSY 重试
         return self.conn
