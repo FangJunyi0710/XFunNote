@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # cli.py
-import sys
 import shutil
 import typer
 from xfun import db,registry
@@ -9,6 +8,12 @@ from dataclasses import asdict
 from pathlib import Path
 
 app = typer.Typer(no_args_is_help=True)
+
+
+def _parse_json_to_list(s: str):
+	"""解析 JSON 字符串，返回列表。若为单个 JSON 值则包装成单元素列表。"""
+	data = json.loads(s)
+	return data if isinstance(data, list) else [data]
 
 @app.command()
 def init():
@@ -26,27 +31,26 @@ def reset():
 	init()
 
 @app.command()
-def add(notename:str,entry:str):
-	# 向指定的某本子添加条目
+def add(notename: str, entry: str):
 	nb = registry.notebook(notename)
 	with db.transaction() as conn:
-		nb.add(conn, json.loads(entry))
+		ids = nb.add(conn, _parse_json_to_list(entry))
+	typer.echo(json.dumps(ids, ensure_ascii=False, indent=4))
 
 @app.command()
 def listcolumns(notename: str):
 	"""列出指定本子的所有列定义，以 JSON 格式输出。"""
 	nb = registry.notebook(notename)
-	print(json.dumps(
+	typer.echo(json.dumps(
 		[asdict(c) for c in nb.columns],
 		ensure_ascii=False, indent=4))
 
-@app.command()
-def list(notename: str, entry_ids: list[str]):
-	"""按 ID 列表查询条目并输出为 JSON 数组。"""
+@app.command("list")
+def cmd_list(notename: str, entry_ids: str):
 	nb = registry.notebook(notename)
 	with db.transaction() as conn:
-		results = nb.get_by_ids(conn, entry_ids)
-	print(json.dumps(results, ensure_ascii=False, indent=4))
+		results = nb.get_by_ids(conn, _parse_json_to_list(entry_ids))
+	typer.echo(json.dumps(results, ensure_ascii=False, indent=4))
 
 
 if __name__ == "__main__":
@@ -58,18 +62,17 @@ if __name__ == "__main__":
 ./cli.py
 ./cli.py init
 ./cli.py reset
+
 ./cli.py add plan '{"month": "2607", "content": "测试内容"}'
-
-
+./cli.py add plan '[{"month": "2607", "content": "条目A"}, {"month": "2607", "content": "条目B"}]'
 
 ./cli.py listcolumns plan
-./cli.py listid plan --filter month=2606,done=0
-./cli.py list plan plan-2607-001 plan-2607-005
+
+./cli.py list plan '"plan-2607-001"'
+./cli.py list plan '["plan-2607-001", "plan-2607-002"]'
 
 ./cli.py delete plan plan-2607-001 plan-2607-005
 
 ./cli.py update plan plan-2607-001 plan-2607-005 --set done=1
-
-
 
 '''
