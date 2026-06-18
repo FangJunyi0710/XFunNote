@@ -49,7 +49,7 @@ def listcolumns(notename: str):
 def cmd_list(notename: str, entry_ids: str):
 	nb = registry.notebook(notename)
 	with db.transaction() as conn:
-		results = nb.get_by_ids(conn, _parse_json_to_list(entry_ids))
+		results = nb.get_by_id(conn, _parse_json_to_list(entry_ids))
 	typer.echo(json.dumps(results, ensure_ascii=False, indent=4))
 
 

@@ -54,13 +54,6 @@ class PlanNotebook(Notebook):
         cur = conn.execute("DELETE FROM plan WHERE id = :id", {"id": entry_id})
         return cur.rowcount > 0
 
-    def search(self, conn, query: str, *, limit: int = 50) -> List[Dict[str, Any]]:
-        return self.list(
-            conn,
-            [Filter("content", f"%{query}%", op="LIKE")],
-            limit=limit,
-        )
-
     # ---- 校验 & 自动填充 ----
 
     def _autofill(self, entry: Dict[str, Any], conn) -> None:
@@ -69,19 +62,3 @@ class PlanNotebook(Notebook):
         entry["id"] = f"plan-{entry["month"]}-{str(uuid7())}"
         entry["no"] = 0       # TODO: 后续完善排序逻辑
         entry.setdefault("done", 0)
-
-    # ---- 摘要 ----
-
-    def summary(self, conn) -> str:
-        """供 AI 使用的计划概览。"""
-        rows = conn.execute(
-            "SELECT month, COUNT(*) AS total, SUM(done) AS done_cnt "
-            "FROM plan GROUP BY month ORDER BY month DESC"
-        ).fetchall()
-        if not rows:
-            return "[plan] 暂无计划"
-
-        lines = ["[plan]"]
-        for r in rows:
-            lines.append(f"  {r['month']}: {r['done_cnt']}/{r['total']} 已完成")
-        return "\n".join(lines)

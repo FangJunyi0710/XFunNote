@@ -52,17 +52,7 @@ class Notebook(ABC):
 
     # ---- 通用查询方法 ----
 
-    def get_by_id(self, conn, entry_id: str) -> Optional[Dict[str, Any]]:
-        """根据 ID 查询单条条目，不存在则返回 None。"""
-        row = conn.execute(
-            f"SELECT * FROM {self.name} WHERE id = :id",
-            {"id": entry_id},
-        ).fetchone()
-        if row is None:
-            return None
-        return dict(row)
-
-    def get_by_ids(self, conn, entry_ids: List[str]) -> List[Dict[str, Any]]:
+    def get_by_id(self, conn, entry_ids: List[str]) -> List[Dict[str, Any]]:
         """根据 ID 列表批量查询，返回结果保持传入顺序，不存在的 ID 被跳过。"""
         if not entry_ids:
             return []
@@ -154,7 +144,7 @@ class Notebook(ABC):
     def list(self, conn, filters: List[Filter], *,
              order_by: Optional[str] = None,
              limit: int = 50,
-             offset: int = 0) -> List[Dict[str, Any]]:
+             offset: int = 0) -> List[str]:
         """
         按筛选条件列出条目。
 
@@ -173,7 +163,8 @@ class Notebook(ABC):
 
         Returns
         -------
-        List[Dict[str, Any]]
+        List[str]
+            ID 列表。
         """
         ...
 
@@ -195,32 +186,6 @@ class Notebook(ABC):
             是否删除成功。
         """
         ...
-
-    @abstractmethod
-    def search(self, conn, query: str, *, limit: int = 50) -> List[Dict[str, Any]]:
-        """
-        全文搜索。
-
-        Parameters
-        ----------
-        conn : sqlite3.Connection
-            事务连接，由上层通过 db.transaction() 提供。
-        query : str
-            搜索关键词。
-        limit : int
-            最大返回条数，默认 50。
-
-        Returns
-        -------
-        List[Dict[str, Any]]
-        """
-        ...
-
-    # ---- 可选钩子 ----
-
-    def summary(self, conn) -> str:
-        """返回本子的概览摘要，供 AI 日报/周报使用。"""
-        return f"[{self.name}] (暂无摘要)"
 
     # ---- 内置 ----
 
