@@ -65,7 +65,8 @@ class TestToSql:
 
     def test_and_group(self):
         sql, params = to_sql([[Condition("a", 1), Condition("b", 2)]])
-        assert "(a = ? AND b = ?)" in sql
+        assert "(a = ?) AND (b = ?)" in sql
+        assert params == [1, 2]
 
     def test_or_of_ands(self):
         sql, params = to_sql([
@@ -73,10 +74,76 @@ class TestToSql:
             [Condition("b", 2)],
         ])
         assert sql.count("OR") == 1
+        assert params == [1, 2]
 
     def test_null_in_filter(self):
         sql, params = to_sql([[Condition("ai_note", None, "=")]])
         assert "IS NULL" in sql
+
+    # ---- 嵌套子 Filter ----
+
+    def test_nested_filter_in_and(self):
+        """子 Filter（含多 OR 组）在 AND 组内应被括号包裹保护优先级。"""
+        sql, params = to_sql([
+            [Condition("a", 1), [[Condition("b", 2)], [Condition("c", 3)]]],
+        ])
+        assert "((b = ?)) OR ((c = ?))" in sql
+        assert params == [1, 2, 3]
+
+    def test_nested_filter_single_and(self):
+        """子 Filter 只有一组 AND。"""
+        sql, params = to_sql([
+            [Condition("a", 1), [[Condition("b", 2), Condition("c", 3)]]],
+        ])
+        assert params == [1, 2, 3]
+
+    def test_deeply_nested(self):
+        """多层嵌套 Filter。"""
+        sql, params = to_sql([
+            [Condition("a", 1), [[Condition("b", 2), [[Condition("c", 3)]]]]],
+        ])
+        assert params == [1, 2, 3]
+
+    # ---- 最外层取反元组 ----
+
+    def test_negate_outer_true(self):
+        """最外层 (Filter, True) 包裹 NOT。"""
+        sql, params = to_sql(([[Condition("a", 1)]], True))
+        assert sql.startswith("NOT ")
+        assert params == [1]
+
+    def test_negate_outer_false(self):
+        """最外层 (Filter, False) 不取反。"""
+        sql, params = to_sql(([[Condition("a", 1)]], False))
+        assert not sql.startswith("NOT ")
+        assert params == [1]
+
+    def test_negate_with_nested_filter(self):
+        """取反 + 嵌套子 Filter 组合。"""
+        sql, params = to_sql(([
+            [Condition("a", 1), [[Condition("b", 2)], [Condition("c", 3)]]],
+        ], True))
+        assert sql.startswith("NOT ")
+        assert "((b = ?)) OR ((c = ?))" in sql
+        assert params == [1, 2, 3]
+
+    def test_negate_deeply_nested(self):
+        """取反 + 多层嵌套。"""
+        sql, params = to_sql(([
+            [Condition("a", 1), [[Condition("b", 2), [[Condition("c", 3)]]]]],
+        ], True))
+        assert sql.startswith("NOT ")
+        assert params == [1, 2, 3]
+
+    def test_negate_or_group(self):
+        """取反一组 OR 条件。"""
+        sql, params = to_sql(([
+            [Condition("a", 1)],
+            [Condition("b", 2)],
+        ], True))
+        assert sql.startswith("NOT ")
+        assert sql.count("OR") == 1
+        assert params == [1, 2]
 
 
 class TestCheckOrderBy:
@@ -124,7 +191,12 @@ class TestToSqlEdgeCases:
             [Condition("a", 1)],
             [],
         ])
-        assert "a = ?" in sql and params == [1]
+        assert "(a = ?)" in sql and params == [1]
+
+    def test_nested_empty_filter(self):
+        """内层空 Filter 不贡献 AND 子句。"""
+        sql, params = to_sql([[Condition("a", 1), []]])
+        assert "(a = ?)" in sql and params == [1]
 
 
 class TestDBInit:
