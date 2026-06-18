@@ -113,11 +113,6 @@ class Notebook(ABC):
         Returns
         -------
         List[Dict[str, Any]]
-
-        Raises
-        ------
-        ValueError
-            若 filters 为空。
         """
         ...
 

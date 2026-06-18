@@ -50,9 +50,7 @@ class PlanNotebook(Notebook):
              order_by: Optional[str] = None,
              limit: int = 50,
              offset: int = 0) -> List[Dict[str, Any]]:
-        if not filters:
-            raise ValueError("filters 不能为空")
-
+        
         where_clauses = []
         params: Dict[str, Any] = {}
         for i, f in enumerate(filters):
