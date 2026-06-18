@@ -1,7 +1,8 @@
 import os
+import re
 import sqlite3
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, List, Optional, Sequence, Tuple
 
 from .. import config
 
@@ -61,22 +62,103 @@ class Column:
 # ---------------------------------------------------------------------------
 
 @dataclass
-class Filter:
-    """
-    列表筛选条件。
-
-    Attributes
-    ----------
-    column : str
-        筛选的列名。
-    value : Any
-        筛选值。
-    op : str
-        比较运算符，默认 "="，支持 ">", "<", ">=", "<=", "!=", "LIKE"。
-    """
+class Condition:
     column: str
     value: Any
     op: str = "="
+    negate: bool = False
+
+    _VALID_OPS = frozenset({"=", ">", "<", ">=", "<=", "!=", "LIKE", "NOT LIKE", "IN", "NOT IN", "BETWEEN"})
+    _COLUMN_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*$")
+
+    def to_sql(self) -> Tuple[str, list]:
+        """生成该条件的 SQL 片段及参数值列表。
+
+        Returns
+        -------
+        tuple[str, list]
+            (SQL 片段, 参数值列表)。值为 None 时返回空列表，SQL 使用 IS NULL / IS NOT NULL。
+
+        Raises
+        ------
+        ValueError
+        """
+        if not self._COLUMN_PATTERN.match(self.column):
+            raise ValueError(f"非法列名: {self.column!r}")
+        if self.op not in self._VALID_OPS:
+            raise ValueError(f"非法运算符: {self.op!r}")
+
+        # --- NULL：只有 = 和 != 可以处理 NULL ---
+        if self.value is None:
+            if self.op == "=":
+                qualifier = "IS NOT NULL" if self.negate else "IS NULL"
+                return f"{self.column} {qualifier}", []
+            if self.op == "!=":
+                qualifier = "IS NULL" if self.negate else "IS NOT NULL"
+                return f"{self.column} {qualifier}", []
+            raise ValueError(
+                f"值为 None 时仅支持运算符 = 和 !=，收到 {self.op!r}"
+            )
+
+        # --- IN / NOT IN ---
+        if self.op in ("IN", "NOT IN"):
+            if not isinstance(self.value, (list, tuple)) or not self.value:
+                raise ValueError(f"运算符 {self.op!r} 的值必须是非空列表或元组，收到 {type(self.value).__name__}")
+            placeholders = ", ".join("?" for _ in self.value)
+            sql = f"{self.column} {self.op} ({placeholders})"
+            params = list(self.value)
+
+        # --- BETWEEN ---
+        elif self.op == "BETWEEN":
+            if not isinstance(self.value, (list, tuple)) or len(self.value) != 2 or self.value[0] is None or self.value[1] is None:
+                raise ValueError("BETWEEN 的值必须是包含两个元素的列表或元组")
+            sql = f"{self.column} {self.op} ? AND ?"
+            params = list(self.value)
+
+        # --- 通用（=, >, <, >=, <=, !=, LIKE, NOT LIKE）---
+        else:
+            sql = f"{self.column} {self.op} ?"
+            params = [self.value]
+
+        if self.negate:
+            sql = f"NOT ({sql})"
+        return sql, params
+
+
+# 向后兼容的类型别名
+Filter = Sequence[Sequence[Condition]] # 外层 OR，内层 AND
+
+def build_where(filter: Filter) -> Tuple[str, list]:
+    """
+    生成二维 WHERE 子句：外层 OR（取并），内层 AND（取交）。
+
+    Parameters
+    ----------
+    conditions_2d : list[list[Condition]]
+        二维条件列表，每个内层列表中的条件取 AND，外层列表取 OR。
+
+    Returns
+    -------
+    tuple[str, list]
+        (WHERE 子句 SQL 片段, 参数值列表，按 ? 出现顺序对应)
+    """
+    if not filter:
+        return "", []
+
+    or_clauses: List[str] = []
+    params: list = []
+    for group in filter:
+        and_clauses: List[str] = []
+        for cond in group:
+            clause, vals = cond.to_sql()
+            and_clauses.append(clause)
+            params.extend(vals)
+        if not and_clauses:
+            continue
+        or_clauses.append("(" + " AND ".join(and_clauses) + ")")
+
+    where_sql = " OR ".join(or_clauses)
+    return where_sql, params
 
 
 # ---------------------------------------------------------------------------

@@ -144,8 +144,7 @@ class Notebook(ABC):
         conn.executemany(self._insert_sql(), entries)
         return [entry["id"] for entry in entries]
 
-    @abstractmethod
-    def list(self, conn, filters: List[Filter], *,
+    def list(self, conn, filter: Filter, *,
              order_by: Optional[str] = None,
              limit: int = 50,
              offset: int = 0) -> List[str]:
@@ -156,8 +155,8 @@ class Notebook(ABC):
         ----------
         conn : sqlite3.Connection
             事务连接，由上层通过 db.transaction() 提供。
-        filters : List[Filter]
-            筛选条件列表，不允许为空。
+        filter : Filter
+            筛选条件列表。
         order_by : str, optional
             排序列名，默认无排序。
         limit : int
@@ -170,7 +169,7 @@ class Notebook(ABC):
         List[str]
             ID 列表。
         """
-        ...
+        raise NotImplementedError("Notebook.list() 未实现")
 
     def delete(self, conn, entry_ids: List[str]) -> None:
         """
