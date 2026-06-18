@@ -1,0 +1,36 @@
+# xfun/notebooks/word.py — 单词本
+"""
+word 本：管理单词，记录单词、词性、音标、例句、复习数据。
+"""
+
+from typing import Any, Dict, List
+
+from ..core.db import Column
+from ..core.notebook import Notebook
+
+
+class WordNotebook(Notebook):
+    name = "word"
+    _extra_columns = [
+        Column("word",           "TEXT",    nullable=False),
+        Column("part_of_speech", "TEXT",    nullable=True),
+        Column("phonetic",       "TEXT",    nullable=True),
+        Column("example",        "TEXT",    nullable=True),
+        Column("review_count",   "INTEGER", nullable=False, auto=True),
+        Column("performance",    "REAL",    nullable=False, auto=True),
+        Column("next_review",    "TEXT",    nullable=True),
+        Column("last_review",    "TEXT",    nullable=True),
+        Column("related_words",  "TEXT",    nullable=True),
+    ]
+
+    # ---- 校验 & 自动填充 ----
+
+    def _autofill(self, entry: Dict[str, Any], conn) -> None:
+        """自动填充 id（用 word 值）/ review_count / performance。
+
+        id 直接使用 word 字段值（主键），利用 PRIMARY KEY 约束防止重复单词。
+        """
+        super()._autofill(entry, conn)
+        entry["id"] = f"word-{entry["word"]}"
+        entry.setdefault("review_count", 0)
+        entry.setdefault("performance", 0.0)
