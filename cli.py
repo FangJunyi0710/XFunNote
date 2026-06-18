@@ -52,6 +52,14 @@ def cmd_list(notename: str, entry_ids: str):
 		results = nb.get_by_id(conn, _parse_json_to_list(entry_ids))
 	typer.echo(json.dumps(results, ensure_ascii=False, indent=4))
 
+@app.command()
+def delete(notename: str, entry_ids: str):
+	"""批量删除条目。entry_ids 为 JSON 字符串，如 '["id1", "id2"]'。"""
+	nb = registry.notebook(notename)
+	ids = _parse_json_to_list(entry_ids)
+	with db.transaction() as conn:
+		nb.delete(conn, ids)
+
 
 if __name__ == "__main__":
 	app()

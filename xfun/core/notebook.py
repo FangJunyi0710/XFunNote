@@ -33,8 +33,9 @@ class Notebook(ABC):
     子类必须：
     1. 设置 name 属性（本子名称）
     2. 定义 _extra_columns 类属性（本子特有列，不含基类通用列）
-    3. 实现 add / list / delete / search
+    3. 实现 list 抽象方法
 
+    add / delete 已有基类默认实现（通过 _validate / _autofill 多态扩展）。
     columns 属性由 BASE_COLUMNS + _extra_columns 自动合并。
     """
 
@@ -119,9 +120,8 @@ class Notebook(ABC):
             if col.nullable and col.name not in entry:
                 entry[col.name] = None
 
-    # ---- 抽象 CRUD ----
+    # ---- CRUD ----
 
-    @abstractmethod
     def add(self, conn, entries: List[Dict[str, Any]]) -> List[str]:
         """
         批量添加条目。
@@ -138,7 +138,11 @@ class Notebook(ABC):
         list[str]
             新条目的 ID 列表。
         """
-        ...
+        for entry in entries:
+            self._validate(entry)
+            self._autofill(entry, conn)
+        conn.executemany(self._insert_sql(), entries)
+        return [entry["id"] for entry in entries]
 
     @abstractmethod
     def list(self, conn, filters: List[Filter], *,
@@ -168,24 +172,23 @@ class Notebook(ABC):
         """
         ...
 
-    @abstractmethod
-    def delete(self, conn, entry_id: str) -> bool:
+    def delete(self, conn, entry_ids: List[str]) -> None:
         """
-        删除指定条目。
+        批量删除条目。使用 executemany 逐条执行 DELETE。
 
         Parameters
         ----------
         conn : sqlite3.Connection
             事务连接，由上层通过 db.transaction() 提供。
-        entry_id : str
-            条目 ID。
-
-        Returns
-        -------
-        bool
-            是否删除成功。
+        entry_ids : list[str]
+            要删除的条目 ID 列表。
         """
-        ...
+        if not entry_ids:
+            return
+        conn.executemany(
+            f"DELETE FROM {self.name} WHERE id = :id",
+            [{"id": eid} for eid in entry_ids]
+        )
 
     # ---- 内置 ----
 

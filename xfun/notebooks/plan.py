@@ -21,13 +21,6 @@ class PlanNotebook(Notebook):
 
     # ---- CRUD ----
 
-    def add(self, conn, entries: List[Dict[str, Any]]) -> List[str]:
-        for entry in entries:
-            self._validate(entry)
-            self._autofill(entry, conn)
-        conn.executemany(self._insert_sql(), entries)
-        return [entry["id"] for entry in entries]
-
     def list(self, conn, filters: List[Filter], *,
              order_by: Optional[str] = None,
              limit: int = 50,
@@ -49,10 +42,6 @@ class PlanNotebook(Notebook):
 
         rows = conn.execute(sql, params).fetchall()
         return [dict(row) for row in rows]
-
-    def delete(self, conn, entry_id: str) -> bool:
-        cur = conn.execute("DELETE FROM plan WHERE id = :id", {"id": entry_id})
-        return cur.rowcount > 0
 
     # ---- 校验 & 自动填充 ----
 
