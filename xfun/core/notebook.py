@@ -21,8 +21,9 @@ BASE_COLUMNS = [
     Column("content",    "TEXT",    nullable=False),
     Column("created_at", "TEXT",    nullable=False, auto=True),
     Column("updated_at", "TEXT",    nullable=False, auto=True),
-    Column("tags",       "TEXT",    nullable=True),
+    Column("tags",       "TEXT",    nullable=False, auto=True), # json 数组：list[str]
     Column("is_ai_gen",  "INTEGER", nullable=False, auto=True),
+    Column("ai_tags",    "TEXT",    nullable=False, auto=True),
     Column("ai_note",    "TEXT",    nullable=True),
 ]
 
@@ -117,6 +118,8 @@ class Notebook(ABC):
         """自动填充通用字段：时间戳、可空列补 None。子类可重写以补充自有逻辑。"""
         entry["created_at"] = now_str()
         entry["updated_at"] = now_str()
+        entry.setdefault("tags","[]")
+        entry.setdefault("ai_tags","[]")
         entry.setdefault("is_ai_gen", 0)
         for col in self.columns:
             if col.nullable and col.name not in entry:
