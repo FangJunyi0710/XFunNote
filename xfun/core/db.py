@@ -64,8 +64,8 @@ class Column:
 @dataclass
 class Condition:
     column: str
-    value: Any
     op: str = "="
+    value: Any
     negate: bool = False
 
     _VALID_OPS = frozenset({"=", ">", "<", ">=", "<=", "!=", "LIKE", "NOT LIKE", "IN", "NOT IN", "BETWEEN"})

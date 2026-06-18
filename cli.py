@@ -79,7 +79,16 @@ if __name__ == "__main__":
 ./cli.py list plan '"plan-2607-001"'
 ./cli.py list plan '["plan-2607-001", "plan-2607-002"]'
 
-./cli.py listid plan --filter month=2606,done=0
+./cli.py listid plan
+./cli.py listid plan --filter '{"column": "month", "value": "2607"}'
+./cli.py listid plan --filter '[{"column": "month", "value": "2607"}]'
+./cli.py listid plan --filter '[[{"column": "month", "value": "2607"}]]'
+./cli.py listid plan --filter '[[{"column": "content", "value": "%test%", "op": "LIKE"}]]'
+./cli.py listid plan --filter '[[{"column": "month", "value": "2607"}, {"column": "done", "value": 0}]]'
+./cli.py listid plan --filter '[[{"column": "month", "value": "2607"}], [{"column": "month", "value": "2608"}]]'
+./cli.py listid plan --filter '[[{"column": "month", "value": ["2607", "2608"], "op": "IN"}]]'
+./cli.py listid plan --filter '[[{"column": "no", "value": [1, 10], "op": "BETWEEN"}]]'
+./cli.py listid plan --filter '[[{"column": "done", "value": 1, "negate": true}]]'
 
 ./cli.py delete plan '["plan-2607-001", "plan-2607-002"]'
 
