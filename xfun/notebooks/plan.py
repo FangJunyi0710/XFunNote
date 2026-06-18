@@ -6,9 +6,10 @@ plan 本：以月份为分组，管理待办事项 / 目标条目。
 
 from typing import Any, Dict, List, Optional
 
+from future_uuid import uuid7
+
 from ..core.db import Column, Filter
 from ..core.notebook import Notebook
-
 
 class PlanNotebook(Notebook):
     name = "plan"
@@ -20,11 +21,12 @@ class PlanNotebook(Notebook):
 
     # ---- CRUD ----
 
-    def add(self, conn, entry: Dict[str, Any]) -> str:
-        self._validate(entry)
-        self._autofill(entry, conn)
-        conn.execute(self._insert_sql(), entry)
-        return entry["id"]
+    def add(self, conn, entries: List[Dict[str, Any]]) -> List[str]:
+        for entry in entries:
+            self._validate(entry)
+            self._autofill(entry, conn)
+        conn.executemany(self._insert_sql(), entries)
+        return [entry["id"] for entry in entries]
 
     def list(self, conn, filters: List[Filter], *,
              order_by: Optional[str] = None,
@@ -62,21 +64,11 @@ class PlanNotebook(Notebook):
     # ---- 校验 & 自动填充 ----
 
     def _autofill(self, entry: Dict[str, Any], conn) -> None:
-        """自动填充 id / no / done / created_at。"""
+        """自动填充 id（uuid7）/ no / done / created_at。"""
         super()._autofill(entry, conn)
-        month = entry["month"]
-        no = self._next_no(month, conn)
-        entry["no"] = no
-        entry["id"] = f"plan-{month}-{no:03d}"
+        entry["id"] = f"plan-{entry["month"]}-{str(uuid7())}"
+        entry["no"] = 0       # TODO: 后续完善排序逻辑
         entry.setdefault("done", 0)
-
-    def _next_no(self, month: str, conn) -> int:
-        """返回指定月份的下一个编号。"""
-        row = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM plan WHERE month = :month",
-            {"month": month},
-        ).fetchone()
-        return row["cnt"] + 1
 
     # ---- 摘要 ----
 

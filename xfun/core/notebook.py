@@ -132,21 +132,21 @@ class Notebook(ABC):
     # ---- 抽象 CRUD ----
 
     @abstractmethod
-    def add(self, conn, entry: Dict[str, Any]) -> str:
+    def add(self, conn, entries: List[Dict[str, Any]]) -> List[str]:
         """
-        添加一条条目。
+        批量添加条目。
 
         Parameters
         ----------
         conn : sqlite3.Connection
             事务连接，由上层通过 db.transaction() 提供。
-        entry : dict
-            字段 → 值的映射，必须包含 columns 中定义的所有 NOT NULL 列。
+        entries : list[dict]
+            条目列表，每个 dict 为字段 → 值的映射。
 
         Returns
         -------
-        str
-            新条目的 ID。
+        list[str]
+            新条目的 ID 列表。
         """
         ...
 
