@@ -1,9 +1,10 @@
 from . import config
 from .core.db       import DB
 from .core.registry import Registry
-from .notebooks.plan  import PlanNotebook
-from .notebooks.diary import DiaryNotebook
-from .notebooks.word  import WordNotebook
+from .notebooks.plan         import PlanNotebook
+from .notebooks.diary        import DiaryNotebook
+from .notebooks.word         import WordNotebook
+from .notebooks.accumulation import AccumulationNotebook
 
 db       = DB()
 registry = Registry()
@@ -12,5 +13,6 @@ registry = Registry()
 registry.register("plan",  PlanNotebook())
 registry.register("diary", DiaryNotebook())
 registry.register("word",  WordNotebook())
+registry.register("accumulation", AccumulationNotebook())
 
 __all__ = ["db", "registry"]

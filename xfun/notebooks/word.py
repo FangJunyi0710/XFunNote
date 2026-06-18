@@ -3,7 +3,7 @@
 word 本：管理单词，记录单词、词性、音标、例句、复习数据。
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from ..core.db import Column
 from ..core.notebook import Notebook
@@ -31,6 +31,6 @@ class WordNotebook(Notebook):
         id 直接使用 word 字段值（主键），利用 PRIMARY KEY 约束防止重复单词。
         """
         super()._autofill(entry, conn)
-        entry["id"] = f"word-{entry["word"]}"
+        entry["id"] = f"{self.name}-{entry["word"]}"
         entry.setdefault("review_count", 0)
         entry.setdefault("performance", 0.0)

@@ -3,7 +3,7 @@
 diary 本：以日期为分组，记录每日日记。
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from future_uuid import uuid7
 
