@@ -13,13 +13,10 @@ from ..core.notebook import Notebook
 class PlanNotebook(Notebook):
     name = "plan"
     _extra_columns = [
-        Column("no",    "INTEGER", nullable=False),
+        Column("no",    "INTEGER", nullable=False, auto=True),
         Column("month", "TEXT",    nullable=False, index=True),
-        Column("done",  "INTEGER", default=0),
+        Column("done",  "INTEGER", nullable=False, auto=True),
     ]
-
-    # 追加自动填充字段（自动合并到基类的 _auto_fields）
-    _auto_fields = {"no", "done"}
 
     # ---- CRUD ----
 

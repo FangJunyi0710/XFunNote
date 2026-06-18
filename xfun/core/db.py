@@ -29,6 +29,8 @@ class Column:
         是否主键，默认 False。
     index : bool
         是否建索引，默认 False。
+    auto : bool
+        是否由系统自动填充，默认 False。
     """
     name: str
     col_type: str
@@ -36,6 +38,7 @@ class Column:
     default: Any = None
     primary_key: bool = False
     index: bool = False
+    auto: bool = False
 
     @property
     def sql(self) -> str:

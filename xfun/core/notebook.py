@@ -17,10 +17,10 @@ from ..utils.time_utils import now_str
 # ---------------------------------------------------------------------------
 
 BASE_COLUMNS = [
-    Column("id",         "TEXT", primary_key=True, nullable=False),
+    Column("id",         "TEXT", primary_key=True, nullable=False, auto=True),
     Column("content",    "TEXT", nullable=False),
-    Column("created_at", "TEXT", nullable=False),
-    Column("updated_at", "TEXT", nullable=False),
+    Column("created_at", "TEXT", nullable=False, auto=True),
+    Column("updated_at", "TEXT", nullable=False, auto=True),
     Column("tags",       "TEXT", nullable=True),
     Column("ai_note",    "TEXT", nullable=True),
 ]
@@ -43,17 +43,6 @@ class Notebook(ABC):
 
     name: str = ""
     _extra_columns: List[Column] = []
-
-    # ---- 自动填充字段（基类预置，子类可追加） ----
-    _auto_fields = {"id", "created_at", "updated_at"}
-
-    def __init_subclass__(cls, **kwargs):
-        """子类定义时自动合并 _auto_fields：子类的追加到基类集合。"""
-        super().__init_subclass__(**kwargs)
-        base = set(Notebook._auto_fields)
-        # 只取子类直接定义的 _auto_fields，去掉已继承的
-        extra = getattr(cls, "__dict__", {}).get("_auto_fields", set())
-        cls._auto_fields = base | extra
 
     # ---- 合并列 ----
 
@@ -117,7 +106,7 @@ class Notebook(ABC):
     def _validate(self, entry: Dict[str, Any]) -> None:
         """校验用户提供的必填字段（排除自动填充字段）。"""
         for col in self.columns:
-            if not col.nullable and col.name not in self._auto_fields:
+            if not col.nullable and not col.auto:
                 if col.name not in entry:
                     from .errors import EntryInvalidError
                     raise EntryInvalidError(
@@ -125,9 +114,12 @@ class Notebook(ABC):
                     )
 
     def _autofill(self, entry: Dict[str, Any], conn) -> None:
-        """自动填充通用字段：created_at。子类可重写以补充自有逻辑。"""
+        """自动填充通用字段：时间戳、可空列补 None。子类可重写以补充自有逻辑。"""
         entry["created_at"] = now_str()
         entry["updated_at"] = now_str()
+        for col in self.columns:
+            if col.nullable and col.name not in entry:
+                entry[col.name] = None
 
     # ---- 抽象 CRUD ----
 
