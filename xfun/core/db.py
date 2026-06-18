@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any, ClassVar, List, Optional, Sequence, Tuple
 
 from .. import config
+from .errors import InvalidColumnNameError, InvalidConditionValueError, InvalidOperatorError
 
 
 # ---------------------------------------------------------------------------
@@ -46,7 +47,7 @@ class Column:
     @classmethod
     def check(cls, name: str) -> None:
         if not cls._COLUMN_PATTERN.match(name):
-            raise ValueError(f"非法列名: {name!r}")
+            raise InvalidColumnNameError(name)
 
     @property
     def sql(self) -> str:
@@ -103,7 +104,9 @@ class Condition:
 
         Raises
         ------
-        ValueError
+        InvalidColumnNameError
+        InvalidOperatorError
+        InvalidConditionValueError
         """
         Column.check(self.column)
 
@@ -111,7 +114,7 @@ class Condition:
         if handler is not None:
             sql, params = handler(self.column, self.value, self.op)
         else:
-            raise ValueError(f"非法运算符: {self.op!r}")
+            raise InvalidOperatorError(self.op)
         
         if self.negate:
             sql = f"NOT ({sql})"
@@ -135,14 +138,14 @@ def _builtin_sql(column, value, op) -> Tuple[str, list]:
             return f"{column} IS NULL", []
         if op == "!=":
             return f"{column} IS NOT NULL", []
-        raise ValueError(
+        raise InvalidConditionValueError(
             f"值为 None 时仅支持运算符 = 和 !=，收到 {op!r}"
         )
 
     # --- IN / NOT IN ---
     if op in ("IN", "NOT IN"):
         if not isinstance(value, (list, tuple)) or not value:
-            raise ValueError(f"运算符 {op!r} 的值必须是非空列表或元组，收到 {type(value).__name__}")
+            raise InvalidConditionValueError(f"运算符 {op!r} 的值必须是非空列表或元组，收到 {type(value).__name__}")
         placeholders = ", ".join("?" for _ in value)
         sql = f"{column} {op} ({placeholders})"
         params = list(value)
@@ -150,7 +153,7 @@ def _builtin_sql(column, value, op) -> Tuple[str, list]:
     # --- BETWEEN ---
     elif op == "BETWEEN":
         if not isinstance(value, (list, tuple)) or len(value) != 2 or value[0] is None or value[1] is None:
-            raise ValueError("BETWEEN 的值必须是包含两个元素的列表或元组")
+            raise InvalidConditionValueError("BETWEEN 的值必须是包含两个元素的列表或元组")
         sql = f"{column} {op} ? AND ?"
         params = list(value)
 
