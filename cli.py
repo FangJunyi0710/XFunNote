@@ -95,6 +95,14 @@ def delete(notename: str, entry_ids: str):
 	with db.transaction() as conn:
 		nb.delete(conn, ids)
 
+@app.command()
+def update(notename: str, entry_ids: str, entry: str):
+	"""批量更新条目。entry_ids 为 ID 列表 JSON，entry 为更新字段 JSON。"""
+	nb = registry.notebook(notename)
+	ids = _parse_list_json(entry_ids)
+	entry_dict = json.loads(entry)
+	with db.transaction() as conn:
+		nb.update(conn, ids, entry_dict)
 
 if __name__ == "__main__":
 	app()
@@ -127,6 +135,6 @@ if __name__ == "__main__":
 
 ./cli.py delete plan '["plan-2607-001", "plan-2607-002"]'
 
-./cli.py update plan plan-2607-001 plan-2607-005 --set done=1
+./cli.py update plan '["plan-2607-001","plan-2607-005"]' '{"done": 1}'
 
 '''

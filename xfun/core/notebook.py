@@ -197,6 +197,32 @@ class Notebook(ABC):
             [{"id": eid} for eid in entry_ids]
         )
 
+    def update(self, conn, entry_ids: List[str], entry: Dict[str, Any]) -> None:
+        """
+        批量更新条目。
+
+        Parameters
+        ----------
+        conn : sqlite3.Connection
+            事务连接，由上层通过 db.transaction() 提供。
+        entry_ids : list[str]
+            要更新的条目 ID 列表。
+        entry : dict
+            要更新的字段映射，只包含需要修改的列。
+        """
+        if not entry_ids:
+            return
+
+        set_clause = ", ".join(f"{k} = :{k}" for k in entry)
+        entry["updated_at"] = now_str()
+        set_clause += ", updated_at = :updated_at"
+
+        params = [{**entry, "id": eid} for eid in entry_ids]
+        conn.executemany(
+            f"UPDATE {self.name} SET {set_clause} WHERE id = :id",
+            params
+        )
+
     # ---- 内置 ----
 
     def __repr__(self) -> str:
