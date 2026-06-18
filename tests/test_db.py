@@ -44,9 +44,29 @@ class TestConditionEdgeCases:
         with pytest.raises(InvalidConditionError):
             Condition("col", None, ">").to_sql()
 
-    def test_empty_in_raises(self):
+    def test_empty_in_is_false(self):
+        """空 IN 列表应生成 1=0（永假）。"""
+        sql, params = Condition("col", [], "IN").to_sql()
+        assert sql == "1=0" and params == []
+
+    def test_empty_not_in_is_true(self):
+        """空 NOT IN 列表应生成 1=1（永真）。"""
+        sql, params = Condition("col", [], "NOT IN").to_sql()
+        assert sql == "1=1" and params == []
+
+    def test_empty_in_negated(self):
+        """空 IN + negate → NOT (1=0) → 1=1。"""
+        sql, params = Condition("col", [], "IN", negate=True).to_sql()
+        assert sql == "NOT (1=0)" and params == []
+
+    def test_empty_not_in_negated(self):
+        """空 NOT IN + negate → NOT (1=1) → 1=0。"""
+        sql, params = Condition("col", [], "NOT IN", negate=True).to_sql()
+        assert sql == "NOT (1=1)" and params == []
+
+    def test_non_list_in_raises(self):
         with pytest.raises(InvalidConditionError):
-            Condition("col", [], "IN").to_sql()
+            Condition("col", "not_a_list", "IN").to_sql()
 
     def test_unknown_op_raises(self):
         with pytest.raises(InvalidConditionError):
@@ -135,6 +155,11 @@ class TestToSql:
         assert sql.startswith("NOT ")
         assert params == [1, 2, 3]
 
+    def test_negate_empty_returns_empty(self):
+        """([], True) → clause 为空，直接返回 ("", [])。"""
+        sql, params = to_sql(([], True))
+        assert sql == "" and params == []
+
     def test_negate_or_group(self):
         """取反一组 OR 条件。"""
         sql, params = to_sql(([
@@ -164,19 +189,32 @@ class TestCheckOrderBy:
 
 
 class TestBetweenEdgeCases:
-    """BETWEEN 运算符的非法输入。"""
+    """BETWEEN 运算符的边界。"""
 
     def test_between_none_value_raises(self):
-        with pytest.raises(InvalidConditionError):
-            Condition("col", [None, 10], "BETWEEN").to_sql()
+        """[None, 10] → 1=0。"""
+        sql, params = Condition("col", [None, 10], "BETWEEN").to_sql()
+        assert sql == "1=0" and params == []
 
     def test_between_partial_none_raises(self):
-        with pytest.raises(InvalidConditionError):
-            Condition("col", [None, None], "BETWEEN").to_sql()
+        """[None, None] → 1=0。"""
+        sql, params = Condition("col", [None, None], "BETWEEN").to_sql()
+        assert sql == "1=0" and params == []
 
     def test_between_wrong_length_raises(self):
+        """长度不为 2 仍应抛异常。"""
         with pytest.raises(InvalidConditionError):
             Condition("col", [1, 2, 3], "BETWEEN").to_sql()
+
+    def test_between_non_list_raises(self):
+        """非列表类型仍应抛异常。"""
+        with pytest.raises(InvalidConditionError):
+            Condition("col", "not_a_list", "BETWEEN").to_sql()
+
+    def test_between_negated_with_none(self):
+        """BETWEEN [None, 10] + negate → NOT (1=0)。"""
+        sql, params = Condition("col", [None, 10], "BETWEEN", negate=True).to_sql()
+        assert sql == "NOT (1=0)" and params == []
 
 
 class TestToSqlEdgeCases:

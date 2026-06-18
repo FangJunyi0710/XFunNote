@@ -161,16 +161,22 @@ def _builtin_sql(column, value, op) -> Tuple[str, list]:
 
     # --- IN / NOT IN ---
     if op in ("IN", "NOT IN"):
-        if not isinstance(value, (list, tuple)) or not value:
+        if not isinstance(value, (list, tuple)):
             raise InvalidConditionError(Condition(column, value, op, False))
+        if not value:
+            # 空列表：IN → 永假，NOT IN → 永真
+            return ("1=0", []) if op == "IN" else ("1=1", [])
         placeholders = ", ".join("?" for _ in value)
         sql = f"{column} {op} ({placeholders})"
         params = list(value)
 
     # --- BETWEEN ---
     elif op == "BETWEEN":
-        if not isinstance(value, (list, tuple)) or len(value) != 2 or value[0] is None or value[1] is None:
+        if not isinstance(value, (list, tuple)) or len(value) != 2:
             raise InvalidConditionError(Condition(column, value, op, False))
+        if value[0] is None or value[1] is None:
+            # 任意端点为 None → 永假
+            return "1=0", []
         sql = f"{column} {op} ? AND ?"
         params = list(value)
 
@@ -204,6 +210,8 @@ def to_sql(filter: Filter) -> Tuple[str, list]:
     if isinstance(filter, tuple):
         inner, negate = filter
         clause, vals = to_sql(inner)
+        if not clause:
+            return "", []
         if negate:
             clause = f"NOT ({clause})"
         return clause, vals
@@ -220,6 +228,8 @@ def to_sql(filter: Filter) -> Tuple[str, list]:
                 clause, vals = item.to_sql()
             else:
                 clause, vals = to_sql(item)
+            if not clause:
+                continue
             and_clauses.append(f"({clause})")
             params.extend(vals)
         if not and_clauses:
