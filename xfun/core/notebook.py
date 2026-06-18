@@ -8,7 +8,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
-from .db import Column, Filter
+from .db import Column, Filter, build_where
 from ..utils.time_utils import now_str
 
 
@@ -146,7 +146,7 @@ class Notebook(ABC):
 
     def list(self, conn, filter: Filter, *,
              order_by: Optional[str] = None,
-             limit: int = 50,
+             limit: int = -1,
              offset: int = 0) -> List[str]:
         """
         按筛选条件列出条目。
@@ -169,7 +169,15 @@ class Notebook(ABC):
         List[str]
             ID 列表。
         """
-        raise NotImplementedError("Notebook.list() 未实现")
+        where_sql, params = build_where(filter)
+        sql = f"SELECT id FROM {self.name}"
+        if where_sql:
+            sql += f" WHERE {where_sql}"
+        if order_by:
+            sql += f" ORDER BY {order_by}"
+        sql += f" LIMIT {limit} OFFSET {offset}"
+        rows = conn.execute(sql, params).fetchall()
+        return [row["id"] for row in rows]
 
     def delete(self, conn, entry_ids: List[str]) -> None:
         """

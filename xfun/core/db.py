@@ -64,8 +64,8 @@ class Column:
 @dataclass
 class Condition:
     column: str
-    op: str = "="
     value: Any
+    op: str = "="
     negate: bool = False
 
     _VALID_OPS = frozenset({"=", ">", "<", ">=", "<=", "!=", "LIKE", "NOT LIKE", "IN", "NOT IN", "BETWEEN"})
@@ -140,7 +140,7 @@ def build_where(filter: Filter) -> Tuple[str, list]:
     Returns
     -------
     tuple[str, list]
-        (WHERE 子句 SQL 片段, 参数值列表，按 ? 出现顺序对应)
+        (WHERE 子句 SQL 片段，可能为空，参数值列表，按 ? 出现顺序对应)
     """
     if not filter:
         return "", []

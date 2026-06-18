@@ -15,4 +15,4 @@ diff.*
 input/
 output/
 
-*.db
+data/

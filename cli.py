@@ -2,7 +2,9 @@
 # cli.py
 import shutil
 import typer
+from typing import Optional
 from xfun import db,registry
+from xfun.core.db import Condition
 import json
 from dataclasses import asdict
 from pathlib import Path
@@ -10,10 +12,31 @@ from pathlib import Path
 app = typer.Typer(no_args_is_help=True)
 
 
-def _parse_json_to_list(s: str):
+def _parse_list_json(s: str):
 	"""解析 JSON 字符串，返回列表。若为单个 JSON 值则包装成单元素列表。"""
 	data = json.loads(s)
 	return data if isinstance(data, list) else [data]
+
+
+def _parse_filter_json(s: str):
+	"""将 JSON 筛选条件解析为 Filter（Sequence[Sequence[Condition]]）。
+
+	接受以下输入格式：
+	- 单个条件 dict：     {"column": "month", "value": "2607"}
+	- AND 组条件列表：    [{"column": "month", "value": "2607"}]
+	- OR of ANDs 二维：  [[{"column": "month", "value": "2607"}]]
+	"""
+	data = json.loads(s)
+	if isinstance(data, dict):
+		return [[Condition(**data)]]
+	if isinstance(data, list):
+		if not data:
+			return []
+		if isinstance(data[0], dict):
+			return [[Condition(**d) for d in data]]
+		if isinstance(data[0], list):
+			return [[Condition(**d) for d in group] for group in data]
+	raise ValueError(f"无法识别的 filter JSON 格式: {s}")
 
 @app.command()
 def init():
@@ -34,7 +57,7 @@ def reset():
 def add(notename: str, entry: str):
 	nb = registry.notebook(notename)
 	with db.transaction() as conn:
-		ids = nb.add(conn, _parse_json_to_list(entry))
+		ids = nb.add(conn, _parse_list_json(entry))
 	typer.echo(json.dumps(ids, ensure_ascii=False, indent=4))
 
 @app.command()
@@ -49,14 +72,26 @@ def listcolumns(notename: str):
 def cmd_list(notename: str, entry_ids: str):
 	nb = registry.notebook(notename)
 	with db.transaction() as conn:
-		results = nb.get_by_id(conn, _parse_json_to_list(entry_ids))
+		results = nb.get_by_id(conn, _parse_list_json(entry_ids))
 	typer.echo(json.dumps(results, ensure_ascii=False, indent=4))
+
+@app.command()
+def listid(notename: str,
+           filter: Optional[str] = typer.Option(None, "--filter", "-f"),
+           limit: int = typer.Option(-1, "--limit", "-l", help="最大返回条数，默认展示全部"),
+           offset: int = typer.Option(0, "--offset", "-o", help="偏移量")):
+	"""按条件列出条目 ID。"""
+	nb = registry.notebook(notename)
+	parsed_filter = _parse_filter_json(filter) if filter else []
+	with db.read_transaction() as conn:
+		ids = nb.list(conn, parsed_filter, limit=limit, offset=offset)
+	typer.echo(json.dumps(ids, ensure_ascii=False, indent=4))
 
 @app.command()
 def delete(notename: str, entry_ids: str):
 	"""批量删除条目。entry_ids 为 JSON 字符串，如 '["id1", "id2"]'。"""
 	nb = registry.notebook(notename)
-	ids = _parse_json_to_list(entry_ids)
+	ids = _parse_list_json(entry_ids)
 	with db.transaction() as conn:
 		nb.delete(conn, ids)
 
