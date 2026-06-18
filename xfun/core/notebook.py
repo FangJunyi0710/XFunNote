@@ -34,7 +34,6 @@ class Notebook(ABC):
     1. 设置 name 属性（本子名称）
     2. 定义 _extra_columns 类属性（本子特有列，不含基类通用列）
     3. 实现 add / list / delete / search
-    4. （可选）重写 _serialize / _deserialize 控制存取格式
 
     columns 属性由 BASE_COLUMNS + _extra_columns 自动合并。
     """
@@ -84,22 +83,6 @@ class Notebook(ABC):
                     f"ON {self.name}({col.name})"
                 )
                 conn.execute(idx_sql)
-
-    # ---- 序列化 / 反序列化 ----
-
-    def _serialize(self, entry: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        写入数据库前的序列化。子类可重写以做转换（如 list→json）。
-        默认直接透传。
-        """
-        return entry
-
-    def _deserialize(self, row: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        从数据库读出后的反序列化。子类可重写以做转换（如 json→list）。
-        默认直接透传。
-        """
-        return row
 
     # ---- 校验 & 自动填充（通用） ----
 
