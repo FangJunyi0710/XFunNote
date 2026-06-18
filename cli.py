@@ -78,13 +78,14 @@ def cmd_list(notename: str, entry_ids: str):
 @app.command()
 def listid(notename: str,
            filter: Optional[str] = typer.Option(None, "--filter", "-f"),
+           order_by: Optional[str] = typer.Option(None, "--order-by", "-O", help="排序列名，支持逗号分隔多列及 ASC/DESC，如 'month ASC, seq'"),
            limit: int = typer.Option(-1, "--limit", "-l", help="最大返回条数，默认展示全部"),
            offset: int = typer.Option(0, "--offset", "-o", help="偏移量")):
 	"""按条件列出条目 ID。"""
 	nb = registry.notebook(notename)
 	parsed_filter = _parse_filter_json(filter) if filter else []
 	with db.read_transaction() as conn:
-		ids = nb.list(conn, parsed_filter, limit=limit, offset=offset)
+		ids = nb.list(conn, parsed_filter, order_by=order_by, limit=limit, offset=offset)
 	typer.echo(json.dumps(ids, ensure_ascii=False, indent=4))
 
 @app.command()
@@ -132,6 +133,8 @@ if __name__ == "__main__":
 ./cli.py listid plan --filter '[[{"column": "month", "value": ["2607", "2608"], "op": "IN"}]]'
 ./cli.py listid plan --filter '[[{"column": "no", "value": [1, 10], "op": "BETWEEN"}]]'
 ./cli.py listid plan --filter '[[{"column": "done", "value": 1, "negate": true}]]'
+./cli.py listid plan --order-by 'month ASC, seq DESC'
+./cli.py listid plan --filter '{"column": "month", "value": "2607"}' --order-by 'no' --limit 5
 
 ./cli.py delete plan '["plan-2607-001", "plan-2607-002"]'
 

@@ -1,4 +1,8 @@
-from .db import Condition
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .db import Condition
 
 class XFunError(Exception):
     """XFunNote 所有异常的基类。"""
@@ -26,7 +30,7 @@ class InvalidSQLError(XFunError):
     """非法SQL片段。"""
 
     def __init__(self, name: str):
-        super().__init__(f"非法列名: {name!r}")
+        super().__init__(f"非法SQL片段: {name!r}")
         self.name = name
 
 
