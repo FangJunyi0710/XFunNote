@@ -179,6 +179,7 @@ class Notebook(ABC):
         if where_sql:
             sql += f" WHERE {where_sql}"
         if order_by:
+            Column.check_order_by(order_by)
             sql += f" ORDER BY {order_by}"
         sql += f" LIMIT {limit} OFFSET {offset}"
         rows = conn.execute(sql, params).fetchall()
