@@ -182,23 +182,32 @@ def _builtin_sql(column, value, op) -> Tuple[str, list]:
     return sql, params
 
 
-Filter = Seq[Seq[Union["Filter", Condition]]]  # 递归结构：外层 OR，内层 AND，元素可为子 Filter 或 Condition
+Filter = Union[Seq[Seq[Union["Filter", Condition]]], Tuple["Filter", bool]]
+# 递归结构：外层 OR、内层 AND，元素可为子 Filter 或 Condition。
+# 最外层支持 (Filter, negate) 元组对整个结果取反。
 
 def to_sql(filter: Filter) -> Tuple[str, list]:
     """
     生成 WHERE 子句：外层 OR（取并），内层 AND（取交）。
-    内层元素可以是 Condition 或子 Filter（递归处理）。
+    最外层可为 (Filter, bool) 元组，bool=True 时对整个结果取反。
 
     Parameters
     ----------
     filter : Filter
-        Filter 结构，外层为 OR 组，内层为 AND 组，元素可为 Condition 或子 Filter。
+        Filter 结构或 (Filter, bool) 元组。
 
     Returns
     -------
     tuple[str, list]
         (WHERE 子句 SQL 片段，可能为空，参数值列表)
     """
+    if isinstance(filter, tuple):
+        inner, negate = filter
+        clause, vals = to_sql(inner)
+        if negate:
+            clause = f"NOT ({clause})"
+        return clause, vals
+
     if not filter:
         return "", []
 
@@ -211,7 +220,7 @@ def to_sql(filter: Filter) -> Tuple[str, list]:
                 clause, vals = item.to_sql()
             else:
                 clause, vals = to_sql(item)
-            and_clauses.append(clause)
+            and_clauses.append(f"({clause})")
             params.extend(vals)
         if not and_clauses:
             continue
