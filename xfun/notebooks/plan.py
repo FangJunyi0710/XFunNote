@@ -2,48 +2,31 @@
 """
 plan 本：以月份为分组，管理待办事项 / 目标条目。
 
-每条记录包含：
-- id        : 主键，自动生成  plan-{month}-{no}
-- no        : 月份内编号，自动递增
-- month     : 所属月份，如 "2606"
-- content   : 事项内容
-- done      : 是否完成，默认 0
-- created_at: 创建时间，自动填充
 """
 
 from typing import Any, Dict, List, Optional
 
 from ..core.db import Column, Filter
 from ..core.notebook import Notebook
-from ..core.errors import EntryInvalidError
-from ..utils.time_utils import now_str
 
 
 class PlanNotebook(Notebook):
-    name    = "plan"
-    columns = [
-        Column("id",         "TEXT",    primary_key=True),
-        Column("no",         "INTEGER", nullable=False),
-        Column("month",      "TEXT",    nullable=False, index=True),
-        Column("content",    "TEXT",    nullable=False),
-        Column("done",       "INTEGER", default=0),
-        Column("created_at", "TEXT",    nullable=False),
+    name = "plan"
+    _extra_columns = [
+        Column("no",    "INTEGER", nullable=False),
+        Column("month", "TEXT",    nullable=False, index=True),
+        Column("done",  "INTEGER", default=0),
     ]
 
-    # ---- 自动填充字段（用户不需要提供） ----
-    _auto_fields = {"id", "no", "done", "created_at"}
+    # 追加自动填充字段（自动合并到基类的 _auto_fields）
+    _auto_fields = {"no", "done"}
 
     # ---- CRUD ----
 
     def add(self, conn, entry: Dict[str, Any]) -> str:
-        # 用户只需提供 month, content
         self._validate(entry)
         self._autofill(entry, conn)
-        conn.execute(
-            "INSERT INTO plan (id, no, month, content, done, created_at) "
-            "VALUES (:id, :no, :month, :content, :done, :created_at)",
-            entry,
-        )
+        conn.execute(self._insert_sql(), entry)
         return entry["id"]
 
     def list(self, conn, filters: List[Filter], *,
@@ -81,24 +64,14 @@ class PlanNotebook(Notebook):
 
     # ---- 校验 & 自动填充 ----
 
-    def _validate(self, entry: Dict[str, Any]) -> None:
-        """校验用户提供的必填字段（排除自动填充字段）。"""
-        for col in self.columns:
-            if not col.nullable and col.name not in self._auto_fields:
-                if col.name not in entry:
-                    raise EntryInvalidError(
-                        self.name, f"缺少必填字段 '{col.name}'"
-                    )
-
     def _autofill(self, entry: Dict[str, Any], conn) -> None:
         """自动填充 id / no / done / created_at。"""
+        super()._autofill(entry, conn)
         month = entry["month"]
-        # 计算月份内编号：当前月份已有条目数 + 1
         no = self._next_no(month, conn)
         entry["no"] = no
         entry["id"] = f"plan-{month}-{no:03d}"
         entry.setdefault("done", 0)
-        entry["created_at"] = now_str()
 
     def _next_no(self, month: str, conn) -> int:
         """返回指定月份的下一个编号。"""

@@ -9,6 +9,21 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
 from .db import Column, Filter
+from ..utils.time_utils import now_str
+
+
+# ---------------------------------------------------------------------------
+# 通用基类列定义 —— 所有本子共有的字段
+# ---------------------------------------------------------------------------
+
+BASE_COLUMNS = [
+    Column("id",         "TEXT", primary_key=True, nullable=False),
+    Column("content",    "TEXT", nullable=False),
+    Column("created_at", "TEXT", nullable=False),
+    Column("updated_at", "TEXT", nullable=False),
+    Column("tags",       "TEXT", nullable=True),
+    Column("ai_note",    "TEXT", nullable=True),
+]
 
 
 class Notebook(ABC):
@@ -17,15 +32,44 @@ class Notebook(ABC):
 
     子类必须：
     1. 设置 name 属性（本子名称）
-    2. 定义 columns 类属性（数据库列 schema）
+    2. 定义 _extra_columns 类属性（本子特有列，不含基类通用列）
     3. 实现 add / list / delete / search
     4. （可选）重写 _serialize / _deserialize 控制存取格式
+
+    columns 属性由 BASE_COLUMNS + _extra_columns 自动合并。
     """
 
     # ---- 子类必须设定 ----
 
-    name: str = ""                     # 本子名称，如 "plan"
-    columns: List[Column] = []         # 数据库列定义
+    name: str = ""
+    _extra_columns: List[Column] = []
+
+    # ---- 自动填充字段（基类预置，子类可追加） ----
+    _auto_fields = {"id", "created_at", "updated_at"}
+
+    def __init_subclass__(cls, **kwargs):
+        """子类定义时自动合并 _auto_fields：子类的追加到基类集合。"""
+        super().__init_subclass__(**kwargs)
+        base = set(Notebook._auto_fields)
+        # 只取子类直接定义的 _auto_fields，去掉已继承的
+        extra = getattr(cls, "__dict__", {}).get("_auto_fields", set())
+        cls._auto_fields = base | extra
+
+    # ---- 合并列 ----
+
+    @property
+    def columns(self) -> List[Column]:
+        """合并基类通用列 + 子类特有列"""
+        return BASE_COLUMNS + self._extra_columns
+
+    # ---- 自动生成 INSERT SQL ----
+
+    def _insert_sql(self) -> str:
+        """根据 self.columns 自动生成 INSERT 语句。"""
+        col_names = [c.name for c in self.columns]
+        cols = ", ".join(col_names)
+        vals = ", ".join(f":{n}" for n in col_names)
+        return f"INSERT INTO {self.name} ({cols}) VALUES ({vals})"
 
     # ---- 数据库操作 ----
 
@@ -67,6 +111,23 @@ class Notebook(ABC):
         默认直接透传。
         """
         return row
+
+    # ---- 校验 & 自动填充（通用） ----
+
+    def _validate(self, entry: Dict[str, Any]) -> None:
+        """校验用户提供的必填字段（排除自动填充字段）。"""
+        for col in self.columns:
+            if not col.nullable and col.name not in self._auto_fields:
+                if col.name not in entry:
+                    from .errors import EntryInvalidError
+                    raise EntryInvalidError(
+                        self.name, f"缺少必填字段 '{col.name}'"
+                    )
+
+    def _autofill(self, entry: Dict[str, Any], conn) -> None:
+        """自动填充通用字段：created_at。子类可重写以补充自有逻辑。"""
+        entry["created_at"] = now_str()
+        entry["updated_at"] = now_str()
 
     # ---- 抽象 CRUD ----
 
