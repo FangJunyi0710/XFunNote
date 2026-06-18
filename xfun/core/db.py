@@ -90,22 +90,32 @@ class DB:
         self.db_path = db_path or config.DB_PATH
 
     def _ensure_data_dir(self) -> None:
-        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        dirname = os.path.dirname(self.db_path)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
 
     def _connect(self) -> sqlite3.Connection:
-        """建立新连接，统一设置 row_factory。"""
+        """建立新连接，统一设置 row_factory 并启用 WAL 模式。"""
         self._ensure_data_dir()
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
         return conn
 
     # ---- 事务 ----
 
     def transaction(self):
         """
-        返回事务上下文管理器。用于包裹跨多个 Notebook 的操作。
+        返回写事务上下文管理器（BEGIN IMMEDIATE）。用于包裹跨多个 Notebook 的写入操作。
         """
         return _TransactionContext(self)
+
+    def read_transaction(self):
+        """
+        返回只读事务上下文管理器（普通 BEGIN，不阻塞写入者）。
+        WAL 模式下读取不阻塞写入，写入不阻塞读取。
+        """
+        return _ReadTransactionContext(self)
 
     # ---- 初始化 ----
 
@@ -118,16 +128,13 @@ class DB:
         registry : Registry
             Notebook 注册中心，遍历其中每个 notebook 调用 init_table()。
         """
-        conn = self._connect()
-        conn.execute("BEGIN IMMEDIATE")
-        for nb in registry:
-            nb.init_table(conn)
-        conn.commit()
-        conn.close()
+        with self.transaction() as conn:
+            for nb in registry:
+                nb.init_table(conn)
 
 
 class _TransactionContext:
-    """事务上下文管理器：退出时根据异常自动 commit/rollback。"""
+    """写事务上下文管理器：BEGIN IMMEDIATE，阻塞写入者并发。"""
 
     def __init__(self, db: DB):
         self.db = db
@@ -136,6 +143,30 @@ class _TransactionContext:
     def __enter__(self) -> sqlite3.Connection:
         self.conn = self.db._connect()
         self.conn.execute("BEGIN IMMEDIATE") # 主动加写锁，避免高并发下的 SQLITE_BUSY 重试
+        return self.conn
+
+    def __exit__(self, exc_type, exc_val, tb) -> None:
+        if self.conn is None:
+            return
+        try:
+            if exc_type is None:
+                self.conn.commit()
+            else:
+                self.conn.rollback()
+        finally:
+            self.conn.close()
+
+
+class _ReadTransactionContext:
+    """只读事务上下文管理器：普通 BEGIN，不阻塞写入者（WAL 模式下）。"""
+
+    def __init__(self, db: DB):
+        self.db = db
+        self.conn: Optional[sqlite3.Connection] = None
+
+    def __enter__(self) -> sqlite3.Connection:
+        self.conn = self.db._connect()
+        self.conn.execute("BEGIN")  # 不加 IMMEDIATE，不阻塞写入
         return self.conn
 
     def __exit__(self, exc_type, exc_val, tb) -> None:
