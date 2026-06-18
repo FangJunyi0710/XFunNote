@@ -36,24 +36,28 @@ class Column:
     name: str
     col_type: str
     nullable: bool = True
-    default: Any = None
     primary_key: bool = False
     index: bool = False
     auto: bool = False
 
+    # 所有拼接到sql中的列名需满足此
+    _COLUMN_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*$")
+
+    @classmethod
+    def check(cls, name: str) -> None:
+        if not cls._COLUMN_PATTERN.match(name):
+            raise ValueError(f"非法列名: {name!r}")
+
     @property
     def sql(self) -> str:
         """生成 CREATE TABLE 用的列定义片段。"""
+        self.check(self.name)
         parts = [self.name, self.col_type]
         if self.primary_key:
             parts.append("PRIMARY KEY")
         if not self.nullable:
             parts.append("NOT NULL")
-        if self.default is not None:
-            if isinstance(self.default, str):
-                parts.append(f"DEFAULT '{self.default}'")
-            else:
-                parts.append(f"DEFAULT {self.default}")
+
         return " ".join(parts)
 
 
@@ -68,7 +72,6 @@ class Condition:
     op: str = "="
     negate: bool = False
 
-    _COLUMN_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*$")
     _op_registry: ClassVar[dict] = {}
 
     @classmethod
@@ -102,8 +105,7 @@ class Condition:
         ------
         ValueError
         """
-        if not self._COLUMN_PATTERN.match(self.column):
-            raise ValueError(f"非法列名: {self.column!r}")
+        Column.check(self.column)
 
         handler = self._op_registry.get(self.op)
         if handler is not None:

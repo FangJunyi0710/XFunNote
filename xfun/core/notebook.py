@@ -217,7 +217,8 @@ class Notebook(ABC):
         """
         if not entry_ids:
             return
-
+        for k in entry:
+            Column.check(k)
         set_clause = ", ".join(f"{k} = :{k}" for k in entry)
         entry["updated_at"] = now_str()
         set_clause += ", updated_at = :updated_at"
