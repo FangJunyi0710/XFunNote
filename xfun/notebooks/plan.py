@@ -35,19 +35,18 @@ class PlanNotebook(Notebook):
 
     # ---- CRUD ----
 
-    def add(self, entry: Dict[str, Any]) -> str:
+    def add(self, conn, entry: Dict[str, Any]) -> str:
         # 用户只需提供 month, content
         self._validate(entry)
-        self._autofill(entry)
-        self.db.execute(
+        self._autofill(entry, conn)
+        conn.execute(
             "INSERT INTO plan (id, no, month, content, done, created_at) "
             "VALUES (:id, :no, :month, :content, :done, :created_at)",
             entry,
         )
-        self.db.commit()
         return entry["id"]
 
-    def list(self, filters: List[Filter], *,
+    def list(self, conn, filters: List[Filter], *,
              order_by: Optional[str] = None,
              limit: int = 50,
              offset: int = 0) -> List[Dict[str, Any]]:
@@ -68,16 +67,16 @@ class PlanNotebook(Notebook):
         params["limit"] = limit
         params["offset"] = offset
 
-        rows = self.db.execute(sql, params).fetchall()
+        rows = conn.execute(sql, params).fetchall()
         return [dict(row) for row in rows]
 
-    def delete(self, entry_id: str) -> bool:
-        cur = self.db.execute("DELETE FROM plan WHERE id = :id", {"id": entry_id})
-        self.db.commit()
+    def delete(self, conn, entry_id: str) -> bool:
+        cur = conn.execute("DELETE FROM plan WHERE id = :id", {"id": entry_id})
         return cur.rowcount > 0
 
-    def search(self, query: str, *, limit: int = 50) -> List[Dict[str, Any]]:
+    def search(self, conn, query: str, *, limit: int = 50) -> List[Dict[str, Any]]:
         return self.list(
+            conn,
             [Filter("content", f"%{query}%", op="LIKE")],
             limit=limit,
         )
@@ -93,19 +92,19 @@ class PlanNotebook(Notebook):
                         self.name, f"缺少必填字段 '{col.name}'"
                     )
 
-    def _autofill(self, entry: Dict[str, Any]) -> None:
+    def _autofill(self, entry: Dict[str, Any], conn) -> None:
         """自动填充 id / no / done / created_at。"""
         month = entry["month"]
         # 计算月份内编号：当前月份已有条目数 + 1
-        no = self._next_no(month)
+        no = self._next_no(month, conn)
         entry["no"] = no
         entry["id"] = f"plan-{month}-{no:03d}"
         entry.setdefault("done", 0)
         entry["created_at"] = now_str()
 
-    def _next_no(self, month: str) -> int:
+    def _next_no(self, month: str, conn) -> int:
         """返回指定月份的下一个编号。"""
-        row = self.db.execute(
+        row = conn.execute(
             "SELECT COUNT(*) AS cnt FROM plan WHERE month = :month",
             {"month": month},
         ).fetchone()
@@ -113,9 +112,9 @@ class PlanNotebook(Notebook):
 
     # ---- 摘要 ----
 
-    def summary(self) -> str:
+    def summary(self, conn) -> str:
         """供 AI 使用的计划概览。"""
-        rows = self.db.execute(
+        rows = conn.execute(
             "SELECT month, COUNT(*) AS total, SUM(done) AS done_cnt "
             "FROM plan GROUP BY month ORDER BY month DESC"
         ).fetchall()

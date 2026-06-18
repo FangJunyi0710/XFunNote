@@ -27,28 +27,22 @@ class Notebook(ABC):
     name: str = ""                     # 本子名称，如 "plan"
     columns: List[Column] = []         # 数据库列定义
 
-    # ---- 构造注入 ----
-
-    def __init__(self, db=None) -> None:
-        """
-        Parameters
-        ----------
-        db : DB, optional
-            数据库实例，通过构造函数注入。
-        """
-        self.db = db
-
     # ---- 数据库操作 ----
 
-    def init_table(self) -> None:
+    def init_table(self, conn) -> None:
         """
         根据 self.columns 自动建表。
+
+        Parameters
+        ----------
+        conn : sqlite3.Connection
+            事务连接，由 db.init() 或 db.transaction() 提供。
         """
         if not self.columns:
             return
         cols_sql = ", ".join(col.sql for col in self.columns)
         sql = f"CREATE TABLE IF NOT EXISTS {self.name} ({cols_sql})"
-        self.db.execute(sql)
+        conn.execute(sql)
         # 建索引
         for col in self.columns:
             if col.index:
@@ -56,7 +50,7 @@ class Notebook(ABC):
                     f"CREATE INDEX IF NOT EXISTS idx_{self.name}_{col.name} "
                     f"ON {self.name}({col.name})"
                 )
-                self.db.execute(idx_sql)
+                conn.execute(idx_sql)
 
     # ---- 序列化 / 反序列化 ----
 
@@ -77,12 +71,14 @@ class Notebook(ABC):
     # ---- 抽象 CRUD ----
 
     @abstractmethod
-    def add(self, entry: Dict[str, Any]) -> str:
+    def add(self, conn, entry: Dict[str, Any]) -> str:
         """
         添加一条条目。
 
         Parameters
         ----------
+        conn : sqlite3.Connection
+            事务连接，由上层通过 db.transaction() 提供。
         entry : dict
             字段 → 值的映射，必须包含 columns 中定义的所有 NOT NULL 列。
 
@@ -94,7 +90,7 @@ class Notebook(ABC):
         ...
 
     @abstractmethod
-    def list(self, filters: List[Filter], *,
+    def list(self, conn, filters: List[Filter], *,
              order_by: Optional[str] = None,
              limit: int = 50,
              offset: int = 0) -> List[Dict[str, Any]]:
@@ -103,6 +99,8 @@ class Notebook(ABC):
 
         Parameters
         ----------
+        conn : sqlite3.Connection
+            事务连接，由上层通过 db.transaction() 提供。
         filters : List[Filter]
             筛选条件列表，不允许为空。
         order_by : str, optional
@@ -124,9 +122,16 @@ class Notebook(ABC):
         ...
 
     @abstractmethod
-    def delete(self, entry_id: str) -> bool:
+    def delete(self, conn, entry_id: str) -> bool:
         """
         删除指定条目。
+
+        Parameters
+        ----------
+        conn : sqlite3.Connection
+            事务连接，由上层通过 db.transaction() 提供。
+        entry_id : str
+            条目 ID。
 
         Returns
         -------
@@ -136,9 +141,18 @@ class Notebook(ABC):
         ...
 
     @abstractmethod
-    def search(self, query: str, *, limit: int = 50) -> List[Dict[str, Any]]:
+    def search(self, conn, query: str, *, limit: int = 50) -> List[Dict[str, Any]]:
         """
         全文搜索。
+
+        Parameters
+        ----------
+        conn : sqlite3.Connection
+            事务连接，由上层通过 db.transaction() 提供。
+        query : str
+            搜索关键词。
+        limit : int
+            最大返回条数，默认 50。
 
         Returns
         -------
@@ -148,7 +162,7 @@ class Notebook(ABC):
 
     # ---- 可选钩子 ----
 
-    def summary(self) -> str:
+    def summary(self, conn) -> str:
         """返回本子的概览摘要，供 AI 日报/周报使用。"""
         return f"[{self.name}] (暂无摘要)"
 

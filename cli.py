@@ -16,7 +16,9 @@ def init():
 @app.command()
 def add(notename:str,entry:str):
 	# 向指定的某本子添加条目
-	registry.notebook(notename).add(json.loads(entry))
+	nb = registry.notebook(notename)
+	with db.transaction() as conn:
+		nb.add(conn, json.loads(entry))
 
 
 if __name__ == "__main__":

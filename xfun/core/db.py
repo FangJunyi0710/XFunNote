@@ -1,7 +1,7 @@
 import os
 import sqlite3
 from dataclasses import dataclass
-from typing import Any, Optional, Sequence
+from typing import Any, Optional
 
 from .. import config
 
@@ -81,42 +81,35 @@ class Filter:
 # ---------------------------------------------------------------------------
 
 class DB:
-    """数据库管理器，封装 SQLite 连接与基本操作。"""
+    """数据库管理器，每个事务返回独立的连接，保证隔离。"""
 
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path or config.DB_PATH
-        self._conn: Optional[sqlite3.Connection] = None
-
-    # ---- 连接管理 ----
-
-    @property
-    def conn(self) -> sqlite3.Connection:
-        if self._conn is None:
-            self._ensure_data_dir()
-            self._conn = sqlite3.connect(self.db_path)
-            self._conn.row_factory = sqlite3.Row
-        return self._conn
 
     def _ensure_data_dir(self) -> None:
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
 
-    def close(self) -> None:
-        if self._conn is not None:
-            self._conn.close()
-            self._conn = None
+    def _connect(self) -> sqlite3.Connection:
+        """建立新连接，统一设置 row_factory。"""
+        self._ensure_data_dir()
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
 
-    # ---- 执行 SQL ----
+    # ---- 事务 ----
 
-    def execute(self, sql: str, params: Sequence = ()) -> sqlite3.Cursor:
-        """执行一条 SQL，返回 cursor。"""
-        return self.conn.execute(sql, params)
+    def transaction(self):
+        """
+        返回事务上下文管理器。用于包裹跨多个 Notebook 的操作。
 
-    def executemany(self, sql: str, seq_of_params: Sequence) -> sqlite3.Cursor:
-        """批量执行同一条 SQL。"""
-        return self.conn.executemany(sql, seq_of_params)
+        Usage::
 
-    def commit(self) -> None:
-        self.conn.commit()
+            with db.transaction() as tx:
+                tx.conn.execute(...)
+                tx.conn.execute(...)
+                # 正常退出自动 commit，异常自动 rollback
+        """
+        return _TransactionContext(self)
 
     # ---- 初始化 ----
 
@@ -129,6 +122,33 @@ class DB:
         registry : Registry
             Notebook 注册中心，遍历其中每个 notebook 调用 init_table()。
         """
+        conn = self._connect()
+        conn.execute("BEGIN IMMEDIATE")
         for nb in registry:
-            nb.init_table()
-        self.commit()
+            nb.init_table(conn)
+        conn.commit()
+        conn.close()
+
+
+class _TransactionContext:
+    """事务上下文管理器：退出时根据异常自动 commit/rollback。"""
+
+    def __init__(self, db: DB):
+        self.db = db
+        self.conn: Optional[sqlite3.Connection] = None
+
+    def __enter__(self) -> "_TransactionContext":
+        self.conn = self.db._connect()
+        self.conn.execute("BEGIN IMMEDIATE") # 主动加写锁，避免高并发下的 SQLITE_BUSY 重试
+        return self.conn
+
+    def __exit__(self, exc_type, exc_val, tb) -> None:
+        if self.conn is None:
+            return
+        try:
+            if exc_type is None:
+                self.conn.commit()
+            else:
+                self.conn.rollback()
+        finally:
+            self.conn.close()
