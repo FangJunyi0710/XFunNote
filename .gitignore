@@ -16,3 +16,5 @@ input/
 output/
 
 data/
+
+.coverage

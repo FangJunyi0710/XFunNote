@@ -9,3 +9,5 @@ python-dotenv       # 管理环境变量
 httpx               # Streamlit 调用 FastAPI 时推荐
 typer               # 命令行工具
 future-uuid
+pytest
+pytest-cov

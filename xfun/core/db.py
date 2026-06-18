@@ -65,7 +65,7 @@ class Column:
         for part in order_by.split(","):
             part = part.strip().split(None, 1)
             cls.check(part[0])
-            if part[1] and part[1] not in ("ASC", "DESC"):
+            if len(part) > 1 and part[1] not in ("ASC", "DESC"):
                 raise InvalidSQLError(part[1])
 
     @property
