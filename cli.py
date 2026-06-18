@@ -4,6 +4,7 @@ import sys
 import typer
 from xfun import db,registry
 import json
+from dataclasses import asdict
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -19,6 +20,14 @@ def add(notename:str,entry:str):
 	nb = registry.notebook(notename)
 	with db.transaction() as conn:
 		nb.add(conn, json.loads(entry))
+
+@app.command()
+def listcolumns(notename: str):
+	"""列出指定本子的所有列定义，以 JSON 格式输出。"""
+	nb = registry.notebook(notename)
+	print(json.dumps(
+		[asdict(c) for c in nb.columns],
+		ensure_ascii=False, indent=4))
 
 
 if __name__ == "__main__":
