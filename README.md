@@ -9,7 +9,7 @@
 
 XFunNote 是一个个人知识管理与效率工具，核心目标是：
 
-- 整合**计划、日记、学习记录、单词**等碎片信息，统一存储与管理
+- 整合**各类碎片信息**为结构化条目，统一存储与管理
 - 借助 **AI 自动生成日报/周报**，辅助每日复盘与决策
 - 作为技术实验场：Python 工程化 + AI Agent + 快速原型开发
 
@@ -34,7 +34,7 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 | 语言         | Python 3.10+                                                            |
 | 数据库       | SQLite（WAL 模式，读写分离事务）                                        |
 | CLI 框架     | Typer                                                                   |
-| AI           | OpenAI SDK → DeepSeek API                                               |
+| AI           | OpenAI SDK（兼容层，已对接 DeepSeek API）                              |
 | 测试         | pytest + pytest-cov                                                     |
 | 后端 API     | FastAPI（规划中）                                                       |
 | 前端/界面    | Streamlit（规划中）                                                     |
@@ -52,7 +52,7 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 | **内置本子** | 基于基类扩展的 4 种预置实现 — 计划（字母编号/月分组）、日记（日期维）、单词（复习跟踪/去重）、积累（分类积累）。各子类仅需定义扩展列和自动填充逻辑即可获得完整 CRUD + 批量操作 + 筛选查询，通过注册中心可插拔扩展 |
 | **注册中心** | `Registry` 管理所有 Notebook 实例，支持注册/查找/注销/迭代 |
 | **CLI 命令行** | 完整的 CRUD 操作：`init/reset/add/list/listid/listcolumns/delete/update`，JSON 格式输入输出 |
-| **测试覆盖** | ~89 个测试用例，覆盖核心引擎正常路径、边界条件、错误路径及事务回滚 |
+| **测试覆盖** | 全面覆盖核心引擎正常路径、边界条件、错误路径及事务回滚 |
 
 ### 🗺️ 规划中
 
@@ -165,7 +165,7 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 
 | 变量 | 说明 |
 |------|------|
-| `XFUN_USER` | 数据库用户名，拼接为 `data/{用户名}.db` |
+| `XFUN_USER` | 数据库用户名，拼接为 `data/{用户名}.db`。若未设置，默认回退为 `data/default.db` |
 | `AI_API_KEY` | DeepSeek API Key，用于 AI 功能 |
 | `AI_BASE_URL` | DeepSeek API 端点，默认为 `https://api.deepseek.com` |
 | `AI_MODEL` | 默认模型，建议 `deepseek-v4-flash` |
@@ -226,7 +226,18 @@ CLI 依托 Typer 构建，所有子命令以 `notename` 为第一个位置参数
 | `delete` | 批量删除 | `notename`, `entry_ids`(JSON) |
 | `listcolumns` | 查看本子的列定义 schema | `notename` |
 
-各命令的完整用法和示例见 `cli.py` 底部测试语句块。
+### 常用示例
+
+```bash
+# 筛选 2607 月未完成的计划
+./cli.py listid plan --filter '{"column":"month","value":"2607","op":"="}' --limit 10
+
+# 批量添加两条计划
+./cli.py add plan '[{"month":"2607","content":"任务A"},{"month":"2607","content":"任务B"}]'
+
+# 标记为已完成
+./cli.py update plan '["plan-2607-001"]' '{"done":1}'
+```
 
 ---
 
@@ -258,7 +269,7 @@ XFunNote/
 │   │   ├── notebook.py     #     Notebook 抽象基类
 │   │   ├── registry.py     #     注册中心
 │   │   ├── errors.py       #     异常体系
-│   │   └── view.py         #     [待实现] 视图格式化
+│   │   └── view.py         #     [待实现] 跨本子数据水合与查询
 │   ├── notebooks/          #   具体 Notebook 实现
 │   │   ├── plan.py         #     计划本
 │   │   ├── diary.py        #     日记本
@@ -309,7 +320,7 @@ pytest tests/test_db.py
 
 ## 许可证
 
-Apache 2.0
+Apache 2.0 © 2026 fangjunyi0710
 
 ---
 
