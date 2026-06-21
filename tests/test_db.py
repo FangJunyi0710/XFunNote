@@ -28,10 +28,6 @@ class TestConditionSqlGeneration:
         sql, params = Condition("col", [1, 10], "BETWEEN").to_sql()
         assert sql == "col BETWEEN ? AND ?" and params == [1, 10]
 
-    def test_negate_wraps_not(self):
-        sql, params = Condition("done", 1, "=", negate=True).to_sql()
-        assert sql == "NOT (done = ?)" and params == [1]
-
     def test_like(self):
         sql, params = Condition("col", "%test%", "LIKE").to_sql()
         assert sql == "col LIKE ?" and params == ["%test%"]
@@ -53,16 +49,6 @@ class TestConditionEdgeCases:
         """空 NOT IN 列表应生成 1=1（永真）。"""
         sql, params = Condition("col", [], "NOT IN").to_sql()
         assert sql == "1=1" and params == []
-
-    def test_empty_in_negated(self):
-        """空 IN + negate → NOT (1=0) → 1=1。"""
-        sql, params = Condition("col", [], "IN", negate=True).to_sql()
-        assert sql == "NOT (1=0)" and params == []
-
-    def test_empty_not_in_negated(self):
-        """空 NOT IN + negate → NOT (1=1) → 1=0。"""
-        sql, params = Condition("col", [], "NOT IN", negate=True).to_sql()
-        assert sql == "NOT (1=1)" and params == []
 
     def test_non_list_in_raises(self):
         with pytest.raises(InvalidConditionError):
@@ -211,12 +197,6 @@ class TestBetweenEdgeCases:
         with pytest.raises(InvalidConditionError):
             Condition("col", "not_a_list", "BETWEEN").to_sql()
 
-    def test_between_negated_with_none(self):
-        """BETWEEN [None, 10] + negate → NOT (1=0)。"""
-        sql, params = Condition("col", [None, 10], "BETWEEN", negate=True).to_sql()
-        assert sql == "NOT (1=0)" and params == []
-
-
 class TestToSqlEdgeCases:
     """to_sql 边界情况。"""
 
@@ -294,12 +274,4 @@ class TestCustomOperator:
         finally:
             Condition._op_registry.pop("@>", None)
 
-    def test_custom_with_negate(self):
-        @Condition.register_op("@@")
-        def handler(col, val, op):
-            return f"to_tsvector({col}) @@ to_tsquery(?)", [val]
-        try:
-            sql, _ = Condition("content", "hello", "@@", negate=True).to_sql()
-            assert sql.startswith("NOT (")
-        finally:
-            Condition._op_registry.pop("@@", None)
+

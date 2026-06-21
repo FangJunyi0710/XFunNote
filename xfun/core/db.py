@@ -90,7 +90,6 @@ class Condition:
     column: str
     value: Any
     op: str = "="
-    negate: bool = False
 
     _op_registry: ClassVar[dict] = {}
 
@@ -134,9 +133,7 @@ class Condition:
             sql, params = handler(self.column, self.value, self.op)
         else:
             raise InvalidConditionError(self)
-        
-        if self.negate:
-            sql = f"NOT ({sql})"
+
         return sql, params
     
 @Condition.register_op("=")
@@ -157,12 +154,12 @@ def _builtin_sql(column, value, op) -> Tuple[str, list]:
             return f"{column} IS NULL", []
         if op == "!=":
             return f"{column} IS NOT NULL", []
-        raise InvalidConditionError(Condition(column, value, op, False))
+        raise InvalidConditionError(Condition(column, value, op))
 
     # --- IN / NOT IN ---
     if op in ("IN", "NOT IN"):
         if not isinstance(value, (list, tuple)):
-            raise InvalidConditionError(Condition(column, value, op, False))
+            raise InvalidConditionError(Condition(column, value, op))
         if not value:
             # 空列表：IN → 永假，NOT IN → 永真
             return ("1=0", []) if op == "IN" else ("1=1", [])
@@ -173,7 +170,7 @@ def _builtin_sql(column, value, op) -> Tuple[str, list]:
     # --- BETWEEN ---
     elif op == "BETWEEN":
         if not isinstance(value, (list, tuple)) or len(value) != 2:
-            raise InvalidConditionError(Condition(column, value, op, False))
+            raise InvalidConditionError(Condition(column, value, op))
         if value[0] is None or value[1] is None:
             # 任意端点为 None → 永假
             return "1=0", []
@@ -188,7 +185,7 @@ def _builtin_sql(column, value, op) -> Tuple[str, list]:
     return sql, params
 
 
-Filter = Union[Seq[Seq[Union["Filter", Condition]]], Tuple["Filter", bool]]
+Filter = Union[Condition, Seq[Seq["Filter"]], Tuple["Filter", bool]]
 # 递归结构：外层 OR、内层 AND，元素可为子 Filter 或 Condition。
 # 最外层支持 (Filter, negate) 元组对整个结果取反。
 
@@ -207,6 +204,9 @@ def to_sql(filter: Filter) -> Tuple[str, list]:
     tuple[str, list]
         (WHERE 子句 SQL 片段，可能为空，参数值列表)
     """
+    if isinstance(filter, Condition):
+        return filter.to_sql()
+
     if isinstance(filter, tuple):
         inner, negate = filter
         clause, vals = to_sql(inner)
@@ -216,18 +216,12 @@ def to_sql(filter: Filter) -> Tuple[str, list]:
             clause = f"NOT ({clause})"
         return clause, vals
 
-    if not filter:
-        return "", []
-
     or_clauses: List[str] = []
     params: list = []
     for group in filter:
         and_clauses: List[str] = []
         for item in group:
-            if isinstance(item, Condition):
-                clause, vals = item.to_sql()
-            else:
-                clause, vals = to_sql(item)
+            clause, vals = to_sql(item)
             if not clause:
                 continue
             and_clauses.append(f"({clause})")
@@ -236,6 +230,9 @@ def to_sql(filter: Filter) -> Tuple[str, list]:
             continue
         or_clauses.append("(" + " AND ".join(and_clauses) + ")")
 
+    if not or_clauses:
+        return "", []
+    
     where_sql = " OR ".join(or_clauses)
     return where_sql, params
 
