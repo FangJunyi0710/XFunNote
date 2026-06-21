@@ -1,0 +1,12 @@
+# 强制 LF 换行
+* text=auto eol=lf
+
+# 二进制文件
+*.db binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.mp4 binary
+*.avi binary
