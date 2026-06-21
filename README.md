@@ -1,7 +1,7 @@
 # XFunNote — 小方的万用本
 
 > **XFunNote** = e**X**ploratory **Fun**damental **Note**book  
-> 探索性万用笔记本，个人效率与 AI 助手的实验场。
+> 小方的万用本，个人效率与 AI 助手的实验场。
 
 ---
 
@@ -14,6 +14,16 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 - 作为技术实验场：Python 工程化 + AI Agent + 快速原型开发
 
 **当前阶段**：准大一暑假 MVP 开发中
+
+---
+
+## 设计哲学
+
+- **数据优先**：所有信息以条目（Entry）为单位存储，统一抽象为 `Notebook`，扩展列按需定义。
+- **筛选驱动**：`Condition` + 递归 `Filter` 构成完整的查询 DSL，支持 AND/OR 嵌套、自定义运算符（`JSON_CONTAINS`、`LIKE` 等），全部下推 SQLite。
+- **AI 原生**：AI 通过 Function Calling 调用 `query_entries`/`update_entries` 等安全工具，自动应用 `AI_READ_FILTER` 与 `AI_WRITE_FILTER` 行级/列级权限沙箱，杜绝越权操作。
+- **记忆即数据**：用户偏好、AI 规则、分类体系均存储为 `accumulation` 本子中的条目，通过 `ai_tags`/`ai_note` 分散索引，通过 `search_memories` 统一检索。
+- **本地优先**：单文件 SQLite + WAL 模式，零配置同步（iCloud/OneDrive/WebDAV 即可）。
 
 ---
 
@@ -46,12 +56,104 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 
 ### 🗺️ 规划中
 
-- **AI 日报/周报** — `xfun/ai/` 模块待实现，基于 DeepSeek 聚合数据生成复盘报告
-- **FastAPI 后端** — `backend/main.py` 待实现，暴露 RESTful API
-- **Streamlit 前端** — `frontend/app.py` 待实现，可视化界面
-- **视图层** — `xfun/core/view.py` 待实现，格式化输出（Markdown、颜色控制台）
-- **工具函数** — `file_utils.py`、`string_utils.py` 待补齐
-- **单词复习调度** — 间隔重复算法（SM-2）集成
+按优先级分三个梯队：
+
+**🚀 第一梯队（近期）**
+- **AI Tools 层** — `xfun/ai/tools.py` 实现 8 个 Function Calling 工具，`xfun/ai/security.py` 定义 AI 读写沙箱
+- **AI 日报闭环** — `xfun/ai/daily.py` 拉取当日数据，调用 DeepSeek 生成结构化摘要，支持 LaTeX 编译
+- **视图层** — `xfun/core/view.py` 实现跨本子数据水合查询
+
+**📡 第二梯队（中期）**
+- **QQ 机器人推送** — 集成 go-cqhttp HTTP API，定时推送日报
+- **FastAPI 后端** — `backend/main.py` 暴露 RESTful 接口
+- **工具函数补全** — `file_utils.py`、`string_utils.py`
+
+**🔭 第三梯队（远期）**
+- **Streamlit 前端** — `frontend/app.py` 可视化界面
+- **单词复习调度** — SM-2 间隔重复算法集成
+- **多端同步** — 数据库文件置于 iCloud/OneDrive/WebDAV
+
+---
+
+## 设计路线图
+
+以下路线图按开发顺序排列，每项均可在当前架构上独立增量实现。
+
+### 阶段零：核心收尾（已完成，待合并）
+- [x] `Condition` 自定义运算符注册机制（`JSON_CONTAINS`、`LIKE`、`BETWEEN` 等）
+- [x] `Filter` 递归 `to_sql()`，支持无限嵌套 OR/AND + `negate`
+- [x] `Notebook` 基类抽象 + 4 个本子（`plan`、`word`、`diary`、`accumulation`）
+- [x] CLI 完整 CRUD（`add/list/listid/update/delete/reset/listcolumns`）
+- [x] 单元测试 94 个，覆盖率 100%
+
+### 阶段一：AI Tools 层（当前进行中）
+- [ ] 在 `xfun/ai/tools.py` 中实现：
+  - `query_entries`（只读，自动合并 `AI_READ_FILTER`）
+  - `update_entries`（可写，自动合并 `AI_WRITE_FILTER` + 列白名单）
+  - `add_entries`（自动注入 `is_ai_gen=1`）
+  - `delete_entries`（强制安全条件 + 预览拦截）
+  - `manage_tags`（追加/替换 `tags` 或 `ai_tags`）
+  - `add_ai_note`（追加 `ai_note`，保留历史）
+  - `search_memories`（同时检索所有本子的 `ai_tags` 与 `ai_note`）
+  - `save_memory`（写入 `accumulation` 本子，`category="AI记忆"`）
+- [ ] 在 `xfun/ai/security.py` 中定义：
+  - `AI_READ_FILTER`（行级读权限）
+  - `AI_WRITE_FILTER`（行级写权限）
+  - `AI_WRITABLE_COLUMNS`（列白名单）
+- [ ] 在 `xfun/ai/client.py` 中封装 DeepSeek API 调用，注入上述 Tools
+
+### 阶段二：View 层（数据水合与跨本子查询）
+- [ ] 实现 `xfun/core/view.py`：
+  - `View.query(notetype, filter_groups, fields, limit, offset)` — 跨单/多本子查询，返回完整条目列表
+  - 自动合并 `AI_READ_FILTER`（安全沙箱）
+  - 支持 `fields` 限定列，减少 Token 消耗
+  - 将 `Filter` 递归 `to_sql()` 翻译为 SQL，下推数据库
+- [ ] 在 CLI 中接入 `view` 调试命令（可选）
+
+### 阶段三：AI 日报闭环（核心 AI 功能）
+- [ ] 实现 `xfun/ai/daily.py`：
+  - `generate_daily_report()` — 拉取当日计划/单词/积累，调用 DeepSeek 生成结构化摘要
+  - 支持 **LaTeX 模板填充** + **迭代编译**（`pdflatex`，最多重试 3 次，失败回退纯文本）
+- [ ] 实现 `xfun/ai/latex.py`：
+  - `compile_latex(content: str) -> (pdf_path, error_log)` — 临时目录编译，超时保护
+- [ ] 实现用户反馈学习：
+  - 用户在 QQ 中反馈意见 → AI 调用 `save_memory` 存储偏好
+  - 下次生成日报时，AI 先查询 `accumulation` 中 `category="AI记忆"` 且 `tags` 含 `日报` 的记忆，自动调整模板
+- [ ] CLI 命令 `./cli.py daily` 生成当日日报（输出文本或 PDF）
+
+### 阶段四：推送与定时任务
+- [ ] 集成 QQ 机器人（HTTP API 客户端）：
+  - 通过 `go-cqhttp` 或 `mirai` 接收推送
+  - 在 `config.py` 中配置 `QQ_GROUP_ID` / `QQ_USER_ID`
+- [ ] CLI 命令 `./cli.py push`：
+  - 调用 `daily` 生成 PDF
+  - 通过 QQ API 发送文件/消息
+- [ ] 配置 Cron 定时任务：
+  ```bash
+  0 20 * * * cd ~/XFunNote && source .venv/bin/activate && python cli.py push
+  ```
+
+### 阶段五：FastAPI 后端（对外接口）
+- [ ] 实现 `backend/main.py`：
+  - 路由：`/api/v1/notebooks/{name}/entries`（`GET`/`POST`/`PUT`/`DELETE`）
+  - 路由：`/api/v1/ai/daily`（日报生成）
+  - 路由：`/api/v1/ai/memory`（记忆查询与保存）
+- [ ] 依赖注入 + CORS 配置
+- [ ] Pydantic Schemas 映射（`ConditionSchema` ↔ `Condition`）
+- [ ] 启动：`uvicorn backend.main:app --reload`
+
+### 阶段六：前端可视化（可选）
+- [ ] Streamlit 界面 `frontend/app.py`：
+  - 计划列表/筛选/增删改
+  - 日记时间线
+  - 日报查看/导出
+- [ ] 调用 FastAPI 后端（而非直接操作数据库）
+
+### 阶段七：多端同步与扩展（远期）
+- [ ] `import/export` 命令：JSON 导入导出（已有 `add` 支持 JSON，`dump` 只需 `SELECT *` + `json.dump`）
+- [ ] 多账户支持：`--user` 参数切换数据库文件
+- [ ] 多端同步：数据库文件置于 iCloud/OneDrive/WebDAV（由用户自行配置）
+- [ ] 移动端网页：Streamlit 部署至公网（或 Tailscale 内网穿透）
 
 ---
 
@@ -60,6 +162,14 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 ### 1. 环境变量
 
 复制项目根目录的 `.env.example` 为 `.env` 并填写配置。
+
+| 变量 | 说明 |
+|------|------|
+| `XFUN_USER` | 数据库用户名，拼接为 `data/{用户名}.db` |
+| `AI_API_KEY` | DeepSeek API Key，用于 AI 功能 |
+| `AI_BASE_URL` | DeepSeek API 端点，默认为 `https://api.deepseek.com` |
+| `AI_MODEL` | 默认模型，建议 `deepseek-v4-flash` |
+| `QQ_BOT_HTTP_URL` | QQ 机器人 HTTP API 地址（推送日报用） |
 
 ### 2. 数据库路径
 
@@ -117,6 +227,19 @@ CLI 依托 Typer 构建，所有子命令以 `notename` 为第一个位置参数
 | `listcolumns` | 查看本子的列定义 schema | `notename` |
 
 各命令的完整用法和示例见 `cli.py` 底部测试语句块。
+
+---
+
+## 核心概念
+
+| 概念 | 说明 |
+|------|------|
+| **Notebook** | 数据容器基类，子类定义 `_extra_columns` 即可获得完整 CRUD + 筛选能力 |
+| **Condition** | 单个筛选条件（`column op value`），支持 `JSON_CONTAINS`、`TEXT_SEARCH` 等自定义运算符注册 |
+| **Filter** | 递归结构：外层 `OR`，内层 `AND`，支持无限嵌套与整体取反，最终由 `to_sql()` 展开为 SQL WHERE |
+| **View** | `query_view(notetype, filter, fields)` 跨本子数据水合，是 AI 与前端的数据唯一入口 |
+| **AI Tools** | `query_entries`、`update_entries`、`add_entries`、`delete_entries`、`manage_tags`、`add_ai_note`、`search_memories`、`save_memory` 共 8 个工具 |
+| **记忆系统** | `accumulation` 本子存储结构化记忆（标题 + 内容 + 标签）+ 各本子 `ai_tags`/`ai_note` 分散索引，由 `search_memories` 统一检索 |
 
 ---
 
@@ -192,4 +315,4 @@ Apache 2.0
 
 ## 作者
 
-@小_方_
+FangJunyi0710（小_方_）
