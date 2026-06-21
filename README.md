@@ -157,6 +157,42 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 
 ---
 
+## 开发蓝图 — 核心架构决策
+
+以下决策是 XFunNote 区别于普通"计划管理工具"的根本所在，也是后续开发的行动纲领。
+
+### 1. 查询引擎：纯 SQL 下推，绝不内存过滤
+- `Filter` 递归结构（外层 OR、内层 AND）通过 `to_sql()` 无损展开为一条 SQL。
+- 所有自定义运算符（`JSON_CONTAINS`、`TEXT_SEARCH` 等）只注册一次 SQL 生成逻辑，永不重复实现 Python 等价逻辑。
+- SQLite 优先走索引列（如 `month`、`done`）压缩数据量，再对少量数据执行 JSON/文本运算，性能充足。
+
+### 2. AI 安全沙箱：零信任行级/列级权限
+- `AI_READ_FILTER`：强制行级读权限（例如 `is_ai_gen=1`）。
+- `AI_WRITE_FILTER`：强制行级写权限（防止 AI 修改用户手工数据）。
+- `AI_WRITABLE_COLUMNS`：列白名单（禁止 AI 触碰 `id`、`created_at`、`seq` 等系统列）。
+- 删除操作必须经过"预览 → 确认"流程，禁止无条件删除。
+
+### 3. 记忆系统：显式记忆库 + 分散痕迹的统一检索
+- 显式记忆存储在 `accumulation` 本子（`category="AI记忆"`），由 `save_memory` / `search_memories` 管理。
+- 分散痕迹存储在各类条目的 `ai_tags` 和 `ai_note` 中，通过 `JSON_CONTAINS` / `TEXT_SEARCH` 运算符检索。
+- `search_memories` 工具统一跨源检索，对外呈现为单一记忆接口。
+
+### 4. AI 日报闭环：从生成到交付的自动化
+- AI 填充 LaTeX 模板 → 后端 `pdflatex` 编译（最多 3 次迭代纠错）→ 输出 PDF。
+- 用户通过 QQ 反馈 → AI 调用 `save_memory` 固化偏好 → 次日日报自动适配。
+- `cron` 定时触发 `cli.py push`，通过 QQ 机器人推送 PDF。
+
+### 5. 开发优先级
+| 优先级 | 阶段 | 产出 |
+| :--- | :--- | :--- |
+| 🔴 当前 | AI Tools 层 | `xfun/ai/security.py` + `xfun/ai/tools.py`（8 个工具） |
+| 🟡 后续 | View 层 | `xfun/core/view.py`（跨本子数据水合） |
+| 🟢 核心 | AI 日报闭环 | `daily.py` + `latex.py` + `push` + QQ 集成 |
+| 🔵 按需 | FastAPI 后端 | `backend/main.py` RESTful API |
+| ⚪ 远期 | 前端可视化 | `frontend/app.py` Streamlit 界面 |
+
+---
+
 ## 配置
 
 ### 1. 环境变量
