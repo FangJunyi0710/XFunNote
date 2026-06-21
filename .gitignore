@@ -6,6 +6,18 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Python 打包产物
+*.egg-info/
+dist/
+build/
+
+# 测试缓存
+.pytest_cache/
+
+# 类型检查 / Linter 缓存
+.mypy_cache/
+.ruff_cache/
+
 # IDE
 .vscode/
 .idea/
