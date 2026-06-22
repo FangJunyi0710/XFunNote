@@ -223,7 +223,7 @@ class DB:
                     Column.check(col.name)
 
                 if DB._table_exists(conn, table_name):
-                    DB.sync_existing_table(conn, table_name, desired_cols)
+                    DB._sync_existing_table(conn, table_name, desired_cols)
                 else:
                     DB._create_table(conn, table_name, desired_cols)
 
