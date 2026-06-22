@@ -4,7 +4,7 @@ import shutil
 import typer
 from typing import Optional
 from xfun import db,registry
-from xfun.core.db import parse_filter_json
+from xfun.core.filter import parse_filter_json
 import json
 from dataclasses import asdict
 from pathlib import Path

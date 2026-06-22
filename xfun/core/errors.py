@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .db import Condition
+    from .filter import Condition
 
 class XFunError(Exception):
     """XFunNote 所有异常的基类。"""

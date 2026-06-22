@@ -8,7 +8,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
-from .db import Column, Filter, filter_to_sql
+from .db import Column
+from .filter import Filter, filter_to_sql
 from ..utils.time_utils import now_str
 
 

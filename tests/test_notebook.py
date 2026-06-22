@@ -1,7 +1,8 @@
 """测试 Notebook CRUD 集成：增删改查在主流程上是否正常工作。"""
 
 import pytest
-from xfun.core.db import Column, Condition
+from xfun.core.db import Column
+from xfun.core.filter import Condition
 from xfun.core.errors import EntryInvalidError
 from xfun.core.notebook import Notebook, BASE_COLUMNS
 
