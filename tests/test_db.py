@@ -224,13 +224,68 @@ class TestDBInit:
 
     def test_init_creates_tables(self, registry, tmp_path):
         db = DB(db_path=str(tmp_path / "init_test.db"))
-        db.init(registry)
+        db.init({nb.name: nb.columns for nb in registry})
         with db.read_transaction() as conn:
             rows = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table'"
             ).fetchall()
         table_names = {r["name"] for r in rows}
         assert "plan" in table_names
+
+
+class TestDBInitEdgeCases:
+    """覆盖 db.init 的 _check_addition_column / _check_existing_column / ALTER TABLE 分支。"""
+
+    def test_alter_add_non_nullable_column_raises(self, tmp_path):
+        """为已有表添加 NOT NULL 列应抛出 InvalidSQLError。"""
+        db = DB(db_path=str(tmp_path / "add_notnull.db"))
+        db.init({"t1": [Column("id", "TEXT")]})
+        with pytest.raises(InvalidSQLError, match="不可为 NULL"):
+            db.init({"t1": [Column("id", "TEXT"), Column("name", "TEXT", nullable=False)]})
+
+    def test_alter_add_primary_key_column_raises(self, tmp_path):
+        """为已有表添加 PK 列应抛出 InvalidSQLError。"""
+        db = DB(db_path=str(tmp_path / "add_pk.db"))
+        db.init({"t1": [Column("id", "TEXT")]})
+        with pytest.raises(InvalidSQLError, match="主键"):
+            db.init({"t1": [Column("id", "TEXT"), Column("name", "TEXT", primary_key=True)]})
+
+    def test_alter_add_invalid_column_name_raises(self, tmp_path):
+        """为已有表添加非法列名应抛出 InvalidSQLError。"""
+        db = DB(db_path=str(tmp_path / "add_badcol.db"))
+        db.init({"t1": [Column("id", "TEXT")]})
+        with pytest.raises(InvalidSQLError):
+            db.init({"t1": [Column("id", "TEXT"), Column("bad col", "TEXT")]})
+
+    def test_alter_add_nullable_column_succeeds(self, tmp_path):
+        """为已有表添加可空列应执行 ALTER TABLE ADD COLUMN。"""
+        db = DB(db_path=str(tmp_path / "add_ok.db"))
+        db.init({"t1": [Column("id", "TEXT")]})
+        db.init({"t1": [Column("id", "TEXT"), Column("name", "TEXT", nullable=True)]})
+        with db.read_transaction() as conn:
+            cols = [r["name"] for r in conn.execute("PRAGMA table_info(t1)")]
+        assert "name" in cols
+
+    def test_existing_column_type_mismatch_raises(self, tmp_path):
+        """已有列类型冲突应抛出 InvalidSQLError。"""
+        db = DB(db_path=str(tmp_path / "type_mismatch.db"))
+        db.init({"t1": [Column("id", "TEXT")]})
+        with pytest.raises(InvalidSQLError, match="类型冲突"):
+            db.init({"t1": [Column("id", "INTEGER")]})
+
+    def test_existing_column_nullable_mismatch_raises(self, tmp_path):
+        """已有列 nullable 约束冲突应抛出 InvalidSQLError。"""
+        db = DB(db_path=str(tmp_path / "nullable_mismatch.db"))
+        db.init({"t1": [Column("id", "TEXT", nullable=False)]})
+        with pytest.raises(InvalidSQLError, match="约束冲突"):
+            db.init({"t1": [Column("id", "TEXT", nullable=True)]})
+
+    def test_existing_column_pk_mismatch_raises(self, tmp_path):
+        """已有列主键属性冲突应抛出 InvalidSQLError。"""
+        db = DB(db_path=str(tmp_path / "pk_mismatch.db"))
+        db.init({"t1": [Column("id", "TEXT", primary_key=True)]})
+        with pytest.raises(InvalidSQLError, match="主键属性冲突"):
+            db.init({"t1": [Column("id", "TEXT", primary_key=False)]})
 
 
 class TestTransactionContext:

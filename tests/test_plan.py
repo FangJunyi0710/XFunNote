@@ -8,8 +8,8 @@ class TestSeqAllocation:
     """计划本最核心的逻辑：seq 按月独立递增。"""
 
     def test_increments_within_month(self, db, plan_nb):
+        db.init({plan_nb.name: plan_nb.columns})
         with db.transaction() as conn:
-            plan_nb.init_table(conn)
             ids = plan_nb.add(conn, [
                 {"month": "2606", "content": "one"},
                 {"month": "2606", "content": "two"},
@@ -20,8 +20,8 @@ class TestSeqAllocation:
         assert [r["seq"] for r in results] == [1, 2, 3]
 
     def test_resets_per_month(self, db, plan_nb):
+        db.init({plan_nb.name: plan_nb.columns})
         with db.transaction() as conn:
-            plan_nb.init_table(conn)
             ids = plan_nb.add(conn, [
                 {"month": "2606", "content": "june"},
                 {"month": "2607", "content": "july"},
@@ -32,8 +32,8 @@ class TestSeqAllocation:
         assert results[1]["seq"] == 1  # 不同月份独立计数
 
     def test_continues_across_batches(self, db, plan_nb):
+        db.init({plan_nb.name: plan_nb.columns})
         with db.transaction() as conn:
-            plan_nb.init_table(conn)
             ids1 = plan_nb.add(conn, [{"month": "2607", "content": "first"}])
         with db.transaction() as conn:
             ids2 = plan_nb.add(conn, [{"month": "2607", "content": "second"}])
@@ -42,14 +42,14 @@ class TestSeqAllocation:
         assert [r["seq"] for r in results] == [1, 2]
 
     def test_id_format(self, db, plan_nb):
+        db.init({plan_nb.name: plan_nb.columns})
         with db.transaction() as conn:
-            plan_nb.init_table(conn)
             ids = plan_nb.add(conn, [{"month": "2607", "content": "test"}])
         assert ids[0].startswith("plan-2607-")
 
     def test_no_format(self, db, plan_nb):
+        db.init({plan_nb.name: plan_nb.columns})
         with db.transaction() as conn:
-            plan_nb.init_table(conn)
             ids = plan_nb.add(conn, [{"month": "2607", "content": "test"}])
         with db.read_transaction() as conn:
             result = plan_nb.get_by_id(conn, ids)
