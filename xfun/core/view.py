@@ -1,7 +1,8 @@
 from typing import List, Tuple
 
 from .db import Column, DB
-from .filter import Filter, filter_to_sql
+from .filter import Filter, convert_filter_object, filter_to_sql
+import json
 
 TableSpec = tuple[list[str], Filter]
 # dict[表名, List[(列名列表, 行筛选条件)]]
@@ -42,6 +43,21 @@ def view_to_sql(view: View, db: DB, table: str) -> Tuple[str, list]:
         sql = f"SELECT {", ".join(pieces)} FROM ({sql}) AS combined GROUP BY {", ".join(pks)}"
 
     return sql, params
+
+def parse_view_json(s: str) -> View:
+    """
+    将 JSON 筛选条件解析为 View
+    """
+    data = json.loads(s)
+    result: View = {}
+    for table_name, specs in data.items():
+        table_specs: List[TableSpec] = []
+        for spec in specs:
+            columns = spec["columns"]
+            flt = convert_filter_object(spec["filter"])
+            table_specs.append((columns, flt))
+        result[table_name] = table_specs
+    return result
 
 def view_or(view1: View, view2: View) -> View:
     tables = set(view1) | set(view2)
