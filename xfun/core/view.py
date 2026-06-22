@@ -1,7 +1,8 @@
 from typing import List, Tuple
 
 from .db import Column, DB
-from .filter import Filter, filter_to_sql
+from .filter import Filter, convert_filter_object, filter_to_sql
+import json
 
 TableSpec = tuple[list[str], Filter]
 # dict[表名, List[(列名列表, 行筛选条件)]]
@@ -18,19 +19,27 @@ def view_to_sql(view: View, db: DB, table: str) -> Tuple[str, list]:
     subsqls = [f"{db.select_sql(table, [])} WHERE 1=0"]
     params = []
 
-    for cols, flt in view[table]:
-        sql = db.select_sql(table, cols)
-        clause, vals = filter_to_sql(flt)
-        if clause:
-            sql += f" WHERE {clause}"
-        subsqls.append(f"({sql})")
-        params.extend(vals)
-
     pks: List[str] = []
-    pieces: List[str] = []
     for col in db.table_infos[table]:
         if col.primary_key:
             pks.append(col.name)
+
+    for cols, flt in view[table]:
+        # 确保主键列始终被选中（外层 GROUP BY 依赖主键去重）
+        spec_cols = list(cols)
+        for pk in pks:
+            if pk not in spec_cols:
+                spec_cols.append(pk)
+        sql = db.select_sql(table, spec_cols)
+        clause, vals = filter_to_sql(flt)
+        if clause:
+            sql += f" WHERE {clause}"
+        subsqls.append(sql)
+        params.extend(vals)
+
+    pieces: List[str] = []
+    for col in db.table_infos[table]:
+        if col.primary_key:
             pieces.append(col.name)
             continue
 
@@ -42,6 +51,21 @@ def view_to_sql(view: View, db: DB, table: str) -> Tuple[str, list]:
         sql = f"SELECT {", ".join(pieces)} FROM ({sql}) AS combined GROUP BY {", ".join(pks)}"
 
     return sql, params
+
+def parse_view_json(s: str) -> View:
+    """
+    将 JSON 筛选条件解析为 View
+    """
+    data = json.loads(s)
+    result: View = {}
+    for table_name, specs in data.items():
+        table_specs: List[TableSpec] = []
+        for spec in specs:
+            columns = spec["columns"]
+            flt = convert_filter_object(spec["filter"])
+            table_specs.append((columns, flt))
+        result[table_name] = table_specs
+    return result
 
 def view_or(view1: View, view2: View) -> View:
     tables = set(view1) | set(view2)

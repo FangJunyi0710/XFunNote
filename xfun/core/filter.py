@@ -162,26 +162,26 @@ def filter_to_sql(filter: Filter) -> Tuple[str, list]:
     return where_sql, params
 
 
+def convert_filter_object(obj):
+    if isinstance(obj, dict):
+        condition = Condition(**obj)
+        return condition
+    if isinstance(obj, list) and len(obj) == 2 and isinstance(obj[1], bool):
+        return (convert_filter_object(obj[0]), obj[1])
+    if not isinstance(obj, list):
+        raise ValueError(f"无法识别的 filter JSON 格式: {obj!r}")
+    result = []
+    for group in obj:
+        clause = []
+        if not isinstance(group, list):
+            raise ValueError(f"无法识别的 filter JSON 格式: {obj!r}")
+        for item in group:
+            clause.append(convert_filter_object(item))
+        result.append(clause)
+    return result
+
 def parse_filter_json(s: str) -> Filter:
     """将 JSON 筛选条件解析为 Filter。"""
     data = json.loads(s)
 
-    def _convert(obj):
-        if isinstance(obj, dict):
-            condition = Condition(**obj)
-            return condition
-        if isinstance(obj, list) and len(obj) == 2 and isinstance(obj[1], bool):
-            return (_convert(obj[0]), obj[1])
-        if not isinstance(obj, list):
-            raise ValueError(f"无法识别的 filter JSON 格式: {s}")
-        result = []
-        for group in obj:
-            clause = []
-            if not isinstance(group, list):
-                raise ValueError(f"无法识别的 filter JSON 格式: {s}")
-            for item in group:
-                clause.append(_convert(item))
-            result.append(clause)
-        return result
-
-    return _convert(data)
+    return convert_filter_object(data)
