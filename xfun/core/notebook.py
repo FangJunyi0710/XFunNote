@@ -68,12 +68,6 @@ class Notebook(ABC):
         result = {r["id"]: dict(r) for r in rows}
         return [result[eid] for eid in entry_ids if eid in result]
 
-    # ---- 数据库操作 ----
-
-    @property
-    def table_info(self) -> tuple[str, List[Column]]:
-        return (self.name, self.columns)
-
     # ---- 校验 & 自动填充（通用） ----
 
     def _validate(self, entry: Dict[str, Any]) -> None:

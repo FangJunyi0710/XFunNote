@@ -402,6 +402,16 @@ class DB:
         vals = ", ".join(f":{n}" for n in col_names)
         return f"INSERT INTO {table_name} ({cols}) VALUES ({vals})"
     
+class _ConnWrapper:
+    """轻量包装，使 conn.db 可在所有 Python 版本下工作。"""
+    __slots__ = ('_conn', 'db')
+
+    def __init__(self, conn: sqlite3.Connection, db: DB):
+        self._conn = conn
+        self.db = db
+
+    def __getattr__(self, name: str):
+        return getattr(self._conn, name)
 
 class _TransactionContext:
     """写事务上下文管理器：BEGIN IMMEDIATE，阻塞写入者并发。"""
@@ -410,11 +420,10 @@ class _TransactionContext:
         self.db = db
         self.conn: Optional[sqlite3.Connection] = None
 
-    def __enter__(self) -> sqlite3.Connection:
+    def __enter__(self) -> _ConnWrapper:
         self.conn = self.db._connect()
-        self.conn.db = self.db
         self.conn.execute("BEGIN IMMEDIATE") # 主动加写锁，避免高并发下的 SQLITE_BUSY 重试
-        return self.conn
+        return _ConnWrapper(self.conn, self.db)
 
     def __exit__(self, exc_type, exc_val, tb) -> None:
         if self.conn is None:
@@ -435,11 +444,11 @@ class _ReadTransactionContext:
         self.db = db
         self.conn: Optional[sqlite3.Connection] = None
 
-    def __enter__(self) -> sqlite3.Connection:
+    def __enter__(self) -> _ConnWrapper:
         self.conn = self.db._connect()
         self.conn.db = self.db
         self.conn.execute("BEGIN")  # 不加 IMMEDIATE，不阻塞写入
-        return self.conn
+        return _ConnWrapper(self.conn, self.db)
 
     def __exit__(self, exc_type, exc_val, tb) -> None:
         if self.conn is None:

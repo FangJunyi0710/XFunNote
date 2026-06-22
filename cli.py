@@ -19,8 +19,7 @@ def parse_list_json(s: str):
 
 @app.command()
 def init():
-    db.init(registry)
-    # ...
+    pass
     # 其他初始化操作
 
 @app.command()
