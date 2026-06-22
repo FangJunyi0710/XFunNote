@@ -446,7 +446,6 @@ class _ReadTransactionContext:
 
     def __enter__(self) -> _ConnWrapper:
         self.conn = self.db._connect()
-        self.conn.db = self.db
         self.conn.execute("BEGIN")  # 不加 IMMEDIATE，不阻塞写入
         return _ConnWrapper(self.conn, self.db)
 
