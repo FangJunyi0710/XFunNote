@@ -159,6 +159,7 @@ def _builtin_sql(column, value, op) -> Tuple[str, list]:
     if op in ("IN", "NOT IN"):
         if not isinstance(value, (list, tuple)):
             raise InvalidConditionError(Condition(column, value, op))
+        value = list(dict.fromkeys(value))
         if not value:
             # 空列表：IN → 永假，NOT IN → 永真
             return ("1=0", []) if op == "IN" else ("1=1", [])
@@ -185,8 +186,7 @@ def _builtin_sql(column, value, op) -> Tuple[str, list]:
 
 
 Filter = Union[Condition, Seq[Seq["Filter"]], Tuple["Filter", bool]]
-# 递归结构：外层 OR、内层 AND，元素可为子 Filter 或 Condition。
-# 最外层支持 (Filter, negate) 元组对整个结果取反。
+# 递归结构：外层 OR、内层 AND，元素为子树，直至叶子节点，最外层支持 (... , negate) 元组对整个结果取反。
 
 def filter_to_sql(filter: Filter) -> Tuple[str, list]:
     """
@@ -401,6 +401,38 @@ class DB:
         cols = ", ".join(col_names)
         vals = ", ".join(f":{n}" for n in col_names)
         return f"INSERT INTO {table_name} ({cols}) VALUES ({vals})"
+
+    # ---- SELECT 语句 ----
+
+    def select_sql(self, table_name: str, cols: List[str]) -> str:
+        """
+        生成完整 SELECT 语句。
+
+        在 *cols* 中的列输出为 ``table_name.col``，
+        不在 *cols* 中的表已有列输出为 ``NULL AS col``，
+        保证结果集包含该表的所有列，未选中列值为 NULL。
+
+        Parameters
+        ----------
+        table_name : str
+            表名，须在 table_infos 中。
+        cols : list[str]
+            要选择的列名列表。
+
+        Returns
+        -------
+        str
+            完整 SELECT 查询语句，例如
+            ``"SELECT plan.id, NULL AS content, plan.month, NULL AS seq FROM plan"``。
+        """
+        all_col_names = [c.name for c in self.table_infos[table_name]]
+        pieces: List[str] = []
+        for col in all_col_names:
+            if col in cols:
+                pieces.append(f"{table_name}.{col}")
+            else:
+                pieces.append(f"NULL AS {col}")
+        return f"SELECT {', '.join(pieces)} FROM {table_name}"
     
 class _ConnWrapper:
     """轻量包装，使 conn.db 可在所有 Python 版本下工作。"""

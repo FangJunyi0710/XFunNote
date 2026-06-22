@@ -288,6 +288,49 @@ class TestDBInitEdgeCases:
             db.init({"t1": [Column("id", "TEXT", primary_key=False)]})
 
 
+class TestSelectSql:
+    """DB.select_sql：指定列用 table.col，其余表列用 NULL AS col。"""
+
+    def test_all_columns_included(self, tmp_path):
+        db = DB(db_path=str(tmp_path / "all_cols.db"))
+        db.init({"t1": [Column("id", "TEXT"), Column("name", "TEXT"), Column("age", "INTEGER")]})
+        sql = db.select_sql("t1", ["id", "name"])
+        assert sql.startswith("SELECT ")
+        assert "t1.id" in sql
+        assert "t1.name" in sql
+        assert "NULL AS age" in sql
+        assert "FROM t1" in sql
+
+    def test_single_column(self, tmp_path):
+        db = DB(db_path=str(tmp_path / "single_col.db"))
+        db.init({"t1": [Column("id", "TEXT"), Column("name", "TEXT")]})
+        sql = db.select_sql("t1", ["id"])
+        assert sql == "SELECT t1.id, NULL AS name FROM t1"
+
+    def test_all_selected(self, tmp_path):
+        db = DB(db_path=str(tmp_path / "all_selected.db"))
+        db.init({"t1": [Column("id", "TEXT"), Column("name", "TEXT")]})
+        sql = db.select_sql("t1", ["id", "name"])
+        assert sql == "SELECT t1.id, t1.name FROM t1"
+
+    def test_query_result_contains_all_columns(self, tmp_path):
+        """实际查询时，未选中的列返回 NULL。"""
+        db = DB(db_path=str(tmp_path / "query_result.db"))
+        db.init({"t1": [Column("id", "TEXT"), Column("name", "TEXT"), Column("age", "INTEGER")]})
+        with db.transaction() as conn:
+            conn.executemany(
+                "INSERT INTO t1 (id, name, age) VALUES (:id, :name, :age)",
+                [{"id": "1", "name": "alice", "age": 30}],
+            )
+        sql = db.select_sql("t1", ["name"])
+        with db.read_transaction() as conn:
+            row = conn.execute(sql).fetchone()
+        assert row["id"] is None
+        assert row["name"] == "alice"
+        assert row["age"] is None
+        assert row["age"] is None
+
+
 class TestTransactionContext:
     """事务上下文管理器的边界分支。"""
 
