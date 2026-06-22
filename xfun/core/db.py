@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import re
 import sqlite3
@@ -136,7 +138,7 @@ class DB:
 
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path or config.DB_PATH
-        self.table_infos = {}
+        self.table_infos: dict[str, List[Column]] = {}
 
     def _connect(self) -> sqlite3.Connection:
         """建立新连接，统一设置 row_factory 并启用 WAL 模式。"""
@@ -162,6 +164,48 @@ class DB:
 
     # ---- 初始化 ----
 
+    @staticmethod
+    def _table_exists(conn: _ConnWrapper, table_name: str) -> bool:
+        """检查表是否存在。"""
+        return conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+            (table_name,)
+        ).fetchone() is not None
+
+    @staticmethod
+    def _create_table(conn: _ConnWrapper, table_name: str, cols: List[Column]) -> None:
+        """创建新表。"""
+        cols_sql = ", ".join(col.sql for col in cols)
+        conn.execute(f"CREATE TABLE {table_name} ({cols_sql})")
+    
+    @staticmethod
+    def _sync_existing_table(
+        conn: _ConnWrapper, table_name: str, desired_cols: List[Column]
+    ) -> None:
+        """补齐缺失列并检查已有列的一致性。"""
+        existing_cols = {
+            row["name"]: row
+            for row in conn.execute(f"PRAGMA table_info({table_name})")
+        }
+        for col in desired_cols:
+            existing_info = existing_cols.get(col.name)
+            if existing_info is None:
+                _check_addition_column(col)
+                conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {col.sql}")
+            else:
+                _check_existing_column(col, existing_info, table_name)
+
+    @staticmethod
+    def _create_indexes(conn: _ConnWrapper, table_name: str, cols: List[Column]) -> None:
+        """为指定列建索引。"""
+        for col in cols:
+            if not col.index:
+                continue
+            conn.execute(
+                f"CREATE INDEX IF NOT EXISTS idx_{table_name}_{col.name} "
+                f"ON {table_name}({col.name})"
+            )
+
     def init(self, table_infos: dict[str, List[Column]]) -> None:
         """
         根据表信息初始化数据库。
@@ -178,40 +222,13 @@ class DB:
                 for col in desired_cols:
                     Column.check(col.name)
 
-                existing = conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
-                    (table_name,)
-                ).fetchone()
-
-                if existing is None:
-                    # ---- 表不存在：直接创建 ----
-                    cols_sql = ", ".join(col.sql for col in desired_cols)
-                    conn.execute(f"CREATE TABLE {table_name} ({cols_sql})")
+                if DB._table_exists(conn, table_name):
+                    DB.sync_existing_table(conn, table_name, desired_cols)
                 else:
-                    # ---- 表已存在：补齐新列，检查已有列 ----
-                    existing_cols = {
-                        row["name"]: row for row in conn.execute(f"PRAGMA table_info({table_name})")
-                    }
-                    for col in desired_cols:
-                        existing_info = existing_cols.get(col.name)
-                        if existing_info is None:
-                            _check_addition_column(col)
-                            conn.execute(
-                                f"ALTER TABLE {table_name} "
-                                f"ADD COLUMN {col.sql}"
-                            )
-                        else:
-                            _check_existing_column(col, existing_info, table_name)
+                    DB._create_table(conn, table_name, desired_cols)
 
-                # 建索引
-                for col in desired_cols:
-                    if not col.index:
-                        continue
-                    idx_sql = (
-                        f"CREATE INDEX IF NOT EXISTS idx_{table_name}_{col.name} "
-                        f"ON {table_name}({col.name})"
-                    )
-                    conn.execute(idx_sql)
+                DB._create_indexes(conn, table_name, desired_cols)
+
             self.table_infos.update(table_infos)
 
     # ---- 自动生成 INSERT SQL ----
