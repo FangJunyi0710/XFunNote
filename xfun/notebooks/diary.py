@@ -21,7 +21,7 @@ class DiaryNotebook(Notebook):
 
     # ---- 校验 & 自动填充 ----
 
-    def _autofill(self, entry: Dict[str, Any], conn) -> None:
+    def _autofill(self, entry: Dict[str, Any]) -> None:
         """自动填充 id（uuid7）/ date / created_at。"""
-        super()._autofill(entry, conn)
+        super()._autofill(entry)
         entry["id"] = f"{self.name}-{entry['date']}-{str(uuid7())}"

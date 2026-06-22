@@ -25,12 +25,12 @@ class WordNotebook(Notebook):
 
     # ---- 校验 & 自动填充 ----
 
-    def _autofill(self, entry: Dict[str, Any], conn) -> None:
+    def _autofill(self, entry: Dict[str, Any]) -> None:
         """自动填充 id（用 word 值）/ review_count / performance。
 
         id 直接使用 word 字段值（主键），利用 PRIMARY KEY 约束防止重复单词。
         """
-        super()._autofill(entry, conn)
+        super()._autofill(entry)
         entry["id"] = f"{self.name}-{entry["word"]}"
         entry.setdefault("review_count", 0)
         entry.setdefault("performance", 0.0)
