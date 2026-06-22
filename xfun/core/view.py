@@ -1,43 +1,45 @@
-"""视图定义：表级视图的 Filter 描述。"""
+from typing import List, Tuple
 
-from typing import Tuple
-
-from .db import Column, Filter, filter_to_sql
+from .db import Column, DB
+from .filter import Filter, filter_to_sql
 
 Basic_TableSpec = tuple[list[str], Filter]
-# dict[表名, (列名列表, 行筛选条件)]
-Basic_View = dict[str, Basic_TableSpec]
+# dict[表名, List[(列名列表, 行筛选条件)]]
+View = dict[str, List[Basic_TableSpec]]
 
-
-def basic_view_to_sql(view: Basic_View, table: str) -> Tuple[str, list]:
-    """将 Basic_View 转换为针对指定表的 SELECT 查询。
-
-    Parameters
-    ----------
-    view : Basic_View
-        视图定义，dict[表名, (列名列表, 行筛选条件)]。
-    table : str
-        要查询的表名，作为键从 view 中查找。
-
-    Returns
-    -------
-    Tuple[str, list]
-        (SQL 语句, 参数值列表)。若 table 不在 view 中则返回 ("", [])。
+def view_to_sql(view: View, db: DB, table: str) -> Tuple[str, list]:
     """
-    if table not in view:
+    将 View 转换为针对指定表的 SELECT 查询。
+    """
+    if table not in view or table not in db.table_infos:
         return "", []
 
     Column.check(table)
-    cols, filter = view[table]
-    for col in cols:
-        Column.check(col)
-    select_cols = ", ".join(f"{table}.{col}" for col in cols)
+    subsqls = [f"{db.select_sql(table, [])} WHERE 1=0"]
+    params = []
 
-    sql = f"SELECT {select_cols} FROM {table}"
+    for cols, flt in view[table]:
+        sql = db.select_sql(table, cols)
+        clause, vals = filter_to_sql(flt)
+        if clause:
+            sql += f" WHERE {clause}"
+        subsqls.append(f"({sql})")
+        params.extend(vals)
 
-    clause, params = filter_to_sql(filter)
-    if clause:
-        sql += f" WHERE {clause}"
+    pks: List[str] = []
+    pieces: List[str] = []
+    for col in db.table_infos[table]:
+        if col.primary_key:
+            pks.append(col.name)
+            pieces.append(col.name)
+            continue
+
+        pieces.append(f"MAX({col.name}) AS {col.name}")
+
+    sql = " UNION ALL ".join(subsqls)
+
+    if pks:
+        sql = f"SELECT {", ".join(pieces)} FROM ({sql}) AS combined GROUP BY {", ".join(pks)}"
 
     return sql, params
 
