@@ -8,7 +8,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
-from .db import Column, Filter, to_sql
+from .db import Column, Filter, filter_to_sql
 from ..utils.time_utils import now_str
 
 
@@ -174,7 +174,7 @@ class Notebook(ABC):
         List[str]
             ID 列表。
         """
-        where_sql, params = to_sql(filter)
+        where_sql, params = filter_to_sql(filter)
         sql = f"SELECT id FROM {self.name}"
         if where_sql:
             sql += f" WHERE {where_sql}"

@@ -3,7 +3,7 @@
 import json
 
 import pytest
-from xfun.core.db import Column, Condition, to_sql, DB, parse_filter_json
+from xfun.core.db import Column, Condition, filter_to_sql, DB, parse_filter_json
 from xfun.core.errors import InvalidConditionError, InvalidSQLError
 
 
@@ -69,15 +69,15 @@ class TestToSql:
     """核心：Filter → WHERE 子句是否正确。"""
 
     def test_empty(self):
-        assert to_sql([]) == ("", [])
+        assert filter_to_sql([]) == ("", [])
 
     def test_and_group(self):
-        sql, params = to_sql([[Condition("a", 1), Condition("b", 2)]])
+        sql, params = filter_to_sql([[Condition("a", 1), Condition("b", 2)]])
         assert "(a = ?) AND (b = ?)" in sql
         assert params == [1, 2]
 
     def test_or_of_ands(self):
-        sql, params = to_sql([
+        sql, params = filter_to_sql([
             [Condition("a", 1)],
             [Condition("b", 2)],
         ])
@@ -85,14 +85,14 @@ class TestToSql:
         assert params == [1, 2]
 
     def test_null_in_filter(self):
-        sql, params = to_sql([[Condition("ai_note", None, "=")]])
+        sql, params = filter_to_sql([[Condition("ai_note", None, "=")]])
         assert "IS NULL" in sql
 
     # ---- 嵌套子 Filter ----
 
     def test_nested_filter_in_and(self):
         """子 Filter（含多 OR 组）在 AND 组内应被括号包裹保护优先级。"""
-        sql, params = to_sql([
+        sql, params = filter_to_sql([
             [Condition("a", 1), [[Condition("b", 2)], [Condition("c", 3)]]],
         ])
         assert "((b = ?)) OR ((c = ?))" in sql
@@ -100,14 +100,14 @@ class TestToSql:
 
     def test_nested_filter_single_and(self):
         """子 Filter 只有一组 AND。"""
-        sql, params = to_sql([
+        sql, params = filter_to_sql([
             [Condition("a", 1), [[Condition("b", 2), Condition("c", 3)]]],
         ])
         assert params == [1, 2, 3]
 
     def test_deeply_nested(self):
         """多层嵌套 Filter。"""
-        sql, params = to_sql([
+        sql, params = filter_to_sql([
             [Condition("a", 1), [[Condition("b", 2), [[Condition("c", 3)]]]]],
         ])
         assert params == [1, 2, 3]
@@ -116,19 +116,19 @@ class TestToSql:
 
     def test_negate_outer_true(self):
         """最外层 (Filter, True) 包裹 NOT。"""
-        sql, params = to_sql(([[Condition("a", 1)]], True))
+        sql, params = filter_to_sql(([[Condition("a", 1)]], True))
         assert sql.startswith("NOT ")
         assert params == [1]
 
     def test_negate_outer_false(self):
         """最外层 (Filter, False) 不取反。"""
-        sql, params = to_sql(([[Condition("a", 1)]], False))
+        sql, params = filter_to_sql(([[Condition("a", 1)]], False))
         assert not sql.startswith("NOT ")
         assert params == [1]
 
     def test_negate_with_nested_filter(self):
         """取反 + 嵌套子 Filter 组合。"""
-        sql, params = to_sql(([
+        sql, params = filter_to_sql(([
             [Condition("a", 1), [[Condition("b", 2)], [Condition("c", 3)]]],
         ], True))
         assert sql.startswith("NOT ")
@@ -137,7 +137,7 @@ class TestToSql:
 
     def test_negate_deeply_nested(self):
         """取反 + 多层嵌套。"""
-        sql, params = to_sql(([
+        sql, params = filter_to_sql(([
             [Condition("a", 1), [[Condition("b", 2), [[Condition("c", 3)]]]]],
         ], True))
         assert sql.startswith("NOT ")
@@ -145,12 +145,12 @@ class TestToSql:
 
     def test_negate_empty_returns_empty(self):
         """([], True) → clause 为空，直接返回 ("", [])。"""
-        sql, params = to_sql(([], True))
+        sql, params = filter_to_sql(([], True))
         assert sql == "" and params == []
 
     def test_negate_or_group(self):
         """取反一组 OR 条件。"""
-        sql, params = to_sql(([
+        sql, params = filter_to_sql(([
             [Condition("a", 1)],
             [Condition("b", 2)],
         ], True))
@@ -203,11 +203,11 @@ class TestToSqlEdgeCases:
     """to_sql 边界情况。"""
 
     def test_empty_group_skipped(self):
-        sql, params = to_sql([[]])
+        sql, params = filter_to_sql([[]])
         assert sql == "" and params == []
 
     def test_mixed_empty_and_normal(self):
-        sql, params = to_sql([
+        sql, params = filter_to_sql([
             [Condition("a", 1)],
             [],
         ])
@@ -215,7 +215,7 @@ class TestToSqlEdgeCases:
 
     def test_nested_empty_filter(self):
         """内层空 Filter 不贡献 AND 子句。"""
-        sql, params = to_sql([[Condition("a", 1), []]])
+        sql, params = filter_to_sql([[Condition("a", 1), []]])
         assert "(a = ?)" in sql and params == [1]
 
 
@@ -343,7 +343,7 @@ class TestParseFilterJson:
             {"column": "name", "value": "alice"},
             {"column": "age", "value": 30, "op": ">"}
         ]]''')
-        sql, params = to_sql(f)
+        sql, params = filter_to_sql(f)
         assert sql == "((name = ?) AND (age > ?))"
         assert params == ["alice", 30]
 
@@ -352,7 +352,7 @@ class TestParseFilterJson:
             [{"column": "status", "value": "active"}],
             [{"column": "role", "value": "admin"}]
         ]''')
-        sql, params = to_sql(f)
+        sql, params = filter_to_sql(f)
         assert "(status = ?)" in sql
         assert "(role = ?)" in sql
         assert "OR" in sql
@@ -361,7 +361,7 @@ class TestParseFilterJson:
     def test_integration_with_negate(self):
         """解析 + 取反 + to_sql 整体流程。"""
         f = parse_filter_json('[[[{"column": "a", "value": 1}]], true]')
-        sql, params = to_sql(f)
+        sql, params = filter_to_sql(f)
         assert sql.startswith("NOT ")
         assert "(a = ?)" in sql
         assert params == [1]

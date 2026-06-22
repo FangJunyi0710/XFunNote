@@ -188,7 +188,7 @@ Filter = Union[Condition, Seq[Seq["Filter"]], Tuple["Filter", bool]]
 # 递归结构：外层 OR、内层 AND，元素可为子 Filter 或 Condition。
 # 最外层支持 (Filter, negate) 元组对整个结果取反。
 
-def to_sql(filter: Filter) -> Tuple[str, list]:
+def filter_to_sql(filter: Filter) -> Tuple[str, list]:
     """
     生成 WHERE 子句：外层 OR（取并），内层 AND（取交）。
     最外层可为 (Filter, bool) 元组，bool=True 时对整个结果取反。
@@ -208,7 +208,7 @@ def to_sql(filter: Filter) -> Tuple[str, list]:
 
     if isinstance(filter, tuple):
         inner, negate = filter
-        clause, vals = to_sql(inner)
+        clause, vals = filter_to_sql(inner)
         if not clause:
             return "", []
         if negate:
@@ -220,7 +220,7 @@ def to_sql(filter: Filter) -> Tuple[str, list]:
     for group in filter:
         and_clauses: List[str] = []
         for item in group:
-            clause, vals = to_sql(item)
+            clause, vals = filter_to_sql(item)
             if not clause:
                 continue
             and_clauses.append(f"({clause})")
