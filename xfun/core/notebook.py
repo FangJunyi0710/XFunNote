@@ -118,7 +118,7 @@ class Notebook(ABC):
         for entry in entries:
             self._validate(entry)
             self._autofill(entry, conn)
-        conn.executemany(self._insert_sql(), entries)
+        conn.executemany(conn.db.insert_sql(self.name), entries)
         return [entry["id"] for entry in entries]
 
     def list(self, conn, filter: Filter, *,

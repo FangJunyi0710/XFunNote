@@ -260,16 +260,62 @@ def parse_filter_json(s: str) -> Filter:
     return _convert(data)
 
 # ---------------------------------------------------------------------------
+# 列兼容性检查
+# ---------------------------------------------------------------------------
+
+def _check_addition_column(col: Column):
+    """检查新加列的属性是否可行
+
+    Raises
+    ------
+    InvalidSQLError
+        列不可空或为主键时抛出，因为 SQLite 的 ADD COLUMN 不支持这些约束。
+    """
+    Column.check(col.name)
+    if not col.nullable:
+        raise InvalidSQLError(
+            f"新增列 {col.name} 不可为 NULL：ALTER TABLE ADD COLUMN "
+            f"要求列必须可空，否则无法为已有数据行填充值"
+        )
+    if col.primary_key:
+        raise InvalidSQLError(
+            f"新增列 {col.name} 为主键：ALTER TABLE ADD COLUMN 不支持添加主键列"
+        )
+
+
+def _check_existing_column(col: Column, existing: sqlite3.Row, table_name: str) -> None:
+    """检查已有列与代码定义是否一致，不一致时抛出异常。"""
+    if col.col_type.upper() != existing["type"].upper():
+        raise InvalidSQLError(
+            f"表 {table_name} 列 {col.name} 类型冲突："
+            f"代码定义 {col.col_type}，数据库中为 {existing['type']}"
+        )
+    existing_not_null = bool(existing["notnull"])
+    if (not col.nullable) != existing_not_null:
+        raise InvalidSQLError(
+            f"表 {table_name} 列 {col.name} 约束冲突："
+            f"代码定义 nullable={col.nullable}，数据库中 "
+            f"{'NOT NULL' if existing_not_null else 'NULLABLE'}"
+        )
+    col_pk = 1 if col.primary_key else 0
+    if col_pk != existing["pk"]:
+        raise InvalidSQLError(
+            f"表 {table_name} 列 {col.name} 主键属性冲突："
+            f"代码定义 primary_key={col.primary_key}，数据库中 "
+            f"{'是主键' if existing['pk'] else '非主键'}"
+        )
+
+
+# ---------------------------------------------------------------------------
 # DB 类
 # ---------------------------------------------------------------------------
 
 class DB:
     """数据库管理器，每个事务返回独立的连接，保证隔离。"""
 
-    table_infos = dict(str, List[Column])
-
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path or config.DB_PATH
+        self.table_infos = {}
 
     def _connect(self) -> sqlite3.Connection:
         """建立新连接，统一设置 row_factory 并启用 WAL 模式。"""
@@ -298,19 +344,46 @@ class DB:
     def init(self, table_infos: dict[str, List[Column]]) -> None:
         """
         根据表信息初始化数据库。
+
+        若表已存在：
+        - 缺失的列通过 ``ALTER TABLE ADD COLUMN`` 自动补齐（不可空或主键列抛出异常）。
+        - 已有列与代码定义不一致时抛出异常，不自动修改已有表结构。
         """
         with self.transaction() as conn:
-            for table_name, cols in table_infos:
-                if not cols:
+            for table_name, desired_cols in table_infos.items():
+                if not desired_cols:
                     continue
                 Column.check(table_name)
-                for col in cols:
+                for col in desired_cols:
                     Column.check(col.name)
-                cols_sql = ", ".join(col.sql for col in cols)
-                sql = f"CREATE TABLE IF NOT EXISTS {table_name} ({cols_sql})"
-                conn.execute(sql)
+
+                existing = conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                    (table_name,)
+                ).fetchone()
+
+                if existing is None:
+                    # ---- 表不存在：直接创建 ----
+                    cols_sql = ", ".join(col.sql for col in desired_cols)
+                    conn.execute(f"CREATE TABLE {table_name} ({cols_sql})")
+                else:
+                    # ---- 表已存在：补齐新列，检查已有列 ----
+                    existing_cols = {
+                        row["name"]: row for row in conn.execute(f"PRAGMA table_info({table_name})")
+                    }
+                    for col in desired_cols:
+                        existing_info = existing_cols.get(col.name)
+                        if existing_info is None:
+                            _check_addition_column(col)
+                            conn.execute(
+                                f"ALTER TABLE {table_name} "
+                                f"ADD COLUMN {col.sql}"
+                            )
+                        else:
+                            _check_existing_column(col, existing_info, table_name)
+
                 # 建索引
-                for col in cols:
+                for col in desired_cols:
                     if not col.index:
                         continue
                     idx_sql = (
@@ -320,17 +393,15 @@ class DB:
                     conn.execute(idx_sql)
             self.table_infos.update(table_infos)
 
-
     # ---- 自动生成 INSERT SQL ----
 
-    def insert_sql(self, str) -> str:
+    def insert_sql(self, table_name: str) -> str:
         """根据 表名 自动生成 INSERT 语句。"""
-        col_names = [c.name for c in self.columns]
+        col_names = [c.name for c in self.table_infos[table_name]]
         cols = ", ".join(col_names)
         vals = ", ".join(f":{n}" for n in col_names)
-        return f"INSERT INTO {self.name} ({cols}) VALUES ({vals})"
+        return f"INSERT INTO {table_name} ({cols}) VALUES ({vals})"
     
-
 
 class _TransactionContext:
     """写事务上下文管理器：BEGIN IMMEDIATE，阻塞写入者并发。"""
@@ -341,6 +412,7 @@ class _TransactionContext:
 
     def __enter__(self) -> sqlite3.Connection:
         self.conn = self.db._connect()
+        self.conn.db = self.db
         self.conn.execute("BEGIN IMMEDIATE") # 主动加写锁，避免高并发下的 SQLITE_BUSY 重试
         return self.conn
 
@@ -365,6 +437,7 @@ class _ReadTransactionContext:
 
     def __enter__(self) -> sqlite3.Connection:
         self.conn = self.db._connect()
+        self.conn.db = self.db
         self.conn.execute("BEGIN")  # 不加 IMMEDIATE，不阻塞写入
         return self.conn
 
