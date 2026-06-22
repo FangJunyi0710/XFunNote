@@ -68,39 +68,11 @@ class Notebook(ABC):
         result = {r["id"]: dict(r) for r in rows}
         return [result[eid] for eid in entry_ids if eid in result]
 
-    # ---- 自动生成 INSERT SQL ----
-
-    def _insert_sql(self) -> str:
-        """根据 self.columns 自动生成 INSERT 语句。"""
-        col_names = [c.name for c in self.columns]
-        cols = ", ".join(col_names)
-        vals = ", ".join(f":{n}" for n in col_names)
-        return f"INSERT INTO {self.name} ({cols}) VALUES ({vals})"
-
     # ---- 数据库操作 ----
 
-    def init_table(self, conn) -> None:
-        """
-        根据 self.columns 自动建表。
-
-        Parameters
-        ----------
-        conn : sqlite3.Connection
-            事务连接，由 db.init() 或 db.transaction() 提供。
-        """
-        if not self.columns:
-            return
-        cols_sql = ", ".join(col.sql for col in self.columns)
-        sql = f"CREATE TABLE IF NOT EXISTS {self.name} ({cols_sql})"
-        conn.execute(sql)
-        # 建索引
-        for col in self.columns:
-            if col.index:
-                idx_sql = (
-                    f"CREATE INDEX IF NOT EXISTS idx_{self.name}_{col.name} "
-                    f"ON {self.name}({col.name})"
-                )
-                conn.execute(idx_sql)
+    @property
+    def table_info(self) -> tuple[str, List[Column]]:
+        return (self.name, self.columns)
 
     # ---- 校验 & 自动填充（通用） ----
 
@@ -114,7 +86,7 @@ class Notebook(ABC):
                         self.name, f"缺少必填字段 '{col.name}'"
                     )
 
-    def _autofill(self, entry: Dict[str, Any], conn) -> None:
+    def _autofill(self, entry: Dict[str, Any]) -> None:
         """自动填充通用字段：时间戳、可空列补 None。子类可重写以补充自有逻辑。"""
         entry["created_at"] = now_str()
         entry["updated_at"] = now_str()

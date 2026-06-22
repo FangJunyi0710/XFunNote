@@ -266,6 +266,8 @@ def parse_filter_json(s: str) -> Filter:
 class DB:
     """数据库管理器，每个事务返回独立的连接，保证隔离。"""
 
+    table_infos = dict(str, List[Column])
+
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path or config.DB_PATH
 
@@ -293,18 +295,41 @@ class DB:
 
     # ---- 初始化 ----
 
-    def init(self, registry) -> None:
+    def init(self, table_infos: dict[str, List[Column]]) -> None:
         """
-        初始化数据库：为 registry 中所有已注册的 notebook 建表。
-
-        Parameters
-        ----------
-        registry : Registry
-            Notebook 注册中心，遍历其中每个 notebook 调用 init_table()。
+        根据表信息初始化数据库。
         """
         with self.transaction() as conn:
-            for nb in registry:
-                nb.init_table(conn)
+            for table_name, cols in table_infos:
+                if not cols:
+                    continue
+                Column.check(table_name)
+                for col in cols:
+                    Column.check(col.name)
+                cols_sql = ", ".join(col.sql for col in cols)
+                sql = f"CREATE TABLE IF NOT EXISTS {table_name} ({cols_sql})"
+                conn.execute(sql)
+                # 建索引
+                for col in cols:
+                    if not col.index:
+                        continue
+                    idx_sql = (
+                        f"CREATE INDEX IF NOT EXISTS idx_{table_name}_{col.name} "
+                        f"ON {table_name}({col.name})"
+                    )
+                    conn.execute(idx_sql)
+            self.table_infos.update(table_infos)
+
+
+    # ---- 自动生成 INSERT SQL ----
+
+    def insert_sql(self, str) -> str:
+        """根据 表名 自动生成 INSERT 语句。"""
+        col_names = [c.name for c in self.columns]
+        cols = ", ".join(col_names)
+        vals = ", ".join(f":{n}" for n in col_names)
+        return f"INSERT INTO {self.name} ({cols}) VALUES ({vals})"
+    
 
 
 class _TransactionContext:
