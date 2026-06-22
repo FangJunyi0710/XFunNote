@@ -19,19 +19,27 @@ def view_to_sql(view: View, db: DB, table: str) -> Tuple[str, list]:
     subsqls = [f"{db.select_sql(table, [])} WHERE 1=0"]
     params = []
 
-    for cols, flt in view[table]:
-        sql = db.select_sql(table, cols)
-        clause, vals = filter_to_sql(flt)
-        if clause:
-            sql += f" WHERE {clause}"
-        subsqls.append(f"({sql})")
-        params.extend(vals)
-
     pks: List[str] = []
-    pieces: List[str] = []
     for col in db.table_infos[table]:
         if col.primary_key:
             pks.append(col.name)
+
+    for cols, flt in view[table]:
+        # 确保主键列始终被选中（外层 GROUP BY 依赖主键去重）
+        spec_cols = list(cols)
+        for pk in pks:
+            if pk not in spec_cols:
+                spec_cols.append(pk)
+        sql = db.select_sql(table, spec_cols)
+        clause, vals = filter_to_sql(flt)
+        if clause:
+            sql += f" WHERE {clause}"
+        subsqls.append(sql)
+        params.extend(vals)
+
+    pieces: List[str] = []
+    for col in db.table_infos[table]:
+        if col.primary_key:
             pieces.append(col.name)
             continue
 
