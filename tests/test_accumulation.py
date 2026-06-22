@@ -15,8 +15,8 @@ class TestAccumAutofill:
 
     def test_add_accum(self, db, accum_nb):
         """基本写入：分类 + 内容。"""
+        db.init({accum_nb.name: accum_nb.columns})
         with db.transaction() as conn:
-            accum_nb.init_table(conn)
             ids = accum_nb.add(conn, [
                 {"category": "tech", "content": "Python 的上下文管理器使用 with 语句。"},
             ])
@@ -26,8 +26,8 @@ class TestAccumAutofill:
         assert results[0]["content"] == "Python 的上下文管理器使用 with 语句。"
 
     def test_id_format(self, db, accum_nb):
+        db.init({accum_nb.name: accum_nb.columns})
         with db.transaction() as conn:
-            accum_nb.init_table(conn)
             ids = accum_nb.add(conn, [
                 {"category": "life", "content": "早睡早起身体好。"},
             ])
@@ -35,8 +35,8 @@ class TestAccumAutofill:
 
     def test_optional_fields(self, db, accum_nb):
         """source、note 为可选字段。"""
+        db.init({accum_nb.name: accum_nb.columns})
         with db.transaction() as conn:
-            accum_nb.init_table(conn)
             ids = accum_nb.add(conn, [
                 {"category": "book", "content": "活着",
                  "source": "余华《活着》", "note": "经典之作"},
@@ -51,14 +51,14 @@ class TestAccumAutofill:
 
     def test_category_missing_raises(self, db, accum_nb):
         """category 是必填字段，缺少时抛 EntryInvalidError。"""
+        db.init({accum_nb.name: accum_nb.columns})
         with db.transaction() as conn:
-            accum_nb.init_table(conn)
             with pytest.raises(EntryInvalidError, match="category"):
                 accum_nb.add(conn, [{"content": "没有分类"}])
 
     def test_content_missing_raises(self, db, accum_nb):
         """content（正文）是基类必填字段。"""
+        db.init({accum_nb.name: accum_nb.columns})
         with db.transaction() as conn:
-            accum_nb.init_table(conn)
             with pytest.raises(EntryInvalidError, match="content"):
                 accum_nb.add(conn, [{"category": "tech"}])

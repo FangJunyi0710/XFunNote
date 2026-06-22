@@ -1,174 +1,8 @@
-"""测试核心查询逻辑：Condition 运算符、to_sql 递归 AND/OR 组合、自定义运算符注册。"""
+"""测试数据库核心类：DB 初始化、表迁移、SELECT SQL、事务上下文管理器、Column.check_order_by。"""
 
 import pytest
-from xfun.core.db import Column, Condition, to_sql, DB
-from xfun.core.errors import InvalidConditionError, InvalidSQLError
-
-
-class TestConditionSqlGeneration:
-    """核心：条件 → SQL 片段的转换是否正确。"""
-
-    def test_basic_comparison(self):
-        sql, params = Condition("col", "val", "=").to_sql()
-        assert sql == "col = ?" and params == ["val"]
-
-    def test_null_handling(self):
-        sql, params = Condition("col", None, "=").to_sql()
-        assert sql == "col IS NULL" and params == []
-
-    def test_not_null(self):
-        sql, params = Condition("col", None, "!=").to_sql()
-        assert sql == "col IS NOT NULL" and params == []
-
-    def test_in_list(self):
-        sql, params = Condition("col", ["a", "b"], "IN").to_sql()
-        assert sql == "col IN (?, ?)" and params == ["a", "b"]
-
-    def test_between(self):
-        sql, params = Condition("col", [1, 10], "BETWEEN").to_sql()
-        assert sql == "col BETWEEN ? AND ?" and params == [1, 10]
-
-    def test_negate_wraps_not(self):
-        sql, params = Condition("done", 1, "=", negate=True).to_sql()
-        assert sql == "NOT (done = ?)" and params == [1]
-
-    def test_like(self):
-        sql, params = Condition("col", "%test%", "LIKE").to_sql()
-        assert sql == "col LIKE ?" and params == ["%test%"]
-
-
-class TestConditionEdgeCases:
-    """边界：非法输入应有的保护。"""
-
-    def test_null_with_non_null_op_raises(self):
-        with pytest.raises(InvalidConditionError):
-            Condition("col", None, ">").to_sql()
-
-    def test_empty_in_is_false(self):
-        """空 IN 列表应生成 1=0（永假）。"""
-        sql, params = Condition("col", [], "IN").to_sql()
-        assert sql == "1=0" and params == []
-
-    def test_empty_not_in_is_true(self):
-        """空 NOT IN 列表应生成 1=1（永真）。"""
-        sql, params = Condition("col", [], "NOT IN").to_sql()
-        assert sql == "1=1" and params == []
-
-    def test_empty_in_negated(self):
-        """空 IN + negate → NOT (1=0) → 1=1。"""
-        sql, params = Condition("col", [], "IN", negate=True).to_sql()
-        assert sql == "NOT (1=0)" and params == []
-
-    def test_empty_not_in_negated(self):
-        """空 NOT IN + negate → NOT (1=1) → 1=0。"""
-        sql, params = Condition("col", [], "NOT IN", negate=True).to_sql()
-        assert sql == "NOT (1=1)" and params == []
-
-    def test_non_list_in_raises(self):
-        with pytest.raises(InvalidConditionError):
-            Condition("col", "not_a_list", "IN").to_sql()
-
-    def test_unknown_op_raises(self):
-        with pytest.raises(InvalidConditionError):
-            Condition("col", "val", "UNKNOWN_OP").to_sql()
-
-    def test_invalid_column_name_raises(self):
-        with pytest.raises(InvalidSQLError):
-            Condition("bad col", "val").to_sql()
-
-
-class TestToSql:
-    """核心：Filter → WHERE 子句是否正确。"""
-
-    def test_empty(self):
-        assert to_sql([]) == ("", [])
-
-    def test_and_group(self):
-        sql, params = to_sql([[Condition("a", 1), Condition("b", 2)]])
-        assert "(a = ?) AND (b = ?)" in sql
-        assert params == [1, 2]
-
-    def test_or_of_ands(self):
-        sql, params = to_sql([
-            [Condition("a", 1)],
-            [Condition("b", 2)],
-        ])
-        assert sql.count("OR") == 1
-        assert params == [1, 2]
-
-    def test_null_in_filter(self):
-        sql, params = to_sql([[Condition("ai_note", None, "=")]])
-        assert "IS NULL" in sql
-
-    # ---- 嵌套子 Filter ----
-
-    def test_nested_filter_in_and(self):
-        """子 Filter（含多 OR 组）在 AND 组内应被括号包裹保护优先级。"""
-        sql, params = to_sql([
-            [Condition("a", 1), [[Condition("b", 2)], [Condition("c", 3)]]],
-        ])
-        assert "((b = ?)) OR ((c = ?))" in sql
-        assert params == [1, 2, 3]
-
-    def test_nested_filter_single_and(self):
-        """子 Filter 只有一组 AND。"""
-        sql, params = to_sql([
-            [Condition("a", 1), [[Condition("b", 2), Condition("c", 3)]]],
-        ])
-        assert params == [1, 2, 3]
-
-    def test_deeply_nested(self):
-        """多层嵌套 Filter。"""
-        sql, params = to_sql([
-            [Condition("a", 1), [[Condition("b", 2), [[Condition("c", 3)]]]]],
-        ])
-        assert params == [1, 2, 3]
-
-    # ---- 最外层取反元组 ----
-
-    def test_negate_outer_true(self):
-        """最外层 (Filter, True) 包裹 NOT。"""
-        sql, params = to_sql(([[Condition("a", 1)]], True))
-        assert sql.startswith("NOT ")
-        assert params == [1]
-
-    def test_negate_outer_false(self):
-        """最外层 (Filter, False) 不取反。"""
-        sql, params = to_sql(([[Condition("a", 1)]], False))
-        assert not sql.startswith("NOT ")
-        assert params == [1]
-
-    def test_negate_with_nested_filter(self):
-        """取反 + 嵌套子 Filter 组合。"""
-        sql, params = to_sql(([
-            [Condition("a", 1), [[Condition("b", 2)], [Condition("c", 3)]]],
-        ], True))
-        assert sql.startswith("NOT ")
-        assert "((b = ?)) OR ((c = ?))" in sql
-        assert params == [1, 2, 3]
-
-    def test_negate_deeply_nested(self):
-        """取反 + 多层嵌套。"""
-        sql, params = to_sql(([
-            [Condition("a", 1), [[Condition("b", 2), [[Condition("c", 3)]]]]],
-        ], True))
-        assert sql.startswith("NOT ")
-        assert params == [1, 2, 3]
-
-    def test_negate_empty_returns_empty(self):
-        """([], True) → clause 为空，直接返回 ("", [])。"""
-        sql, params = to_sql(([], True))
-        assert sql == "" and params == []
-
-    def test_negate_or_group(self):
-        """取反一组 OR 条件。"""
-        sql, params = to_sql(([
-            [Condition("a", 1)],
-            [Condition("b", 2)],
-        ], True))
-        assert sql.startswith("NOT ")
-        assert sql.count("OR") == 1
-        assert params == [1, 2]
+from xfun.core.db import Column, DB
+from xfun.core.errors import InvalidSQLError
 
 
 class TestCheckOrderBy:
@@ -188,67 +22,116 @@ class TestCheckOrderBy:
             Column.check_order_by("month INVALID")
 
 
-class TestBetweenEdgeCases:
-    """BETWEEN 运算符的边界。"""
-
-    def test_between_none_value_raises(self):
-        """[None, 10] → 1=0。"""
-        sql, params = Condition("col", [None, 10], "BETWEEN").to_sql()
-        assert sql == "1=0" and params == []
-
-    def test_between_partial_none_raises(self):
-        """[None, None] → 1=0。"""
-        sql, params = Condition("col", [None, None], "BETWEEN").to_sql()
-        assert sql == "1=0" and params == []
-
-    def test_between_wrong_length_raises(self):
-        """长度不为 2 仍应抛异常。"""
-        with pytest.raises(InvalidConditionError):
-            Condition("col", [1, 2, 3], "BETWEEN").to_sql()
-
-    def test_between_non_list_raises(self):
-        """非列表类型仍应抛异常。"""
-        with pytest.raises(InvalidConditionError):
-            Condition("col", "not_a_list", "BETWEEN").to_sql()
-
-    def test_between_negated_with_none(self):
-        """BETWEEN [None, 10] + negate → NOT (1=0)。"""
-        sql, params = Condition("col", [None, 10], "BETWEEN", negate=True).to_sql()
-        assert sql == "NOT (1=0)" and params == []
-
-
-class TestToSqlEdgeCases:
-    """to_sql 边界情况。"""
-
-    def test_empty_group_skipped(self):
-        sql, params = to_sql([[]])
-        assert sql == "" and params == []
-
-    def test_mixed_empty_and_normal(self):
-        sql, params = to_sql([
-            [Condition("a", 1)],
-            [],
-        ])
-        assert "(a = ?)" in sql and params == [1]
-
-    def test_nested_empty_filter(self):
-        """内层空 Filter 不贡献 AND 子句。"""
-        sql, params = to_sql([[Condition("a", 1), []]])
-        assert "(a = ?)" in sql and params == [1]
-
-
 class TestDBInit:
     """DB.init 集成测试。"""
 
     def test_init_creates_tables(self, registry, tmp_path):
         db = DB(db_path=str(tmp_path / "init_test.db"))
-        db.init(registry)
+        db.init({nb.name: nb.columns for nb in registry})
         with db.read_transaction() as conn:
             rows = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table'"
             ).fetchall()
         table_names = {r["name"] for r in rows}
         assert "plan" in table_names
+
+
+class TestDBInitEdgeCases:
+    """覆盖 db.init 的 _check_addition_column / _check_existing_column / ALTER TABLE 分支。"""
+
+    def test_alter_add_non_nullable_column_raises(self, tmp_path):
+        """为已有表添加 NOT NULL 列应抛出 InvalidSQLError。"""
+        db = DB(db_path=str(tmp_path / "add_notnull.db"))
+        db.init({"t1": [Column("id", "TEXT")]})
+        with pytest.raises(InvalidSQLError, match="不可为 NULL"):
+            db.init({"t1": [Column("id", "TEXT"), Column("name", "TEXT", nullable=False)]})
+
+    def test_alter_add_primary_key_column_raises(self, tmp_path):
+        """为已有表添加 PK 列应抛出 InvalidSQLError。"""
+        db = DB(db_path=str(tmp_path / "add_pk.db"))
+        db.init({"t1": [Column("id", "TEXT")]})
+        with pytest.raises(InvalidSQLError, match="主键"):
+            db.init({"t1": [Column("id", "TEXT"), Column("name", "TEXT", primary_key=True)]})
+
+    def test_alter_add_invalid_column_name_raises(self, tmp_path):
+        """为已有表添加非法列名应抛出 InvalidSQLError。"""
+        db = DB(db_path=str(tmp_path / "add_badcol.db"))
+        db.init({"t1": [Column("id", "TEXT")]})
+        with pytest.raises(InvalidSQLError):
+            db.init({"t1": [Column("id", "TEXT"), Column("bad col", "TEXT")]})
+
+    def test_alter_add_nullable_column_succeeds(self, tmp_path):
+        """为已有表添加可空列应执行 ALTER TABLE ADD COLUMN。"""
+        db = DB(db_path=str(tmp_path / "add_ok.db"))
+        db.init({"t1": [Column("id", "TEXT")]})
+        db.init({"t1": [Column("id", "TEXT"), Column("name", "TEXT", nullable=True)]})
+        with db.read_transaction() as conn:
+            cols = [r["name"] for r in conn.execute("PRAGMA table_info(t1)")]
+        assert "name" in cols
+
+    def test_existing_column_type_mismatch_raises(self, tmp_path):
+        """已有列类型冲突应抛出 InvalidSQLError。"""
+        db = DB(db_path=str(tmp_path / "type_mismatch.db"))
+        db.init({"t1": [Column("id", "TEXT")]})
+        with pytest.raises(InvalidSQLError, match="类型冲突"):
+            db.init({"t1": [Column("id", "INTEGER")]})
+
+    def test_existing_column_nullable_mismatch_raises(self, tmp_path):
+        """已有列 nullable 约束冲突应抛出 InvalidSQLError。"""
+        db = DB(db_path=str(tmp_path / "nullable_mismatch.db"))
+        db.init({"t1": [Column("id", "TEXT", nullable=False)]})
+        with pytest.raises(InvalidSQLError, match="约束冲突"):
+            db.init({"t1": [Column("id", "TEXT", nullable=True)]})
+
+    def test_existing_column_pk_mismatch_raises(self, tmp_path):
+        """已有列主键属性冲突应抛出 InvalidSQLError。"""
+        db = DB(db_path=str(tmp_path / "pk_mismatch.db"))
+        db.init({"t1": [Column("id", "TEXT", primary_key=True)]})
+        with pytest.raises(InvalidSQLError, match="主键属性冲突"):
+            db.init({"t1": [Column("id", "TEXT", primary_key=False)]})
+
+
+class TestSelectSql:
+    """DB.select_sql：指定列用 table.col，其余表列用 NULL AS col。"""
+
+    def test_all_columns_included(self, tmp_path):
+        db = DB(db_path=str(tmp_path / "all_cols.db"))
+        db.init({"t1": [Column("id", "TEXT"), Column("name", "TEXT"), Column("age", "INTEGER")]})
+        sql = db.select_sql("t1", ["id", "name"])
+        assert sql.startswith("SELECT ")
+        assert "t1.id" in sql
+        assert "t1.name" in sql
+        assert "NULL AS age" in sql
+        assert "FROM t1" in sql
+
+    def test_single_column(self, tmp_path):
+        db = DB(db_path=str(tmp_path / "single_col.db"))
+        db.init({"t1": [Column("id", "TEXT"), Column("name", "TEXT")]})
+        sql = db.select_sql("t1", ["id"])
+        assert sql == "SELECT t1.id, NULL AS name FROM t1"
+
+    def test_all_selected(self, tmp_path):
+        db = DB(db_path=str(tmp_path / "all_selected.db"))
+        db.init({"t1": [Column("id", "TEXT"), Column("name", "TEXT")]})
+        sql = db.select_sql("t1", ["id", "name"])
+        assert sql == "SELECT t1.id, t1.name FROM t1"
+
+    def test_query_result_contains_all_columns(self, tmp_path):
+        """实际查询时，未选中的列返回 NULL。"""
+        db = DB(db_path=str(tmp_path / "query_result.db"))
+        db.init({"t1": [Column("id", "TEXT"), Column("name", "TEXT"), Column("age", "INTEGER")]})
+        with db.transaction() as conn:
+            conn.executemany(
+                "INSERT INTO t1 (id, name, age) VALUES (:id, :name, :age)",
+                [{"id": "1", "name": "alice", "age": 30}],
+            )
+        sql = db.select_sql("t1", ["name"])
+        with db.read_transaction() as conn:
+            row = conn.execute(sql).fetchone()
+        assert row["id"] is None
+        assert row["name"] == "alice"
+        assert row["age"] is None
+        assert row["age"] is None
 
 
 class TestTransactionContext:
@@ -279,27 +162,3 @@ class TestTransactionContext:
                 conn.execute("INSERT INTO _test_t VALUES (1)")
                 raise RuntimeError("rollback read!")
         # 读事务的回滚不会影响之前的写（WAL 模式下），只验证不抛异常
-
-
-class TestCustomOperator:
-    """验证运算符注册机制可用。"""
-
-    def test_register_and_use(self):
-        @Condition.register_op("@>")
-        def handler(col, val, op):
-            return f"{col} @> ?", [val]
-        try:
-            sql, _ = Condition("tags", "keyword", "@>").to_sql()
-            assert sql == "tags @> ?"
-        finally:
-            Condition._op_registry.pop("@>", None)
-
-    def test_custom_with_negate(self):
-        @Condition.register_op("@@")
-        def handler(col, val, op):
-            return f"to_tsvector({col}) @@ to_tsquery(?)", [val]
-        try:
-            sql, _ = Condition("content", "hello", "@@", negate=True).to_sql()
-            assert sql.startswith("NOT (")
-        finally:
-            Condition._op_registry.pop("@@", None)

@@ -14,8 +14,8 @@ class TestDiaryAutofill:
     """diary _autofill 的核心行为。"""
 
     def test_explicit_date(self, db, diary_nb):
+        db.init({diary_nb.name: diary_nb.columns})
         with db.transaction() as conn:
-            diary_nb.init_table(conn)
             ids = diary_nb.add(conn, [
                 {"date": "2026-06-18", "content": "今天学习了Python"},
             ])
@@ -25,8 +25,8 @@ class TestDiaryAutofill:
         assert results[0]["content"] == "今天学习了Python"
 
     def test_id_format(self, db, diary_nb):
+        db.init({diary_nb.name: diary_nb.columns})
         with db.transaction() as conn:
-            diary_nb.init_table(conn)
             ids = diary_nb.add(conn, [
                 {"date": "2026-07-01", "content": "暑假第一天"},
             ])
@@ -37,8 +37,8 @@ class TestDiaryAutofill:
 
     def test_optional_fields(self, db, diary_nb):
         """mood、weather 为可选字段，提供时入库、不提供时为 None。"""
+        db.init({diary_nb.name: diary_nb.columns})
         with db.transaction() as conn:
-            diary_nb.init_table(conn)
             ids = diary_nb.add(conn, [
                 {"date": "2026-06-18", "content": "今日无事", "mood": "平静", "weather": "阴"},
                 {"date": "2026-06-19", "content": "只有内容"},
@@ -52,7 +52,7 @@ class TestDiaryAutofill:
 
     def test_date_missing_raises(self, db, diary_nb):
         """date 是必填字段，缺少时抛 EntryInvalidError。"""
+        db.init({diary_nb.name: diary_nb.columns})
         with db.transaction() as conn:
-            diary_nb.init_table(conn)
             with pytest.raises(EntryInvalidError, match="date"):
                 diary_nb.add(conn, [{"content": "没有日期"}])

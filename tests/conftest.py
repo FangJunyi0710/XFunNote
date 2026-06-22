@@ -15,9 +15,9 @@ class _TestNotebook(Notebook):
         Column("count", "INTEGER"),
     ]
 
-    def _autofill(self, entry, conn):
+    def _autofill(self, entry):
         from future_uuid import uuid7
-        super()._autofill(entry, conn)
+        super()._autofill(entry)
         entry.setdefault("id", str(uuid7()))
 
 

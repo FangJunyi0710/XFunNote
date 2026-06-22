@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 import os
 import re
 import sqlite3
 from dataclasses import dataclass
-from typing import Any, ClassVar, List, Optional, Sequence as Seq, Tuple, Union
+from typing import Any, List, Optional
 
 from .. import config
-from .errors import InvalidSQLError, InvalidConditionError
+from .errors import InvalidSQLError
 
 
 # ---------------------------------------------------------------------------
@@ -80,164 +82,51 @@ class Column:
 
         return " ".join(parts)
 
-
 # ---------------------------------------------------------------------------
-# 筛选条件
+# 列兼容性检查
 # ---------------------------------------------------------------------------
 
-@dataclass
-class Condition:
-    column: str
-    value: Any
-    op: str = "="
-    negate: bool = False
+def _check_addition_column(col: Column):
+    """检查新加列的属性是否可行
 
-    _op_registry: ClassVar[dict] = {}
-
-    @classmethod
-    def register_op(cls, op_name: str):
-        """装饰器：注册自定义运算符的 SQL 生成逻辑。
-
-        Parameters
-        ----------
-        op_name : str
-            自定义运算符名称。
-
-        Returns
-        -------
-        callable
-            装饰器，接收 handler(column, value, op) -> (sql, params)。
-        """
-        def decorator(func):
-            cls._op_registry[op_name] = func
-            return func
-        return decorator
-
-    def to_sql(self) -> Tuple[str, list]:
-        """生成该条件的 SQL 片段及参数值列表。
-
-        Returns
-        -------
-        tuple[str, list]
-            (SQL 片段, 参数值列表)。值为 None 时返回空列表，SQL 使用 IS NULL / IS NOT NULL。
-
-        Raises
-        ------
-        InvalidColumnNameError
-        InvalidOperatorError
-        InvalidConditionValueError
-        """
-        Column.check(self.column)
-
-        handler = self._op_registry.get(self.op)
-        if handler is not None:
-            sql, params = handler(self.column, self.value, self.op)
-        else:
-            raise InvalidConditionError(self)
-        
-        if self.negate:
-            sql = f"NOT ({sql})"
-        return sql, params
-    
-@Condition.register_op("=")
-@Condition.register_op("!=")
-@Condition.register_op(">")
-@Condition.register_op("<")
-@Condition.register_op(">=")
-@Condition.register_op("<=")
-@Condition.register_op("LIKE")
-@Condition.register_op("NOT LIKE")
-@Condition.register_op("IN")
-@Condition.register_op("NOT IN")
-@Condition.register_op("BETWEEN")
-def _builtin_sql(column, value, op) -> Tuple[str, list]:
-    # --- NULL：只有 = 和 != 可以处理 NULL ---
-    if value is None:
-        if op == "=":
-            return f"{column} IS NULL", []
-        if op == "!=":
-            return f"{column} IS NOT NULL", []
-        raise InvalidConditionError(Condition(column, value, op, False))
-
-    # --- IN / NOT IN ---
-    if op in ("IN", "NOT IN"):
-        if not isinstance(value, (list, tuple)):
-            raise InvalidConditionError(Condition(column, value, op, False))
-        if not value:
-            # 空列表：IN → 永假，NOT IN → 永真
-            return ("1=0", []) if op == "IN" else ("1=1", [])
-        placeholders = ", ".join("?" for _ in value)
-        sql = f"{column} {op} ({placeholders})"
-        params = list(value)
-
-    # --- BETWEEN ---
-    elif op == "BETWEEN":
-        if not isinstance(value, (list, tuple)) or len(value) != 2:
-            raise InvalidConditionError(Condition(column, value, op, False))
-        if value[0] is None or value[1] is None:
-            # 任意端点为 None → 永假
-            return "1=0", []
-        sql = f"{column} {op} ? AND ?"
-        params = list(value)
-
-    # --- 通用（=, >, <, >=, <=, !=, LIKE, NOT LIKE）---
-    else:
-        sql = f"{column} {op} ?"
-        params = [value]
-
-    return sql, params
-
-
-Filter = Union[Seq[Seq[Union["Filter", Condition]]], Tuple["Filter", bool]]
-# 递归结构：外层 OR、内层 AND，元素可为子 Filter 或 Condition。
-# 最外层支持 (Filter, negate) 元组对整个结果取反。
-
-def to_sql(filter: Filter) -> Tuple[str, list]:
+    Raises
+    ------
+    InvalidSQLError
+        列不可空或为主键时抛出，因为 SQLite 的 ADD COLUMN 不支持这些约束。
     """
-    生成 WHERE 子句：外层 OR（取并），内层 AND（取交）。
-    最外层可为 (Filter, bool) 元组，bool=True 时对整个结果取反。
+    Column.check(col.name)
+    if not col.nullable:
+        raise InvalidSQLError(
+            f"新增列 {col.name} 不可为 NULL：ALTER TABLE ADD COLUMN "
+            f"要求列必须可空，否则无法为已有数据行填充值"
+        )
+    if col.primary_key:
+        raise InvalidSQLError(
+            f"新增列 {col.name} 为主键：ALTER TABLE ADD COLUMN 不支持添加主键列"
+        )
 
-    Parameters
-    ----------
-    filter : Filter
-        Filter 结构或 (Filter, bool) 元组。
 
-    Returns
-    -------
-    tuple[str, list]
-        (WHERE 子句 SQL 片段，可能为空，参数值列表)
-    """
-    if isinstance(filter, tuple):
-        inner, negate = filter
-        clause, vals = to_sql(inner)
-        if not clause:
-            return "", []
-        if negate:
-            clause = f"NOT ({clause})"
-        return clause, vals
-
-    if not filter:
-        return "", []
-
-    or_clauses: List[str] = []
-    params: list = []
-    for group in filter:
-        and_clauses: List[str] = []
-        for item in group:
-            if isinstance(item, Condition):
-                clause, vals = item.to_sql()
-            else:
-                clause, vals = to_sql(item)
-            if not clause:
-                continue
-            and_clauses.append(f"({clause})")
-            params.extend(vals)
-        if not and_clauses:
-            continue
-        or_clauses.append("(" + " AND ".join(and_clauses) + ")")
-
-    where_sql = " OR ".join(or_clauses)
-    return where_sql, params
+def _check_existing_column(col: Column, existing: sqlite3.Row, table_name: str) -> None:
+    """检查已有列与代码定义是否一致，不一致时抛出异常。"""
+    if col.col_type.upper() != existing["type"].upper():
+        raise InvalidSQLError(
+            f"表 {table_name} 列 {col.name} 类型冲突："
+            f"代码定义 {col.col_type}，数据库中为 {existing['type']}"
+        )
+    existing_not_null = bool(existing["notnull"])
+    if (not col.nullable) != existing_not_null:
+        raise InvalidSQLError(
+            f"表 {table_name} 列 {col.name} 约束冲突："
+            f"代码定义 nullable={col.nullable}，数据库中 "
+            f"{'NOT NULL' if existing_not_null else 'NULLABLE'}"
+        )
+    col_pk = 1 if col.primary_key else 0
+    if col_pk != existing["pk"]:
+        raise InvalidSQLError(
+            f"表 {table_name} 列 {col.name} 主键属性冲突："
+            f"代码定义 primary_key={col.primary_key}，数据库中 "
+            f"{'是主键' if existing['pk'] else '非主键'}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -249,15 +138,10 @@ class DB:
 
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path or config.DB_PATH
-
-    def _ensure_data_dir(self) -> None:
-        dirname = os.path.dirname(self.db_path)
-        if dirname:
-            os.makedirs(dirname, exist_ok=True)
+        self.table_infos: dict[str, List[Column]] = {}
 
     def _connect(self) -> sqlite3.Connection:
         """建立新连接，统一设置 row_factory 并启用 WAL 模式。"""
-        self._ensure_data_dir()
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
@@ -280,19 +164,124 @@ class DB:
 
     # ---- 初始化 ----
 
-    def init(self, registry) -> None:
+    @staticmethod
+    def _table_exists(conn: _ConnWrapper, table_name: str) -> bool:
+        """检查表是否存在。"""
+        return conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+            (table_name,)
+        ).fetchone() is not None
+
+    @staticmethod
+    def _create_table(conn: _ConnWrapper, table_name: str, cols: List[Column]) -> None:
+        """创建新表。"""
+        cols_sql = ", ".join(col.sql for col in cols)
+        conn.execute(f"CREATE TABLE {table_name} ({cols_sql})")
+    
+    @staticmethod
+    def _sync_existing_table(
+        conn: _ConnWrapper, table_name: str, desired_cols: List[Column]
+    ) -> None:
+        """补齐缺失列并检查已有列的一致性。"""
+        existing_cols = {
+            row["name"]: row
+            for row in conn.execute(f"PRAGMA table_info({table_name})")
+        }
+        for col in desired_cols:
+            existing_info = existing_cols.get(col.name)
+            if existing_info is None:
+                _check_addition_column(col)
+                conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {col.sql}")
+            else:
+                _check_existing_column(col, existing_info, table_name)
+
+    @staticmethod
+    def _create_indexes(conn: _ConnWrapper, table_name: str, cols: List[Column]) -> None:
+        """为指定列建索引。"""
+        for col in cols:
+            if not col.index:
+                continue
+            conn.execute(
+                f"CREATE INDEX IF NOT EXISTS idx_{table_name}_{col.name} "
+                f"ON {table_name}({col.name})"
+            )
+
+    def init(self, table_infos: dict[str, List[Column]]) -> None:
         """
-        初始化数据库：为 registry 中所有已注册的 notebook 建表。
+        根据表信息初始化数据库。
+
+        若表已存在：
+        - 缺失的列通过 ``ALTER TABLE ADD COLUMN`` 自动补齐（不可空或主键列抛出异常）。
+        - 已有列与代码定义不一致时抛出异常，不自动修改已有表结构。
+        """
+        with self.transaction() as conn:
+            for table_name, desired_cols in table_infos.items():
+                if not desired_cols:
+                    continue
+                Column.check(table_name)
+                for col in desired_cols:
+                    Column.check(col.name)
+
+                if DB._table_exists(conn, table_name):
+                    DB.sync_existing_table(conn, table_name, desired_cols)
+                else:
+                    DB._create_table(conn, table_name, desired_cols)
+
+                DB._create_indexes(conn, table_name, desired_cols)
+
+            self.table_infos.update(table_infos)
+
+    # ---- 自动生成 INSERT SQL ----
+
+    def insert_sql(self, table_name: str) -> str:
+        """根据 表名 自动生成 INSERT 语句。"""
+        col_names = [c.name for c in self.table_infos[table_name]]
+        cols = ", ".join(col_names)
+        vals = ", ".join(f":{n}" for n in col_names)
+        return f"INSERT INTO {table_name} ({cols}) VALUES ({vals})"
+
+    # ---- SELECT 语句 ----
+
+    def select_sql(self, table_name: str, cols: List[str]) -> str:
+        """
+        生成完整 SELECT 语句。
+
+        在 *cols* 中的列输出为 ``table_name.col``，
+        不在 *cols* 中的表已有列输出为 ``NULL AS col``，
+        保证结果集包含该表的所有列，未选中列值为 NULL。
 
         Parameters
         ----------
-        registry : Registry
-            Notebook 注册中心，遍历其中每个 notebook 调用 init_table()。
-        """
-        with self.transaction() as conn:
-            for nb in registry:
-                nb.init_table(conn)
+        table_name : str
+            表名，须在 table_infos 中。
+        cols : list[str]
+            要选择的列名列表。
 
+        Returns
+        -------
+        str
+            完整 SELECT 查询语句，例如
+            ``"SELECT plan.id, NULL AS content, plan.month, NULL AS seq FROM plan"``。
+        """
+        all_col_names = [c.name for c in self.table_infos[table_name]]
+        pieces: List[str] = []
+        for col in all_col_names:
+            if col in cols:
+                pieces.append(f"{table_name}.{col}")
+            else:
+                pieces.append(f"NULL AS {col}")
+        return f"SELECT {', '.join(pieces)} FROM {table_name}"
+    
+class _ConnWrapper:
+    """轻量包装，使 conn.db 可在所有 Python 版本下工作。"""
+    __slots__ = ('_conn', 'db')
+
+    def __init__(self, conn: sqlite3.Connection, db: DB):
+        self._conn = conn
+        self.db = db
+
+    def __getattr__(self, name: str):
+        return getattr(self._conn, name)
 
 class _TransactionContext:
     """写事务上下文管理器：BEGIN IMMEDIATE，阻塞写入者并发。"""
@@ -301,10 +290,10 @@ class _TransactionContext:
         self.db = db
         self.conn: Optional[sqlite3.Connection] = None
 
-    def __enter__(self) -> sqlite3.Connection:
+    def __enter__(self) -> _ConnWrapper:
         self.conn = self.db._connect()
         self.conn.execute("BEGIN IMMEDIATE") # 主动加写锁，避免高并发下的 SQLITE_BUSY 重试
-        return self.conn
+        return _ConnWrapper(self.conn, self.db)
 
     def __exit__(self, exc_type, exc_val, tb) -> None:
         if self.conn is None:
@@ -325,10 +314,10 @@ class _ReadTransactionContext:
         self.db = db
         self.conn: Optional[sqlite3.Connection] = None
 
-    def __enter__(self) -> sqlite3.Connection:
+    def __enter__(self) -> _ConnWrapper:
         self.conn = self.db._connect()
         self.conn.execute("BEGIN")  # 不加 IMMEDIATE，不阻塞写入
-        return self.conn
+        return _ConnWrapper(self.conn, self.db)
 
     def __exit__(self, exc_type, exc_val, tb) -> None:
         if self.conn is None:

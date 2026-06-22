@@ -15,4 +15,6 @@ registry.register("diary", DiaryNotebook())
 registry.register("word",  WordNotebook())
 registry.register("accumulation", AccumulationNotebook())
 
+db.init({nb.name: nb.columns for nb in registry})
+
 __all__ = ["db", "registry"]
