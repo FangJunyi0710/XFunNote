@@ -1,7 +1,9 @@
 """测试核心查询逻辑：Condition 运算符、to_sql 递归 AND/OR 组合、自定义运算符注册。"""
 
+import json
+
 import pytest
-from xfun.core.db import Column, Condition, to_sql, DB
+from xfun.core.db import Column, Condition, to_sql, DB, parse_filter_json
 from xfun.core.errors import InvalidConditionError, InvalidSQLError
 
 
@@ -273,5 +275,115 @@ class TestCustomOperator:
             assert sql == "tags @> ?"
         finally:
             Condition._op_registry.pop("@>", None)
+
+
+class TestParseFilterJson:
+    """parse_filter_json: JSON → Filter 结构的正确转换。"""
+
+    def test_single_condition(self):
+        f = parse_filter_json('[[{"column": "a", "value": 1, "op": "="}]]')
+        assert f == [[Condition("a", 1, "=")]]
+
+    def test_default_op(self):
+        f = parse_filter_json('[[{"column": "a", "value": 1}]]')
+        assert f == [[Condition("a", 1)]]
+
+    def test_and_group(self):
+        f = parse_filter_json('''[[
+            {"column": "a", "value": 1},
+            {"column": "b", "value": 2}
+        ]]''')
+        assert f == [[Condition("a", 1), Condition("b", 2)]]
+
+    def test_or_of_ands(self):
+        f = parse_filter_json('''[
+            [{"column": "a", "value": 1}],
+            [{"column": "b", "value": 2}]
+        ]''')
+        assert f == [[Condition("a", 1)], [Condition("b", 2)]]
+
+    def test_negate_tuple_in_and(self):
+        f = parse_filter_json('''[[
+            [{"column": "a", "value": 1}, true]
+        ]]''')
+        assert f == [[(Condition("a", 1), True)]]
+
+    def test_negate_false_in_and(self):
+        """negate=False 的元组对应 JSON 的 false。"""
+        f = parse_filter_json('''[[
+            [{"column": "b", "value": 2}, false]
+        ]]''')
+        assert f == [[(Condition("b", 2), False)]]
+
+    def test_outer_negate_tuple(self):
+        """顶层取反：([[cond]], True) 由 [[[cond]], true] 表示。"""
+        f = parse_filter_json('[[[{"column": "a", "value": 1}]], true]')
+        assert f == ([[Condition("a", 1)]], True)
+
+    def test_outer_negate_empty(self):
+        f = parse_filter_json('[[], true]')
+        assert f == ([], True)
+
+    def test_nested_filter_in_and(self):
+        f = parse_filter_json('''[[
+            {"column": "a", "value": 1},
+            [[{"column": "b", "value": 2}], [{"column": "c", "value": 3}]]
+        ]]''')
+        assert f == [[
+            Condition("a", 1),
+            [[Condition("b", 2)], [Condition("c", 3)]]
+        ]]
+
+    def test_empty(self):
+        assert parse_filter_json('[]') == []
+
+    def test_integration_with_to_sql(self):
+        """解析后再 to_sql，结果应与手动构造一致。"""
+        f = parse_filter_json('''[[
+            {"column": "name", "value": "alice"},
+            {"column": "age", "value": 30, "op": ">"}
+        ]]''')
+        sql, params = to_sql(f)
+        assert sql == "((name = ?) AND (age > ?))"
+        assert params == ["alice", 30]
+
+    def test_integration_or_of_ands(self):
+        f = parse_filter_json('''[
+            [{"column": "status", "value": "active"}],
+            [{"column": "role", "value": "admin"}]
+        ]''')
+        sql, params = to_sql(f)
+        assert "(status = ?)" in sql
+        assert "(role = ?)" in sql
+        assert "OR" in sql
+        assert params == ["active", "admin"]
+
+    def test_integration_with_negate(self):
+        """解析 + 取反 + to_sql 整体流程。"""
+        f = parse_filter_json('[[[{"column": "a", "value": 1}]], true]')
+        sql, params = to_sql(f)
+        assert sql.startswith("NOT ")
+        assert "(a = ?)" in sql
+        assert params == [1]
+
+    def test_invalid_json_raises(self):
+        """不合法的 JSON 由 json.loads 抛 json.JSONDecodeError。"""
+        with pytest.raises(json.JSONDecodeError):
+            parse_filter_json('not valid json')
+
+    def test_top_level_scalar_raises(self):
+        """顶层非列表/非字典/非否定元组应抛 ValueError。"""
+        with pytest.raises(ValueError):
+            parse_filter_json('"string"')
+
+    def test_and_group_bad_item_raises(self):
+        """AND 组内出现无法识别的元素应抛 ValueError。"""
+        with pytest.raises(ValueError):
+            parse_filter_json('[[{"column": "a", "value": 1}, "string"]]')
+
+    def test_and_group_not_list_raises(self):
+        """AND 组应始终为列表，否则抛 ValueError。"""
+        with pytest.raises(ValueError):
+            parse_filter_json('[{"column": "a", "value": 1}]')
 
 

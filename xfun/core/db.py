@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import sqlite3
 from dataclasses import dataclass
 from typing import Any, ClassVar, List, Optional, Sequence as Seq, Tuple, Union
@@ -129,12 +130,10 @@ class Condition:
         Column.check(self.column)
 
         handler = self._op_registry.get(self.op)
-        if handler is not None:
-            sql, params = handler(self.column, self.value, self.op)
-        else:
+        if handler is None:
             raise InvalidConditionError(self)
-
-        return sql, params
+        
+        return handler(self.column, self.value, self.op)
     
 @Condition.register_op("=")
 @Condition.register_op("!=")
@@ -236,6 +235,29 @@ def to_sql(filter: Filter) -> Tuple[str, list]:
     where_sql = " OR ".join(or_clauses)
     return where_sql, params
 
+def parse_filter_json(s: str) -> Filter:
+    """将 JSON 筛选条件解析为 Filter。"""
+    data = json.loads(s)
+
+    def _convert(obj):
+        if isinstance(obj, dict):
+            condition = Condition(**obj)
+            return condition
+        if isinstance(obj, list) and len(obj) == 2 and isinstance(obj[1], bool):
+            return (_convert(obj[0]), obj[1])
+        if not isinstance(obj, list):
+            raise ValueError(f"无法识别的 filter JSON 格式: {s}")
+        result = []
+        for group in obj:
+            clause = []
+            if not isinstance(group, list):
+                raise ValueError(f"无法识别的 filter JSON 格式: {s}")
+            for item in group:
+                clause.append(_convert(item))
+            result.append(clause)
+        return result
+
+    return _convert(data)
 
 # ---------------------------------------------------------------------------
 # DB 类
@@ -247,14 +269,8 @@ class DB:
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path or config.DB_PATH
 
-    def _ensure_data_dir(self) -> None:
-        dirname = os.path.dirname(self.db_path)
-        if dirname:
-            os.makedirs(dirname, exist_ok=True)
-
     def _connect(self) -> sqlite3.Connection:
         """建立新连接，统一设置 row_factory 并启用 WAL 模式。"""
-        self._ensure_data_dir()
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
