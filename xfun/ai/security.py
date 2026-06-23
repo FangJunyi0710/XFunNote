@@ -20,17 +20,17 @@ _READ_BASE_COLUMNS: list[str] = ["id", "content", "tags", "created_at", "updated
 _WRITE_BASE_COLUMNS: list[str] = ["content", "ai_tags", "ai_note"]
 
 _AI_SPEC_READ_VIEW: View = {
-    "diary": [(["mood", "weather"], _AI_READ_FILTER)],
-    "word": [(["word", "part_of_speech", "phonetic", "example", "related_words"], _AI_READ_FILTER)],
+    "diary": [(["date", "mood", "weather"], _AI_READ_FILTER)],
+    "word": [(["word", "part_of_speech", "phonetic", "example", "related_words", "review_count", "performance", "next_review", "last_review"], _AI_READ_FILTER)],
     "accumulation": [(["category", "source", "note"], _AI_READ_FILTER)],
     "plan": [(["no", "month", "done"], _AI_READ_FILTER)],
 }
 
 _AI_SPEC_WRITE_VIEW: View = {
-    "diary": [(["mood", "weather"], _AI_WRITE_FILTER)],
-    "word": [(["part_of_speech", "phonetic", "example", "related_words"], _AI_WRITE_FILTER)],
+    "diary": [(["date", "mood", "weather"], _AI_WRITE_FILTER)],
+    "word": [(["word", "part_of_speech", "phonetic", "example", "related_words", "performance", "next_review"], _AI_WRITE_FILTER)],
     "accumulation": [(["category", "source", "note"], _AI_WRITE_FILTER)],
-    "plan": [(["done"], _AI_WRITE_FILTER)],
+    "plan": [(["month", "done"], _AI_WRITE_FILTER)],
 }
 
 
