@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # cli.py
+import sys
 import shutil
 import typer
 from typing import Optional
@@ -8,8 +9,12 @@ from xfun.core.filter import parse_filter_json
 import json
 from dataclasses import asdict
 from pathlib import Path
+from xfun.ai.client import AIClient
+from xfun.ai.prompts import SYSTEM_PROMPT
 
 app = typer.Typer(no_args_is_help=True)
+ai_app = typer.Typer(help="AI 对话与工具调用")
+app.add_typer(ai_app, name="ai")
 
 
 def parse_list_json(s: str):
@@ -82,6 +87,65 @@ def update(notename: str, entry_ids: str, entry: str):
     entry_dict = json.loads(entry)
     with db.transaction() as conn:
         nb.update(conn, ids, entry_dict)
+
+
+# ---------------------------------------------------------------------------
+# AI 子命令
+# ---------------------------------------------------------------------------
+
+@ai_app.command()
+def chat(
+    message: str = typer.Argument(..., help="发送给 AI 的消息"),
+    system: Optional[str] = typer.Option(
+        SYSTEM_PROMPT, "--system", "-s", help="自定义 system prompt"
+    ),
+    max_rounds: int = typer.Option(
+        5, "--max-rounds", "-r", help="最大工具调用轮数"
+    ),
+):
+    """
+    与 AI 进行一次对话（非流式），自动处理 Function Calling 工具调用。
+
+    示例：./cli.py ai chat "帮我查本月计划"
+    """
+    client = AIClient()
+    result = client.chat(
+        [
+            {"role": "system", "content": system},
+            {"role": "user", "content": message},
+        ],
+        max_tool_rounds=max_rounds,
+    )
+    typer.echo(result)
+
+
+@ai_app.command()
+def stream(
+    message: str = typer.Argument(..., help="发送给 AI 的消息"),
+    system: Optional[str] = typer.Option(
+        SYSTEM_PROMPT, "--system", "-s", help="自定义 system prompt"
+    ),
+    max_rounds: int = typer.Option(
+        5, "--max-rounds", "-r", help="最大工具调用轮数"
+    ),
+):
+    """
+    与 AI 进行流式对话，逐段输出回复。
+
+    示例：./cli.py ai stream "帮我查今天日记"
+    """
+    client = AIClient()
+    for chunk in client.chat_stream(
+        [
+            {"role": "system", "content": system},
+            {"role": "user", "content": message},
+        ],
+        max_tool_rounds=max_rounds,
+    ):
+        typer.echo(chunk, nl=False)
+        sys.stdout.flush()
+    typer.echo()  # 末尾换行
+
 
 if __name__ == "__main__":
     app()
