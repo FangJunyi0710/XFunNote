@@ -26,7 +26,7 @@ class ConditionSchema(BaseModel):
     value: Any = Field(description="值")
     op: str = Field(
         default="=",
-        description="运算符",
+        description="运算符。其中 TRUE 和 FALSE 的用法是，将 column 和 value 填入任意占位符后，其返回永真或永假。",
         json_schema_extra=_inject_op_enum,
     )
 
@@ -109,12 +109,12 @@ class ViewSchema(RootModel):
 
 def filter_schema_text() -> str:
     """返回 Filter 的完整 JSON Schema 文本。"""
-    return json.dumps(FilterModel.model_json_schema(), indent=2, ensure_ascii=False)
+    return json.dumps(FilterModel.model_json_schema(), ensure_ascii=False)
 
 
 def view_schema_text() -> str:
     """返回 View 的完整 JSON Schema 文本。"""
-    return json.dumps(ViewSchema.model_json_schema(), indent=2, ensure_ascii=False)
+    return json.dumps(ViewSchema.model_json_schema(), ensure_ascii=False)
 
 
 # ========== 校验 + 解析（供 tools.py 使用） ==========

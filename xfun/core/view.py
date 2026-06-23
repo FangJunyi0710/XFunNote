@@ -1,7 +1,7 @@
 from typing import List, Tuple
 
 from .db import Column, DB
-from .filter import Filter, convert_filter_object, filter_to_sql
+from .filter import Filter, convert_filter_object, convert_filter_to_object, filter_to_sql
 import json
 
 TableSpec = tuple[list[str], Filter]
@@ -51,6 +51,20 @@ def view_to_sql(view: View, db: DB, table: str) -> Tuple[str, list]:
         sql = f"SELECT {", ".join(pieces)} FROM ({sql}) AS combined GROUP BY {", ".join(pks)}"
 
     return sql, params
+
+def view_to_json(view: View) -> str:
+    """将 View 序列化为紧凑 JSON 字符串。"""
+    data: dict = {}
+    for table_name, specs in view.items():
+        spec_list = []
+        for columns, flt in specs:
+            spec_list.append({
+                "columns": list(columns),
+                "filter": convert_filter_to_object(flt),
+            })
+        data[table_name] = spec_list
+    return json.dumps(data, ensure_ascii=False)
+
 
 def parse_view_json(s: str) -> View:
     """
