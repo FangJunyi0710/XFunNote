@@ -185,3 +185,6 @@ def parse_filter_json(s: str) -> Filter:
     data = json.loads(s)
 
     return convert_filter_object(data)
+
+
+from . import extras  # noqa: F401, E402

@@ -6,6 +6,9 @@ import pytest
 from xfun.core.filter import Condition, filter_to_sql, parse_filter_json
 from xfun.core.errors import InvalidConditionError, InvalidSQLError
 
+# 加载 extras.py 中注册的自定义运算符（JSON_CONTAINS, TEXT_SEARCH, TRUE, FALSE）
+import xfun.core.extras  # noqa: F401
+
 
 class TestConditionSqlGeneration:
     """核心：条件 → SQL 片段的转换是否正确。"""
@@ -325,3 +328,188 @@ class TestParseFilterJson:
         """AND 组应始终为列表，否则抛 ValueError。"""
         with pytest.raises(ValueError):
             parse_filter_json('[{"column": "a", "value": 1}]')
+
+
+# ===================================================================
+# extras.py 自定义运算符
+# ===================================================================
+
+
+class TestExtrasJsonContains:
+    """JSON_CONTAINS / JSON_NOT_CONTAINS 运算符。"""
+
+    def test_json_contains(self):
+        sql, params = Condition("tags", "Python", "JSON_CONTAINS").to_sql()
+        assert sql == "EXISTS (SELECT 1 FROM json_each(tags) WHERE value = ?)"
+        assert params == ["Python"]
+
+    def test_json_contains_none(self):
+        """值为 None 时对应 SQLite 的 IS NULL 匹配。"""
+        sql, params = Condition("tags", None, "JSON_CONTAINS").to_sql()
+        assert sql == "EXISTS (SELECT 1 FROM json_each(tags) WHERE value = ?)"
+        assert params == [None]
+
+    def test_json_not_contains(self):
+        sql, params = Condition("tags", "Java", "JSON_NOT_CONTAINS").to_sql()
+        expected = "NOT EXISTS (SELECT 1 FROM json_each(tags) WHERE value = ?)"
+        assert sql == expected
+        assert params == ["Java"]
+
+    def test_json_not_contains_none(self):
+        sql, params = Condition("tags", None, "JSON_NOT_CONTAINS").to_sql()
+        assert "NOT EXISTS" in sql
+        assert params == [None]
+
+
+class TestExtrasTextSearch:
+    """TEXT_SEARCH 运算符。"""
+
+    def test_text_search(self):
+        sql, params = Condition("content", "hello", "TEXT_SEARCH").to_sql()
+        assert sql == "content LIKE ?"
+        assert params == ["%hello%"]
+
+    def test_text_search_empty(self):
+        """空字符串搜索 → %% 匹配所有。"""
+        sql, params = Condition("content", "", "TEXT_SEARCH").to_sql()
+        assert sql == "content LIKE ?"
+        assert params == ["%%"]
+
+    def test_text_search_special_chars(self):
+        """含特殊字符的文本仍应正确参数化（防止注入）。"""
+        sql, params = Condition("content", "it's 100%", "TEXT_SEARCH").to_sql()
+        assert params == ["%it's 100%%"]
+
+
+class TestExtrasLogical:
+    """TRUE / FALSE 逻辑常量运算符。"""
+
+    def test_true(self):
+        sql, params = Condition("_", None, "TRUE").to_sql()
+        assert sql == "1=1"
+        assert params == []
+
+    def test_true_ignores_column_and_value(self):
+        """TRUE 应完全忽略 column/value，仅返回恒真。"""
+        sql, params = Condition("anything", "ignored", "TRUE").to_sql()
+        assert sql == "1=1"
+        assert params == []
+
+    def test_false(self):
+        sql, params = Condition("_", None, "FALSE").to_sql()
+        assert sql == "1=0"
+        assert params == []
+
+    def test_false_ignores_column_and_value(self):
+        sql, params = Condition("anything", 42, "FALSE").to_sql()
+        assert sql == "1=0"
+        assert params == []
+
+
+class TestExtrasInFilter:
+    """自定义运算符嵌入 Filter 结构中的组合行为。"""
+
+    def test_json_contains_in_and_group(self):
+        sql, params = filter_to_sql(
+            [[Condition("tags", "Python", "JSON_CONTAINS"), Condition("a", 1)]]
+        )
+        assert "json_each" in sql
+        assert "AND" in sql
+        assert params == ["Python", 1]
+
+    def test_true_and_condition(self):
+        """TRUE 与普通条件 AND 组合。"""
+        sql, params = filter_to_sql(
+            [[Condition("a", 1), Condition("_", None, "TRUE")]]
+        )
+        # TRUE 在 AND 组中不改变语义
+        assert "1=1" in sql
+        assert params == [1]
+
+    def test_false_in_filter_shuts_down(self):
+        """FALSE 在 AND 组中使条件永假。"""
+        sql, params = filter_to_sql(
+            [[Condition("a", 1), Condition("_", None, "FALSE")]]
+        )
+        assert "1=0" in sql
+        assert params == [1]
+
+    def test_text_search_or_group(self):
+        sql, params = filter_to_sql([
+            [Condition("content", "AI", "TEXT_SEARCH")],
+            [Condition("content", "Python", "TEXT_SEARCH")],
+        ])
+        assert "LIKE" in sql
+        assert sql.count("OR") == 1
+        assert params == ["%AI%", "%Python%"]
+
+
+class TestExtrasIntegration:
+    """集成测试：在真实 SQLite DB 上验证运算符可用。"""
+
+    def test_json_contains_matches(self, db):
+        with db.transaction() as conn:
+            conn.execute("CREATE TABLE _t_json (id INT, tags TEXT)")
+            conn.execute("INSERT INTO _t_json VALUES (1, '[\"Python\",\"AI\"]')")
+            conn.execute("INSERT INTO _t_json VALUES (2, '[\"Java\"]')")
+            conn.execute("INSERT INTO _t_json VALUES (3, '[]')")
+
+        sql, params = Condition("tags", "Python", "JSON_CONTAINS").to_sql()
+        with db.read_transaction() as conn:
+            rows = conn.execute(
+                f"SELECT id FROM _t_json WHERE {sql}", params
+            ).fetchall()
+        assert [r[0] for r in rows] == [1]
+
+    def test_json_not_contains_excludes(self, db):
+        with db.transaction() as conn:
+            conn.execute("CREATE TABLE _t_jnot (id INT, tags TEXT)")
+            conn.execute("INSERT INTO _t_jnot VALUES (1, '[\"Python\",\"AI\"]')")
+            conn.execute("INSERT INTO _t_jnot VALUES (2, '[\"Java\"]')")
+
+        sql, params = Condition("tags", "Python", "JSON_NOT_CONTAINS").to_sql()
+        with db.read_transaction() as conn:
+            rows = conn.execute(
+                f"SELECT id FROM _t_jnot WHERE {sql}", params
+            ).fetchall()
+        assert [r[0] for r in rows] == [2]
+
+    def test_text_search_matches(self, db):
+        with db.transaction() as conn:
+            conn.execute("CREATE TABLE _t_ts (id INT, content TEXT)")
+            conn.execute("INSERT INTO _t_ts VALUES (1, 'hello world')")
+            conn.execute("INSERT INTO _t_ts VALUES (2, 'goodbye')")
+
+        sql, params = Condition("content", "hello", "TEXT_SEARCH").to_sql()
+        with db.read_transaction() as conn:
+            rows = conn.execute(
+                f"SELECT id FROM _t_ts WHERE {sql}", params
+            ).fetchall()
+        assert [r[0] for r in rows] == [1]
+
+    def test_true_does_not_filter(self, db):
+        """TRUE 条件不应过滤任何行。"""
+        with db.transaction() as conn:
+            conn.execute("CREATE TABLE _t_true (id INT)")
+            conn.execute("INSERT INTO _t_true VALUES (1)")
+            conn.execute("INSERT INTO _t_true VALUES (2)")
+
+        sql, params = Condition("_", None, "TRUE").to_sql()
+        with db.read_transaction() as conn:
+            rows = conn.execute(
+                f"SELECT id FROM _t_true WHERE {sql}", params
+            ).fetchall()
+        assert len(rows) == 2
+
+    def test_false_filters_all(self, db):
+        """FALSE 条件应过滤所有行。"""
+        with db.transaction() as conn:
+            conn.execute("CREATE TABLE _t_false (id INT)")
+            conn.execute("INSERT INTO _t_false VALUES (1)")
+
+        sql, params = Condition("_", None, "FALSE").to_sql()
+        with db.read_transaction() as conn:
+            rows = conn.execute(
+                f"SELECT id FROM _t_false WHERE {sql}", params
+            ).fetchall()
+        assert len(rows) == 0
