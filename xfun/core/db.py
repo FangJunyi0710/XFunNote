@@ -27,8 +27,6 @@ class Column:
         SQLite 类型：TEXT / INTEGER / REAL / BLOB。
     nullable : bool
         是否允许 NULL，默认 True。
-    default : Any
-        默认值，None 表示无默认。
     primary_key : bool
         是否主键，默认 False。
     index : bool

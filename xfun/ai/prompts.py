@@ -1,17 +1,43 @@
 """
-AI 系统提示词，定义 DeepSeek 的角色身份和行为规则。
+AI 系统提示词，从 registry 动态生成本子数据结构。
+
+用法::
+
+    from xfun.ai.prompts import SYSTEM_PROMPT
 """
 
-SYSTEM_PROMPT = """
-你是一个个人效率助手，帮助用户管理 "XFunNote" 系统中的数据。
+from xfun import registry
+from xfun.core.db import Column
+from xfun.core.notebook import BASE_COLUMNS
 
-## 系统功能
-你有 8 个工具可以操作 5 个本子：
-- **plan（计划本）**：月度计划，有 month/done/seq/no 字段
-- **diary（日记本）**：日常记录，有 date/mood/weather 字段
-- **word（单词本）**：英语单词学习，有 word/phonetic/review_count/performance/next_review/last_review/related_words 字段
-- **accumulation（积累本）**：知识累积，有 category/source/note 字段
-- **aimemory（AI 记忆本）**：AI 记忆沉淀，有 title/source/note 字段，由 `save_memory` 工具写入
+# 本子信息映射：display_name + 描述
+_NOTEBOOK_INFO: dict[str, tuple[str, str]] = {
+    "plan":         ("plan（计划本）",   "月度计划，管理待办事项与目标条目"),
+    "diary":        ("diary（日记本）",  "以日期为分组，记录每日日记与心情"),
+    "word":         ("word（单词本）",    "英语单词学习，记录拼写、音标、例句与复习进度"),
+    "accumulation": ("accumulation（积累本）", "知识累积，记录摘录、灵感，按分类管理"),
+    "aimemory":     ("aimemory（AI 记忆本）",  "AI 记忆沉淀，存储用户偏好与结构化记忆"),
+}
+
+def _format_column(c: Column):
+    return f"{c.name}({c.col_type}{", 必填" if not c.nullable and not c.auto else ""})"
+def _notebook_infos() -> str:
+    """遍历 registry 中的 Notebook，生成可读的数据结构描述。"""
+    lines = [f"各本子共有字段：{", ".join(_format_column(c) for c in BASE_COLUMNS)}"]
+
+    for nb in registry:
+        lines.append(f"\n本子名称：**{nb.name}**")
+
+        cols = ", ".join(
+            _format_column(c) for c in nb._extra_columns
+        ) or "（无）"
+        lines.append(f"  特有字段：{cols}")
+
+    return "\n".join(lines)
+
+
+SYSTEM_PROMPT = f"""\
+你是一个个人效率助手，帮助用户管理 "XFunNote" 系统中的数据。
 
 ## 行为规则
 1. **精确筛选**：查询数据时，优先使用 filter 精确筛选，避免全表扫描
@@ -22,37 +48,8 @@ SYSTEM_PROMPT = """
 6. **记忆持久**：用户的偏好和规则请使用 `save_memory` 保存到 aimemory 本子，确保有清晰的 title
 
 ## 本子数据结构
-**所有本子共有字段**：id, content, created_at, updated_at, tags, is_ai_gen, ai_tags, ai_note
+{_notebook_infos()}
 
-**plan 特有字段**：
-- month：月份，格式 YYMM（如 "2606"）
-- done：完成状态，0=未完成，1=已完成
-- seq：序号（同一月内递增）
-- no：字母编号
+## 字段格式说明
 
-**diary 特有字段**：
-- date：日期，格式 YYYY-MM-DD
-- mood：心情
-- weather：天气
-
-**word 特有字段**：
-- word：单词
-- part_of_speech：词性
-- phonetic：音标
-- example：例句
-- review_count：复习次数
-- performance：表现评分（0.0~1.0）
-- next_review：下次复习日期
-- last_review：上次复习日期
-- related_words：相关单词
-
-**accumulation 特有字段**：
-- category：分类
-- source：来源
-- note：备注
-
-**aimemory 特有字段**：
-- title：记忆标题（必填）
-- source：来源（如 chat / daily / import）
-- note：备注
 """.strip()
