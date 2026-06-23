@@ -30,6 +30,10 @@ AI_READ_VIEW: View = {
         ["id", "content", "tags", "ai_tags", "ai_note", "category", "source", "note", "created_at"],
         [[Condition("is_ai_gen", 1)]],
     )],
+    "aimemory":    [(
+        ["id", "title", "content", "tags", "ai_tags", "ai_note", "source", "note", "created_at"],
+        [[Condition("is_ai_gen", 1)]],
+    )],
 }
 
 # ========== 行级写权限（View 白名单） ==========
@@ -49,6 +53,10 @@ AI_WRITE_VIEW: View = {
     )],
     "accumulation": [(
         ["tags", "ai_tags", "ai_note"],
+        [[Condition("is_ai_gen", 1)]],
+    )],
+    "aimemory":    [(
+        ["tags", "ai_tags", "ai_note", "title", "source", "note"],
         [[Condition("is_ai_gen", 1)]],
     )],
 }

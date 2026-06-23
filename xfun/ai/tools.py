@@ -44,7 +44,7 @@ def query_entries(
     Parameters
     ----------
     table : str
-        本子名：plan / diary / word / accumulation。
+        本子名：plan / diary / word / accumulation / aimemory。
     view_json : str
         View JSON 字符串，格式为 ``{"表名": [[列名列表, 筛选条件], ...]}``。
         筛选条件格式同 Filter JSON，如 ``[{"column":"month","value":"2606"}]``。
@@ -303,7 +303,7 @@ def search_memories(keyword: str = "", category: str = "") -> str:
 
     results: Dict[str, list] = {}
 
-    for table_name in ["plan", "diary", "word", "accumulation"]:
+    for table_name in ["plan", "diary", "word", "accumulation", "aimemory"]:
         if table_name not in AI_READ_VIEW:
             continue
         # 获取 AI_READ_VIEW 中该表的列白名单
@@ -333,24 +333,25 @@ def search_memories(keyword: str = "", category: str = "") -> str:
 
 
 @tool
-def save_memory(content: str, source: str = "", note: str = "") -> str:
+def save_memory(title: str, content: str, source: str = "", note: str = "") -> str:
     """
-    保存内容到积累本（自动分类为 ``AI记忆``）。
+    保存内容到 AI 记忆本（aimemory）。
 
     Parameters
     ----------
+    title : str
+        记忆标题。
     content : str
         记忆内容。
     source : str
-        来源。
+        来源（如 chat / daily / import 等）。
     note : str
         备注。
     """
-    nb = registry.notebook("accumulation")
+    nb = registry.notebook("aimemory")
     entry: Dict[str, Any] = {
+        "title": title,
         "content": content,
-        "category": "AI记忆",
-        "is_ai_gen": 1,
     }
     if source:
         entry["source"] = source

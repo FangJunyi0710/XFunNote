@@ -5,6 +5,7 @@ from .notebooks.plan         import PlanNotebook
 from .notebooks.diary        import DiaryNotebook
 from .notebooks.word         import WordNotebook
 from .notebooks.accumulation import AccumulationNotebook
+from .notebooks.aimemory     import AIMemoryNotebook
 
 db       = DB()
 registry = Registry()
@@ -14,6 +15,7 @@ registry.register("plan",  PlanNotebook())
 registry.register("diary", DiaryNotebook())
 registry.register("word",  WordNotebook())
 registry.register("accumulation", AccumulationNotebook())
+registry.register("aimemory",     AIMemoryNotebook())
 
 db.init({nb.name: nb.columns for nb in registry})
 
