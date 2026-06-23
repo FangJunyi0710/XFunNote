@@ -41,7 +41,7 @@ def add(notename: str, entry: str):
     nb = registry.notebook(notename)
     with db.transaction() as conn:
         ids = nb.add(conn, parse_list_json(entry))
-    typer.echo(json.dumps(ids, ensure_ascii=False, indent=4))
+    typer.echo(json.dumps(ids, ensure_ascii=False))
 
 @app.command()
 def listcolumns(notename: str):
@@ -49,14 +49,14 @@ def listcolumns(notename: str):
     nb = registry.notebook(notename)
     typer.echo(json.dumps(
         [asdict(c) for c in nb.columns],
-        ensure_ascii=False, indent=4))
+        ensure_ascii=False))
 
 @app.command("list")
 def cmd_list(notename: str, entry_ids: str):
     nb = registry.notebook(notename)
     with db.transaction() as conn:
         results = nb.get_by_id(conn, parse_list_json(entry_ids))
-    typer.echo(json.dumps(results, ensure_ascii=False, indent=4))
+    typer.echo(json.dumps(results, ensure_ascii=False))
 
 @app.command()
 def listid(notename: str,
@@ -69,7 +69,7 @@ def listid(notename: str,
     parsed_filter = parse_filter_json(filter) if filter else []
     with db.read_transaction() as conn:
         ids = nb.list(conn, parsed_filter, order_by=order_by, limit=limit, offset=offset)
-    typer.echo(json.dumps(ids, ensure_ascii=False, indent=4))
+    typer.echo(json.dumps(ids, ensure_ascii=False))
 
 @app.command()
 def delete(notename: str, entry_ids: str):
