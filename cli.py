@@ -9,7 +9,7 @@ from xfun.core.filter import parse_filter_json
 import json
 from dataclasses import asdict
 from pathlib import Path
-from xfun.ai.agent import chat as ai_chat, chat_stream as ai_chat_stream
+from xfun.ai.agent import chat_state as ai_chat, chat_stream_state as ai_chat_stream
 from xfun.ai.prompts import SYSTEM_PROMPT
 
 app = typer.Typer(no_args_is_help=True)
@@ -108,12 +108,12 @@ def chat(
 
     示例：./cli.py ai chat "帮我查本月计划"
     """
-    result = ai_chat(
+    state = ai_chat(
         message,
         system=system,
         max_rounds=max_rounds,
     )
-    typer.echo(result)
+    typer.echo(state["ai_text"])
 
 
 @ai_app.command()
@@ -131,14 +131,19 @@ def stream(
 
     示例：./cli.py ai stream "帮我查今天日记"
     """
-    for chunk in ai_chat_stream(
+    gen = ai_chat_stream(
         message,
         system=system,
         max_rounds=max_rounds,
-    ):
-        typer.echo(chunk, nl=False)
-        sys.stdout.flush()
-    typer.echo()  # 末尾换行
+    )
+    for event in gen:
+        if event["type"] == "text":
+            typer.echo(event["content"], nl=False)
+            sys.stdout.flush()
+        elif event["type"] == "tool_start":
+            typer.echo(f"\n[执行 {event['name']}]\n", nl=False)
+            sys.stdout.flush()
+    typer.echo()
 
 
 if __name__ == "__main__":
