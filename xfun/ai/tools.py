@@ -1,12 +1,14 @@
 """
-AI Tools — DeepSeek Function Calling 可调用的 8 个工具。
+AI Tools — LangChain @tool 装饰的可调用工具（8个）。
 
-每个工具函数接收字符串参数（Function Calling 传递过来的 JSON 字符串），
-返回 JSON 格式的结果字符串。
+每个函数被 ``@tool`` 装饰后自动生成 JSON Schema，
+LangChain 负责参数解析和返回值序列化。
 """
 
 import json
 from typing import Any, Dict, List
+
+from langchain_core.tools import tool
 
 from xfun import db, registry
 from xfun.core.view import View, view_and, view_to_sql, parse_view_json
@@ -28,6 +30,7 @@ def _clamp_with_ai_view(user_view: View) -> View:
     return view_and(user_view, AI_READ_VIEW)
 
 
+@tool
 def query_entries(
     table: str,
     view_json: str,
@@ -55,7 +58,7 @@ def query_entries(
     if table not in registry:
         return json.dumps({"error": f"未知本子: {table}"}, ensure_ascii=False)
 
-    user_view = parse_view_json(view_json) if view_json else {table: []}
+    user_view = parse_view_json(view_json, table) if view_json else {table: []}
     # 确保用户 view 包含目标表
     if table not in user_view:
         user_view[table] = []
@@ -79,6 +82,7 @@ def query_entries(
     return json.dumps(result, ensure_ascii=False, default=str)
 
 
+@tool
 def add_entries(table: str, entries_json: str) -> str:
     """
     添加条目，自动注入 ``is_ai_gen=1``。
@@ -108,6 +112,7 @@ def add_entries(table: str, entries_json: str) -> str:
     return json.dumps({"ids": ids, "count": len(ids)}, ensure_ascii=False)
 
 
+@tool
 def update_entries(table: str, entry_ids_json: str, entry_json: str) -> str:
     """
     更新条目，仅允许修改 ``AI_WRITABLE_COLUMNS`` 中的列。
@@ -147,6 +152,7 @@ def update_entries(table: str, entry_ids_json: str, entry_json: str) -> str:
     return json.dumps({"updated_ids": valid_ids, "count": len(valid_ids)}, ensure_ascii=False)
 
 
+@tool
 def delete_entries(table: str, entry_ids_json: str, confirm: bool = False) -> str:
     """
     删除条目，仅允许删除 AI 创建的条目。
@@ -192,6 +198,7 @@ def delete_entries(table: str, entry_ids_json: str, confirm: bool = False) -> st
     )
 
 
+@tool
 def manage_tags(table: str, entry_ids_json: str, mode: str, tags_json: str) -> str:
     """
     管理条目标签：添加、移除或替换。
@@ -224,26 +231,27 @@ def manage_tags(table: str, entry_ids_json: str, mode: str, tags_json: str) -> s
         rows = nb.get_by_id(conn, valid_ids)
 
     updated = []
-    for row in rows:
-        current_tags: List[str] = json.loads(row.get("tags") or "[]")
-        if mode == "add":
-            for tag in tags:
-                if tag not in current_tags:
-                    current_tags.append(tag)
-        elif mode == "remove":
-            current_tags = [t for t in current_tags if t not in tags]
-        else:  # set
-            current_tags = list(tags)
+    with db.transaction() as conn:
+        for row in rows:
+            current_tags: List[str] = json.loads(row.get("tags") or "[]")
+            if mode == "add":
+                for tag in tags:
+                    if tag not in current_tags:
+                        current_tags.append(tag)
+            elif mode == "remove":
+                current_tags = [t for t in current_tags if t not in tags]
+            else:  # set
+                current_tags = list(tags)
 
-        with db.transaction() as conn:
             nb.update(
                 conn, [row["id"]], {"tags": json.dumps(current_tags, ensure_ascii=False)}
             )
-        updated.append({"id": row["id"], "tags": current_tags})
+            updated.append({"id": row["id"], "tags": current_tags})
 
     return json.dumps({"updated": updated, "count": len(updated)}, ensure_ascii=False)
 
 
+@tool
 def add_ai_note(table: str, entry_id: str, note: str) -> str:
     """
     追加 AI 备注到条目（保留已有内容）。
@@ -279,6 +287,7 @@ def add_ai_note(table: str, entry_id: str, note: str) -> str:
     return json.dumps({"id": entry_id, "ai_note": new_note}, ensure_ascii=False)
 
 
+@tool
 def search_memories(keyword: str = "", category: str = "") -> str:
     """
     跨本子检索 AI 内容。
@@ -323,6 +332,7 @@ def search_memories(keyword: str = "", category: str = "") -> str:
     return json.dumps(results, ensure_ascii=False, default=str)
 
 
+@tool
 def save_memory(content: str, source: str = "", note: str = "") -> str:
     """
     保存内容到积累本（自动分类为 ``AI记忆``）。

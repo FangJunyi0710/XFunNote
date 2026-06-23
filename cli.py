@@ -9,7 +9,7 @@ from xfun.core.filter import parse_filter_json
 import json
 from dataclasses import asdict
 from pathlib import Path
-from xfun.ai.client import AIClient
+from xfun.ai.agent import chat as ai_chat, chat_stream as ai_chat_stream
 from xfun.ai.prompts import SYSTEM_PROMPT
 
 app = typer.Typer(no_args_is_help=True)
@@ -104,17 +104,14 @@ def chat(
     ),
 ):
     """
-    与 AI 进行一次对话（非流式），自动处理 Function Calling 工具调用。
+    与 AI 进行一次对话（非流式），自动处理工具调用。
 
     示例：./cli.py ai chat "帮我查本月计划"
     """
-    client = AIClient()
-    result = client.chat(
-        [
-            {"role": "system", "content": system},
-            {"role": "user", "content": message},
-        ],
-        max_tool_rounds=max_rounds,
+    result = ai_chat(
+        message,
+        system=system,
+        max_rounds=max_rounds,
     )
     typer.echo(result)
 
@@ -134,13 +131,10 @@ def stream(
 
     示例：./cli.py ai stream "帮我查今天日记"
     """
-    client = AIClient()
-    for chunk in client.chat_stream(
-        [
-            {"role": "system", "content": system},
-            {"role": "user", "content": message},
-        ],
-        max_tool_rounds=max_rounds,
+    for chunk in ai_chat_stream(
+        message,
+        system=system,
+        max_rounds=max_rounds,
     ):
         typer.echo(chunk, nl=False)
         sys.stdout.flush()

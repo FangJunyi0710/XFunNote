@@ -1,9 +1,11 @@
-# ===================== 当前正在使用 =====================
+# ===================== 核心依赖 =====================
 
 typer               # 命令行工具（cli.py）
-python-dotenv       # 管理环境变量（config.py / testai.py）
+python-dotenv       # 管理环境变量（config.py）
 future-uuid         # uuid7 生成（plan.py）
-openai              # DeepSeek API 调用（testai.py）
+langchain>=0.3.0    # AI Agent 框架
+langchain-openai>=0.2.0  # OpenAI/DeepSeek 兼容封装
+langchain-core>=0.3.0    # LangChain 核心抽象
 
 # ===================== 测试依赖 =====================
 
@@ -16,9 +18,3 @@ pytest-cov          # 测试覆盖率
 # uvicorn[standard] # ASGI 服务器（配合 FastAPI）
 # streamlit         # 前端界面（frontend/app.py 尚未实现）
 # httpx             # HTTP 客户端（后端完成后使用）
-
-# ===================== 未使用，建议移除 =====================
-
-# sqlalchemy        # 代码全程使用原生 sqlite3，无引用
-# langchain         # 无引用
-# langchain-openai  # 无引用
