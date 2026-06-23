@@ -182,9 +182,6 @@ def convert_filter_object(obj):
 
 def parse_filter_json(s: str) -> Filter:
     """将 JSON 筛选条件解析为 Filter。"""
-    data = json.loads(s)
-
-    return convert_filter_object(data)
-
+    return convert_filter_object(json.loads(s))
 
 from . import extras  # noqa: F401, E402

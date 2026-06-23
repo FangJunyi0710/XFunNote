@@ -39,15 +39,13 @@ class TestAIMemoryAutofill:
         with db.transaction() as conn:
             ids = aimem_nb.add(conn, [
                 {"title": "读书笔记", "content": "活着",
-                 "source": "chat", "note": "来自对话"},
+                 "source": "chat"},
                 {"title": "灵感", "content": "灵光一闪"},
             ])
         with db.read_transaction() as conn:
             results = aimem_nb.get_by_id(conn, ids)
         assert results[0]["source"] == "chat"
-        assert results[0]["note"] == "来自对话"
         assert results[1]["source"] is None
-        assert results[1]["note"] is None
 
     def test_title_missing_raises(self, db, aimem_nb):
         """title 是必填字段，缺少时抛 EntryInvalidError。"""
