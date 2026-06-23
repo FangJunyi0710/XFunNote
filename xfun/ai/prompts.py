@@ -6,10 +6,14 @@ AI 系统提示词，从 registry 动态生成本子数据结构。
     from xfun.ai.prompts import SYSTEM_PROMPT
 """
 
+import json
+
 from xfun import registry
 from xfun.core.db import Column
 from xfun.core.notebook import BASE_COLUMNS
 from xfun.ai.schema import filter_schema_text, view_schema_text
+from xfun.ai.security import ai_read_view, ai_write_view
+from xfun.core.view import view_to_json
 from xfun.utils.time_utils import now_str
 
 # 字段说明：{笔记本名: {字段名: FieldDesc}}
@@ -128,5 +132,17 @@ View 按以下 JSON Schema 严格匹配：
 | 字段名 | 所属本子 | 格式说明 | 作用 |
 | --- | --- | --- | --- |
 {_field_description_section()}
+
+## 当前 AI 访问权限
+
+### 可查询字段范围（读白名单）
+```json
+{view_to_json(ai_read_view())}
+```
+
+### 可修改字段范围（写白名单）
+```json
+{view_to_json(ai_write_view())}
+```
 
 """.strip()

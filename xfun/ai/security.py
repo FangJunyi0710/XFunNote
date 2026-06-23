@@ -20,25 +20,25 @@ _READ_BASE_COLUMNS: list[str] = ["id", "content", "tags", "created_at", "updated
 _WRITE_BASE_COLUMNS: list[str] = ["content", "ai_tags", "ai_note"]
 
 _AI_SPEC_READ_VIEW: View = {
-    "diary": [{"columns": ["mood", "weather"], "filter": _AI_READ_FILTER}],
-    "word": [{"columns": ["word", "part_of_speech", "phonetic", "example", "related_words"], "filter": _AI_READ_FILTER}],
-    "accumulation": [{"columns": ["category", "source", "note"], "filter": _AI_READ_FILTER}],
-    "plan": [{"columns": ["no", "month", "done"], "filter": _AI_READ_FILTER}]
+    "diary": [(["mood", "weather"], _AI_READ_FILTER)],
+    "word": [(["word", "part_of_speech", "phonetic", "example", "related_words"], _AI_READ_FILTER)],
+    "accumulation": [(["category", "source", "note"], _AI_READ_FILTER)],
+    "plan": [(["no", "month", "done"], _AI_READ_FILTER)],
 }
 
 _AI_SPEC_WRITE_VIEW: View = {
-    "diary": [{"columns": ["mood", "weather"], "filter": _AI_WRITE_FILTER}],
-    "word": [{"columns": ["part_of_speech", "phonetic", "example", "related_words"], "filter": _AI_WRITE_FILTER}],
-    "accumulation": [{"columns": ["category", "source", "note"], "filter": _AI_WRITE_FILTER}],
-    "plan": [{"columns": ["done"], "filter": _AI_WRITE_FILTER}],
+    "diary": [(["mood", "weather"], _AI_WRITE_FILTER)],
+    "word": [(["part_of_speech", "phonetic", "example", "related_words"], _AI_WRITE_FILTER)],
+    "accumulation": [(["category", "source", "note"], _AI_WRITE_FILTER)],
+    "plan": [(["done"], _AI_WRITE_FILTER)],
 }
 
 
 def _ai_comm_read_view() -> View:
     result: View = {}
     for nb in registry:
-        result[nb.name] = [{"columns": _READ_BASE_COLUMNS, "filter": _AI_READ_FILTER}]
-    result["aimemory"] = [{"columns": registry.notebook["aimemory"].columns, "filter": TRUE_CONDITION}]
+        result[nb.name] = [(_READ_BASE_COLUMNS, _AI_READ_FILTER)]
+    result["aimemory"] = [([c.name for c in registry.notebook("aimemory").columns], TRUE_CONDITION)]
     return result
 
 def ai_read_view() -> View:
@@ -48,8 +48,8 @@ def ai_read_view() -> View:
 def _ai_comm_write_view() -> View:
     result: View = {}
     for nb in registry:
-        result[nb.name] = [{"columns": _WRITE_BASE_COLUMNS, "filter": _AI_WRITE_FILTER}]
-    result["aimemory"] = [{"columns": _WRITE_BASE_COLUMNS + ["title", "source"], "filter": TRUE_CONDITION}]
+        result[nb.name] = [(_WRITE_BASE_COLUMNS, _AI_WRITE_FILTER)]
+    result["aimemory"] = [(_WRITE_BASE_COLUMNS + ["title", "source"], TRUE_CONDITION)]
     return result
 
 def ai_write_view() -> View:

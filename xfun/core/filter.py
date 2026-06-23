@@ -199,7 +199,7 @@ def convert_filter_to_object(filter: Filter) -> Any:
         可序列化的 Python 对象（dict / list）。
     """
     if isinstance(filter, Condition):
-        return filter.to_dict()
+        return {"column": filter.column, "value": filter.value, "op": filter.op}
     if isinstance(filter, tuple):
         inner, negate = filter
         return [convert_filter_to_object(inner), negate]
@@ -211,6 +211,4 @@ def filter_to_json(filter: Filter) -> str:
     """将 Filter 序列化为紧凑 JSON 字符串。"""
     return json.dumps(convert_filter_to_object(filter), ensure_ascii=False)
 
-from . import extras
-
-
+from .extras import TRUE_CONDITION, FALSE_CONDITION
