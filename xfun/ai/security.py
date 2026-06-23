@@ -6,90 +6,52 @@ AI 安全沙箱。
 
 from typing import List
 
-from xfun.core.filter import Condition, Filter
-from xfun.core.view import View
+from xfun import registry
+from xfun.core.filter import Condition, Filter, TRUE_CONDITION
+from xfun.core.view import View, view_or
 
+_AI_READ_FILTER: Filter = TRUE_CONDITION
 
-# ========== 行级读权限（View 白名单） ==========
-# AI 只能读取 AI 自己创建的行（is_ai_gen=1），且只能访问以下列
-AI_READ_VIEW: View = {
-    "plan":        [(
-        ["id", "content", "tags", "ai_tags", "ai_note", "month", "done", "seq", "no", "created_at"],
-        [[Condition("is_ai_gen", 1)]],
-    )],
-    "diary":       [(
-        ["id", "content", "tags", "ai_tags", "ai_note", "date", "mood", "weather", "created_at"],
-        [[Condition("is_ai_gen", 1)]],
-    )],
-    "word":        [(
-        ["id", "content", "tags", "ai_tags", "ai_note", "word", "part_of_speech", "phonetic",
-         "review_count", "performance", "next_review", "last_review", "related_words", "created_at"],
-        [[Condition("is_ai_gen", 1)]],
-    )],
-    "accumulation": [(
-        ["id", "content", "tags", "ai_tags", "ai_note", "category", "source", "note", "created_at"],
-        [[Condition("is_ai_gen", 1)]],
-    )],
-    "aimemory":    [(
-        ["id", "title", "content", "tags", "ai_tags", "ai_note", "source", "note", "created_at"],
-        [[Condition("is_ai_gen", 1)]],
-    )],
+_AI_WRITE_FILTER: Filter =[[_AI_READ_FILTER, 
+    TRUE_CONDITION
+]]
+
+_READ_BASE_COLUMNS: list[str] = ["id", "content", "tags", "created_at", "updated_at", "ai_tags", "ai_note"]
+_WRITE_BASE_COLUMNS: list[str] = ["content", "ai_tags", "ai_note"]
+
+_AI_SPEC_READ_VIEW: View = {
+    "diary": [{"columns": ["mood", "weather"], "filter": _AI_READ_FILTER}],
+    "word": [{"columns": ["word", "part_of_speech", "phonetic", "example", "related_words"], "filter": _AI_READ_FILTER}],
+    "accumulation": [{"columns": ["category", "source", "note"], "filter": _AI_READ_FILTER}],
+    "plan": [{"columns": ["no", "month", "done"], "filter": _AI_READ_FILTER}]
 }
 
-# ========== 行级写权限（View 白名单） ==========
-# AI 只能修改自己创建的行（is_ai_gen=1），且只能写入以下列
-AI_WRITE_VIEW: View = {
-    "plan":        [(
-        ["tags", "ai_tags", "ai_note", "done"],
-        [[Condition("is_ai_gen", 1)]],
-    )],
-    "diary":       [(
-        ["tags", "ai_tags", "ai_note"],
-        [[Condition("is_ai_gen", 1)]],
-    )],
-    "word":        [(
-        ["tags", "ai_tags", "ai_note", "review_count", "performance", "next_review", "last_review"],
-        [[Condition("is_ai_gen", 1)]],
-    )],
-    "accumulation": [(
-        ["tags", "ai_tags", "ai_note"],
-        [[Condition("is_ai_gen", 1)]],
-    )],
-    "aimemory":    [(
-        ["tags", "ai_tags", "ai_note", "title", "source", "note"],
-        [[Condition("is_ai_gen", 1)]],
-    )],
+_AI_SPEC_WRITE_VIEW: View = {
+    "diary": [{"columns": ["mood", "weather"], "filter": _AI_WRITE_FILTER}],
+    "word": [{"columns": ["part_of_speech", "phonetic", "example", "related_words"], "filter": _AI_WRITE_FILTER}],
+    "accumulation": [{"columns": ["category", "source", "note"], "filter": _AI_WRITE_FILTER}],
+    "plan": [{"columns": ["done"], "filter": _AI_WRITE_FILTER}],
 }
 
 
-def writable_columns(table: str) -> List[str]:
-    """返回 AI 可写入的列名列表（从 AI_WRITE_VIEW 派生）。"""
-    if table not in AI_WRITE_VIEW:
-        return []
-    return list({c for spec in AI_WRITE_VIEW[table] for c in spec[0]})
+def _ai_comm_read_view() -> View:
+    result: View = {}
+    for nb in registry:
+        result[nb.name] = [{"columns": _READ_BASE_COLUMNS, "filter": _AI_READ_FILTER}]
+    result["aimemory"] = [{"columns": registry.notebook["aimemory"].columns, "filter": TRUE_CONDITION}]
+    return result
+
+def ai_read_view() -> View:
+    return view_or(_AI_SPEC_READ_VIEW, _ai_comm_read_view())
 
 
-def write_filter(table: str) -> Filter:
-    """返回 AI 行级写权限 Filter（从 AI_WRITE_VIEW 派生）。"""
-    if table not in AI_WRITE_VIEW:
-        return [[Condition("is_ai_gen", 1)]]
-    # 合并所有 TableSpec 的 filter（OR 关系）
-    filters: List = []
-    for _, flt in AI_WRITE_VIEW[table]:
-        filters.append(flt)
-    if len(filters) == 1:
-        return filters[0]
-    return filters
+def _ai_comm_write_view() -> View:
+    result: View = {}
+    for nb in registry:
+        result[nb.name] = [{"columns": _WRITE_BASE_COLUMNS, "filter": _AI_WRITE_FILTER}]
+    result["aimemory"] = [{"columns": _WRITE_BASE_COLUMNS + ["title", "source"], "filter": TRUE_CONDITION}]
+    return result
 
+def ai_write_view() -> View:
+    return view_or(_AI_SPEC_WRITE_VIEW, _ai_comm_write_view())
 
-def system_columns(table: str) -> List[str]:
-    """返回 AI 添加条目时不可写入的系统列（不在可写白名单中的列）。"""
-    if table not in AI_READ_VIEW:
-        return []
-    # 所有已知列 = 读视图列 + 系统自动列
-    all_cols = set()
-    for spec in AI_READ_VIEW[table]:
-        all_cols.update(spec[0])
-    all_cols.update(["updated_at", "is_ai_gen", "seq", "no"])
-    writable = set(writable_columns(table))
-    return sorted(all_cols - writable)
