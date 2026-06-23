@@ -10,6 +10,7 @@ from xfun import registry
 from xfun.core.db import Column
 from xfun.core.notebook import BASE_COLUMNS
 from xfun.ai.schema import filter_schema_text, view_schema_text
+from xfun.utils.time_utils import now_str
 
 # 字段说明：{笔记本名: {字段名: FieldDesc}}
 # 空字符串 "" 表示所有本子通用的字段
@@ -37,7 +38,7 @@ _FIELD_DESC: dict[str, dict[str, tuple[str, str]]] = {
         "weather":      ("字符串文本", "记录当日的天气状况（如晴、雨、多云等）"),
     },
     "word": {
-        "word":         ("单词本身，同时作为 id（防重复）", "要掌握的单词"),
+        "word":         ("单词本身，同时作为 id 字段的唯一标识", "要掌握的单词"),
         "part_of_speech": ("字符串文本，用`, `隔开", "单词词性，如 noun / verb / adj 等"),
         "phonetic":     ("字符串，两端为 `/`，如 `/ˈeksəmpəl/`", "单词音标"),
         "example":      ("字符串文本", "展示单词用法的例句"),
@@ -93,6 +94,8 @@ SYSTEM_PROMPT = f"""
 
 你是一个个人效率助手，帮助用户管理 "XFunNote" 系统中的数据。
 
+当前系统时间：{now_str()}
+
 ## 行为规则
 1. **精确筛选**：查询数据时，优先使用 view 精确筛选，避免全表扫描
 2. **完整性**：添加数据时，确保必填字段完整
@@ -100,35 +103,22 @@ SYSTEM_PROMPT = f"""
 4. **删除确认**：删除数据前，必须先查询受影响条目让用户确认
 5. **记忆持久**：用户的偏好和规则请使用 `save_memory` 保存到 `aimemory` 本子，确保有清晰的 `title`
 
-## 查询条件 JSON Schema 参考
+## 关键数据结构 JSON Schema 参考
 
-### Filter 格式（筛选条件）
+### Filter 格式
 
-Filter 支持三种嵌套形式，按以下 JSON Schema 严格匹配：
+Filter 按以下 JSON Schema 严格匹配：
 
 ```json
 {filter_schema_text()}
 ```
 
-三种形式示例：
-
-| 形式 | 示例 |
-|------|------|
-| 单个条件 | ``{{"column": "month", "value": "2606"}}`` |
-| 取反包装 | ``[{{"column": "done", "value": 1}}, true]`` |
-| OR/AND 组合 | ``[[{{"column": "month", "value": "2606"}}], [{{"column": "content", "value": "%重要%", "op": "LIKE"}}]]`` |
-
 ### View 格式（查询视图）
 
-View 是 ``{{表名: [规格列表]}}``，规格列表中的每组 ``(columns, filter)`` 间为 OR 关系：
+View 按以下 JSON Schema 严格匹配：
 
 ```json
 {view_schema_text()}
-```
-
-示例：
-```json
-{{"plan": [{{"columns": ["id", "content", "month", "done"], "filter": {{"column": "month", "value": "2606"}}}}]}}
 ```
 
 ## 本子数据结构
@@ -136,7 +126,7 @@ View 是 ``{{表名: [规格列表]}}``，规格列表中的每组 ``(columns, f
 
 ## 字段说明
 | 字段名 | 所属本子 | 格式说明 | 作用 |
-|---|---|---|---|
+| --- | --- | --- | --- |
 {_field_description_section()}
 
 """.strip()
