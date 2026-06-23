@@ -10,8 +10,11 @@ from typing import Any, Dict, List
 
 from langchain_core.tools import tool
 
+from pydantic import ValidationError
+
 from xfun import db, registry
-from xfun.core.view import View, view_and, view_to_sql, parse_view_json
+from xfun.core.view import View, view_and, view_to_sql
+from xfun.ai.schema import parse_and_validate_view
 from xfun.ai.security import (
     AI_READ_VIEW,
     AI_WRITE_VIEW,
@@ -46,8 +49,8 @@ def query_entries(
     table : str
         本子名：plan / diary / word / accumulation / aimemory。
     view_json : str
-        View JSON 字符串，格式为 ``{"表名": [[列名列表, 筛选条件], ...]}``。
-        筛选条件格式同 Filter JSON，如 ``[{"column":"month","value":"2606"}]``。
+        View JSON 字符串，格式参见系统提示词中的 JSON Schema 定义（ViewSchema）。
+        简要结构: ``{"表名": [{"columns": [...], "filter": <Filter>}, ...]}``。
     order_by : str
         排序列名，如 ``"created_at DESC"``。
     limit : int
@@ -58,7 +61,14 @@ def query_entries(
     if table not in registry:
         return json.dumps({"error": f"未知本子: {table}"}, ensure_ascii=False)
 
-    user_view = parse_view_json(view_json, table) if view_json else {table: []}
+    try:
+        user_view = parse_and_validate_view(view_json) if view_json else {table: []}
+    except ValidationError as e:
+        return json.dumps(
+            {"error": f"view_json 格式错误: {e.errors()}"},
+            ensure_ascii=False,
+        )
+
     # 确保用户 view 包含目标表
     if table not in user_view:
         user_view[table] = []
