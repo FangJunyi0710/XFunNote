@@ -3,7 +3,7 @@
 import json
 
 import pytest
-from xfun.core.filter import Condition, filter_to_sql, parse_filter_json
+from xfun.core.filter import Condition, filter_to_sql, parse_filter_json, filter_to_json, TRUE_CONDITION
 from xfun.core.errors import InvalidConditionError, InvalidSQLError
 
 # 加载 extras.py 中注册的自定义运算符（JSON_CONTAINS, TEXT_SEARCH, TRUE, FALSE）
@@ -513,3 +513,50 @@ class TestExtrasIntegration:
                 f"SELECT id FROM _t_false WHERE {sql}", params
             ).fetchall()
         assert len(rows) == 0
+
+
+# =====================================================================
+# filter_to_json / convert_filter_to_object
+# =====================================================================
+
+class TestFilterToJson:
+    def test_condition_to_dict(self):
+        """Condition 转为 dict。"""
+        obj = filter_to_json(Condition("col", "val", "="))
+        assert obj == {"column": "col", "value": "val", "op": "="}
+
+    def test_condition_with_default_op(self):
+        """op 省略时（默认 =）也包含在 dict 中。"""
+        obj = filter_to_json(Condition("col", 1))
+        assert obj == {"column": "col", "value": 1, "op": "="}
+
+    def test_true_condition(self):
+        """TRUE_CONDITION 转为 dict。"""
+        obj = filter_to_json(TRUE_CONDITION)
+        assert obj == {"column": "_", "value": None, "op": "TRUE"}
+
+    def test_negate_tuple(self):
+        """取反元组 (Filter, True) 转为 [inner, True]。"""
+        obj = filter_to_json((Condition("col", 1, "="), True))
+        assert obj == [{"column": "col", "value": 1, "op": "="}, True]
+
+    def test_negate_tuple_false(self):
+        """取反元组 (Filter, False) 转为 [inner, False]。"""
+        obj = filter_to_json((Condition("col", 1, ">"), False))
+        assert obj == [{"column": "col", "value": 1, "op": ">"}, False]
+
+    def test_nested_and_or(self):
+        """AND/OR 嵌套结构转为嵌套 list。"""
+        flt = [[Condition("a", 1), Condition("b", 2)], [Condition("c", 3)]]
+        obj = filter_to_json(flt)
+        assert obj == [
+            [{"column": "a", "value": 1, "op": "="}, {"column": "b", "value": 2, "op": "="}],
+            [{"column": "c", "value": 3, "op": "="}],
+        ]
+
+    def test_json_serializable(self):
+        """返回对象可被 json.dumps 正常处理。"""
+        obj = filter_to_json([[Condition("a", 1), (Condition("b", 2), True)]])
+        dumped = json.dumps(obj, ensure_ascii=False)
+        assert isinstance(dumped, str)
+        assert "a" in dumped
