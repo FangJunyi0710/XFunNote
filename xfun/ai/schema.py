@@ -19,7 +19,7 @@ def _inject_op_enum(schema: dict) -> None:
 
 # ========== Condition ==========
 
-class ConditionSchema(BaseModel):
+class ConditionModel(BaseModel):
     """单个筛选条件 — 叶子节点。"""
     column: str = Field(description="列名")
     value: Any = Field(description="值")
@@ -55,7 +55,7 @@ class FilterModel(RootModel):
     3. **OR / AND 组合** — ``[[条件组1], [条件组2], ...]``，外层 OR 内层 AND 的 DNF 析取范式
     """
 
-    root: ConditionSchema | tuple["FilterModel", bool] | list[list["FilterModel"]] 
+    root: ConditionModel | tuple["FilterModel", bool] | list[list["FilterModel"]] 
 
     def to_filter(self) -> Filter:
         """转换为内部 ``Filter`` 类型（用于 SQL 生成）。"""
@@ -64,7 +64,7 @@ class FilterModel(RootModel):
 
 def _resolve_filter(val: Any) -> Filter:
     """递归将 Pydantic 模型值转换为内部 Filter。"""
-    if isinstance(val, ConditionSchema):
+    if isinstance(val, ConditionModel):
         return val.to_condition()
     if isinstance(val, tuple) and len(val) == 2 and isinstance(val[1], bool):
         inner, negate = val
@@ -80,7 +80,7 @@ FilterModel.model_rebuild()
 
 # ========== View ==========
 
-class TableSpecSchema(BaseModel):
+class TableSpecModel(BaseModel):
     """单组查询规格：(列名列表, 筛选条件)"""
     columns: list[str] = Field(description="要查询的列名列表")
     filter: FilterModel = Field(description="行筛选条件")
@@ -88,9 +88,9 @@ class TableSpecSchema(BaseModel):
     model_config = {"extra": "forbid"}
 
 
-class ViewSchema(RootModel):
+class ViewModel(RootModel):
     """查询视图 — ``{表名: [TableSpec, ...]}``，多组间 OR 关系。"""
-    root: dict[str, list[TableSpecSchema]]
+    root: dict[str, list[TableSpecModel]]
 
     def to_view(self) -> dict[str, list[tuple[list[str], Filter]]]:
         """转换为内部 ``View`` 类型。"""
@@ -109,7 +109,7 @@ def filter_schema_json() -> dict:
 
 def view_schema_json() -> dict:
     """返回 View 的 JSON Schema 字典。"""
-    return ViewSchema.model_json_schema()
+    return ViewModel.model_json_schema()
 
 
 # ========== 校验 + 解析（供 tools.py 使用） ==========
@@ -127,7 +127,7 @@ def parse_and_validate_view(view_json_str: str) -> dict[str, Any]:
     pydantic.ValidationError
         JSON 不符合 ViewSchema 定义时抛出。
     """
-    model = ViewSchema.model_validate_json(view_json_str)
+    model = ViewModel.model_validate_json(view_json_str)
     return model.to_view()
 
 
