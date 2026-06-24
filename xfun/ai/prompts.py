@@ -11,7 +11,7 @@ import json
 from xfun import registry
 from xfun.core.db import Column
 from xfun.core.notebook import BASE_COLUMNS
-from xfun.ai.schema import filter_schema_text, view_schema_text
+from xfun.ai.schema import filter_schema_json, view_schema_json
 from xfun.ai.security import ai_read_view, ai_write_view
 from xfun.core.view import view_to_json
 from xfun.utils.time_utils import now_str
@@ -21,7 +21,7 @@ from xfun.utils.time_utils import now_str
 
 _FIELD_DESC: dict[str, dict[str, tuple[str, str]]] = {
     "": {
-        "id":           ("系统自动生成，无需传入；格式 `{本子名}-{唯一标识}`", "每条记录的唯一标识"),
+        "id":           ("系统自动生成，无需传入；格式 `{本子名}-{uuid}`", "每条记录的唯一标识"),
         "content":      ("字符串文本，长度不限", "记录的核心文本内容，所有本子的主要信息载体"),
         "tags":         ("JSON 数组字符串，如 `'[\"tag1\", \"tag2\"]'`", "用户手动添加的标签，用于分类和检索"),
         "ai_tags":      ("JSON 数组字符串，如 `'[\"tag1\", \"tag2\"]'`", "AI 自动生成的标签，用于辅助分类"),
@@ -42,7 +42,7 @@ _FIELD_DESC: dict[str, dict[str, tuple[str, str]]] = {
         "weather":      ("字符串文本", "记录当日的天气状况（如晴、雨、多云等）"),
     },
     "word": {
-        "word":         ("单词本身，同时作为 id 字段的唯一标识", "要掌握的单词"),
+        "word":         ("单词本身", "要掌握的单词"),
         "part_of_speech": ("字符串文本，用`, `隔开", "单词词性，如 noun / verb / adj 等"),
         "phonetic":     ("字符串，两端为 `/`，如 `/ˈeksəmpəl/`", "单词音标"),
         "example":      ("字符串文本", "展示单词用法的例句"),
@@ -106,6 +106,9 @@ SYSTEM_PROMPT = f"""
 3. **最小修改**：修改数据时，只修改用户要求的字段，不要变更无关数据
 4. **删除确认**：删除数据前，必须先查询受影响条目让用户确认
 5. **记忆持久**：用户的偏好和规则请使用 `save_memory` 保存到 `aimemory` 本子，确保有清晰的 `title`
+6. **系统字段边界**：`AI_WRITE_VIEW` 白名单已明确列出你可传入/修改的字段。**白名单之外的字段均由系统后端自动管理**，你无需传入也禁止尝试修改。
+   - 当用户要求更新某个不在写白名单中的字段时，你应回复："该字段由系统自动维护，无需手动操作"，并**仅修改白名单内的字段**，或直接忽略该请求。
+   - **严禁**因白名单缺少某字段而质疑系统配置、报错或向用户反问"是否补充该字段"，将其视为系统的既定职责即可。
 
 ## 关键数据结构 JSON Schema 参考
 
@@ -114,7 +117,7 @@ SYSTEM_PROMPT = f"""
 Filter 按以下 JSON Schema 严格匹配：
 
 ```json
-{filter_schema_text()}
+{json.dumps(filter_schema_json(), indent=2, ensure_ascii=False)}
 ```
 
 ### View 格式（查询视图）
@@ -122,7 +125,7 @@ Filter 按以下 JSON Schema 严格匹配：
 View 按以下 JSON Schema 严格匹配：
 
 ```json
-{view_schema_text()}
+{json.dumps(view_schema_json(), indent=2, ensure_ascii=False)}
 ```
 
 ## 本子数据结构
@@ -137,12 +140,12 @@ View 按以下 JSON Schema 严格匹配：
 
 ### 可查询字段范围（读白名单）
 ```json
-{view_to_json(ai_read_view())}
+{json.dumps(view_to_json(ai_read_view()), indent=2, ensure_ascii=False)}
 ```
 
 ### 可修改字段范围（写白名单）
 ```json
-{view_to_json(ai_write_view())}
+{json.dumps(view_to_json(ai_write_view()), indent=2, ensure_ascii=False)}
 ```
 
 """.strip()

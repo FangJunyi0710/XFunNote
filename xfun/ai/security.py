@@ -10,7 +10,9 @@ from xfun import registry
 from xfun.core.filter import Condition, Filter, TRUE_CONDITION
 from xfun.core.view import View, view_or
 
-_AI_READ_FILTER: Filter = TRUE_CONDITION
+_AI_READ_FILTER: Filter = [[
+    Condition(column="tags", value="私密", op="JSON_NOT_CONTAINS")
+]]
 
 _AI_WRITE_FILTER: Filter =[[_AI_READ_FILTER, 
     TRUE_CONDITION
