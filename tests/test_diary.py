@@ -20,7 +20,7 @@ class TestDiaryAutofill:
                 {"date": "2026-06-18", "content": "今天学习了Python"},
             ])
         with db.read_transaction() as conn:
-            results = diary_nb.get_by_id(conn, ids)
+            results = diary_nb.get_by_ids(conn, ids)
         assert results[0]["date"] == "2026-06-18"
         assert results[0]["content"] == "今天学习了Python"
 
@@ -31,7 +31,7 @@ class TestDiaryAutofill:
                 {"date": "2026-07-01", "content": "暑假第一天"},
             ])
         with db.read_transaction() as conn:
-            results = diary_nb.get_by_id(conn, ids)
+            results = diary_nb.get_by_ids(conn, ids)
         assert ids[0].startswith("diary-")
         assert results[0]["date"] == "2026-07-01"
 
@@ -44,7 +44,7 @@ class TestDiaryAutofill:
                 {"date": "2026-06-19", "content": "只有内容"},
             ])
         with db.read_transaction() as conn:
-            results = diary_nb.get_by_id(conn, ids)
+            results = diary_nb.get_by_ids(conn, ids)
         assert results[0]["mood"] == "平静"
         assert results[0]["weather"] == "阴"
         assert results[1]["mood"] is None

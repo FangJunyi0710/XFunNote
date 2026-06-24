@@ -13,9 +13,9 @@ from xfun.core.view import (
     view_to_json,
     view_or,
     view_and,
-    view_add,
-    view_delete,
-    view_update,
+    view_clean_columns,
+    view_clean_filter,
+    view_clean_update,
     _TableSpec_and,
     _clean_entry,
 )
@@ -477,7 +477,7 @@ class TestCleanEntry:
 class TestViewAdd:
     def test_clean_against_view(self):
         """entries 按视图列白名单（所有 spec 的并集）清洗。"""
-        cleaned = view_add(make_view(), "plan", [
+        cleaned = view_clean_columns(make_view(), "plan", [
             {"content": "A", "month": "2606", "done": 1, "extra": "x"},
             {"content": "B", "done": 0},
         ])
@@ -490,7 +490,7 @@ class TestViewAdd:
 class TestViewDelete:
     def test_merge_filters(self):
         """view_delete 将用户 filter 与视图 filter AND 组合。"""
-        merged = view_delete(make_view(), "plan", [[Condition("content", "A", "LIKE")]])
+        merged = view_clean_filter(make_view(), "plan", [[Condition("content", "A", "LIKE")]])
         # 结果: [[user_filter, [[spec1_filter], [spec2_filter]]]]
         assert len(merged) == 1
         assert merged[0][0] == [[Condition("content", "A", "LIKE")]]
@@ -500,7 +500,7 @@ class TestViewDelete:
 class TestViewUpdate:
     def test_expand_per_spec(self):
         """view_update 按每个 spec 展开为 (filter, values) 对。"""
-        results = view_update(make_view(), "plan", [[Condition("done", 1)]], {"content": "updated", "extra": "x"})
+        results = view_clean_update(make_view(), "plan", [[Condition("done", 1)]], {"content": "updated", "extra": "x"})
         assert len(results) == 2  # 两个 spec，各产生一组 (filter, values)
         # spec 1: 列白名单 {"content", "month"} + filter = AND(原 filter, 用户 filter)
         flt1, vals1 = results[0]

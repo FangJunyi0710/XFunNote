@@ -27,7 +27,7 @@ class TestDBInit:
 
     def test_init_creates_tables(self, registry, tmp_path):
         db = DB(db_path=str(tmp_path / "init_test.db"))
-        db.init({nb.name: nb.columns for nb in registry})
+        db.init({nb.name: nb.columns for nb in registry.values()})
         with db.read_transaction() as conn:
             rows = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table'"

@@ -30,7 +30,7 @@ class TestCRUD:
         assert ids[0] != ids[1]
 
         with db.read_transaction() as conn:
-            results = test_nb.get_by_id(conn, ids)
+            results = test_nb.get_by_ids(conn, ids)
         assert len(results) == 2
         assert results[0]["title"] == "A"
 
@@ -43,7 +43,7 @@ class TestCRUD:
                 {"content": "C", "title": "Z"},
             ])
         with db.read_transaction() as conn:
-            ids = test_nb.list(conn, [[Condition("title", "Y")]])
+            ids = test_nb.list_ids(conn, [[Condition("title", "Y")]])
         assert len(ids) == 1
 
     def test_add_then_delete(self, db, test_nb):
@@ -55,7 +55,7 @@ class TestCRUD:
             ])
             test_nb.delete(conn, [ids[0]])
         with db.read_transaction() as conn:
-            remaining = test_nb.get_by_id(conn, ids)
+            remaining = test_nb.get_by_ids(conn, ids)
         assert len(remaining) == 1
 
     def test_add_then_update(self, db, test_nb):
@@ -64,7 +64,7 @@ class TestCRUD:
             ids = test_nb.add(conn, [{"content": "A", "title": "X"}])
             test_nb.update(conn, ids, {"title": "Y"})
         with db.read_transaction() as conn:
-            result = test_nb.get_by_id(conn, ids)
+            result = test_nb.get_by_ids(conn, ids)
         assert result[0]["title"] == "Y"
         assert result[0]["content"] == "A"  # 未更新字段不变
 
@@ -83,7 +83,7 @@ class TestNotebookEdgeCases:
     def test_get_by_id_empty(self, db, test_nb):
         """空 ID 列表应直接返回 []。"""
         with db.read_transaction() as conn:
-            assert test_nb.get_by_id(conn, []) == []
+            assert test_nb.get_by_ids(conn, []) == []
 
     def test_init_table_empty_columns(self, db):
         """没有列的 notebook，init 应直接返回。"""
@@ -100,9 +100,9 @@ class TestNotebookEdgeCases:
                 {"content": "B", "title": "Y"},
             ])
         with db.read_transaction() as conn:
-            ids = test_nb.list(conn, [], order_by="title ASC")
+            ids = test_nb.list_ids(conn, [], order_by="title ASC")
         with db.read_transaction() as conn:
-            results = test_nb.get_by_id(conn, ids)
+            results = test_nb.get_by_ids(conn, ids)
         assert [r["title"] for r in results] == ["X", "Y", "Z"]
 
     def test_delete_empty(self, db, test_nb):

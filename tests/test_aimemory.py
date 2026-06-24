@@ -21,7 +21,7 @@ class TestAIMemoryAutofill:
                 {"title": "Python 最佳实践", "content": "使用 with 语句管理资源。"},
             ])
         with db.read_transaction() as conn:
-            results = aimem_nb.get_by_id(conn, ids)
+            results = aimem_nb.get_by_ids(conn, ids)
         assert results[0]["title"] == "Python 最佳实践"
         assert results[0]["content"] == "使用 with 语句管理资源。"
 
@@ -43,7 +43,7 @@ class TestAIMemoryAutofill:
                 {"title": "灵感", "content": "灵光一闪"},
             ])
         with db.read_transaction() as conn:
-            results = aimem_nb.get_by_id(conn, ids)
+            results = aimem_nb.get_by_ids(conn, ids)
         assert results[0]["source"] == "chat"
         assert results[1]["source"] is None
 

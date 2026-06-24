@@ -3,13 +3,14 @@ Pydantic 模型 — 为 Filter / View 生成 JSON Schema，供 AI 精准理解�
 
 用法::
 
-    from xfun.ai.schema import FilterModel, ViewSchema, filter_schema_text
+    from xfun.ai.schema import FilterModel, ViewModel, filter_schema_json
 """
 
 from __future__ import annotations
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any
 from pydantic import BaseModel, Field, RootModel, field_validator
 
+from xfun.core.errors import InvalidConditionError, InvalidFilterError
 from xfun.core.filter import Condition, Filter
 
 def _inject_op_enum(schema: dict) -> None:
@@ -19,7 +20,7 @@ def _inject_op_enum(schema: dict) -> None:
 
 # ========== Condition ==========
 
-class ConditionSchema(BaseModel):
+class ConditionModel(BaseModel):
     """单个筛选条件 — 叶子节点。"""
     column: str = Field(description="列名")
     value: Any = Field(description="值")
@@ -55,11 +56,7 @@ class FilterModel(RootModel):
     3. **OR / AND 组合** — ``[[条件组1], [条件组2], ...]``，外层 OR 内层 AND 的 DNF 析取范式
     """
 
-    root: Union[
-        ConditionSchema,
-        Tuple["FilterModel", bool],
-        List[List["FilterModel"]],
-    ]
+    root: ConditionModel | tuple["FilterModel", bool] | list[list["FilterModel"]] 
 
     def to_filter(self) -> Filter:
         """转换为内部 ``Filter`` 类型（用于 SQL 生成）。"""
@@ -68,15 +65,17 @@ class FilterModel(RootModel):
 
 def _resolve_filter(val: Any) -> Filter:
     """递归将 Pydantic 模型值转换为内部 Filter。"""
-    if isinstance(val, ConditionSchema):
+    if isinstance(val, ConditionModel):
         return val.to_condition()
+    if isinstance(val, FilterModel):
+        return _resolve_filter(val.root)
     if isinstance(val, tuple) and len(val) == 2 and isinstance(val[1], bool):
         inner, negate = val
         return (_resolve_filter(inner), negate)
     if isinstance(val, list):
         # 外层 list → OR，内层 list → AND
         return [[_resolve_filter(item) for item in group] for group in val]
-    raise ValueError(f"无法识别的 Filter 结构: {type(val)}")
+    raise InvalidFilterError(val)
 
 
 FilterModel.model_rebuild()
@@ -84,21 +83,21 @@ FilterModel.model_rebuild()
 
 # ========== View ==========
 
-class TableSpecSchema(BaseModel):
+class TableSpecModel(BaseModel):
     """单组查询规格：(列名列表, 筛选条件)"""
-    columns: List[str] = Field(description="要查询的列名列表")
+    columns: list[str] = Field(description="要查询的列名列表")
     filter: FilterModel = Field(description="行筛选条件")
 
     model_config = {"extra": "forbid"}
 
 
-class ViewSchema(RootModel):
+class ViewModel(RootModel):
     """查询视图 — ``{表名: [TableSpec, ...]}``，多组间 OR 关系。"""
-    root: Dict[str, List[TableSpecSchema]]
+    root: dict[str, list[TableSpecModel]]
 
-    def to_view(self) -> Dict[str, List[Tuple[List[str], Filter]]]:
+    def to_view(self) -> dict[str, list[tuple[list[str], Filter]]]:
         """转换为内部 ``View`` 类型。"""
-        result: Dict[str, List[Tuple[List[str], Filter]]] = {}
+        result: dict[str, list[tuple[list[str], Filter]]] = {}
         for table, specs in self.root.items():
             result[table] = [(s.columns, s.filter.to_filter()) for s in specs]
         return result
@@ -113,12 +112,12 @@ def filter_schema_json() -> dict:
 
 def view_schema_json() -> dict:
     """返回 View 的 JSON Schema 字典。"""
-    return ViewSchema.model_json_schema()
+    return ViewModel.model_json_schema()
 
 
 # ========== 校验 + 解析（供 tools.py 使用） ==========
 
-def parse_and_validate_view(view_json_str: str) -> Dict[str, Any]:
+def parse_and_validate_view(view_json_str: str) -> dict[str, Any]:
     """校验并解析 View JSON → 内部 View 格式。
 
     Returns
@@ -129,9 +128,9 @@ def parse_and_validate_view(view_json_str: str) -> Dict[str, Any]:
     Raises
     ------
     pydantic.ValidationError
-        JSON 不符合 ViewSchema 定义时抛出。
+        JSON 不符合 ViewModel 定义时抛出。
     """
-    model = ViewSchema.model_validate_json(view_json_str)
+    model = ViewModel.model_validate_json(view_json_str)
     return model.to_view()
 
 

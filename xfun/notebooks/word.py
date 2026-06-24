@@ -3,8 +3,7 @@
 word 本：管理单词，记录单词、词性、音标、例句、复习数据。
 """
 
-from typing import Any, Dict
-
+from typing import Any
 from ..core.db import Column
 from ..core.notebook import Notebook
 
@@ -25,7 +24,7 @@ class WordNotebook(Notebook):
 
     # ---- 校验 & 自动填充 ----
 
-    def _autofill(self, entry: Dict[str, Any]) -> None:
+    def _autofill(self, entry: dict[str, Any]) -> None:
         """自动填充 review_count / performance。
         """
         super()._autofill(entry)

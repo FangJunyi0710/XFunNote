@@ -12,6 +12,7 @@ from xfun import registry
 from xfun.core.db import Column
 from xfun.core.notebook import BASE_COLUMNS
 from xfun.ai.schema import filter_schema_json, view_schema_json
+from xfun.core.errors import PromptError
 from xfun.ai.security import ai_read_view, ai_write_view
 from xfun.core.view import view_to_json
 from xfun.utils.time_utils import now_str
@@ -35,6 +36,7 @@ _FIELD_DESC: dict[str, dict[str, tuple[str, str]]] = {
         "done":         ("`0` 未完成，`1` 已完成", "标记计划项的执行状态"),
         "seq":          ("同月内自动递增，无需传入", "月份内序号，决定计划项的排列顺序"),
         "no":           ("基于 seq 自动生成字母编号，无需传入；格式 `{month}{字母编号}`", "用户可读的编号标识，方便引用"),
+        "status":       ("字符串文本","计划进展或完成状态")
     },
     "diary": {
         "date":         ("YYYY-MM-DD 格式", "日记记录的日期，用于按日期检索和时序展示"),
@@ -71,7 +73,7 @@ def _notebook_infos() -> str:
     """遍历 registry 中的 Notebook，生成可读的数据结构描述。"""
     lines = [f"- 各本子共有字段：{", ".join(_format_column_info(c) for c in BASE_COLUMNS)}"]
 
-    for nb in registry:
+    for nb in registry.values():
         lines.append(f"\n本子名称：`{nb.name}`")
 
         cols = ", ".join(
@@ -86,10 +88,16 @@ def _field_description_section() -> str:
     """从 _FIELD_DESC 生成 Markdown 表格。"""
     rows = []
     for notebook, fields in _FIELD_DESC.items():
-        existing_columns = [col.name for col in (registry.notebook(notebook)._extra_columns if notebook else BASE_COLUMNS)]
+        existing_columns = [col.name for col in (registry[notebook]._extra_columns if notebook else BASE_COLUMNS)]
+        if len(fields) != len(existing_columns):
+            raise PromptError(
+                f"{notebook} 本子 _FIELD_DESC 注解不完整："
+                f"描述了 {len(fields)} 个字段，但列定义中有 {len(existing_columns)} 个"
+                f"（{', '.join(existing_columns)}）"
+            )
         for field, (fmt, role) in fields.items():
             if field not in existing_columns:
-                raise ValueError(f"字段 {field} 在 {notebook} 本子中不存在")
+                raise PromptError(f"字段 {field} 在 {notebook} 本子中不存在")
             rows.append(f"| `{field}` | {notebook if notebook else "通用"} | {fmt} | {role} |")
     return "\n".join(rows)
 

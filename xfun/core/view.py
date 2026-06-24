@@ -1,14 +1,13 @@
-from typing import Any, Dict, List, Set, Tuple
-
+from typing import Any
 from .db import Column, DB
 from .filter import Filter, convert_filter_object, filter_to_json, filter_to_sql
 import json
 
 TableSpec = tuple[list[str], Filter]
-# dict[表名, List[(列名列表, 行筛选条件)]]
-View = dict[str, List[TableSpec]]
+# dict[表名, list[(列名列表, 行筛选条件)]]
+View = dict[str, list[TableSpec]]
 
-def view_to_sql(view: View, db: DB, table: str) -> Tuple[str, list]:
+def view_to_sql(view: View, db: DB, table: str) -> tuple[str, list]:
     """
     将 View 转换为针对指定表的 SELECT 查询。
     """
@@ -19,7 +18,7 @@ def view_to_sql(view: View, db: DB, table: str) -> Tuple[str, list]:
     subsqls = [f"{db.select_sql(table, [])} WHERE 1=0"]
     params = []
 
-    pks: List[str] = []
+    pks: list[str] = []
     for col in db.table_infos[table]:
         if col.primary_key:
             pks.append(col.name)
@@ -37,7 +36,7 @@ def view_to_sql(view: View, db: DB, table: str) -> Tuple[str, list]:
         subsqls.append(sql)
         params.extend(vals)
 
-    pieces: List[str] = []
+    pieces: list[str] = []
     for col in db.table_infos[table]:
         if col.primary_key:
             pieces.append(col.name)
@@ -73,7 +72,7 @@ def parse_view_json(s: str) -> View:
     data = json.loads(s)
     result: View = {}
     for table_name, specs in data.items():
-        table_specs: List[TableSpec] = []
+        table_specs: list[TableSpec] = []
         for spec in specs:
             columns = spec["columns"]
             flt = convert_filter_object(spec["filter"])
@@ -85,7 +84,7 @@ def view_or(view1: View, view2: View) -> View:
     tables = set(view1) | set(view2)
     merged: View = {}
     for table in tables:
-        specs: List[TableSpec] = []
+        specs: list[TableSpec] = []
         if table in view1:
             specs.extend(view1[table])
         if table in view2:
@@ -102,41 +101,29 @@ def view_and(view1: View, view2: View) -> View:
     tables = set(view1) & set(view2)
     merged: View = {}
     for table in tables:
-        specs: List[TableSpec] = []
+        specs: list[TableSpec] = []
         for spec1 in view1[table]:
             for spec2 in view2[table]:
                 specs.append(_TableSpec_and(spec1, spec2))
         merged[table] = specs
     return merged
 
-# 暂不需要实现
-# def view_diff(view1: View, view2: View) -> View:
-#     """
-#     差集：返回只在 view1 中出现的，忽略同时在 view2 中出现的。
-#     """
-#     merged: View = {}
-#     for table in view1:
-#         if table not in view2:
-#             merged[table] = view1[table]
-#             continue
-#         # 实现差集逻辑
-#     return merged
 
-def _clean_entry(entry: Dict[str, Any], allowed_columns: Set[str]) -> Dict[str, Any]:
-    result: Dict[str, Any] = {}
+def _clean_entry(entry: dict[str, Any], allowed_columns: set[str]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
     for col in entry:
         if col in allowed_columns:
             result[col] = entry[col]
     return result
 
-def view_add(view: View, table: str, entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def view_clean_columns(view: View, table: str, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [_clean_entry(entry, {col for cols, _ in view[table] for col in cols}) for entry in entries]
 
-def view_delete(view: View, table: str, filter: Filter) -> Filter:
+def view_clean_filter(view: View, table: str, filter: Filter) -> Filter:
     return [[filter, [[flt] for _, flt in view[table]]]]
 
-def view_update(view: View, table: str, filter: Filter, values: Dict[str, Any]) -> List[Tuple[Filter, Dict[str, Any]]]:
-    result: List[Tuple[Filter, Dict[str, Any]]] = []
+def view_clean_update(view: View, table: str, filter: Filter, values: dict[str, Any]) -> list[tuple[Filter, dict[str, Any]]]:
+    result: list[tuple[Filter, dict[str, Any]]] = []
     for cols, flt in view[table]:
         result.append(([[flt, filter]], _clean_entry(values, cols)))
     return result

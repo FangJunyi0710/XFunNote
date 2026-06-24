@@ -21,7 +21,7 @@ class TestWordAutofill:
                 {"word": "python", "content": "蟒蛇；一种编程语言"},
             ])
         with db.read_transaction() as conn:
-            results = word_nb.get_by_id(conn, ids)
+            results = word_nb.get_by_ids(conn, ids)
         assert results[0]["word"] == "python"
         assert results[0]["content"] == "蟒蛇；一种编程语言"
 
@@ -34,7 +34,7 @@ class TestWordAutofill:
             ])
         assert ids[0].startswith("word-")
         with db.read_transaction() as conn:
-            result = word_nb.get_by_id(conn, ids)
+            result = word_nb.get_by_ids(conn, ids)
         assert result[0]["word"] == "apple"
 
     def test_duplicate_word_allowed(self, db, word_nb):
@@ -44,7 +44,7 @@ class TestWordAutofill:
             ids1 = word_nb.add(conn, [{"word": "apple", "content": "苹果"}])
             ids2 = word_nb.add(conn, [{"word": "apple", "content": "苹果公司"}])
         with db.read_transaction() as conn:
-            results = word_nb.get_by_id(conn, ids1 + ids2)
+            results = word_nb.get_by_ids(conn, ids1 + ids2)
         assert len(results) == 2
         assert results[0]["word"] == "apple"
         assert results[1]["word"] == "apple"
@@ -59,7 +59,7 @@ class TestWordAutofill:
                 {"word": "world", "content": "世界"},
             ])
         with db.read_transaction() as conn:
-            results = word_nb.get_by_id(conn, ids)
+            results = word_nb.get_by_ids(conn, ids)
         assert results[0]["part_of_speech"] == "int."
         assert results[0]["phonetic"] == "/həˈloʊ/"
         assert results[0]["example"] == "Hello, world!"
@@ -76,7 +76,7 @@ class TestWordAutofill:
                 {"word": "banana", "content": "香蕉", "review_count": 5, "performance": 0.8},
             ])
         with db.read_transaction() as conn:
-            results = word_nb.get_by_id(conn, ids)
+            results = word_nb.get_by_ids(conn, ids)
         assert results[0]["review_count"] == 0
         assert results[0]["performance"] == 0.0
         assert results[1]["review_count"] == 5

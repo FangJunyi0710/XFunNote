@@ -4,8 +4,6 @@ AI 安全沙箱。
 定义 AI 可以读取/修改的数据范围，防止 AI 误操作影响用户手工数据。
 """
 
-from typing import List
-
 from xfun import registry
 from xfun.core.filter import Condition, Filter, TRUE_CONDITION
 from xfun.core.view import View, view_or
@@ -38,9 +36,9 @@ _AI_SPEC_WRITE_VIEW: View = {
 
 def _ai_comm_read_view() -> View:
     result: View = {}
-    for nb in registry:
+    for nb in registry.values():
         result[nb.name] = [(_READ_BASE_COLUMNS, _AI_READ_FILTER)]
-    result["aimemory"] = [([c.name for c in registry.notebook("aimemory").columns], TRUE_CONDITION)]
+    result["aimemory"] = [([c.name for c in registry["aimemory"].columns], TRUE_CONDITION)]
     return result
 
 def ai_read_view() -> View:
@@ -49,7 +47,7 @@ def ai_read_view() -> View:
 
 def _ai_comm_write_view() -> View:
     result: View = {}
-    for nb in registry:
+    for nb in registry.values():
         result[nb.name] = [(_WRITE_BASE_COLUMNS, _AI_WRITE_FILTER)]
     result["aimemory"] = [(_WRITE_BASE_COLUMNS + ["title", "source"], TRUE_CONDITION)]
     return result

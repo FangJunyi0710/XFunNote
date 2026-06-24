@@ -1,9 +1,9 @@
 import json
 from dataclasses import dataclass
-from typing import Any, ClassVar, List, Tuple, Union, Sequence as Seq
-
+from typing import Any, ClassVar
+from collections.abc import Sequence as Seq
 from .db import Column
-from .errors import InvalidConditionError
+from .errors import InvalidConditionError, InvalidFilterError
 
 
 # ---------------------------------------------------------------------------
@@ -37,7 +37,7 @@ class Condition:
             return func
         return decorator
 
-    def to_sql(self) -> Tuple[str, list]:
+    def to_sql(self) -> tuple[str, list]:
         """生成该条件的 SQL 片段及参数值列表。
 
         Returns
@@ -47,9 +47,7 @@ class Condition:
 
         Raises
         ------
-        InvalidColumnNameError
-        InvalidOperatorError
-        InvalidConditionValueError
+        InvalidConditionError
         """
         Column.check(self.column)
 
@@ -71,7 +69,7 @@ class Condition:
 @Condition.register_op("IN")
 @Condition.register_op("NOT IN")
 @Condition.register_op("BETWEEN")
-def _builtin_sql(column, value, op) -> Tuple[str, list]:
+def _builtin_sql(column, value, op) -> tuple[str, list]:
     # --- NULL：只有 = 和 != 可以处理 NULL ---
     if value is None:
         if op == "=":
@@ -110,11 +108,11 @@ def _builtin_sql(column, value, op) -> Tuple[str, list]:
     return sql, params
 
 
-Filter = Union[Condition, Seq[Seq["Filter"]], Tuple["Filter", bool]]
+Filter = Condition | Seq[Seq["Filter"]] | tuple["Filter", bool]
 # 递归结构：外层 OR、内层 AND，元素为子树，直至叶子节点，最外层支持 (... , negate) 元组对整个结果取反。
 
 
-def filter_to_sql(filter: Filter) -> Tuple[str, list]:
+def filter_to_sql(filter: Filter) -> tuple[str, list]:
     """
     生成 WHERE 子句：外层 OR（取并），内层 AND（取交）。
     最外层可为 (Filter, bool) 元组，bool=True 时对整个结果取反。
@@ -141,10 +139,10 @@ def filter_to_sql(filter: Filter) -> Tuple[str, list]:
             clause = f"NOT ({clause})"
         return clause, vals
 
-    or_clauses: List[str] = []
+    or_clauses: list[str] = []
     params: list = []
     for group in filter:
-        and_clauses: List[str] = []
+        and_clauses: list[str] = []
         for item in group:
             clause, vals = filter_to_sql(item)
             if not clause:
@@ -169,12 +167,12 @@ def convert_filter_object(obj):
     if isinstance(obj, list) and len(obj) == 2 and isinstance(obj[1], bool):
         return (convert_filter_object(obj[0]), obj[1])
     if not isinstance(obj, list):
-        raise ValueError(f"无法识别的 filter JSON 格式: {obj!r}")
+        raise InvalidFilterError(obj)
     result = []
     for group in obj:
         clause = []
         if not isinstance(group, list):
-            raise ValueError(f"无法识别的 filter JSON 格式: {obj!r}")
+            raise InvalidFilterError(obj)
         for item in group:
             clause.append(convert_filter_object(item))
         result.append(clause)
