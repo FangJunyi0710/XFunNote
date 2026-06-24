@@ -52,7 +52,7 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 | **Notebook 体系** | 抽象基类封装通用 CRUD + 自动建表 + 批量操作，子类只需定义扩展列和自动填充逻辑 |
 | **内置本子** | 基于基类扩展的 5 种预置实现 — 计划（字母编号/月分组）、日记（日期维）、单词（复习跟踪/去重）、积累（分类积累）、AI 记忆（标题/来源/备注）。各子类仅需定义扩展列和自动填充逻辑即可获得完整 CRUD + 批量操作 + 筛选查询，通过注册中心可插拔扩展 |
 | **注册中心** | `Registry` 管理所有 Notebook 实例，支持注册/查找/注销/迭代 |
-| **CLI 命令行** | 完整的 CRUD 操作：`init/reset/add/list/listid/listcolumns/delete/update`，JSON 格式输入输出；AI 子命令：`ai chat` / `ai stream` 流式与非流式对话 |
+| **CLI 命令行** |  |
 | **AI Tools 层** | `xfun/ai/schema.py` Pydantic JSON Schema 双重校验 + 8 个 Function Calling 工具（`query_entries`、`add_entries`、`update_entries`、`delete_entries`、`manage_tags`、`add_ai_note`、`search_memories`、`save_memory`）+ 行级/列级安全沙箱（`AI_READ_VIEW`、`AI_WRITE_VIEW`）+ LangChain Agent 对话 + 系统提示词 |
 | **视图层** | `xfun/core/view.py` 6 个核心函数：`view_to_sql`（跨本子 UNION ALL + 主键去重）、`view_or`/`view_and`（并集/交集）、`view_clean_columns`/`view_clean_filter`/`view_clean_update`（AI 安全沙箱列/行清洗）、`view_to_json`/`parse_view_json`（序列化/反序列化） |
 | **测试覆盖** | 全面覆盖核心引擎正常路径、边界条件、错误路径及事务回滚，150+ 个单元测试，13 个测试文件 |
@@ -85,7 +85,7 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 - [x] `Condition` 自定义运算符注册机制（`JSON_CONTAINS`、`LIKE`、`BETWEEN` 等）
 - [x] `Filter` 递归 `to_sql()`，支持无限嵌套 OR/AND + `negate`
 - [x] `Notebook` 基类抽象 + 5 个本子（`plan`、`word`、`diary`、`accumulation`、`aimemory`）
-- [x] CLI 完整 CRUD（`add/list/listid/update/delete/reset/listcolumns`）
+- [x] CLI 完整 CRUD
 - [x] 单元测试 150+ 个，覆盖率 100%
 
 ### 阶段一：AI Tools 层（已完成）
@@ -104,7 +104,7 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 - [x] 在 `xfun/ai/schema.py` 中实现 Pydantic 模型（`ConditionSchema`、`FilterModel`、`TableSpecSchema`、`ViewSchema`），为 AI 提供 JSON Schema 格式校验 + 运算符枚举校验
 - [x] 在 `xfun/ai/agent.py` 中封装 LangChain Agent 对话接口（支持非流式 `chat()` 和流式 `chat_stream()`）
 - [x] 在 `xfun/ai/prompts.py` 中定义 AI 系统提示词
-- [x] CLI 接入：`./cli.py ai chat` / `./cli.py ai stream`
+- [x] CLI 接入
 
 ### 阶段一点五：记忆导入与持续学习
 - [ ] 实现 `xfun/ai/importers/` 模块：
@@ -117,7 +117,7 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 - [ ] 实现 `xfun/ai/chat.py`：
   - 命令行聊天界面，支持持续对话
   - 对话结束后自动调用 `save_memory` 保存关键结论
-- [ ] CLI 命令：`./cli.py learn` 手动触发学习任务
+- [ ] CLI 命令手动触发学习任务
 
 ### 阶段二：View 层（已完成）
 - [x] 实现 `xfun/core/view.py`，6 个核心函数：
@@ -136,19 +136,16 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 - [ ] 实现用户反馈学习：
   - 用户在 QQ 中反馈意见 → AI 调用 `save_memory` 存储偏好到 aimemory 本子
   - 下次生成日报时，AI 先查询 `aimemory` 中 tags 含 `日报` 的记忆，自动调整模板
-- [ ] CLI 命令 `./cli.py daily` 生成当日日报（输出文本或 PDF）
+- [ ] CLI 命令生成当日日报（输出文本或 PDF）
 
 ### 阶段四：推送与定时任务
 - [ ] 集成 QQ 机器人（HTTP API 客户端）：
   - 通过 `go-cqhttp` 或 `mirai` 接收推送
   - 在 `config.py` 中配置 `QQ_GROUP_ID` / `QQ_USER_ID`
-- [ ] CLI 命令 `./cli.py push`：
+- [ ] CLI 命令：
   - 调用 `daily` 生成 PDF
   - 通过 QQ API 发送文件/消息
-- [ ] 配置 Cron 定时任务：
-  ```bash
-  0 20 * * * cd ~/XFunNote && source .venv/bin/activate && python cli.py push
-  ```
+- [ ] 配置 Cron 定时任务
 
 ### 阶段五：FastAPI 后端（对外接口）
 - [ ] 实现 `backend/main.py`：
@@ -204,7 +201,7 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 ### 4. AI 日报闭环：从生成到交付的自动化
 - AI 填充 LaTeX 模板 → 后端 `pdflatex` 编译（最多 3 次迭代纠错）→ 输出 PDF。
 - 用户通过 QQ 反馈 → AI 调用 `save_memory` 固化偏好 → 次日日报自动适配。
-- `cron` 定时触发 `cli.py push`，通过 QQ 机器人推送 PDF。
+- `cron` 定时触发 `cli.py`，通过 QQ 机器人推送 PDF。
 
 ### 5. 开发优先级
 | 优先级 | 阶段 | 产出 |
@@ -226,7 +223,7 @@ XFunNote 的长期目标不仅是"管理计划"，而是成为你个人的**"记
 
 - **导入外部数据**：支持导入 AI 对话导出（ChatGPT、Claude 等）、个人日记、Markdown 笔记、微信聊天记录等，作为原始记忆素材。
 - **自动提炼与结构化**：AI 自动扫描导入的数据，提取关键信息，生成 `ai_tags`、`ai_note`，并将重要内容提炼为 `save_memory` 结构化记忆。
-- **周期性学习任务**：通过 `./cli.py learn` 命令或定时任务，持续从新数据中学习，让记忆系统不断演化。
+- **周期性学习任务**：通过 `./cli.py` 命令或定时任务，持续从新数据中学习，让记忆系统不断演化。
 
 ### 💬 持续性聊天与记忆融合
 
@@ -275,62 +272,14 @@ chmod +x setup.sh && ./setup.sh
 # 2. 激活虚拟环境
 source .venv/bin/activate
 
-# 3. 初始化数据库（自动建表）
-./cli.py init
+./cli.py ...
 
-# 4. 添加一条计划
-./cli.py add plan '{"month": "2607", "content": "学习 Python 基础"}'
-
-# 5. 列出所有计划
-./cli.py list plan
-
-# 6. 查看列定义
-./cli.py listcolumns plan
 ```
 
 ---
 
 ## CLI 参考
 
-CLI 依托 Typer 构建，所有子命令以 `notetype` 为第一个位置参数，从注册中心动态查找对应的 Notebook 实例，因此对任意已注册的本子通用。
-
-### 设计要点
-
-- **JSON 输入/输出** — `add` / `update` 接收 JSON 条目，`list` / `listid` / `listcolumns` 输出 JSON，便于管道组合与脚本集成
-- **批量操作** — `add` / `list` / `delete` / `update` 均支持单条或批量，统一使用 JSON 标记
-- **筛选引擎** — `listid --filter` 采用 OR-of-ANDs 筛选结构，支持单条件、多条件与组合（AND）以及多组或（OR of ANDs），`op` 可扩展至 `IN` / `BETWEEN` / `LIKE` 等运算符，`negate` 可反转条件
-- **排序分页** — `--order-by` 支持多列排序（如 `month ASC, no`），`--limit` / `--offset` 控制分页
-
-### 子命令一览
-
-| 命令 | 作用 | 关键参数 | 状态 |
-|------|------|----------|------|
-| `init` | 初始化 | 无 | ✅ |
-| `reset` | 清空 data 目录并重新初始化 | 无 | ✅ |
-| `add` | 添加条目（单条或批量） | `notetype`, `entry`(JSON) | ✅ |
-| `list` | 按 ID 查询条目 | `notetype`, `entry_ids`(JSON) | ✅ |
-| `listid` | 按条件筛选 ID 列表 | `notetype`, `--filter`, `--order-by`, `--limit`, `--offset` | ✅ |
-| `update` | 批量更新字段 | `notetype`, `entry_ids`(JSON), `entry`(JSON) | ✅ |
-| `delete` | 批量删除 | `notetype`, `entry_ids`(JSON) | ✅ |
-| `listcolumns` | 查看本子的列定义 schema | `notetype` | ✅ |
-| `ai chat` | 与 AI 非流式对话（自动处理工具调用） | `message`, `--system`, `--max-rounds` | ✅ |
-| `ai stream` | 与 AI 流式对话 | `message`, `--system`, `--max-rounds` | ✅ |
-| `learn` | 扫描未处理的导入条目，生成 ai_tags 和记忆总结 | 无 | 🗺️ 规划中 |
-| `chat` | 启动持续性聊天会话 | 无 | 🗺️ 规划中 |
-| `import` | 导入外部数据文件（AI 对话、笔记等） | `filepath`, `--type` | 🗺️ 规划中 |
-
-### 常用示例
-
-```bash
-# 筛选 2607 月未完成的计划
-./cli.py listid plan --filter '{"column":"month","value":"2607","op":"="}' --limit 10
-
-# 批量添加两条计划
-./cli.py add plan '[{"month":"2607","content":"任务A"},{"month":"2607","content":"任务B"}]'
-
-# 标记为已完成
-./cli.py update plan '["plan-2607-001"]' '{"done":1}'
-```
 
 ---
 
