@@ -1,22 +1,21 @@
 from . import config
 from .core.db       import DB
-from .core.registry import Registry
+from .core.notebook import Notebook
 from .notebooks.plan         import PlanNotebook
 from .notebooks.diary        import DiaryNotebook
 from .notebooks.word         import WordNotebook
 from .notebooks.accumulation import AccumulationNotebook
 from .notebooks.aimemory     import AIMemoryNotebook
 
-db       = DB()
-registry = Registry()
+db: DB = DB()
+registry: dict[str, Notebook] = {
+    "plan":         PlanNotebook(),
+    "diary":        DiaryNotebook(),
+    "word":         WordNotebook(),
+    "accumulation": AccumulationNotebook(),
+    "aimemory":     AIMemoryNotebook(),
+}
 
-# 注册所有 Notebook
-registry.register("plan",  PlanNotebook())
-registry.register("diary", DiaryNotebook())
-registry.register("word",  WordNotebook())
-registry.register("accumulation", AccumulationNotebook())
-registry.register("aimemory",     AIMemoryNotebook())
-
-db.init({nb.name: nb.columns for nb in registry})
+db.init({name: nb.columns for name, nb in registry.items()})
 
 __all__ = ["db", "registry"]

@@ -9,14 +9,6 @@ class XFunError(Exception):
     pass
 
 
-class NotebookNotFoundError(XFunError):
-    """请求的 Notebook 未注册。"""
-
-    def __init__(self, name: str):
-        super().__init__(f"Notebook '{name}' 未注册")
-        self.name = name
-
-
 class EntryInvalidError(XFunError):
     """条目数据不合法（缺少必填字段、类型错误等）。"""
 

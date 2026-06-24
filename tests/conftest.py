@@ -2,7 +2,6 @@
 
 import pytest
 from xfun.core.db import DB
-from xfun.core.registry import Registry
 from xfun.core.notebook import Notebook, Column
 from xfun.notebooks.plan import PlanNotebook
 
@@ -39,6 +38,4 @@ def plan_nb():
 
 @pytest.fixture
 def registry():
-    reg = Registry()
-    reg.register("plan", PlanNotebook())
-    return reg
+    return {"plan": PlanNotebook()}

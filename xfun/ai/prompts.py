@@ -72,7 +72,7 @@ def _notebook_infos() -> str:
     """遍历 registry 中的 Notebook，生成可读的数据结构描述。"""
     lines = [f"- 各本子共有字段：{", ".join(_format_column_info(c) for c in BASE_COLUMNS)}"]
 
-    for nb in registry:
+    for nb in registry.values():
         lines.append(f"\n本子名称：`{nb.name}`")
 
         cols = ", ".join(
@@ -87,7 +87,7 @@ def _field_description_section() -> str:
     """从 _FIELD_DESC 生成 Markdown 表格。"""
     rows = []
     for notebook, fields in _FIELD_DESC.items():
-        existing_columns = [col.name for col in (registry.notebook(notebook)._extra_columns if notebook else BASE_COLUMNS)]
+        existing_columns = [col.name for col in (registry[notebook]._extra_columns if notebook else BASE_COLUMNS)]
         if len(fields) != len(existing_columns):
             raise ValueError(
                 f"{notebook} 本子 _FIELD_DESC 注解不完整："
