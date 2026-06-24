@@ -5,8 +5,8 @@
 定义自己的数据库列 schema，并实现核心 CRUD 方法。
 """
 
-from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
+from future_uuid import uuid7
 
 from .db import Column
 from .filter import Filter, filter_to_sql
@@ -29,7 +29,7 @@ BASE_COLUMNS = [
 ]
 
 
-class Notebook(ABC):
+class Notebook:
     """
     Notebook 基类 —— 定义本子的 schema 与 CRUD 契约。
 
@@ -83,6 +83,7 @@ class Notebook(ABC):
 
     def _autofill(self, entry: Dict[str, Any]) -> None:
         """自动填充通用字段：时间戳、可空列补 None。子类可重写以补充自有逻辑。"""
+        entry["id"] = f"{self.name}-{str(uuid7())}"
         entry["created_at"] = now_str()
         entry["updated_at"] = now_str()
         entry.setdefault("tags","[]")
