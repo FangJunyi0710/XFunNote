@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Any, ClassVar
 from collections.abc import Sequence as Seq
 from .db import Column
-from .errors import InvalidConditionError
+from .errors import InvalidConditionError, InvalidFilterError
 
 
 # ---------------------------------------------------------------------------
@@ -167,12 +167,12 @@ def convert_filter_object(obj):
     if isinstance(obj, list) and len(obj) == 2 and isinstance(obj[1], bool):
         return (convert_filter_object(obj[0]), obj[1])
     if not isinstance(obj, list):
-        raise ValueError(f"无法识别的 filter JSON 格式: {obj!r}")
+        raise InvalidFilterError(obj)
     result = []
     for group in obj:
         clause = []
         if not isinstance(group, list):
-            raise ValueError(f"无法识别的 filter JSON 格式: {obj!r}")
+            raise InvalidFilterError(obj)
         for item in group:
             clause.append(convert_filter_object(item))
         result.append(clause)

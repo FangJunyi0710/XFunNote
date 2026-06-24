@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 from pydantic import BaseModel, Field, RootModel, field_validator
 
+from xfun.core.errors import InvalidConditionError, InvalidFilterError
 from xfun.core.filter import Condition, Filter
 
 def _inject_op_enum(schema: dict) -> None:
@@ -36,7 +37,7 @@ class ConditionModel(BaseModel):
     def _check_op(cls, v: str) -> str:
         if v not in Condition._op_registry:
             allowed = sorted(Condition._op_registry.keys())
-            raise ValueError(f"不支持的操作符: {v}，支持: {allowed}")
+            raise InvalidConditionError(f"不支持的操作符: {v}，支持: {allowed}")
         return v
 
     def to_condition(self) -> Condition:
@@ -72,7 +73,7 @@ def _resolve_filter(val: Any) -> Filter:
     if isinstance(val, list):
         # 外层 list → OR，内层 list → AND
         return [[_resolve_filter(item) for item in group] for group in val]
-    raise ValueError(f"无法识别的 Filter 结构: {type(val)}")
+    raise InvalidFilterError(val)
 
 
 FilterModel.model_rebuild()

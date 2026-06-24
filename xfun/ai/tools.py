@@ -13,6 +13,7 @@ from xfun import db, registry
 from xfun.core.filter import Filter, Condition
 from xfun.core.view import View, view_and, view_to_sql, view_clean_columns, view_clean_filter, view_clean_update
 from xfun.ai.security import ai_read_view, ai_write_view
+from xfun.core.errors import XFunError, ToolError
 from .schema import FilterModel, ViewModel
 
 
@@ -25,7 +26,7 @@ from .schema import FilterModel, ViewModel
 def _query(conn, table: str, view: View, order_by: str = "", limit: int = -1, offset: int = 0) -> list[dict[str, Any]]:
     """查询条目。view 为内部 View，自动与 AI_READ_VIEW 取交集。conn 由调用方传入（read tx）。"""
     if table not in registry:
-        raise ValueError(f"未知本子: {table}")
+        raise ToolError(f"未知本子: {table}")
     if table not in view:
         view[table] = []
 
@@ -51,7 +52,7 @@ def _query(conn, table: str, view: View, order_by: str = "", limit: int = -1, of
 def _add(conn, notetype: str, entries: list[dict[str, Any]]) -> list[str]:
     """添加条目。自动列白名单清洗 + is_ai_gen 注入。返回新 ID 列表。conn 为 write tx。"""
     if notetype not in registry:
-        raise ValueError(f"未知本子: {notetype}")
+        raise ToolError(f"未知本子: {notetype}")
     cleaned = view_clean_columns(ai_write_view(), notetype, entries)
     for e in cleaned:
         e.setdefault("is_ai_gen", 1)
@@ -64,11 +65,11 @@ def _add(conn, notetype: str, entries: list[dict[str, Any]]) -> list[str]:
 def _update(conn, notetype: str, filter: Filter, values: dict[str, Any]) -> list[str]:
     """更新条目。自动列清洗 + filter 与 AI_WRITE_VIEW 取交集。返回被更新 ID 列表。conn 为 write tx。"""
     if notetype not in registry:
-        raise ValueError(f"未知本子: {notetype}")
+        raise ToolError(f"未知本子: {notetype}")
 
     pairs = view_clean_update(ai_write_view(), notetype, filter, values)
     if not pairs or all(not vals for _, vals in pairs):
-        raise ValueError("没有可更新的字段")
+        raise ToolError("没有可更新的字段")
 
     nb = registry[notetype]
     updated_ids: list[str] = []
@@ -81,7 +82,7 @@ def _update(conn, notetype: str, filter: Filter, values: dict[str, Any]) -> list
         nb.update(conn, ids, cv)
         updated_ids.extend(ids)
     if not updated_ids:
-        raise ValueError("没有可更新的条目")
+        raise ToolError("没有可更新的条目")
     return updated_ids
 
 def _view_by_ids(conn, table: str, ids: list[str]) -> list[dict[str, Any]]:
@@ -90,13 +91,13 @@ def _view_by_ids(conn, table: str, ids: list[str]) -> list[dict[str, Any]]:
 def _delete(conn, notetype: str, filter: Filter) -> list[dict[str, Any]]:
     """删除条目。自动 filter 与 AI_WRITE_VIEW 取交集。返回 被删列表,。conn 为 write tx（可读可写）。"""
     if notetype not in registry:
-        raise ValueError(f"未知本子: {notetype}")
+        raise ToolError(f"未知本子: {notetype}")
     combined = view_clean_filter(ai_write_view(), notetype, filter)
 
     nb = registry[notetype]
     valid_ids = nb.list_ids(conn, combined)
     if not valid_ids:
-        raise ValueError("没有可删除的条目")
+        raise ToolError("没有可删除的条目")
 
     results = _view_by_ids(conn, notetype, valid_ids)
     nb.delete(conn, valid_ids)
@@ -133,7 +134,7 @@ def query_entries(
         with db.read_transaction() as conn:
             rows = _query(conn, notetype, view.to_view(), order_by, limit, offset)
         return json.dumps({"results": rows}, ensure_ascii=False, default=str)
-    except ValueError as e:
+    except XFunError as e:
         return json.dumps({"error": str(e)}, ensure_ascii=False)
 
 
@@ -154,7 +155,7 @@ def add_entries(notetype: str, entries: list[dict[str, Any]]) -> str:
             ids = _add(conn, notetype, entries)
             results = _view_by_ids(conn, notetype, ids)
         return json.dumps({"results": results}, ensure_ascii=False, default=str)
-    except ValueError as e:
+    except XFunError as e:
         return json.dumps({"error": str(e)}, ensure_ascii=False)
 
 
@@ -177,7 +178,7 @@ def update_entries(notetype: str, filter: FilterModel, values: dict[str, Any]) -
             ids = _update(conn, notetype, filter.to_filter(), values)
             results = _view_by_ids(conn, notetype, ids)
         return json.dumps({"results": results}, ensure_ascii=False, default=str)
-    except ValueError as e:
+    except XFunError as e:
         return json.dumps({"error": str(e)}, ensure_ascii=False)
 
 
@@ -197,5 +198,5 @@ def delete_entries(notetype: str, filter: FilterModel) -> str:
         with db.transaction() as conn:
             results = _delete(conn, notetype, filter.to_filter())
         return json.dumps({"results": results}, ensure_ascii=False, default=str)
-    except ValueError as e:
+    except XFunError as e:
         return json.dumps({"error": str(e)}, ensure_ascii=False)

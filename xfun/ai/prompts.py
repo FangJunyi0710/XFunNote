@@ -12,6 +12,7 @@ from xfun import registry
 from xfun.core.db import Column
 from xfun.core.notebook import BASE_COLUMNS
 from xfun.ai.schema import filter_schema_json, view_schema_json
+from xfun.core.errors import PromptError
 from xfun.ai.security import ai_read_view, ai_write_view
 from xfun.core.view import view_to_json
 from xfun.utils.time_utils import now_str
@@ -89,14 +90,14 @@ def _field_description_section() -> str:
     for notebook, fields in _FIELD_DESC.items():
         existing_columns = [col.name for col in (registry[notebook]._extra_columns if notebook else BASE_COLUMNS)]
         if len(fields) != len(existing_columns):
-            raise ValueError(
+            raise PromptError(
                 f"{notebook} 本子 _FIELD_DESC 注解不完整："
                 f"描述了 {len(fields)} 个字段，但列定义中有 {len(existing_columns)} 个"
                 f"（{', '.join(existing_columns)}）"
             )
         for field, (fmt, role) in fields.items():
             if field not in existing_columns:
-                raise ValueError(f"字段 {field} 在 {notebook} 本子中不存在")
+                raise PromptError(f"字段 {field} 在 {notebook} 本子中不存在")
             rows.append(f"| `{field}` | {notebook if notebook else "通用"} | {fmt} | {role} |")
     return "\n".join(rows)
 

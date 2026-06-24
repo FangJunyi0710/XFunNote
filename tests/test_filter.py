@@ -4,7 +4,7 @@ import json
 
 import pytest
 from xfun.core.filter import Condition, filter_to_sql, parse_filter_json, filter_to_json, TRUE_CONDITION
-from xfun.core.errors import InvalidConditionError, InvalidSQLError
+from xfun.core.errors import InvalidConditionError, InvalidFilterError, InvalidSQLError
 
 # 加载 extras.py 中注册的自定义运算符（JSON_CONTAINS, TEXT_SEARCH, TRUE, FALSE）
 import xfun.core.extras  # noqa: F401
@@ -315,18 +315,18 @@ class TestParseFilterJson:
             parse_filter_json('not valid json')
 
     def test_top_level_scalar_raises(self):
-        """顶层非列表/非字典/非否定元组应抛 ValueError。"""
-        with pytest.raises(ValueError):
+        """顶层非列表/非字典/非否定元组应抛 InvalidFilterError。"""
+        with pytest.raises(InvalidFilterError):
             parse_filter_json('"string"')
 
     def test_and_group_bad_item_raises(self):
-        """AND 组内出现无法识别的元素应抛 ValueError。"""
-        with pytest.raises(ValueError):
+        """AND 组内出现无法识别的元素应抛 InvalidFilterError。"""
+        with pytest.raises(InvalidFilterError):
             parse_filter_json('[[{"column": "a", "value": 1}, "string"]]')
 
     def test_and_group_not_list_raises(self):
-        """AND 组应始终为列表，否则抛 ValueError。"""
-        with pytest.raises(ValueError):
+        """AND 组应始终为列表，否则抛 InvalidFilterError。"""
+        with pytest.raises(InvalidFilterError):
             parse_filter_json('[{"column": "a", "value": 1}]')
 
 
