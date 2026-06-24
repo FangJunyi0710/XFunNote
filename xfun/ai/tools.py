@@ -89,7 +89,7 @@ def _view_by_ids(conn, table: str, ids: list[str]) -> list[dict[str, Any]]:
     return _query(conn, table, {table: [([col.name for col in db.table_infos[table]], Condition("id", ids, "IN"))]})
 
 def _delete(conn, notetype: str, filter: Filter) -> list[dict[str, Any]]:
-    """删除条目。自动 filter 与 AI_WRITE_VIEW 取交集。返回 被删列表,。conn 为 write tx（可读可写）。"""
+    """删除条目。自动 filter 与 AI_WRITE_VIEW 取交集。返回 被删列表。conn 为 write tx（可读可写）。"""
     if notetype not in registry:
         raise ToolError(f"未知本子: {notetype}")
     combined = view_clean_filter(ai_write_view(), notetype, filter)
