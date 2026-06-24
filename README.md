@@ -35,6 +35,7 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 | 数据库       | SQLite（WAL 模式，读写分离事务）                                              |
 | CLI 框架     | Typer                                                                         |
 | AI           | LangChain + LangGraph + DeepSeek API（通过 `langchain_openai.ChatOpenAI` 兼容层） |
+| 数据模型     | Pydantic（JSON Schema 生成与 AI 输入校验）                                     |
 | 测试         | pytest + pytest-cov                                                           |
 | 后端 API     | FastAPI（规划中）                                                             |
 | 前端/界面    | Streamlit（规划中）                                                           |
@@ -47,13 +48,13 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 
 | 模块 | 说明 |
 |------|------|
-| **数据库引擎** | 基于原生 `sqlite3`，安全参数化查询。支持 `Column` 列定义、`Condition` 筛选条件（内置 =/!=/>/</>=/<=/IN/NOT IN/BETWEEN/LIKE 及自定义运算符扩展）、递归 `Filter` 结构（外层 OR 内层 AND）、读写分离事务（写 IMMEDIATE、读不阻塞） |
+| **数据库引擎** | 基于原生 `sqlite3`，安全参数化查询。支持 `Column` 列定义、`Condition` 筛选条件（内置 =/!=/>/</>=/<=/IN/NOT IN/BETWEEN/LIKE/NOT LIKE 及自定义运算符扩展：`JSON_CONTAINS`、`JSON_NOT_CONTAINS`、`TEXT_SEARCH`、`TRUE`、`FALSE`）、递归 `Filter` 结构（外层 OR 内层 AND）、读写分离事务（写 IMMEDIATE、读不阻塞） |
 | **Notebook 体系** | 抽象基类封装通用 CRUD + 自动建表 + 批量操作，子类只需定义扩展列和自动填充逻辑 |
 | **内置本子** | 基于基类扩展的 5 种预置实现 — 计划（字母编号/月分组）、日记（日期维）、单词（复习跟踪/去重）、积累（分类积累）、AI 记忆（标题/来源/备注）。各子类仅需定义扩展列和自动填充逻辑即可获得完整 CRUD + 批量操作 + 筛选查询，通过注册中心可插拔扩展 |
 | **注册中心** | `Registry` 管理所有 Notebook 实例，支持注册/查找/注销/迭代 |
 | **CLI 命令行** | 完整的 CRUD 操作：`init/reset/add/list/listid/listcolumns/delete/update`，JSON 格式输入输出；AI 子命令：`ai chat` / `ai stream` 流式与非流式对话 |
-| **AI Tools 层** | 8 个 Function Calling 工具（`query_entries`、`add_entries`、`update_entries`、`delete_entries`、`manage_tags`、`add_ai_note`、`search_memories`、`save_memory`）+ 行级/列级安全沙箱（`AI_READ_VIEW`、`AI_WRITE_VIEW`、`AI_WRITABLE_COLUMNS`）+ LangChain Agent 对话 + 系统提示词 |
-| **视图层** | `xfun/core/view.py` 实现跨本子数据水合查询，支持 `fields` 限定列、自动合并 AI 安全沙箱 |
+| **AI Tools 层** | `xfun/ai/schema.py` Pydantic JSON Schema 双重校验 + 8 个 Function Calling 工具（`query_entries`、`add_entries`、`update_entries`、`delete_entries`、`manage_tags`、`add_ai_note`、`search_memories`、`save_memory`）+ 行级/列级安全沙箱（`AI_READ_VIEW`、`AI_WRITE_VIEW`）+ LangChain Agent 对话 + 系统提示词 |
+| **视图层** | `xfun/core/view.py` 6 个核心函数：`view_to_sql`（跨本子 UNION ALL + 主键去重）、`view_or`/`view_and`（并集/交集）、`view_clean_columns`/`view_clean_filter`/`view_clean_update`（AI 安全沙箱列/行清洗）、`view_to_json`/`parse_view_json`（序列化/反序列化） |
 | **测试覆盖** | 全面覆盖核心引擎正常路径、边界条件、错误路径及事务回滚，150+ 个单元测试，13 个测试文件 |
 
 ### 🗺️ 规划中
@@ -253,9 +254,9 @@ XFunNote 的长期目标不仅是"管理计划"，而是成为你个人的**"记
 | 变量 | 说明 |
 |------|------|
 | `XFUN_USER` | 数据库用户名，拼接为 `data/{用户名}.db`。若未设置，默认回退为 `data/default.db` |
-| `AI_API_KEY` | DeepSeek API Key，用于 AI 功能 |
-| `AI_BASE_URL` | DeepSeek API 端点，默认为 `https://api.deepseek.com` |
-| `AI_MODEL` | 默认模型，建议 `deepseek-v4-flash` |
+| `LLM_API_KEY` | DeepSeek API Key，用于 AI 功能 |
+| `LLM_BASE_URL` | DeepSeek API 端点，默认为 `https://api.deepseek.com` |
+| `LLM_MODEL` | 默认模型，建议 `deepseek-v4-flash` |
 | `QQ_BOT_HTTP_URL` | QQ 机器人 HTTP API 地址（推送日报用） |
 
 ### 2. 数据库路径
@@ -304,7 +305,7 @@ CLI 依托 Typer 构建，所有子命令以 `notename` 为第一个位置参数
 
 | 命令 | 作用 | 关键参数 | 状态 |
 |------|------|----------|------|
-| `init` | 初始化数据库和所有已注册本子 | 无 | ✅ |
+| `init` | 初始化 | 无 | ✅ |
 | `reset` | 清空 data 目录并重新初始化 | 无 | ✅ |
 | `add` | 添加条目（单条或批量） | `notename`, `entry`(JSON) | ✅ |
 | `list` | 按 ID 查询条目 | `notename`, `entry_ids`(JSON) | ✅ |
@@ -338,9 +339,9 @@ CLI 依托 Typer 构建，所有子命令以 `notename` 为第一个位置参数
 | 概念 | 说明 |
 |------|------|
 | **Notebook** | 数据容器基类，子类定义 `_extra_columns` 即可获得完整 CRUD + 筛选能力 |
-| **Condition** | 单个筛选条件（`column op value`），支持 `JSON_CONTAINS`、`TEXT_SEARCH` 等自定义运算符注册 |
+| **Condition** | 单个筛选条件（`column op value`），支持通过 `Condition.register_op()` 注册自定义运算符（`JSON_CONTAINS`、`JSON_NOT_CONTAINS`、`TEXT_SEARCH`、`TRUE`、`FALSE` 等） |
 | **Filter** | 递归结构：外层 `OR`，内层 `AND`，支持无限嵌套与整体取反，最终由 `to_sql()` 展开为 SQL WHERE |
-| **View** | `query_view(notetype, filter, fields)` 跨本子数据水合，是 AI 与前端的数据唯一入口 |
+| **View** | 由 `view_to_sql`（UNION ALL + 主键去重）、`view_or`/`view_and`（并集/交集）、`view_clean_*`（AI 列/行清洗）、`view_to_json`/`parse_view_json`（序列化/反序列化）组成的跨本子数据水合体系，通过 `ai_read_view()` / `ai_write_view()` 自动合并安全沙箱 |
 | **AI Tools** | `query_entries`、`update_entries`、`add_entries`、`delete_entries`、`manage_tags`、`add_ai_note`、`search_memories`、`save_memory` 共 8 个工具 |
 | **记忆系统** | `aimemory` 本子存储 AI 结构化记忆（标题 + 内容 + 标签）+ `accumulation` 本子存储通用知识积累 + 各本子 `ai_tags`/`ai_note` 分散索引，由 `search_memories` 统一检索 |
 | **记忆导入与学习** | 通过 `importers/` 将外部数据（AI 对话、笔记等）转换为条目，由 `learner.py` 自动提炼标签和总结，实现记忆系统的持续演化 |
