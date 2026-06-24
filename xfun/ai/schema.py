@@ -37,7 +37,7 @@ class ConditionModel(BaseModel):
     def _check_op(cls, v: str) -> str:
         if v not in Condition._op_registry:
             allowed = sorted(Condition._op_registry.keys())
-            raise InvalidConditionError(f"不支持的操作符: {v}，支持: {allowed}")
+            raise ValueError(f"不支持的操作符: {v}，支持: {allowed}")
         return v
 
     def to_condition(self) -> Condition:
@@ -67,6 +67,8 @@ def _resolve_filter(val: Any) -> Filter:
     """递归将 Pydantic 模型值转换为内部 Filter。"""
     if isinstance(val, ConditionModel):
         return val.to_condition()
+    if isinstance(val, FilterModel):
+        return _resolve_filter(val.root)
     if isinstance(val, tuple) and len(val) == 2 and isinstance(val[1], bool):
         inner, negate = val
         return (_resolve_filter(inner), negate)
