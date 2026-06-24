@@ -292,7 +292,7 @@ source .venv/bin/activate
 
 ## CLI 参考
 
-CLI 依托 Typer 构建，所有子命令以 `notename` 为第一个位置参数，从注册中心动态查找对应的 Notebook 实例，因此对任意已注册的本子通用。
+CLI 依托 Typer 构建，所有子命令以 `notetype` 为第一个位置参数，从注册中心动态查找对应的 Notebook 实例，因此对任意已注册的本子通用。
 
 ### 设计要点
 
@@ -307,12 +307,12 @@ CLI 依托 Typer 构建，所有子命令以 `notename` 为第一个位置参数
 |------|------|----------|------|
 | `init` | 初始化 | 无 | ✅ |
 | `reset` | 清空 data 目录并重新初始化 | 无 | ✅ |
-| `add` | 添加条目（单条或批量） | `notename`, `entry`(JSON) | ✅ |
-| `list` | 按 ID 查询条目 | `notename`, `entry_ids`(JSON) | ✅ |
-| `listid` | 按条件筛选 ID 列表 | `notename`, `--filter`, `--order-by`, `--limit`, `--offset` | ✅ |
-| `update` | 批量更新字段 | `notename`, `entry_ids`(JSON), `entry`(JSON) | ✅ |
-| `delete` | 批量删除 | `notename`, `entry_ids`(JSON) | ✅ |
-| `listcolumns` | 查看本子的列定义 schema | `notename` | ✅ |
+| `add` | 添加条目（单条或批量） | `notetype`, `entry`(JSON) | ✅ |
+| `list` | 按 ID 查询条目 | `notetype`, `entry_ids`(JSON) | ✅ |
+| `listid` | 按条件筛选 ID 列表 | `notetype`, `--filter`, `--order-by`, `--limit`, `--offset` | ✅ |
+| `update` | 批量更新字段 | `notetype`, `entry_ids`(JSON), `entry`(JSON) | ✅ |
+| `delete` | 批量删除 | `notetype`, `entry_ids`(JSON) | ✅ |
+| `listcolumns` | 查看本子的列定义 schema | `notetype` | ✅ |
 | `ai chat` | 与 AI 非流式对话（自动处理工具调用） | `message`, `--system`, `--max-rounds` | ✅ |
 | `ai stream` | 与 AI 流式对话 | `message`, `--system`, `--max-rounds` | ✅ |
 | `learn` | 扫描未处理的导入条目，生成 ai_tags 和记忆总结 | 无 | 🗺️ 规划中 |

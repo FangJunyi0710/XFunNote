@@ -21,7 +21,7 @@ class TestAccumAutofill:
                 {"category": "tech", "content": "Python 的上下文管理器使用 with 语句。"},
             ])
         with db.read_transaction() as conn:
-            results = accum_nb.get_by_id(conn, ids)
+            results = accum_nb.get_by_ids(conn, ids)
         assert results[0]["category"] == "tech"
         assert results[0]["content"] == "Python 的上下文管理器使用 with 语句。"
 
@@ -43,7 +43,7 @@ class TestAccumAutofill:
                 {"category": "idea", "content": "灵光一闪"},
             ])
         with db.read_transaction() as conn:
-            results = accum_nb.get_by_id(conn, ids)
+            results = accum_nb.get_by_ids(conn, ids)
         assert results[0]["source"] == "余华《活着》"
         assert results[0]["note"] == "经典之作"
         assert results[1]["source"] is None

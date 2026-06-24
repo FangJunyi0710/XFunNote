@@ -16,7 +16,7 @@ class TestSeqAllocation:
                 {"month": "2606", "content": "three"},
             ])
         with db.read_transaction() as conn:
-            results = plan_nb.get_by_id(conn, ids)
+            results = plan_nb.get_by_ids(conn, ids)
         assert [r["seq"] for r in results] == [1, 2, 3]
 
     def test_resets_per_month(self, db, plan_nb):
@@ -27,7 +27,7 @@ class TestSeqAllocation:
                 {"month": "2607", "content": "july"},
             ])
         with db.read_transaction() as conn:
-            results = plan_nb.get_by_id(conn, ids)
+            results = plan_nb.get_by_ids(conn, ids)
         assert results[0]["seq"] == 1
         assert results[1]["seq"] == 1  # 不同月份独立计数
 
@@ -38,7 +38,7 @@ class TestSeqAllocation:
         with db.transaction() as conn:
             ids2 = plan_nb.add(conn, [{"month": "2607", "content": "second"}])
         with db.read_transaction() as conn:
-            results = plan_nb.get_by_id(conn, ids1 + ids2)
+            results = plan_nb.get_by_ids(conn, ids1 + ids2)
         assert [r["seq"] for r in results] == [1, 2]
 
     def test_id_format(self, db, plan_nb):
@@ -52,7 +52,7 @@ class TestSeqAllocation:
         with db.transaction() as conn:
             ids = plan_nb.add(conn, [{"month": "2607", "content": "test"}])
         with db.read_transaction() as conn:
-            result = plan_nb.get_by_id(conn, ids)
+            result = plan_nb.get_by_ids(conn, ids)
         assert result[0]["no"] == "2607A"
 
 

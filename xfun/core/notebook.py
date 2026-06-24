@@ -56,7 +56,7 @@ class Notebook:
 
     # ---- 通用查询方法 ----
 
-    def get_by_id(self, conn, entry_ids: list[str]) -> list[dict[str, Any]]:
+    def get_by_ids(self, conn, entry_ids: list[str]) -> list[dict[str, Any]]:
         """根据 ID 列表批量查询，返回结果保持传入顺序，不存在的 ID 被跳过。"""
         if not entry_ids:
             return []
