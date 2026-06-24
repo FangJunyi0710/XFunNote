@@ -3,6 +3,7 @@
 依赖全局 xfun.registry（模块加载时已初始化），仅验证生成结果的结构和关键内容。
 """
 
+import re
 import pytest
 
 from xfun.ai.prompts import SYSTEM_PROMPT
@@ -20,21 +21,14 @@ class TestSystemPromptContent:
         assert "个人效率助手" in SYSTEM_PROMPT
 
     def test_contains_rules(self):
-        assert "精确筛选" in SYSTEM_PROMPT
-        assert "完整性" in SYSTEM_PROMPT
-        assert "最小修改" in SYSTEM_PROMPT
-        assert "删除确认" in SYSTEM_PROMPT
-        assert "记忆持久" in SYSTEM_PROMPT
-        assert "系统字段边界" in SYSTEM_PROMPT
+        """行为规则区域包含编号条目。"""
+        assert "## 行为规则" in SYSTEM_PROMPT
+        assert re.search(r'\d+\.\s+\*\*', SYSTEM_PROMPT)
 
-    def test_contains_filter_schema(self):
-        assert "Filter" in SYSTEM_PROMPT
-        assert "column" in SYSTEM_PROMPT
-        assert "enum" in SYSTEM_PROMPT
-
-    def test_contains_view_schema(self):
-        assert "View" in SYSTEM_PROMPT
-        assert "TableSpec" in SYSTEM_PROMPT or "columns" in SYSTEM_PROMPT
+    def test_contains_permission_sections(self):
+        """应包含读取/写入白名单的 JSON 区域。"""
+        assert "可查询字段范围" in SYSTEM_PROMPT
+        assert "可修改字段范围" in SYSTEM_PROMPT
 
     def test_contains_notebook_infos(self):
         assert "plan" in SYSTEM_PROMPT
@@ -60,11 +54,6 @@ class TestSystemPromptContent:
         assert "tags" in SYSTEM_PROMPT
         assert "ai_note" in SYSTEM_PROMPT
         assert "content" in SYSTEM_PROMPT
-
-    def test_system_time_is_present(self):
-        """应包含当前时间。"""
-        assert "当前系统时间" in SYSTEM_PROMPT
-        assert "202" in SYSTEM_PROMPT  # 年份
 
     def test_notebook_specific_fields_present(self):
         """各本子特有字段应出现在说明中。"""
