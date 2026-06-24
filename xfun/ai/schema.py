@@ -7,7 +7,6 @@ Pydantic 模型 — 为 Filter / View 生成 JSON Schema，供 AI 精准理解�
 """
 
 from __future__ import annotations
-import json
 from typing import Any, Dict, List, Tuple, Union
 from pydantic import BaseModel, Field, RootModel, field_validator
 
@@ -107,14 +106,14 @@ class ViewSchema(RootModel):
 
 # ========== JSON Schema 生成（供 prompt 嵌入） ==========
 
-def filter_schema_text() -> str:
-    """返回 Filter 的完整 JSON Schema 文本。"""
-    return json.dumps(FilterModel.model_json_schema(), ensure_ascii=False)
+def filter_schema_json() -> dict:
+    """返回 Filter 的 JSON Schema 字典。"""
+    return FilterModel.model_json_schema()
 
 
-def view_schema_text() -> str:
-    """返回 View 的完整 JSON Schema 文本。"""
-    return json.dumps(ViewSchema.model_json_schema(), ensure_ascii=False)
+def view_schema_json() -> dict:
+    """返回 View 的 JSON Schema 字典。"""
+    return ViewSchema.model_json_schema()
 
 
 # ========== 校验 + 解析（供 tools.py 使用） ==========

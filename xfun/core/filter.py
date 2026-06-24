@@ -185,7 +185,7 @@ def parse_filter_json(s: str) -> Filter:
     return convert_filter_object(json.loads(s))
 
 
-def convert_filter_to_object(filter: Filter) -> Any:
+def filter_to_json(filter: Filter) -> Any:
     """递归将 Filter 转换为可 JSON 序列化的 Python 对象。
 
     Parameters
@@ -202,13 +202,9 @@ def convert_filter_to_object(filter: Filter) -> Any:
         return {"column": filter.column, "value": filter.value, "op": filter.op}
     if isinstance(filter, tuple):
         inner, negate = filter
-        return [convert_filter_to_object(inner), negate]
+        return [filter_to_json(inner), negate]
     # Seq[Seq[Filter]]：外层 OR，内层 AND
-    return [[convert_filter_to_object(item) for item in group] for group in filter]
+    return [[filter_to_json(item) for item in group] for group in filter]
 
-
-def filter_to_json(filter: Filter) -> str:
-    """将 Filter 序列化为紧凑 JSON 字符串。"""
-    return json.dumps(convert_filter_to_object(filter), ensure_ascii=False)
 
 from .extras import TRUE_CONDITION, FALSE_CONDITION
