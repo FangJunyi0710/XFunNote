@@ -5,7 +5,7 @@
 定义自己的数据库列 schema，并实现核心 CRUD 方法。
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 from future_uuid import uuid7
 
 from .db import Column
@@ -45,18 +45,18 @@ class Notebook:
     # ---- 子类必须设定 ----
 
     name: str = ""
-    _extra_columns: List[Column] = []
+    _extra_columns: list[Column] = []
 
     # ---- 合并列 ----
 
     @property
-    def columns(self) -> List[Column]:
+    def columns(self) -> list[Column]:
         """合并基类通用列 + 子类特有列"""
         return BASE_COLUMNS + self._extra_columns
 
     # ---- 通用查询方法 ----
 
-    def get_by_id(self, conn, entry_ids: List[str]) -> List[Dict[str, Any]]:
+    def get_by_id(self, conn, entry_ids: list[str]) -> list[dict[str, Any]]:
         """根据 ID 列表批量查询，返回结果保持传入顺序，不存在的 ID 被跳过。"""
         if not entry_ids:
             return []
@@ -71,7 +71,7 @@ class Notebook:
 
     # ---- 校验 & 自动填充（通用） ----
 
-    def _validate(self, entry: Dict[str, Any]) -> None:
+    def _validate(self, entry: dict[str, Any]) -> None:
         """校验用户提供的必填字段（排除自动填充字段）。"""
         for col in self.columns:
             if not col.nullable and not col.auto:
@@ -81,7 +81,7 @@ class Notebook:
                         self.name, f"缺少必填字段 '{col.name}'"
                     )
 
-    def _autofill(self, entry: Dict[str, Any]) -> None:
+    def _autofill(self, entry: dict[str, Any]) -> None:
         """自动填充通用字段：时间戳、可空列补 None。子类可重写以补充自有逻辑。"""
         entry["id"] = f"{self.name}-{str(uuid7())}"
         entry["created_at"] = now_str()
@@ -95,7 +95,7 @@ class Notebook:
 
     # ---- CRUD ----
 
-    def add(self, conn, entries: List[Dict[str, Any]]) -> List[str]:
+    def add(self, conn, entries: list[dict[str, Any]]) -> list[str]:
         """
         批量添加条目。
 
@@ -117,10 +117,10 @@ class Notebook:
         conn.executemany(conn.db.insert_sql(self.name), entries)
         return [entry["id"] for entry in entries]
 
-    def list(self, conn, filter: Filter, *,
-             order_by: Optional[str] = None,
+    def list_ids(self, conn, filter: Filter, *,
+             order_by: str = "",
              limit: int = -1,
-             offset: int = 0) -> List[str]:
+             offset: int = 0) -> list[str]:
         """
         按筛选条件列出条目。
 
@@ -139,7 +139,7 @@ class Notebook:
 
         Returns
         -------
-        List[str]
+        list[str]
             ID 列表。
         """
         where_sql, params = filter_to_sql(filter)
@@ -153,7 +153,7 @@ class Notebook:
         rows = conn.execute(sql, params).fetchall()
         return [row["id"] for row in rows]
 
-    def delete(self, conn, entry_ids: List[str]) -> None:
+    def delete(self, conn, entry_ids: list[str]) -> None:
         """
         批量删除条目。使用 executemany 逐条执行 DELETE。
 
@@ -171,7 +171,7 @@ class Notebook:
             [{"id": eid} for eid in entry_ids]
         )
 
-    def update(self, conn, entry_ids: List[str], entry: Dict[str, Any]) -> None:
+    def update(self, conn, entry_ids: list[str], entry: dict[str, Any]) -> None:
         """
         批量更新条目。
 

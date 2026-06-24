@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import os
 import re
 import sqlite3
 from dataclasses import dataclass
-from typing import Any, List, Optional
 
 from .. import config
 from .errors import InvalidSQLError
@@ -134,9 +132,9 @@ def _check_existing_column(col: Column, existing: sqlite3.Row, table_name: str) 
 class DB:
     """数据库管理器，每个事务返回独立的连接，保证隔离。"""
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: str = ""):
         self.db_path = db_path or config.DB_PATH
-        self.table_infos: dict[str, List[Column]] = {}
+        self.table_infos: dict[str, list[Column]] = {}
 
     def _connect(self) -> sqlite3.Connection:
         """建立新连接，统一设置 row_factory 并启用 WAL 模式。"""
@@ -171,14 +169,14 @@ class DB:
         ).fetchone() is not None
 
     @staticmethod
-    def _create_table(conn: _ConnWrapper, table_name: str, cols: List[Column]) -> None:
+    def _create_table(conn: _ConnWrapper, table_name: str, cols: list[Column]) -> None:
         """创建新表。"""
         cols_sql = ", ".join(col.sql for col in cols)
         conn.execute(f"CREATE TABLE {table_name} ({cols_sql})")
     
     @staticmethod
     def _sync_existing_table(
-        conn: _ConnWrapper, table_name: str, desired_cols: List[Column]
+        conn: _ConnWrapper, table_name: str, desired_cols: list[Column]
     ) -> None:
         """补齐缺失列并检查已有列的一致性。"""
         existing_cols = {
@@ -194,7 +192,7 @@ class DB:
                 _check_existing_column(col, existing_info, table_name)
 
     @staticmethod
-    def _create_indexes(conn: _ConnWrapper, table_name: str, cols: List[Column]) -> None:
+    def _create_indexes(conn: _ConnWrapper, table_name: str, cols: list[Column]) -> None:
         """为指定列建索引。"""
         for col in cols:
             if not col.index:
@@ -204,7 +202,7 @@ class DB:
                 f"ON {table_name}({col.name})"
             )
 
-    def init(self, table_infos: dict[str, List[Column]]) -> None:
+    def init(self, table_infos: dict[str, list[Column]]) -> None:
         """
         根据表信息初始化数据库。
 
@@ -240,7 +238,7 @@ class DB:
 
     # ---- SELECT 语句 ----
 
-    def select_sql(self, table_name: str, cols: List[str]) -> str:
+    def select_sql(self, table_name: str, cols: list[str]) -> str:
         """
         生成完整 SELECT 语句。
 
@@ -262,7 +260,7 @@ class DB:
             ``"SELECT plan.id, NULL AS content, plan.month, NULL AS seq FROM plan"``。
         """
         all_col_names = [c.name for c in self.table_infos[table_name]]
-        pieces: List[str] = []
+        pieces: list[str] = []
         for col in all_col_names:
             if col in cols:
                 pieces.append(f"{table_name}.{col}")
@@ -286,7 +284,7 @@ class _TransactionContext:
 
     def __init__(self, db: DB):
         self.db = db
-        self.conn: Optional[sqlite3.Connection] = None
+        self.conn: sqlite3.Connection | None = None
 
     def __enter__(self) -> _ConnWrapper:
         self.conn = self.db._connect()
@@ -310,7 +308,7 @@ class _ReadTransactionContext:
 
     def __init__(self, db: DB):
         self.db = db
-        self.conn: Optional[sqlite3.Connection] = None
+        self.conn: sqlite3.Connection | None = None
 
     def __enter__(self) -> _ConnWrapper:
         self.conn = self.db._connect()

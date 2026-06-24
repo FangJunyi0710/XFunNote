@@ -43,7 +43,7 @@ class TestCRUD:
                 {"content": "C", "title": "Z"},
             ])
         with db.read_transaction() as conn:
-            ids = test_nb.list(conn, [[Condition("title", "Y")]])
+            ids = test_nb.list_ids(conn, [[Condition("title", "Y")]])
         assert len(ids) == 1
 
     def test_add_then_delete(self, db, test_nb):
@@ -100,7 +100,7 @@ class TestNotebookEdgeCases:
                 {"content": "B", "title": "Y"},
             ])
         with db.read_transaction() as conn:
-            ids = test_nb.list(conn, [], order_by="title ASC")
+            ids = test_nb.list_ids(conn, [], order_by="title ASC")
         with db.read_transaction() as conn:
             results = test_nb.get_by_id(conn, ids)
         assert [r["title"] for r in results] == ["X", "Y", "Z"]

@@ -1,5 +1,4 @@
-from typing import Dict, Iterator
-
+from collections.abc import Iterator
 from .notebook import Notebook
 from .errors import NotebookNotFoundError
 
@@ -12,7 +11,7 @@ class Registry:
     """
 
     def __init__(self):
-        self._notebooks: Dict[str, Notebook] = {}
+        self._notebooks: dict[str, Notebook] = {}
 
     # ---- 注册 / 注销 ----
 

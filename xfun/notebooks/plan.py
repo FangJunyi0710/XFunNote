@@ -5,8 +5,7 @@ plan 本：以月份为分组，管理待办事项 / 目标条目。
 """
 
 from collections import defaultdict
-from typing import Any, Dict, List
-
+from typing import Any
 from future_uuid import uuid7
 
 from ..core.db import Column
@@ -34,13 +33,13 @@ class PlanNotebook(Notebook):
 
     # ---- CRUD ----
 
-    def add(self, conn, entries: List[Dict[str, Any]]) -> List[str]:
+    def add(self, conn, entries: list[dict[str, Any]]) -> list[str]:
         """
         批量添加条目，为同一月份内的条目自动分配递增序号 seq。
         seq 从 MAX(seq) + 1 开始，同批次内连续递增。
         """
         # 先计算 seq，再交给 super().add() 处理校验 / 自动填充 / 批量插入
-        month_counter: Dict[str, int] = defaultdict(int)
+        month_counter: dict[str, int] = defaultdict(int)
         for entry in entries:
             month = entry["month"]
             if month not in month_counter:
@@ -55,7 +54,7 @@ class PlanNotebook(Notebook):
 
     # ---- 校验 & 自动填充 ----
 
-    def _autofill(self, entry: Dict[str, Any]) -> None:
+    def _autofill(self, entry: dict[str, Any]) -> None:
         """自动填充 done / created_at（seq 在 add 中分配）。"""
         super()._autofill(entry)
         entry["no"] = f"{entry['month']}{_seq_to_letter(entry['seq'])}"

@@ -4,8 +4,6 @@ AI 安全沙箱。
 定义 AI 可以读取/修改的数据范围，防止 AI 误操作影响用户手工数据。
 """
 
-from typing import List
-
 from xfun import registry
 from xfun.core.filter import Condition, Filter, TRUE_CONDITION
 from xfun.core.view import View, view_or
