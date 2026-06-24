@@ -1,7 +1,5 @@
 """测试 WordNotebook：必填字段、ID 去重、可选字段、复习数据默认值。"""
 
-import sqlite3
-
 import pytest
 from xfun.core.errors import EntryInvalidError
 from xfun.notebooks.word import WordNotebook
@@ -28,24 +26,28 @@ class TestWordAutofill:
         assert results[0]["content"] == "蟒蛇；一种编程语言"
 
     def test_id_is_word(self, db, word_nb):
-        """id 格式为 word-{word}，可通过 id 查询。"""
+        """id 为 word-{uuid7} 格式，可通过 id 查询。"""
         db.init({word_nb.name: word_nb.columns})
         with db.transaction() as conn:
             ids = word_nb.add(conn, [
                 {"word": "apple", "content": "苹果"},
             ])
-        assert ids[0] == "word-apple"
+        assert ids[0].startswith("word-")
         with db.read_transaction() as conn:
-            result = word_nb.get_by_id(conn, ["word-apple"])
+            result = word_nb.get_by_id(conn, ids)
         assert result[0]["word"] == "apple"
 
-    def test_duplicate_word_raises(self, db, word_nb):
-        """重复单词因 PRIMARY KEY 约束抛 IntegrityError。"""
+    def test_duplicate_word_allowed(self, db, word_nb):
+        """相同单词可重复添加（id 为 uuid7 全局唯一，不禁重）。"""
         db.init({word_nb.name: word_nb.columns})
         with db.transaction() as conn:
-            word_nb.add(conn, [{"word": "apple", "content": "苹果"}])
-            with pytest.raises(sqlite3.IntegrityError):
-                word_nb.add(conn, [{"word": "apple", "content": "苹果公司"}])
+            ids1 = word_nb.add(conn, [{"word": "apple", "content": "苹果"}])
+            ids2 = word_nb.add(conn, [{"word": "apple", "content": "苹果公司"}])
+        with db.read_transaction() as conn:
+            results = word_nb.get_by_id(conn, ids1 + ids2)
+        assert len(results) == 2
+        assert results[0]["word"] == "apple"
+        assert results[1]["word"] == "apple"
 
     def test_optional_fields(self, db, word_nb):
         """词性、音标、例句为可选字段。"""

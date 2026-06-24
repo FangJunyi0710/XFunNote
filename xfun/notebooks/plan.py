@@ -56,8 +56,7 @@ class PlanNotebook(Notebook):
     # ---- 校验 & 自动填充 ----
 
     def _autofill(self, entry: Dict[str, Any]) -> None:
-        """自动填充 id（uuid7）/ done / created_at（seq 在 add 中分配）。"""
+        """自动填充 done / created_at（seq 在 add 中分配）。"""
         super()._autofill(entry)
-        entry["id"] = f"{self.name}-{entry['month']}-{str(uuid7())}"
         entry["no"] = f"{entry['month']}{_seq_to_letter(entry['seq'])}"
         entry.setdefault("done", 0)

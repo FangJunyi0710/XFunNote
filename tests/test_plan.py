@@ -45,7 +45,7 @@ class TestSeqAllocation:
         db.init({plan_nb.name: plan_nb.columns})
         with db.transaction() as conn:
             ids = plan_nb.add(conn, [{"month": "2607", "content": "test"}])
-        assert ids[0].startswith("plan-2607-")
+        assert ids[0].startswith("plan-")
 
     def test_no_format(self, db, plan_nb):
         db.init({plan_nb.name: plan_nb.columns})

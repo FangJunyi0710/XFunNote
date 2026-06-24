@@ -21,23 +21,23 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 
 - **数据优先**：所有信息以条目（Entry）为单位存储，统一抽象为 `Notebook`，扩展列按需定义。
 - **筛选驱动**：`Condition` + 递归 `Filter` 构成完整的查询 DSL，支持 AND/OR 嵌套、自定义运算符（`JSON_CONTAINS`、`LIKE` 等），全部下推 SQLite。
-- **AI 原生**：AI 通过 Function Calling 调用 `query_entries`/`update_entries` 等安全工具，自动应用 `AI_READ_FILTER` 与 `AI_WRITE_FILTER` 行级/列级权限沙箱，杜绝越权操作。
-- **记忆即数据**：用户偏好、AI 规则、分类体系均存储为 `accumulation` 本子中的条目，通过 `ai_tags`/`ai_note` 分散索引，通过 `search_memories` 统一检索。
+- **AI 原生**：AI 通过 Function Calling 调用 `query_entries`/`update_entries` 等安全工具，自动应用 `AI_READ_VIEW` 与 `AI_WRITE_VIEW` 行级/列级权限沙箱，杜绝越权操作。
+- **记忆即数据**：用户偏好、AI 规则、分类体系均存储为 `accumulation` 和 `aimemory` 本子中的条目，通过 `ai_tags`/`ai_note` 分散索引，通过 `search_memories` 统一检索。
 - **本地优先**：单文件 SQLite + WAL 模式，零配置同步（iCloud/OneDrive/WebDAV 即可）。
 
 ---
 
 ## 技术栈
 
-| 类别         | 选择                                                                    |
-| ------------ | ----------------------------------------------------------------------- |
-| 语言         | Python 3.10+                                                            |
-| 数据库       | SQLite（WAL 模式，读写分离事务）                                        |
-| CLI 框架     | Typer                                                                   |
-| AI           | OpenAI SDK（兼容层，已对接 DeepSeek API）                              |
-| 测试         | pytest + pytest-cov                                                     |
-| 后端 API     | FastAPI（规划中）                                                       |
-| 前端/界面    | Streamlit（规划中）                                                     |
+| 类别         | 选择                                                                          |
+| ------------ | ----------------------------------------------------------------------------- |
+| 语言         | Python 3.10+                                                                  |
+| 数据库       | SQLite（WAL 模式，读写分离事务）                                              |
+| CLI 框架     | Typer                                                                         |
+| AI           | LangChain + LangGraph + DeepSeek API（通过 `langchain_openai.ChatOpenAI` 兼容层） |
+| 测试         | pytest + pytest-cov                                                           |
+| 后端 API     | FastAPI（规划中）                                                             |
+| 前端/界面    | Streamlit（规划中）                                                           |
 
 ---
 
@@ -49,19 +49,20 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 |------|------|
 | **数据库引擎** | 基于原生 `sqlite3`，安全参数化查询。支持 `Column` 列定义、`Condition` 筛选条件（内置 =/!=/>/</>=/<=/IN/NOT IN/BETWEEN/LIKE 及自定义运算符扩展）、递归 `Filter` 结构（外层 OR 内层 AND）、读写分离事务（写 IMMEDIATE、读不阻塞） |
 | **Notebook 体系** | 抽象基类封装通用 CRUD + 自动建表 + 批量操作，子类只需定义扩展列和自动填充逻辑 |
-| **内置本子** | 基于基类扩展的 4 种预置实现 — 计划（字母编号/月分组）、日记（日期维）、单词（复习跟踪/去重）、积累（分类积累）。各子类仅需定义扩展列和自动填充逻辑即可获得完整 CRUD + 批量操作 + 筛选查询，通过注册中心可插拔扩展 |
+| **内置本子** | 基于基类扩展的 5 种预置实现 — 计划（字母编号/月分组）、日记（日期维）、单词（复习跟踪/去重）、积累（分类积累）、AI 记忆（标题/来源/备注）。各子类仅需定义扩展列和自动填充逻辑即可获得完整 CRUD + 批量操作 + 筛选查询，通过注册中心可插拔扩展 |
 | **注册中心** | `Registry` 管理所有 Notebook 实例，支持注册/查找/注销/迭代 |
-| **CLI 命令行** | 完整的 CRUD 操作：`init/reset/add/list/listid/listcolumns/delete/update`，JSON 格式输入输出 |
-| **测试覆盖** | 全面覆盖核心引擎正常路径、边界条件、错误路径及事务回滚 |
+| **CLI 命令行** | 完整的 CRUD 操作：`init/reset/add/list/listid/listcolumns/delete/update`，JSON 格式输入输出；AI 子命令：`ai chat` / `ai stream` 流式与非流式对话 |
+| **AI Tools 层** | 8 个 Function Calling 工具（`query_entries`、`add_entries`、`update_entries`、`delete_entries`、`manage_tags`、`add_ai_note`、`search_memories`、`save_memory`）+ 行级/列级安全沙箱（`AI_READ_VIEW`、`AI_WRITE_VIEW`、`AI_WRITABLE_COLUMNS`）+ LangChain Agent 对话 + 系统提示词 |
+| **视图层** | `xfun/core/view.py` 实现跨本子数据水合查询，支持 `fields` 限定列、自动合并 AI 安全沙箱 |
+| **测试覆盖** | 全面覆盖核心引擎正常路径、边界条件、错误路径及事务回滚，150+ 个单元测试，13 个测试文件 |
 
 ### 🗺️ 规划中
 
 按优先级分三个梯队：
 
 **🚀 第一梯队（近期）**
-- **AI Tools 层** — `xfun/ai/tools.py` 实现 8 个 Function Calling 工具，`xfun/ai/security.py` 定义 AI 读写沙箱
 - **AI 日报闭环** — `xfun/ai/daily.py` 拉取当日数据，调用 DeepSeek 生成结构化摘要，支持 LaTeX 编译
-- **视图层** — `xfun/core/view.py` 实现跨本子数据水合查询
+- **记忆导入与持续学习** — 导入外部数据（AI 对话导出、Markdown 笔记等），自动提炼标签与记忆总结
 
 **📡 第二梯队（中期）**
 - **QQ 机器人推送** — 集成 go-cqhttp HTTP API，定时推送日报
@@ -82,33 +83,47 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 ### 阶段零：核心收尾（已完成，待合并）
 - [x] `Condition` 自定义运算符注册机制（`JSON_CONTAINS`、`LIKE`、`BETWEEN` 等）
 - [x] `Filter` 递归 `to_sql()`，支持无限嵌套 OR/AND + `negate`
-- [x] `Notebook` 基类抽象 + 4 个本子（`plan`、`word`、`diary`、`accumulation`）
+- [x] `Notebook` 基类抽象 + 5 个本子（`plan`、`word`、`diary`、`accumulation`、`aimemory`）
 - [x] CLI 完整 CRUD（`add/list/listid/update/delete/reset/listcolumns`）
-- [x] 单元测试 94 个，覆盖率 100%
+- [x] 单元测试 150+ 个，覆盖率 100%
 
-### 阶段一：AI Tools 层（当前进行中）
-- [ ] 在 `xfun/ai/tools.py` 中实现：
-  - `query_entries`（只读，自动合并 `AI_READ_FILTER`）
-  - `update_entries`（可写，自动合并 `AI_WRITE_FILTER` + 列白名单）
+### 阶段一：AI Tools 层（已完成）
+- [x] 在 `xfun/ai/tools.py` 中实现：
+  - `query_entries`（只读，自动合并 `AI_READ_VIEW`）
+  - `update_entries`（可写，自动合并 `AI_WRITE_VIEW` + 列白名单）
   - `add_entries`（自动注入 `is_ai_gen=1`）
   - `delete_entries`（强制安全条件 + 预览拦截）
   - `manage_tags`（追加/替换 `tags` 或 `ai_tags`）
   - `add_ai_note`（追加 `ai_note`，保留历史）
   - `search_memories`（同时检索所有本子的 `ai_tags` 与 `ai_note`）
-  - `save_memory`（写入 `accumulation` 本子，`category="AI记忆"`）
-- [ ] 在 `xfun/ai/security.py` 中定义：
-  - `AI_READ_FILTER`（行级读权限）
-  - `AI_WRITE_FILTER`（行级写权限）
+  - `save_memory`（写入 `aimemory` 本子，字段：title/content/source/note）
+- [x] 在 `xfun/ai/security.py` 中定义：
+  - `AI_READ_VIEW`（行级读权限-View 白名单）
+  - `AI_WRITE_VIEW`（行级写权限-View 白名单）
   - `AI_WRITABLE_COLUMNS`（列白名单）
-- [ ] 在 `xfun/ai/client.py` 中封装 DeepSeek API 调用，注入上述 Tools
+- [x] 在 `xfun/ai/agent.py` 中封装 LangChain Agent 对话接口（支持非流式 `chat()` 和流式 `chat_stream()`）
+- [x] 在 `xfun/ai/prompts.py` 中定义 AI 系统提示词
+- [x] CLI 接入：`./cli.py ai chat` / `./cli.py ai stream`
 
-### 阶段二：View 层（数据水合与跨本子查询）
-- [ ] 实现 `xfun/core/view.py`：
+### 阶段一点五：记忆导入与持续学习
+- [ ] 实现 `xfun/ai/importers/` 模块：
+  - `chatgpt.py` — ChatGPT 对话导出解析
+  - `markdown.py` — 个人 Markdown 笔记批量导入
+  - `txt.py` — 纯文本文件导入
+- [ ] 实现 `xfun/ai/learner.py`：
+  - 扫描未处理的导入条目，自动生成 `ai_tags`
+  - 将多条相关条目提炼为一条 `save_memory` 总结
+- [ ] 实现 `xfun/ai/chat.py`：
+  - 命令行聊天界面，支持持续对话
+  - 对话结束后自动调用 `save_memory` 保存关键结论
+- [ ] CLI 命令：`./cli.py learn` 手动触发学习任务
+
+### 阶段二：View 层（已完成）
+- [x] 实现 `xfun/core/view.py`：
   - `View.query(notetype, filter_groups, fields, limit, offset)` — 跨单/多本子查询，返回完整条目列表
-  - 自动合并 `AI_READ_FILTER`（安全沙箱）
+  - 自动合并 `AI_READ_VIEW`（安全沙箱）
   - 支持 `fields` 限定列，减少 Token 消耗
   - 将 `Filter` 递归 `to_sql()` 翻译为 SQL，下推数据库
-- [ ] 在 CLI 中接入 `view` 调试命令（可选）
 
 ### 阶段三：AI 日报闭环（核心 AI 功能）
 - [ ] 实现 `xfun/ai/daily.py`：
@@ -117,8 +132,8 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 - [ ] 实现 `xfun/ai/latex.py`：
   - `compile_latex(content: str) -> (pdf_path, error_log)` — 临时目录编译，超时保护
 - [ ] 实现用户反馈学习：
-  - 用户在 QQ 中反馈意见 → AI 调用 `save_memory` 存储偏好
-  - 下次生成日报时，AI 先查询 `accumulation` 中 `category="AI记忆"` 且 `tags` 含 `日报` 的记忆，自动调整模板
+  - 用户在 QQ 中反馈意见 → AI 调用 `save_memory` 存储偏好到 aimemory 本子
+  - 下次生成日报时，AI 先查询 `aimemory` 中 tags 含 `日报` 的记忆，自动调整模板
 - [ ] CLI 命令 `./cli.py daily` 生成当日日报（输出文本或 PDF）
 
 ### 阶段四：推送与定时任务
@@ -167,15 +182,21 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 - SQLite 优先走索引列（如 `month`、`done`）压缩数据量，再对少量数据执行 JSON/文本运算，性能充足。
 
 ### 2. AI 安全沙箱：零信任行级/列级权限
-- `AI_READ_FILTER`：强制行级读权限（例如 `is_ai_gen=1`）。
-- `AI_WRITE_FILTER`：强制行级写权限（防止 AI 修改用户手工数据）。
+- `AI_READ_VIEW`：View 白名单，强制行级读权限（例如 `is_ai_gen=1`）。
+- `AI_WRITE_VIEW`：View 白名单，强制行级写权限（防止 AI 修改用户手工数据）。
 - `AI_WRITABLE_COLUMNS`：列白名单（禁止 AI 触碰 `id`、`created_at`、`seq` 等系统列）。
 - 删除操作必须经过"预览 → 确认"流程，禁止无条件删除。
 
-### 3. 记忆系统：显式记忆库 + 分散痕迹的统一检索
-- 显式记忆存储在 `accumulation` 本子（`category="AI记忆"`），由 `save_memory` / `search_memories` 管理。
+### 3. 记忆系统：显式记忆库（aimemory）+ 分散痕迹的统一检索
+- 显式记忆存储在 `aimemory` 本子（专用于 AI 记忆沉淀，字段：title/content/source/note），由 `save_memory` / `search_memories` 管理。
+- `accumulation` 本子用于用户的通用知识积累。
 - 分散痕迹存储在各类条目的 `ai_tags` 和 `ai_note` 中，通过 `JSON_CONTAINS` / `TEXT_SEARCH` 运算符检索。
-- `search_memories` 工具统一跨源检索，对外呈现为单一记忆接口。
+- `search_memories` 工具统一跨源检索（5 个本子全查），对外呈现为单一记忆接口。
+
+### 3.1 记忆系统的持续演化（远期）
+- **导入器机制**：将外部文本（AI 对话、日记、笔记）转换为 `accumulation` / `aimemory` 条目，作为原始记忆素材。
+- **自动学习器**：定期扫描新导入的条目，调用 AI 生成 `ai_tags`，并将相关内容提炼为结构化记忆。
+- **聊天即记忆**：每次与 AI 的对话结束后，自动保存关键结论到 `aimemory`，实现"对话即积累"。
 
 ### 4. AI 日报闭环：从生成到交付的自动化
 - AI 填充 LaTeX 模板 → 后端 `pdflatex` 编译（最多 3 次迭代纠错）→ 输出 PDF。
@@ -185,11 +206,39 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 ### 5. 开发优先级
 | 优先级 | 阶段 | 产出 |
 | :--- | :--- | :--- |
-| 🔴 当前 | AI Tools 层 | `xfun/ai/security.py` + `xfun/ai/tools.py`（8 个工具） |
-| 🟡 后续 | View 层 | `xfun/core/view.py`（跨本子数据水合） |
+| ✅ 已完成 | AI Tools 层 | `xfun/ai/security.py` + `xfun/ai/tools.py`（8 个工具）+ `xfun/ai/agent.py` + `xfun/ai/prompts.py` + `xfun/notebooks/aimemory.py` |
+| ✅ 已完成 | View 层 | `xfun/core/view.py`（跨本子数据水合） |
 | 🟢 核心 | AI 日报闭环 | `daily.py` + `latex.py` + `push` + QQ 集成 |
+| 🟡 后续 | 记忆导入与持续学习 | `importers/` + `learner.py` + 持续聊天 |
 | 🔵 按需 | FastAPI 后端 | `backend/main.py` RESTful API |
 | ⚪ 远期 | 前端可视化 | `frontend/app.py` Streamlit 界面 |
+
+---
+
+## 后续演进方向
+
+XFunNote 的长期目标不仅是"管理计划"，而是成为你个人的**"记忆引擎"**——一个能够持续学习、深度融入你生活的 AI 伙伴。
+
+### 🔄 持续学习与记忆深化
+
+- **导入外部数据**：支持导入 AI 对话导出（ChatGPT、Claude 等）、个人日记、Markdown 笔记、微信聊天记录等，作为原始记忆素材。
+- **自动提炼与结构化**：AI 自动扫描导入的数据，提取关键信息，生成 `ai_tags`、`ai_note`，并将重要内容提炼为 `save_memory` 结构化记忆。
+- **周期性学习任务**：通过 `./cli.py learn` 命令或定时任务，持续从新数据中学习，让记忆系统不断演化。
+
+### 💬 持续性聊天与记忆融合
+
+- **命令行/Web 聊天界面**：提供一个持续对话入口，每次对话结束后，AI 自动将重要结论保存为记忆。
+- **上下文感知**：每次对话开始时，AI 通过 `search_memories` 检索相关历史记忆，实现"跨对话的连续性"。
+- **记忆沉淀闭环**：聊天 → 提取关键点 → 存入记忆 → 下次对话可检索 → 持续演化。
+
+### 🧠 记忆系统的终极形态
+
+当上述功能完成后，XFunNote 将成为一个：
+- **被动记录**：所有与 AI 的对话、导入的文本、日常积累，都被自动存储和索引。
+- **主动学习**：AI 定期扫描新数据，提炼标签、生成总结、更新记忆。
+- **随时可用**：你在任何对话中提及相关主题，AI 都能调用 `search_memories` 回忆起之前的讨论和结论。
+
+这使得 XFunNote 从一个"任务管理工具"升维为一个**"陪伴你成长的个人记忆引擎"**。
 
 ---
 
@@ -251,16 +300,21 @@ CLI 依托 Typer 构建，所有子命令以 `notename` 为第一个位置参数
 
 ### 子命令一览
 
-| 命令 | 作用 | 关键参数 |
-|------|------|----------|
-| `init` | 初始化数据库和所有已注册本子 | 无 |
-| `reset` | 清空 data 目录并重新初始化 | 无 |
-| `add` | 添加条目（单条或批量） | `notename`, `entry`(JSON) |
-| `list` | 按 ID 查询条目 | `notename`, `entry_ids`(JSON) |
-| `listid` | 按条件筛选 ID 列表 | `notename`, `--filter`, `--order-by`, `--limit`, `--offset` |
-| `update` | 批量更新字段 | `notename`, `entry_ids`(JSON), `entry`(JSON) |
-| `delete` | 批量删除 | `notename`, `entry_ids`(JSON) |
-| `listcolumns` | 查看本子的列定义 schema | `notename` |
+| 命令 | 作用 | 关键参数 | 状态 |
+|------|------|----------|------|
+| `init` | 初始化数据库和所有已注册本子 | 无 | ✅ |
+| `reset` | 清空 data 目录并重新初始化 | 无 | ✅ |
+| `add` | 添加条目（单条或批量） | `notename`, `entry`(JSON) | ✅ |
+| `list` | 按 ID 查询条目 | `notename`, `entry_ids`(JSON) | ✅ |
+| `listid` | 按条件筛选 ID 列表 | `notename`, `--filter`, `--order-by`, `--limit`, `--offset` | ✅ |
+| `update` | 批量更新字段 | `notename`, `entry_ids`(JSON), `entry`(JSON) | ✅ |
+| `delete` | 批量删除 | `notename`, `entry_ids`(JSON) | ✅ |
+| `listcolumns` | 查看本子的列定义 schema | `notename` | ✅ |
+| `ai chat` | 与 AI 非流式对话（自动处理工具调用） | `message`, `--system`, `--max-rounds` | ✅ |
+| `ai stream` | 与 AI 流式对话 | `message`, `--system`, `--max-rounds` | ✅ |
+| `learn` | 扫描未处理的导入条目，生成 ai_tags 和记忆总结 | 无 | 🗺️ 规划中 |
+| `chat` | 启动持续性聊天会话 | 无 | 🗺️ 规划中 |
+| `import` | 导入外部数据文件（AI 对话、笔记等） | `filepath`, `--type` | 🗺️ 规划中 |
 
 ### 常用示例
 
@@ -286,7 +340,8 @@ CLI 依托 Typer 构建，所有子命令以 `notename` 为第一个位置参数
 | **Filter** | 递归结构：外层 `OR`，内层 `AND`，支持无限嵌套与整体取反，最终由 `to_sql()` 展开为 SQL WHERE |
 | **View** | `query_view(notetype, filter, fields)` 跨本子数据水合，是 AI 与前端的数据唯一入口 |
 | **AI Tools** | `query_entries`、`update_entries`、`add_entries`、`delete_entries`、`manage_tags`、`add_ai_note`、`search_memories`、`save_memory` 共 8 个工具 |
-| **记忆系统** | `accumulation` 本子存储结构化记忆（标题 + 内容 + 标签）+ 各本子 `ai_tags`/`ai_note` 分散索引，由 `search_memories` 统一检索 |
+| **记忆系统** | `aimemory` 本子存储 AI 结构化记忆（标题 + 内容 + 标签）+ `accumulation` 本子存储通用知识积累 + 各本子 `ai_tags`/`ai_note` 分散索引，由 `search_memories` 统一检索 |
+| **记忆导入与学习** | 通过 `importers/` 将外部数据（AI 对话、笔记等）转换为条目，由 `learner.py` 自动提炼标签和总结，实现记忆系统的持续演化 |
 
 ---
 
@@ -305,13 +360,18 @@ XFunNote/
 │   │   ├── notebook.py     #     Notebook 抽象基类
 │   │   ├── registry.py     #     注册中心
 │   │   ├── errors.py       #     异常体系
-│   │   └── view.py         #     [待实现] 跨本子数据水合与查询
+│   │   └── view.py         #     跨本子数据水合与查询
 │   ├── notebooks/          #   具体 Notebook 实现
 │   │   ├── plan.py         #     计划本
 │   │   ├── diary.py        #     日记本
 │   │   ├── word.py         #     单词本
-│   │   └── accumulation.py #     积累本
-│   ├── ai/                 #   [待实现] AI 模块
+│   │   ├── accumulation.py #     积累本
+│   │   └── aimemory.py     #     AI 记忆本（标题/来源/备注）
+│   ├── ai/                 #   AI 模块（Agent + 8 个 Tools + 安全沙箱 + Prompts）
+│   │   ├── agent.py        #     LangChain Agent 对话接口
+│   │   ├── tools.py        #     8 个 Function Calling 工具
+│   │   ├── security.py     #     AI 安全沙箱（行级/列级权限）
+│   │   └── prompts.py      #     系统提示词
 │   ├── utils/              #   工具函数
 │   │   ├── time_utils.py   #     时间日期工具
 │   │   ├── file_utils.py   #     [待实现] 文件工具
@@ -356,7 +416,7 @@ pytest tests/test_db.py
 
 ## 许可证
 
-Apache 2.0 © 2026 fangjunyi0710
+Apache 2.0 © 2026 FangJunyi0710
 
 ---
 

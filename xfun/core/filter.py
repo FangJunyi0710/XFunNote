@@ -182,6 +182,29 @@ def convert_filter_object(obj):
 
 def parse_filter_json(s: str) -> Filter:
     """将 JSON 筛选条件解析为 Filter。"""
-    data = json.loads(s)
+    return convert_filter_object(json.loads(s))
 
-    return convert_filter_object(data)
+
+def filter_to_json(filter: Filter) -> Any:
+    """递归将 Filter 转换为可 JSON 序列化的 Python 对象。
+
+    Parameters
+    ----------
+    filter : Filter
+        Filter 结构或 (Filter, bool) 元组。
+
+    Returns
+    -------
+    Any
+        可序列化的 Python 对象（dict / list）。
+    """
+    if isinstance(filter, Condition):
+        return {"column": filter.column, "value": filter.value, "op": filter.op}
+    if isinstance(filter, tuple):
+        inner, negate = filter
+        return [filter_to_json(inner), negate]
+    # Seq[Seq[Filter]]：外层 OR，内层 AND
+    return [[filter_to_json(item) for item in group] for group in filter]
+
+
+from .extras import TRUE_CONDITION, FALSE_CONDITION

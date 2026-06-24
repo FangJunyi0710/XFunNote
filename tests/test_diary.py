@@ -32,7 +32,7 @@ class TestDiaryAutofill:
             ])
         with db.read_transaction() as conn:
             results = diary_nb.get_by_id(conn, ids)
-        assert ids[0].startswith("diary-2026-07-01-")
+        assert ids[0].startswith("diary-")
         assert results[0]["date"] == "2026-07-01"
 
     def test_optional_fields(self, db, diary_nb):

@@ -1,7 +1,7 @@
-from typing import List, Tuple
+from typing import Any, Dict, List, Set, Tuple
 
 from .db import Column, DB
-from .filter import Filter, convert_filter_object, filter_to_sql
+from .filter import Filter, convert_filter_object, filter_to_json, filter_to_sql
 import json
 
 TableSpec = tuple[list[str], Filter]
@@ -51,6 +51,20 @@ def view_to_sql(view: View, db: DB, table: str) -> Tuple[str, list]:
         sql = f"SELECT {", ".join(pieces)} FROM ({sql}) AS combined GROUP BY {", ".join(pks)}"
 
     return sql, params
+
+def view_to_json(view: View) -> dict:
+    """将 View 转换为可 JSON 序列化的 Python 对象。"""
+    data: dict = {}
+    for table_name, specs in view.items():
+        spec_list = []
+        for columns, flt in specs:
+            spec_list.append({
+                "columns": list(columns),
+                "filter": filter_to_json(flt),
+            })
+        data[table_name] = spec_list
+    return data
+
 
 def parse_view_json(s: str) -> View:
     """
@@ -108,3 +122,21 @@ def view_and(view1: View, view2: View) -> View:
 #         # 实现差集逻辑
 #     return merged
 
+def _clean_entry(entry: Dict[str, Any], allowed_columns: Set[str]) -> Dict[str, Any]:
+    result: Dict[str, Any] = {}
+    for col in entry:
+        if col in allowed_columns:
+            result[col] = entry[col]
+    return result
+
+def view_add(view: View, table: str, entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    return [_clean_entry(entry, {col for cols, _ in view[table] for col in cols}) for entry in entries]
+
+def view_delete(view: View, table: str, filter: Filter) -> Filter:
+    return [[filter, [[flt] for _, flt in view[table]]]]
+
+def view_update(view: View, table: str, filter: Filter, values: Dict[str, Any]) -> List[Tuple[Filter, Dict[str, Any]]]:
+    result: List[Tuple[Filter, Dict[str, Any]]] = []
+    for cols, flt in view[table]:
+        result.append(([[flt, filter]], _clean_entry(values, cols)))
+    return result

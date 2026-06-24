@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # cli.py
+import sys
 import shutil
 import typer
 from typing import Optional
@@ -8,8 +9,12 @@ from xfun.core.filter import parse_filter_json
 import json
 from dataclasses import asdict
 from pathlib import Path
+from xfun.ai.agent import chat_state as ai_chat, chat_stream_state as ai_chat_stream
+from xfun.ai.prompts import SYSTEM_PROMPT
 
 app = typer.Typer(no_args_is_help=True)
+ai_app = typer.Typer(help="AI 对话与工具调用")
+app.add_typer(ai_app, name="ai")
 
 
 def parse_list_json(s: str):
@@ -36,7 +41,7 @@ def add(notename: str, entry: str):
     nb = registry.notebook(notename)
     with db.transaction() as conn:
         ids = nb.add(conn, parse_list_json(entry))
-    typer.echo(json.dumps(ids, ensure_ascii=False, indent=4))
+    typer.echo(json.dumps(ids, ensure_ascii=False))
 
 @app.command()
 def listcolumns(notename: str):
@@ -44,14 +49,14 @@ def listcolumns(notename: str):
     nb = registry.notebook(notename)
     typer.echo(json.dumps(
         [asdict(c) for c in nb.columns],
-        ensure_ascii=False, indent=4))
+        ensure_ascii=False))
 
 @app.command("list")
 def cmd_list(notename: str, entry_ids: str):
     nb = registry.notebook(notename)
     with db.transaction() as conn:
         results = nb.get_by_id(conn, parse_list_json(entry_ids))
-    typer.echo(json.dumps(results, ensure_ascii=False, indent=4))
+    typer.echo(json.dumps(results, ensure_ascii=False))
 
 @app.command()
 def listid(notename: str,
@@ -64,7 +69,7 @@ def listid(notename: str,
     parsed_filter = parse_filter_json(filter) if filter else []
     with db.read_transaction() as conn:
         ids = nb.list(conn, parsed_filter, order_by=order_by, limit=limit, offset=offset)
-    typer.echo(json.dumps(ids, ensure_ascii=False, indent=4))
+    typer.echo(json.dumps(ids, ensure_ascii=False))
 
 @app.command()
 def delete(notename: str, entry_ids: str):
@@ -82,6 +87,64 @@ def update(notename: str, entry_ids: str, entry: str):
     entry_dict = json.loads(entry)
     with db.transaction() as conn:
         nb.update(conn, ids, entry_dict)
+
+
+# ---------------------------------------------------------------------------
+# AI 子命令
+# ---------------------------------------------------------------------------
+
+@ai_app.command()
+def chat(
+    message: str = typer.Argument(..., help="发送给 AI 的消息"),
+    system: Optional[str] = typer.Option(
+        SYSTEM_PROMPT, "--system", "-s", help="自定义 system prompt"
+    ),
+    max_rounds: int = typer.Option(
+        5, "--max-rounds", "-r", help="最大工具调用轮数"
+    ),
+):
+    """
+    与 AI 进行一次对话（非流式），自动处理工具调用。
+
+    示例：./cli.py ai chat "帮我查本月计划"
+    """
+    state = ai_chat(
+        message,
+        system=system,
+        max_rounds=max_rounds,
+    )
+    typer.echo(state["ai_text"])
+
+
+@ai_app.command()
+def stream(
+    message: str = typer.Argument(..., help="发送给 AI 的消息"),
+    system: Optional[str] = typer.Option(
+        SYSTEM_PROMPT, "--system", "-s", help="自定义 system prompt"
+    ),
+    max_rounds: int = typer.Option(
+        5, "--max-rounds", "-r", help="最大工具调用轮数"
+    ),
+):
+    """
+    与 AI 进行流式对话，逐段输出回复。
+
+    示例：./cli.py ai stream "帮我查今天日记"
+    """
+    gen = ai_chat_stream(
+        message,
+        system=system,
+        max_rounds=max_rounds,
+    )
+    for event in gen:
+        if event["type"] == "text":
+            typer.echo(event["content"], nl=False)
+            sys.stdout.flush()
+        elif event["type"] == "tool_start":
+            typer.echo(f"\n[执行 {event['name']}]\n", nl=False)
+            sys.stdout.flush()
+    typer.echo()
+
 
 if __name__ == "__main__":
     app()
