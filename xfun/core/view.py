@@ -137,5 +137,5 @@ def root_permission(db: DB) -> Permission:
     full_view: View = {}
     for table_name, columns in db.table_infos.items():
         full_view[table_name] = [([col.name for col in columns], TRUE_CONDITION)]
-    return Permission(full_view, full_view)
+    return (full_view, full_view)
 

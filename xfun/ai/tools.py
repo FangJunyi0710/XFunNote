@@ -19,7 +19,7 @@ def _add(conn, notetype: str, entries: list[dict]) -> list[dict]:
         raise ToolError(f"不支持的笔记类型: {notetype}")
     results = ops.add(conn, ai_permission(), notetype, entries)
     ids = [r["id"] for r in results if "id" in r]
-    return ops.update(conn, root_permission(), notetype, Condition("id", ids, "IN"), {"is_ai_gen", 1})
+    return ops.update(conn, root_permission(conn.db), notetype, Condition("id", ids, "IN"), {"is_ai_gen": 1})
 
 def _update(conn, notetype: str, filter, values: dict) -> list[dict]:
     return ops.update(conn, ai_permission(), notetype, filter, values)
