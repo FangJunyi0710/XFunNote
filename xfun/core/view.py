@@ -1,4 +1,6 @@
 from typing import Any
+
+from xfun.core.extras import TRUE_CONDITION
 from .db import Column, DB
 from .filter import Filter, convert_filter_object, filter_to_json, filter_to_sql
 import json
@@ -127,3 +129,13 @@ def view_clean_update(view: View, table: str, filter: Filter, values: dict[str, 
     for cols, flt in view[table]:
         result.append(([[flt, filter]], _clean_entry(values, cols)))
     return result
+
+# 读权限, 写权限
+Permission = tuple[View, View]
+
+def root_permission(db: DB) -> Permission:
+    full_view: View = {}
+    for table_name, columns in db.table_infos.items():
+        full_view[table_name] = [([col.name for col in columns], TRUE_CONDITION)]
+    return Permission(full_view, full_view)
+
