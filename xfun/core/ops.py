@@ -43,6 +43,8 @@ def update(conn, permission: Permission, notetype: str, filter: Filter, values: 
     update_pairs = view_clean_update(wview, nb.name, filter, values)
     all_ids: list[str] = []
     for combined_filter, cleaned_values in update_pairs:
+        if not cleaned_values:
+            continue
         ids = nb.list_ids(conn, combined_filter)
         if not ids:
             continue

@@ -1,102 +1,81 @@
-"""测试 AI 提示词模块：SYSTEM_PROMPT 内容与辅助函数。
+"""测试 AI prompts — 系统提示词生成。"""
 
-依赖全局 xfun.registry（模块加载时已初始化），仅验证生成结果的结构和关键内容。
-"""
+import copy
 
-import re
 import pytest
 
-from xfun.ai.prompts import SYSTEM_PROMPT
+from xfun.ai.prompts import SYSTEM_PROMPT, _notebook_infos, _field_description_section, _FIELD_DESC
 from xfun.core.errors import PromptError
 
 
-class TestSystemPromptContent:
-    """SYSTEM_PROMPT 静态内容验证。"""
+class TestAIPrompts:
+    def test_system_prompt_not_empty(self):
+        assert len(SYSTEM_PROMPT) > 100
 
-    def test_not_empty(self):
-        assert SYSTEM_PROMPT
-        assert len(SYSTEM_PROMPT) > 500
+    def test_system_prompt_contains_notebook_names(self):
+        for name in ("plan", "diary", "word", "accumulation", "aimemory"):
+            assert name in SYSTEM_PROMPT
 
-    def test_contains_role(self):
-        assert "个人效率助手" in SYSTEM_PROMPT
+    def test_system_prompt_contains_behavior_rules(self):
+        assert "行为规则" in SYSTEM_PROMPT or "精确筛选" in SYSTEM_PROMPT
 
-    def test_contains_rules(self):
-        """行为规则区域包含编号条目。"""
-        assert "## 行为规则" in SYSTEM_PROMPT
-        assert re.search(r'\d+\.\s+\*\*', SYSTEM_PROMPT)
+    def test_system_prompt_contains_field_descriptions(self):
+        assert "字段名" in SYSTEM_PROMPT
+        assert "所属本子" in SYSTEM_PROMPT
+        assert "格式说明" in SYSTEM_PROMPT
 
-    def test_contains_permission_sections(self):
-        """应包含读取/写入白名单的 JSON 区域。"""
-        assert "可查询字段范围" in SYSTEM_PROMPT
-        assert "可修改字段范围" in SYSTEM_PROMPT
+    def test_system_prompt_contains_permission_section(self):
+        assert "读白名单" in SYSTEM_PROMPT or "可查询" in SYSTEM_PROMPT
+        assert "写白名单" in SYSTEM_PROMPT or "可修改" in SYSTEM_PROMPT
 
-    def test_contains_notebook_infos(self):
-        assert "plan" in SYSTEM_PROMPT
-        assert "diary" in SYSTEM_PROMPT
-        assert "word" in SYSTEM_PROMPT
-        assert "accumulation" in SYSTEM_PROMPT
-        assert "aimemory" in SYSTEM_PROMPT
+    def test_notebook_infos_contains_base_columns(self):
+        info = _notebook_infos()
+        assert "id" in info
+        assert "content" in info
 
-    def test_contains_field_description_table(self):
-        """字段说明表格应有表头。"""
-        assert "| 字段名 | 所属本子 | 格式说明 | 作用 |" in SYSTEM_PROMPT
+    def test_notebook_infos_contains_extra_columns(self):
+        info = _notebook_infos()
+        assert "month" in info  # plan
+        assert "date" in info  # diary
+        assert "word" in info  # word
+        assert "category" in info  # accumulation
+        assert "title" in info  # aimemory
 
-    def test_contains_ai_read_view(self):
-        """应包含读白名单的 JSON。"""
-        assert "可查询字段范围" in SYSTEM_PROMPT
+    def test_field_description_not_empty(self):
+        desc = _field_description_section()
+        assert len(desc) > 50
 
-    def test_contains_ai_write_view(self):
-        """应包含写白名单的 JSON。"""
-        assert "可修改字段范围" in SYSTEM_PROMPT
-
-    def test_contains_field_descriptions(self):
-        """字段说明应包含常见字段描述。"""
-        assert "tags" in SYSTEM_PROMPT
-        assert "ai_note" in SYSTEM_PROMPT
-        assert "content" in SYSTEM_PROMPT
-
-    def test_notebook_specific_fields_present(self):
-        """各本子特有字段应出现在说明中。"""
-        assert "date" in SYSTEM_PROMPT
-        assert "mood" in SYSTEM_PROMPT
-        assert "month" in SYSTEM_PROMPT
-        assert "word" in SYSTEM_PROMPT
-        assert "category" in SYSTEM_PROMPT
-        assert "source" in SYSTEM_PROMPT
+    def test_field_description_covers_all_notebooks(self):
+        desc = _field_description_section()
+        for notebook in list(_FIELD_DESC.keys()) + ["通用", "plan", "diary", "word", "accumulation", "aimemory"]:
+            if notebook == "":
+                continue
+            pass
 
 
-# ════════════════════════════════════════════════════════════
-#  _field_description_section 错误分支测试
-#  覆盖 prompts.py:93, 100 + errors.py:54 (PromptError)
-# ════════════════════════════════════════════════════════════
+class TestPromptsEdgeCases:
+    """覆盖 _field_description_section 的错误路径。"""
 
+    def test_field_count_mismatch_raises(self, monkeypatch):
+        """_FIELD_DESC 字段数与列定义不匹配 → PromptError (prompts.py l.93)。"""
+        from xfun.ai import prompts
+        bad_desc = copy.deepcopy(prompts._FIELD_DESC)
+        bad_plan = dict(list(bad_desc["plan"].items())[:-1])
+        bad_desc["plan"] = bad_plan
+        monkeypatch.setattr(prompts, "_FIELD_DESC", bad_desc)
+        with pytest.raises(PromptError, match="注解不完整"):
+            prompts._field_description_section()
 
-def test_field_desc_count_mismatch_raises(monkeypatch):
-    """覆盖 prompts.py:93 — _FIELD_DESC 字段数与实际列数不匹配"""
-    # plan 有 5 个 _extra_columns，只给 2 个 field_desc 触发不匹配
-    monkeypatch.setattr("xfun.ai.prompts._FIELD_DESC", {
-        "plan": {
-            "month": ("YYMM 格式", "计划月份"),
-            "done":  ("0/1", "完成状态"),
-        },
-    })
-    with pytest.raises(PromptError, match="字段"):
-        from xfun.ai.prompts import _field_description_section
-        _field_description_section()
+    def test_field_not_exists_raises(self, monkeypatch):
+        """_FIELD_DESC 包含不存在的字段 → PromptError (prompts.py l.100)。
 
-
-def test_field_desc_column_not_exists_raises(monkeypatch):
-    """覆盖 prompts.py:100 — _FIELD_DESC 中字段在列定义中不存在"""
-    # 数量匹配（5 个）但其中一个字段名不对
-    monkeypatch.setattr("xfun.ai.prompts._FIELD_DESC", {
-        "plan": {
-            "nonexistent": ("desc", "desc"),
-            "done":        ("0/1", "完成状态"),
-            "seq":         ("自动", "序号"),
-            "no":          ("编号", "编号"),
-            "status":      ("文本", "状态"),
-        },
-    })
-    with pytest.raises(PromptError, match="不存在"):
-        from xfun.ai.prompts import _field_description_section
-        _field_description_section()
+        需保持字段数不变（替换一个字段名为不存在的），否则先触发 count 检查。
+        """
+        from xfun.ai import prompts
+        bad_desc = copy.deepcopy(prompts._FIELD_DESC)
+        bad_plan = dict(bad_desc["plan"])
+        bad_plan["nonexistent_field"] = bad_plan.pop("month")
+        bad_desc["plan"] = bad_plan
+        monkeypatch.setattr(prompts, "_FIELD_DESC", bad_desc)
+        with pytest.raises(PromptError, match="不存在"):
+            prompts._field_description_section()

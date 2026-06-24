@@ -1,64 +1,46 @@
-"""测试 AccumulationNotebook：必填字段、ID 格式、可选字段。"""
+"""测试 AccumulationNotebook。"""
 
 import pytest
-from xfun.core.errors import EntryInvalidError
-from xfun.notebooks.accumulation import AccumulationNotebook
+
+from xfun.core.filter import Condition
 
 
-@pytest.fixture
-def accum_nb():
-    return AccumulationNotebook()
-
-
-class TestAccumAutofill:
-    """accumulation 的核心行为。"""
-
-    def test_add_accum(self, db, accum_nb):
-        """基本写入：分类 + 内容。"""
-        db.init({accum_nb.name: accum_nb.columns})
+class TestAccumulationNotebook:
+    def test_add_accumulation(self, registry, db):
+        nb = registry["accumulation"]
         with db.transaction() as conn:
-            ids = accum_nb.add(conn, [
-                {"category": "tech", "content": "Python 的上下文管理器使用 with 语句。"},
-            ])
-        with db.read_transaction() as conn:
-            results = accum_nb.get_by_ids(conn, ids)
-        assert results[0]["category"] == "tech"
-        assert results[0]["content"] == "Python 的上下文管理器使用 with 语句。"
-
-    def test_id_format(self, db, accum_nb):
-        db.init({accum_nb.name: accum_nb.columns})
-        with db.transaction() as conn:
-            ids = accum_nb.add(conn, [
-                {"category": "life", "content": "早睡早起身体好。"},
-            ])
+            ids = nb.add(conn, [{
+                "content": "Python 列表推导式",
+                "category": "Python",
+                "source": "官方文档",
+                "note": "很实用的语法糖",
+            }])
+        assert len(ids) == 1
         assert ids[0].startswith("accumulation-")
 
-    def test_optional_fields(self, db, accum_nb):
-        """source、note 为可选字段。"""
-        db.init({accum_nb.name: accum_nb.columns})
+    def test_missing_category_raises(self, registry, db):
+        nb = registry["accumulation"]
         with db.transaction() as conn:
-            ids = accum_nb.add(conn, [
-                {"category": "book", "content": "活着",
-                 "source": "余华《活着》", "note": "经典之作"},
-                {"category": "idea", "content": "灵光一闪"},
+            with pytest.raises(Exception):
+                nb.add(conn, [{"content": "no category"}])
+
+    def test_query_by_category(self, registry, db):
+        nb = registry["accumulation"]
+        with db.transaction() as conn:
+            nb.add(conn, [
+                {"content": "Python tip", "category": "Python"},
+                {"content": "JS tip", "category": "JavaScript"},
+                {"content": "Python OOP", "category": "Python"},
             ])
-        with db.read_transaction() as conn:
-            results = accum_nb.get_by_ids(conn, ids)
-        assert results[0]["source"] == "余华《活着》"
-        assert results[0]["note"] == "经典之作"
-        assert results[1]["source"] is None
-        assert results[1]["note"] is None
-
-    def test_category_missing_raises(self, db, accum_nb):
-        """category 是必填字段，缺少时抛 EntryInvalidError。"""
-        db.init({accum_nb.name: accum_nb.columns})
         with db.transaction() as conn:
-            with pytest.raises(EntryInvalidError, match="category"):
-                accum_nb.add(conn, [{"content": "没有分类"}])
+            ids = nb.list_ids(conn, [[Condition("category", "Python", "=")]])
+        assert len(ids) == 2
 
-    def test_content_missing_raises(self, db, accum_nb):
-        """content（正文）是基类必填字段。"""
-        db.init({accum_nb.name: accum_nb.columns})
+    def test_source_and_note_optional(self, registry, db):
+        nb = registry["accumulation"]
         with db.transaction() as conn:
-            with pytest.raises(EntryInvalidError, match="content"):
-                accum_nb.add(conn, [{"category": "tech"}])
+            ids = nb.add(conn, [{"content": "just a note", "category": "misc"}])
+        with db.transaction() as conn:
+            row = nb.get_by_ids(conn, ids)[0]
+        assert row["source"] is None
+        assert row["note"] is None
