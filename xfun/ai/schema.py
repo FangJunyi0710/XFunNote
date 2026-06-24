@@ -3,7 +3,7 @@ Pydantic 模型 — 为 Filter / View 生成 JSON Schema，供 AI 精准理解�
 
 用法::
 
-    from xfun.ai.schema import FilterModel, ViewSchema, filter_schema_text
+    from xfun.ai.schema import FilterModel, ViewModel, filter_schema_json
 """
 
 from __future__ import annotations
@@ -125,7 +125,7 @@ def parse_and_validate_view(view_json_str: str) -> dict[str, Any]:
     Raises
     ------
     pydantic.ValidationError
-        JSON 不符合 ViewSchema 定义时抛出。
+        JSON 不符合 ViewModel 定义时抛出。
     """
     model = ViewModel.model_validate_json(view_json_str)
     return model.to_view()

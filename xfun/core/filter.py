@@ -47,9 +47,7 @@ class Condition:
 
         Raises
         ------
-        InvalidColumnNameError
-        InvalidOperatorError
-        InvalidConditionValueError
+        InvalidConditionError
         """
         Column.check(self.column)
 

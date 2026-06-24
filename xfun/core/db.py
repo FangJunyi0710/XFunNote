@@ -58,7 +58,7 @@ class Column:
 
         Raises
         ------
-        InvalidColumnNameError
+        InvalidSQLError
         """
         for part in order_by.split(","):
             part = part.strip().split(None, 1)

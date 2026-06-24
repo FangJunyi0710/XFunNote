@@ -108,18 +108,6 @@ def view_and(view1: View, view2: View) -> View:
         merged[table] = specs
     return merged
 
-# 暂不需要实现
-# def view_diff(view1: View, view2: View) -> View:
-#     """
-#     差集：返回只在 view1 中出现的，忽略同时在 view2 中出现的。
-#     """
-#     merged: View = {}
-#     for table in view1:
-#         if table not in view2:
-#             merged[table] = view1[table]
-#             continue
-#         # 实现差集逻辑
-#     return merged
 
 def _clean_entry(entry: dict[str, Any], allowed_columns: set[str]) -> dict[str, Any]:
     result: dict[str, Any] = {}

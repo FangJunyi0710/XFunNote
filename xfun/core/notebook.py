@@ -1,8 +1,5 @@
 """
-所有 Notebook 的公共抽象基类。
-
-每个具体 Notebook（plan / diary / accumulation / ...）必须继承 Notebook，
-定义自己的数据库列 schema，并实现核心 CRUD 方法。
+Notebook 基类 — 子类只需定义 name 与 _extra_columns，基类自动提供完整 CRUD + 筛选查询。
 """
 
 from typing import Any
@@ -33,13 +30,12 @@ class Notebook:
     """
     Notebook 基类 —— 定义本子的 schema 与 CRUD 契约。
 
-    子类必须：
+    子类只需：
     1. 设置 name 属性（本子名称）
     2. 定义 _extra_columns 类属性（本子特有列，不含基类通用列）
-    3. 实现 list 抽象方法
-
-    add / delete 已有基类默认实现（通过 _validate / _autofill 多态扩展）。
+    可选：重写 _validate / _autofill 以定制校验与自动填充逻辑。
     columns 属性由 BASE_COLUMNS + _extra_columns 自动合并。
+    CRUD 方法（add / delete / update / list_ids）由基类自动提供。
     """
 
     # ---- 子类必须设定 ----
@@ -133,7 +129,7 @@ class Notebook:
         order_by : str, optional
             排序列名，默认无排序。
         limit : int
-            最大返回条数，默认 50。
+            最大返回条数，默认 -1（不限制）。
         offset : int
             偏移量，默认 0。
 
