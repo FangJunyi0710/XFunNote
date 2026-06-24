@@ -11,11 +11,11 @@ import json
 from xfun import registry
 from xfun.core.db import Column
 from xfun.core.notebook import BASE_COLUMNS
-from xfun.ai.schema import filter_schema_json, view_schema_json
 from xfun.core.errors import PromptError
-from xfun.ai.security import ai_read_view, ai_write_view
+from xfun.ai.security import ai_permission
 from xfun.core.view import view_to_json
-from xfun.utils.time_utils import now_str
+
+_ai_read_view, _ai_write_view = ai_permission()
 
 # 字段说明：{笔记本名: {字段名: FieldDesc}}
 # 空字符串 "" 表示所有本子通用的字段
@@ -141,12 +141,12 @@ SYSTEM_PROMPT = f"""
 
 ### 可查询字段范围（读白名单）
 ```json
-{json.dumps(view_to_json(ai_read_view()), indent=2, ensure_ascii=False)}
+{json.dumps(view_to_json(_ai_read_view), indent=2, ensure_ascii=False)}
 ```
 
 ### 可修改字段范围（写白名单）
 ```json
-{json.dumps(view_to_json(ai_write_view()), indent=2, ensure_ascii=False)}
+{json.dumps(view_to_json(_ai_write_view), indent=2, ensure_ascii=False)}
 ```
 
 """.strip()
