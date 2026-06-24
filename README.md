@@ -80,7 +80,7 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 
 以下路线图按开发顺序排列，每项均可在当前架构上独立增量实现。
 
-### 阶段零：核心收尾（已完成，待合并）
+### 阶段零：核心收尾（已完成）
 - [x] `Condition` 自定义运算符注册机制（`JSON_CONTAINS`、`LIKE`、`BETWEEN` 等）
 - [x] `Filter` 递归 `to_sql()`，支持无限嵌套 OR/AND + `negate`
 - [x] `Notebook` 基类抽象 + 5 个本子（`plan`、`word`、`diary`、`accumulation`、`aimemory`）
@@ -100,7 +100,7 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 - [x] 在 `xfun/ai/security.py` 中定义：
   - `AI_READ_VIEW`（行级读权限-View 白名单）
   - `AI_WRITE_VIEW`（行级写权限-View 白名单）
-  - `AI_WRITABLE_COLUMNS`（列白名单）
+- [x] 在 `xfun/ai/schema.py` 中实现 Pydantic 模型（`ConditionSchema`、`FilterModel`、`TableSpecSchema`、`ViewSchema`），为 AI 提供 JSON Schema 格式校验 + 运算符枚举校验
 - [x] 在 `xfun/ai/agent.py` 中封装 LangChain Agent 对话接口（支持非流式 `chat()` 和流式 `chat_stream()`）
 - [x] 在 `xfun/ai/prompts.py` 中定义 AI 系统提示词
 - [x] CLI 接入：`./cli.py ai chat` / `./cli.py ai stream`
@@ -119,11 +119,12 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 - [ ] CLI 命令：`./cli.py learn` 手动触发学习任务
 
 ### 阶段二：View 层（已完成）
-- [x] 实现 `xfun/core/view.py`：
-  - `View.query(notetype, filter_groups, fields, limit, offset)` — 跨单/多本子查询，返回完整条目列表
-  - 自动合并 `AI_READ_VIEW`（安全沙箱）
-  - 支持 `fields` 限定列，减少 Token 消耗
-  - 将 `Filter` 递归 `to_sql()` 翻译为 SQL，下推数据库
+- [x] 实现 `xfun/core/view.py`，6 个核心函数：
+  - `view_to_sql` — 跨本子 UNION ALL + GROUP BY 主键去重，全部下推 SQLite
+  - `view_or` / `view_and` — View 的并集/交集操作（安全沙箱通过交集自动约束 AI 权限范围）
+  - `view_clean_columns` / `view_clean_filter` / `view_clean_update` — AI 安全沙箱的列/行清洗工具（自动应用列白名单 + 行筛选）
+  - `view_to_json` / `parse_view_json` — View 的序列化与反序列化
+- [x] 在 `xfun/ai/schema.py` 中定义 `ViewSchema`，通过 Pydantic 为 View JSON 格式提供双重校验
 
 ### 阶段三：AI 日报闭环（核心 AI 功能）
 - [ ] 实现 `xfun/ai/daily.py`：
@@ -178,13 +179,14 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 
 ### 1. 查询引擎：纯 SQL 下推，绝不内存过滤
 - `Filter` 递归结构（外层 OR、内层 AND）通过 `to_sql()` 无损展开为一条 SQL。
+- `view_to_sql` 同样完全下推 SQL：将 View 的 UNION ALL + GROUP BY 去重逻辑翻译为 SQL，不在 Python 侧做行合并。
 - 所有自定义运算符（`JSON_CONTAINS`、`TEXT_SEARCH` 等）只注册一次 SQL 生成逻辑，永不重复实现 Python 等价逻辑。
 - SQLite 优先走索引列（如 `month`、`done`）压缩数据量，再对少量数据执行 JSON/文本运算，性能充足。
 
 ### 2. AI 安全沙箱：零信任行级/列级权限
-- `AI_READ_VIEW`：View 白名单，强制行级读权限（例如 `is_ai_gen=1`）。
-- `AI_WRITE_VIEW`：View 白名单，强制行级写权限（防止 AI 修改用户手工数据）。
-- `AI_WRITABLE_COLUMNS`：列白名单（禁止 AI 触碰 `id`、`created_at`、`seq` 等系统列）。
+- `ai_read_view()` / `ai_write_view()`：通过 `view_or` 合并通用列与专用列的读/写 View 白名单。
+- 行级权限：`AI_READ_FILTER` 排除含 `"私密"` 标签的条目；`AI_WRITE_FILTER` 基于读权限进一步约束。
+- 列级权限：通过 `view_clean_columns` 自动清洗非授权列（`id`、`created_at`、`seq` 等系统列受保护）。
 - 删除操作必须经过"预览 → 确认"流程，禁止无条件删除。
 
 ### 3. 记忆系统：显式记忆库（aimemory）+ 分散痕迹的统一检索
@@ -206,7 +208,7 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 ### 5. 开发优先级
 | 优先级 | 阶段 | 产出 |
 | :--- | :--- | :--- |
-| ✅ 已完成 | AI Tools 层 | `xfun/ai/security.py` + `xfun/ai/tools.py`（8 个工具）+ `xfun/ai/agent.py` + `xfun/ai/prompts.py` + `xfun/notebooks/aimemory.py` |
+| ✅ 已完成 | AI Tools 层 | `xfun/ai/security.py` + `xfun/ai/tools.py`（8 个工具）+ `xfun/ai/agent.py` + `xfun/ai/prompts.py` + `xfun/ai/schema.py` + `xfun/notebooks/aimemory.py` |
 | ✅ 已完成 | View 层 | `xfun/core/view.py`（跨本子数据水合） |
 | 🟢 核心 | AI 日报闭环 | `daily.py` + `latex.py` + `push` + QQ 集成 |
 | 🟡 后续 | 记忆导入与持续学习 | `importers/` + `learner.py` + 持续聊天 |
@@ -360,6 +362,7 @@ XFunNote/
 │   │   ├── notebook.py     #     Notebook 抽象基类
 │   │   ├── registry.py     #     注册中心
 │   │   ├── errors.py       #     异常体系
+│   │   ├── extras.py       #     自定义运算符注册（JSON_CONTAINS、TEXT_SEARCH、TRUE、FALSE 等）
 │   │   └── view.py         #     跨本子数据水合与查询
 │   ├── notebooks/          #   具体 Notebook 实现
 │   │   ├── plan.py         #     计划本
@@ -367,15 +370,14 @@ XFunNote/
 │   │   ├── word.py         #     单词本
 │   │   ├── accumulation.py #     积累本
 │   │   └── aimemory.py     #     AI 记忆本（标题/来源/备注）
-│   ├── ai/                 #   AI 模块（Agent + 8 个 Tools + 安全沙箱 + Prompts）
+│   ├── ai/                 #   AI 模块（Agent + 8 个 Tools + 安全沙箱 + Prompts + Schema）
 │   │   ├── agent.py        #     LangChain Agent 对话接口
 │   │   ├── tools.py        #     8 个 Function Calling 工具
 │   │   ├── security.py     #     AI 安全沙箱（行级/列级权限）
-│   │   └── prompts.py      #     系统提示词
+│   │   ├── prompts.py      #     系统提示词
+│   │   └── schema.py       #     Pydantic 模型（Filter/View JSON Schema 生成与校验）
 │   ├── utils/              #   工具函数
-│   │   ├── time_utils.py   #     时间日期工具
-│   │   ├── file_utils.py   #     [待实现] 文件工具
-│   │   └── string_utils.py #     [待实现] 字符串工具
+│   │   └── time_utils.py   #     时间日期工具
 │   ├── config.py           #   配置读取
 │   └── __init__.py         #   模块入口，注册内置 Notebook
 │
