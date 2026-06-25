@@ -6,7 +6,11 @@ import pytest
 class TestRegistryInit:
     def test_db_instance_has_tables(self):
         """xfun.db 应包含正确的表信息。"""
-        from xfun import db, registry
+        from xfun import db, registry, init_db
+        from xfun import config
+        conn = db._connect()
+        init_db(conn)
+        conn.close()
         assert set(db.table_infos.keys()) == {"plan", "diary", "word", "accumulation", "aimemory"}
 
     def test_registry_has_all_notebooks(self):
@@ -33,6 +37,9 @@ class TestRegistryInit:
         assert repr(registry["diary"]) == "<Notebook:diary>"
 
     def test_time_utils_importable(self):
-        from xfun.utils.time_utils import now_str, today_str
+        from xfun.utils.time_utils import now_str, today_str, timestamp_str
         assert now_str() is not None
         assert today_str() is not None
+        ts = timestamp_str()
+        assert len(ts) == 15, f"timestamp_str 应为15字符, 得到 {ts}"
+        assert ts[:8].isdigit() and ts[9:].isdigit(), f"timestamp_str 格式异常: {ts}"

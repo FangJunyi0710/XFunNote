@@ -29,7 +29,7 @@ import typer
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from typer import Argument, Option
 
-from xfun import db, registry
+from xfun import db, init_db, registry
 from xfun.ai.agent import agent_invoke
 from xfun.config import DB_PATH, LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
 from xfun.core.errors import XFunError
@@ -252,17 +252,17 @@ def ai(
         raise typer.Exit(code=1)
 
     try:
-        new_msgs = agent_invoke(messages)
+        messages.extend(agent_invoke(messages))
         if json_output:
             msg_list = [
                 {"role": _msg_role(m), "content": m.content}
-                for m in new_msgs
+                for m in messages
             ]
             typer.echo(json.dumps(msg_list, ensure_ascii=False))
         else:
             # 输出 AI 最终回复（从后往前找第一个有 content 的消息）
             output = None
-            for m in reversed(new_msgs):
+            for m in reversed(messages):
                 if hasattr(m, "content") and m.content:
                     output = m.content
                     break
@@ -326,10 +326,51 @@ def config(
 def init():
     """初始化数据库（建表 / 同步列 / 建索引）。"""
     try:
-        # xfun/__init__.py 在 import 时已调用 db.init()，
-        # 此处提供显式调用的入口
-        db.init({name: nb.columns for name, nb in registry.items()})
-        typer.echo(json.dumps({"message": "数据库初始化完成"}, ensure_ascii=False))
+        with db.transaction() as conn:
+            init_db(conn)
+            typer.echo(json.dumps({"message": "数据库初始化完成"}, ensure_ascii=False))
+    except Exception as e:
+        typer.echo(_error(str(e)))
+        raise typer.Exit(code=1)
+
+
+# ════════════════════════════════════════════════════════════
+#  命令：backup — 备份数据库
+# ════════════════════════════════════════════════════════════
+
+
+@app.command()
+def backup():
+    """在线热备份数据库。"""
+    try:
+        with db.read_transaction() as conn:
+            path = db.backup(conn)
+            typer.echo(json.dumps({"message": f"备份完成: {path}"}, ensure_ascii=False))
+    except Exception as e:
+        typer.echo(_error(str(e)))
+        raise typer.Exit(code=1)
+
+
+# ════════════════════════════════════════════════════════════
+#  命令：reset — 重置数据库
+# ════════════════════════════════════════════════════════════
+
+
+@app.command()
+def reset(
+    force: bool = Option(False, "--force", "-f", help="跳过确认提示"),
+    no_backup: bool = Option(False, "--no-backup", help="重置前不备份"),
+):
+    """重置数据库（清空所有表并重新初始化）。"""
+    if not force:
+        typer.confirm("⚠️  重置将清空所有数据，是否继续？", abort=True)
+    try:
+        with db.read_transaction() as conn:
+            if not no_backup:
+                path = db.backup(conn)
+                typer.echo(json.dumps({"backup": path}, ensure_ascii=False))
+            db.reset(conn)
+            typer.echo(json.dumps({"message": "数据库已重置"}, ensure_ascii=False))
     except Exception as e:
         typer.echo(_error(str(e)))
         raise typer.Exit(code=1)

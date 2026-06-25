@@ -59,7 +59,8 @@ def _shared_db(registry):
     tmpf = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tmpf.close()
     _db = DB(tmpf.name)
-    _db.init({name: nb.columns for name, nb in registry.items()})
+    with _db.transaction() as conn:
+        _db.init(conn, {name: nb.columns for name, nb in registry.items()})
     yield _db
     os.unlink(tmpf.name)
 

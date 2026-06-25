@@ -151,15 +151,16 @@ class TestDB:
                 "updated_at TEXT NOT NULL, tags TEXT NOT NULL, ai_tags TEXT NOT NULL, is_ai_gen INTEGER NOT NULL)"
             )
         # 添加 content 列（ADD COLUMN 要求可空）
-        db.init({"test_tb": [
-            Column("id", "TEXT", primary_key=True, nullable=False),
-            Column("content", "TEXT", nullable=True),
-            Column("created_at", "TEXT", nullable=False, auto=True),
-            Column("updated_at", "TEXT", nullable=False, auto=True),
-            Column("tags", "TEXT", nullable=False, auto=True),
-            Column("ai_tags", "TEXT", nullable=False, auto=True),
-            Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
-        ]})
+        with db.transaction() as conn:
+            db.init(conn, {"test_tb": [
+                Column("id", "TEXT", primary_key=True, nullable=False),
+                Column("content", "TEXT", nullable=True),
+                Column("created_at", "TEXT", nullable=False, auto=True),
+                Column("updated_at", "TEXT", nullable=False, auto=True),
+                Column("tags", "TEXT", nullable=False, auto=True),
+                Column("ai_tags", "TEXT", nullable=False, auto=True),
+                Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
+            ]})
         with db.read_transaction() as conn:
             cols = [r["name"] for r in conn.execute("PRAGMA table_info(test_tb)")]
         assert "content" in cols
@@ -206,15 +207,16 @@ class TestDBTypeConflict:
                 "ai_tags TEXT NOT NULL, is_ai_gen INTEGER NOT NULL)"
             )
         with pytest.raises(InvalidSQLError, match="类型冲突"):
-            db.init({"conflict_tb": [
-                Column("id", "TEXT", primary_key=True, nullable=False),
-                Column("val", "TEXT", nullable=False),
-                Column("created_at", "TEXT", nullable=False, auto=True),
-                Column("updated_at", "TEXT", nullable=False, auto=True),
-                Column("tags", "TEXT", nullable=False, auto=True),
-                Column("ai_tags", "TEXT", nullable=False, auto=True),
-                Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
-            ]})
+            with db.transaction() as conn:
+                db.init(conn, {"conflict_tb": [
+                    Column("id", "TEXT", primary_key=True, nullable=False),
+                    Column("val", "TEXT", nullable=False),
+                    Column("created_at", "TEXT", nullable=False, auto=True),
+                    Column("updated_at", "TEXT", nullable=False, auto=True),
+                    Column("tags", "TEXT", nullable=False, auto=True),
+                    Column("ai_tags", "TEXT", nullable=False, auto=True),
+                    Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
+                ]})
 
     def test_nullable_constraint_conflict(self, db):
         """数据库列可空，代码定义不可空 → 约束冲突 (l.114)。"""
@@ -225,14 +227,15 @@ class TestDBTypeConflict:
                 "ai_tags TEXT NOT NULL, is_ai_gen INTEGER NOT NULL)"
             )
         with pytest.raises(InvalidSQLError, match="约束冲突"):
-            db.init({"nullable_tb": [
-                Column("id", "TEXT", nullable=False),
-                Column("created_at", "TEXT", nullable=False, auto=True),
-                Column("updated_at", "TEXT", nullable=False, auto=True),
-                Column("tags", "TEXT", nullable=False, auto=True),
-                Column("ai_tags", "TEXT", nullable=False, auto=True),
-                Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
-            ]})
+            with db.transaction() as conn:
+                db.init(conn, {"nullable_tb": [
+                    Column("id", "TEXT", nullable=False),
+                    Column("created_at", "TEXT", nullable=False, auto=True),
+                    Column("updated_at", "TEXT", nullable=False, auto=True),
+                    Column("tags", "TEXT", nullable=False, auto=True),
+                    Column("ai_tags", "TEXT", nullable=False, auto=True),
+                    Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
+                ]})
 
     def test_pk_constraint_conflict(self, db):
         """数据库列非 PK，代码定义 PK → 主键冲突 (l.121)。
@@ -246,18 +249,20 @@ class TestDBTypeConflict:
                 "ai_tags TEXT NOT NULL, is_ai_gen INTEGER NOT NULL)"
             )
         with pytest.raises(InvalidSQLError, match="主键"):
-            db.init({"pk_tb": [
-                Column("id", "TEXT", primary_key=True, nullable=False),
-                Column("created_at", "TEXT", nullable=False, auto=True),
-                Column("updated_at", "TEXT", nullable=False, auto=True),
-                Column("tags", "TEXT", nullable=False, auto=True),
-                Column("ai_tags", "TEXT", nullable=False, auto=True),
-                Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
-            ]})
+            with db.transaction() as conn:
+                db.init(conn, {"pk_tb": [
+                    Column("id", "TEXT", primary_key=True, nullable=False),
+                    Column("created_at", "TEXT", nullable=False, auto=True),
+                    Column("updated_at", "TEXT", nullable=False, auto=True),
+                    Column("tags", "TEXT", nullable=False, auto=True),
+                    Column("ai_tags", "TEXT", nullable=False, auto=True),
+                    Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
+                ]})
 
     def test_empty_desired_cols_skipped(self, db):
         """init 中 desired_cols 为空列表应跳过 (l.216)。"""
-        db.init({"nonexistent_empty": []})
+        with db.transaction() as conn:
+            db.init(conn, {"nonexistent_empty": []})
         with db.read_transaction() as conn:
             row = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='nonexistent_empty'"
@@ -289,3 +294,92 @@ class TestTransactionEdgeCases:
                 raise ValueError("模拟异常")
         except ValueError:
             pass
+
+
+class TestDBBackupReset:
+    """覆盖 backup() 和 reset() 方法。"""
+
+    def test_backup_creates_file(self, db):
+        """backup() 应创建备份文件并返回合法路径。"""
+        import os
+        with db.transaction() as conn:
+            conn.execute(
+                "INSERT INTO plan (id, content, month, seq, no, done, created_at, updated_at, tags, ai_tags, is_ai_gen) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                ("backup-1", "备份测试", "2606", 1, "2606A", 0, "2026-01-01", "2026-01-01", "[]", "[]", 0),
+            )
+        with db.read_transaction() as conn:
+            path = db.backup(conn)
+        assert os.path.exists(path), f"备份文件未创建: {path}"
+        assert ".backup." in path, f"备份路径缺少 .backup. 标记: {path}"
+        # 验证备份文件是合法 SQLite 库
+        import sqlite3
+        with sqlite3.connect(path) as bak:
+            row = bak.execute("SELECT COUNT(*) FROM plan").fetchone()
+        assert row[0] == 1
+
+    def test_backup_creates_backups_dir(self, db, tmp_path):
+        """备份目录自动创建。"""
+        from pathlib import Path
+        new_path = str(tmp_path / "sub" / "test.db")
+        from xfun.core.db import DB
+        new_db = DB(new_path)
+        new_db.table_infos.update(db.table_infos)
+        import os
+        os.makedirs(Path(new_path).parent, exist_ok=True)
+        with new_db.transaction() as conn:
+            new_db.init(conn, new_db.table_infos)
+        with new_db.read_transaction() as conn:
+            path = new_db.backup(conn)
+        assert os.path.isdir(Path(new_path).parent / "backups")
+
+    def test_reset_clears_and_reinits(self, db):
+        """reset() 应清空所有表并重新初始化。"""
+        with db.transaction() as conn:
+            conn.execute(
+                "INSERT INTO plan (id, content, month, seq, no, done, created_at, updated_at, tags, ai_tags, is_ai_gen) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                ("reset-1", "重置前数据", "2606", 1, "2606A", 0, "2026-01-01", "2026-01-01", "[]", "[]", 0),
+            )
+        with db.transaction() as conn:
+            db.reset(conn)
+        # 表应存在但无数据
+        with db.read_transaction() as conn:
+            for table in ("plan", "diary", "word", "accumulation", "aimemory"):
+                cnt = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                assert cnt == 0, f"表 {table} 应清空"
+            # 表结构应仍然完整
+            cols = [r["name"] for r in conn.execute("PRAGMA table_info(plan)")]
+        assert "content" in cols
+        assert "month" in cols
+
+    def test_reset_drops_and_creates_tables(self, tmp_path):
+        """reset() 应先 DROP 再 CREATE（用独立 DB 避免测试污染）。"""
+        from xfun.core.db import DB, Column
+        columns = [
+            Column("id", "TEXT", primary_key=True, nullable=False),
+            Column("content", "TEXT", nullable=True),
+            Column("created_at", "TEXT", nullable=False, auto=True),
+            Column("updated_at", "TEXT", nullable=False, auto=True),
+            Column("tags", "TEXT", nullable=False, auto=True),
+            Column("ai_tags", "TEXT", nullable=False, auto=True),
+            Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
+        ]
+        db = DB(str(tmp_path / "test.db"))
+        with db.transaction() as conn:
+            db.init(conn, {"test_nb": columns})
+        assert set(db.table_infos.keys()) == {"test_nb"}
+        with db.read_transaction() as conn:
+            row = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='test_nb'"
+            ).fetchone()
+        assert row is not None
+        with db.transaction() as conn:
+            db.reset(conn)
+        with db.read_transaction() as conn:
+            existing = {
+                r["name"] for r in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+            }
+        assert existing == {"test_nb"}, f"reset 后表集合不匹配: {existing}"
