@@ -28,7 +28,7 @@ import os
 from typing import Optional
 
 import typer
-from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from typer import Argument, Option
 
 from xfun import db, init_db, registry
@@ -216,10 +216,10 @@ def ai(
         "--json",
         help="以 JSON 格式输出完整消息列表",
     ),
-    stream: bool = Option(
-        False,
+    stream: str = Option(
+        "token",
         "--stream",
-        help="启用流式输出（逐 token 实时显示 LLM 回复）",
+        help="流式模式: token (默认, 逐token), msg (逐消息), sync (阻塞等待完整响应)",
     ),
 ):
     """AI 对话。
@@ -256,31 +256,14 @@ def ai(
         raise typer.Exit(code=1)
 
     with _cli_handle():
-        if stream:
-            # 流式模式：逐 token 显示，工具结果同样实时输出
-            def _on_chunk(msg):
-                if isinstance(msg, AIMessageChunk):
-                    typer.echo(msg.content, nl=False)
-                elif isinstance(msg, ToolMessage):
-                    data = json.loads(msg.content)
-                    results = data.get("results", [])
-                    err = data.get("error")
-                    if err:
-                        typer.echo(f"\n  ❌ {err}")
-                    elif isinstance(results, list) and len(results) > 0:
-                        typer.echo(f"\n  ✅ {len(results)} 条记录")
-                    else:
-                        typer.echo(f"\n  ✅ 完成")
-
-            new_messages = agent_invoke(
-                messages,
-                stream_level=StreamLevel.FULL,
-                on_chunk=_on_chunk,
-            )
-            messages.extend(new_messages)
-            typer.echo()  # 流式输出后补换行
-        else:
-            messages.extend(agent_invoke(messages))
+        stream_level = StreamLevel[stream.upper()]
+        gen = agent_invoke(messages, stream_level=stream_level)
+        try:
+            for msg in gen:
+                typer.echo(msg.content, nl=False)
+        except StopIteration as e:
+            messages.extend(e.value)
+        typer.echo()
 
         if json_output:
             msg_list = [
@@ -288,8 +271,8 @@ def ai(
                 for m in messages
             ]
             typer.echo(json.dumps(msg_list, ensure_ascii=False))
-        elif not stream:
-            # 非流式模式：输出 AI 最终回复（从后往前找第一个有 content 的消息）
+        elif stream_level == StreamLevel.SYNC:
+            # SYNC 模式：输出 AI 最终回复（从后往前找第一个有 content 的消息）
             output = None
             for m in reversed(messages):
                 if hasattr(m, "content") and m.content:
