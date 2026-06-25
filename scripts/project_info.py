@@ -526,7 +526,7 @@ def mermaid(
     """输出带层分组的 Mermaid 流程图"""
     graph = scan_deps()
     layers = build_layers(graph)
-    print(to_mermaid(graph, layers, direction=direction, show_full_path=show_full_path))
+    typer.echo(to_mermaid(graph, layers, direction=direction, show_full_path=show_full_path))
 
 
 @app.command()
@@ -541,7 +541,7 @@ def validate():
             for cycle in cycles
         ],
     }
-    print(json.dumps(result, ensure_ascii=False))
+    typer.echo(json.dumps(result, ensure_ascii=False))
     if cycles:
         raise typer.Exit(code=1)
 
@@ -549,7 +549,7 @@ def validate():
 @app.command()
 def tree():
     """输出项目目录树（依据 .gitignore 过滤）"""
-    print(to_tree())
+    typer.echo(to_tree())
 
 
 if __name__ == "__main__":

@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 
 import typer
@@ -83,7 +84,12 @@ def replace(
     with open(file, "w", encoding="utf-8") as f:
         f.write(result)
 
-    print(f"已替换 {file} 中 {replaced} 对 [{begin}] ~ [{end}] 的内容", file=sys.stderr)
+    typer.echo(json.dumps({
+        "file": file,
+        "replaced": replaced,
+        "begin": begin,
+        "end": end,
+    }, ensure_ascii=False))
 
 
 if __name__ == "__main__":
