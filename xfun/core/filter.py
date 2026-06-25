@@ -205,4 +205,7 @@ def filter_to_json(filter: Filter) -> Any:
     return [[filter_to_json(item) for item in group] for group in filter]
 
 
-from .extras import TRUE_CONDITION, FALSE_CONDITION
+TRUE_CONDITION = Condition("_", None, "TRUE")
+FALSE_CONDITION = Condition("_", None, "FALSE")
+
+from . import extras # 完成运算符注册

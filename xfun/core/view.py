@@ -1,6 +1,6 @@
 from typing import Any
 
-from xfun.core.extras import TRUE_CONDITION
+from xfun.core.filter import TRUE_CONDITION
 from .db import Column, DB
 from .filter import Filter, convert_filter_object, filter_to_json, filter_to_sql
 import json

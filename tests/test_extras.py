@@ -1,7 +1,6 @@
 """测试自定义运算符（JSON_CONTAINS / TEXT_SEARCH / TRUE / FALSE）。"""
 
-from xfun.core.filter import Condition, filter_to_sql
-from xfun.core.extras import TRUE_CONDITION, FALSE_CONDITION
+from xfun.core.filter import Condition, filter_to_sql, TRUE_CONDITION, FALSE_CONDITION
 
 
 class TestJsonContains:

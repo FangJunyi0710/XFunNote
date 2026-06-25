@@ -103,29 +103,3 @@ def _false(column: str, value, op: str):
     常用于构造永假条件以阻断查询，或逻辑禁用某个筛选分支。
     """
     return "1=0", []
-
-
-
-# ---------------------------------------------------------------------------
-# 逻辑常量
-# ---------------------------------------------------------------------------
-
-TRUE_CONDITION = Condition("_", None, "TRUE")
-"""
-恒真条件 Condition 实例，可直接用于 Filter。
-
-用法::
-
-    filter_to_sql([[TRUE_CONDITION]])                     → "1=1"
-    filter_to_sql([[Condition("a", 1), TRUE_CONDITION]])  → "(a = ?) AND (1=1)"
-"""
-
-FALSE_CONDITION = Condition("_", None, "FALSE")
-"""
-恒假条件 Condition 实例，可直接用于 Filter。
-
-用法::
-
-    filter_to_sql([[FALSE_CONDITION]])                     → "1=0"
-    filter_to_sql([[Condition("a", 1), FALSE_CONDITION]])  → "(a = ?) AND (1=0)"
-"""
