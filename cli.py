@@ -32,7 +32,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 from typer import Argument, Option
 
 from xfun import db, init_db, registry
-from xfun.ai.agent import StreamLevel, agent_invoke
+from xfun.ai.agent import StreamLevel, agent_invoke, agent_sync_invoke
 from xfun.ai.prompts import SYSTEM_PROMPT
 from xfun.ai.tools import add_entries, delete_entries, query_entries, update_entries
 from xfun.config import DB_PATH, LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
@@ -266,13 +266,18 @@ def ai(
 
     with _cli_handle():
         stream_level = StreamLevel[stream.upper()]
-        gen = agent_invoke(messages, tools=_AI_TOOLS, stream_level=stream_level)
-        try:
-            for msg in gen:
-                typer.echo(msg.content, nl=False)
-        except StopIteration as e:
-            messages.extend(e.value)
-        typer.echo()
+
+        if stream_level == StreamLevel.SYNC:
+            new_msgs = agent_sync_invoke(messages, tools=_AI_TOOLS)
+            messages.extend(new_msgs)
+        else:
+            gen = agent_invoke(messages, tools=_AI_TOOLS, stream_level=stream_level)
+            try:
+                for msg in gen:
+                    typer.echo(msg.content, nl=False)
+            except StopIteration as e:
+                messages.extend(e.value)
+            typer.echo()
 
         if json_output:
             msg_list = [
