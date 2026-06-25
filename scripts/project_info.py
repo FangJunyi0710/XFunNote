@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import subprocess
+import sys
 from pathlib import Path
 
 # 类型别名
@@ -40,25 +41,50 @@ def _get_root() -> Path:
 
 
 # ════════════════════════════════════════════════════════════
-#  忽略规则（使用 git check-ignore 判断）
+#  忽略规则（首次调用时 git ls-files 批量缓存）
 # ════════════════════════════════════════════════════════════
+
+_NON_IGNORED: set[str] | None = None
+
+def _build_ignore_cache() -> None:
+    """通过单次 ``git ls-files`` 构建所有非忽略文件的相对路径集合（含目录）。"""
+    global _NON_IGNORED
+    if _NON_IGNORED is not None:
+        return
+    root = _get_root()
+    result = subprocess.run(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+        cwd=str(root),
+        capture_output=True, text=True, timeout=30,
+    )
+    _NON_IGNORED = set()
+    for fpath in result.stdout.splitlines():
+        _NON_IGNORED.add(fpath)
+        # 同时缓存父目录路径，供 to_tree 对目录的判断使用
+        parts = fpath.split("/")
+        for i in range(1, len(parts)):
+            _NON_IGNORED.add("/".join(parts[:i]))
 
 
 def _is_ignored(p: Path) -> bool:
-    """判断路径是否被 .gitignore 忽略。"""
-    # .git 是 Git 内部目录，不在 .gitignore 中，需显式排除
+    """判断路径是否被 .gitignore 忽略。
+
+    首次调用时通过一次 ``git ls-files`` 批量加载所有非忽略路径并缓存，
+    后续调用直接查缓存（O(1)）。
+    """
     if ".git" in p.parts:
         return True
     try:
-        result = subprocess.run(
-            ["git", "check-ignore", "-q", str(p)],
-            cwd=str(_get_root()),
-            capture_output=True,
-            timeout=5,
-        )
-        return result.returncode == 0
+        _build_ignore_cache()
     except (subprocess.SubprocessError, FileNotFoundError):
-        return False
+        return False  # 非 Git 仓库：没有忽略规则，全部视为非忽略
+    else:
+        root = _get_root()
+        try:
+            rel = str(p.resolve().relative_to(root))
+        except ValueError:
+            return False
+        return rel not in _NON_IGNORED
 
 
 # ════════════════════════════════════════════════════════════
