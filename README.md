@@ -59,15 +59,18 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
 | **Notebook** | 数据容器基类，子类定义 `_extra_columns` 即可获得完整 CRUD + 筛选能力 |
 | **Condition** | 单个筛选条件（`column op value`），支持通过 `Condition.register_op()` 注册自定义运算符（`JSON_CONTAINS`、`JSON_NOT_CONTAINS`、`TEXT_SEARCH`、`TRUE`、`FALSE` 等） |
 | **Filter** | 递归结构：外层 `OR`，内层 `AND`，支持无限嵌套与整体取反，最终由 `to_sql()` 展开为 SQL WHERE |
-| **View** | 由 `view_to_sql`（UNION ALL + 主键去重）、`view_or`/`view_and`（并集/交集）、`view_clean_*`（AI 列/行清洗）、`view_to_json`/`parse_view_json`（序列化/反序列化）组成的跨本子数据水合体系，通过 `ai_read_view()` / `ai_write_view()` 自动合并安全沙箱 |
+| **View** | `dict[表名, list[(列名列表, 行筛选条件)]]` — 跨本子的数据子集描述。支持 `view_or`（并集）/ `view_and`（交集）/ `view_to_sql`（UNION ALL + 主键去重），通过 `view_to_json` / `parse_view_json` 序列化为 JSON 文件。**用户可保存多份视图 JSON 文件，快速切换不同的数据视角**（如"今日概览"、"本周回顾"、"待复习单词"） |
+| **Permission** | `(read_view: View, write_view: View)` 元组，解耦"谁能看什么"和"谁能改什么"。系统内置 `root_permission()`（全权限，用于 CLI/管理接口）、`ai_permission()`（AI 安全沙箱）、`no_permission()`（零权限，默认拒绝）。**用户可自由组合新的 `(read_view, write_view)` 元组来创建不同访问身份** |
+| **Ops** | 4 个高维操作函数 `query` / `add` / `update` / `delete`，接收 `Permission` + Notebook 类型 + 筛选条件，内部自动完成：`Permission → view_and 合并权限 → view_clean_* 清洗输入 → Notebook 底层 CRUD → 返回完整结果`。**View、Permission、Notebook 三者各司其职，Ops 担任编排角色** |
 
 ### AI 集成
 
 | 概念 | 说明 |
 |------|------|
-| **AI Tools** | `query_entries`、`add_entries`、`update_entries`、`delete_entries` 共 4 个纯 CRUD 工具，另外 4 个（`manage_tags`、`add_ai_note`、`search_memories`、`save_memory`）已精简，按需恢复 |
-| **Agent** | `xfun/ai/agent.py` 工具调用循环引擎：绑定 4 个 CRUD Tools，支持多轮迭代（最多 10 轮）、自动错误恢复、System Prompt + 对话历史管理 |
-| **安全沙箱** | `AI_READ_VIEW` 与 `AI_WRITE_VIEW` 分别定义行级/列级权限白名单，AI 所有操作自动应用 `view_and` 交集约束，杜绝越权 |
+| **权限体系** | `Permission = (read_view, write_view)` 身份系统，内置 root / ai / no 三种身份。AI 所有操作自动应用 `view_and` 交集约束，支持多角色切换 |
+| **AI Tools** | `query_entries`、`add_entries`、`update_entries`、`delete_entries` 共 4 个纯 CRUD 工具。不同 AI 模式可绑定不同工具子集，实现能力分级 |
+| **Agent** | `xfun/ai/agent.py` 工具调用循环引擎：支持多轮迭代（最多 10 轮）、自动错误恢复、System Prompt + 对话历史管理 |
+| **多模式扩展** | 当前 AI 默认使用 `ai_permission()` + 4 个 CRUD 工具。未来可新增 `analyst`（只读）、`editor`（读写）、`manager`（含记忆管理）等模式，各自绑定不同的 Permission + 工具集，通过 `agent_invoke(messages, permission=..., tools=...)` 参数化调用 |
 
 ### 记忆系统
 
@@ -86,6 +89,7 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
 - **数据优先**：所有信息以条目（Entry）为单位存储，统一抽象为 `Notebook`，扩展列按需定义。
 - **筛选驱动**：`Condition` + 递归 `Filter` 构成完整的查询 DSL，支持 AND/OR 嵌套、自定义运算符（`JSON_CONTAINS`、`LIKE` 等），全部下推 SQLite。
 - **AI 原生**：AI 通过 Function Calling 调用 `query_entries`/`update_entries` 等安全工具，自动应用 `AI_READ_VIEW` 与 `AI_WRITE_VIEW` 行级/列级权限沙箱，杜绝越权操作。
+- **权限即身份**：Permission 包含读/写两套独立的 View，天然支持多角色切换。系统内置 root / ai / no 三种身份，用户可自由组合新的 `(read_view, write_view)` 元组来创建"访客"、"协作者"、"管理员"等身份。每套 AI 模式可绑定不同的 Permission + 工具集，实现细粒度的能力分级。
 - **记忆即数据**：用户偏好、AI 规则、分类体系均存储为 `accumulation` 和 `aimemory` 本子中的条目，通过 `ai_tags`/`ai_note` 分散索引。
 - **本地优先**：单文件 SQLite + WAL 模式，零配置同步（iCloud/OneDrive/WebDAV 即可）。
 
@@ -99,11 +103,30 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
 - 所有自定义运算符（`JSON_CONTAINS`、`TEXT_SEARCH` 等）只注册一次 SQL 生成逻辑，永不重复实现 Python 等价逻辑。
 - SQLite 优先走索引列（如 `month`、`done`）压缩数据量，再对少量数据执行 JSON/文本运算，性能充足。
 
-#### 2. AI 安全沙箱：零信任行级/列级权限
-- `ai_read_view()` / `ai_write_view()`：通过 `view_or` 合并通用列与专用列的读/写 View 白名单。
-- 行级权限：`AI_READ_FILTER` 排除含 `"私密"` 标签的条目；`AI_WRITE_FILTER` 基于读权限进一步约束。
-- 列级权限：通过 `view_clean_columns` 自动清洗非授权列（`id`、`created_at`、`seq` 等系统列受保护）。
-- 删除操作必须经过"预览 → 确认"流程，禁止无条件删除。
+#### 2. Permission + AI 安全沙箱：身份即权限
+
+- **Permission 的设计定位**：`(read_view, write_view)` 不是"一个权限值"，而是"一个身份"。系统内置三个身份：
+
+  | 身份 | 读权限 | 写权限 | 适用场景 |
+  |------|--------|--------|---------|
+  | `root_permission` | 全部表 × 全部列 × 无条件 | 同读权限 | CLI 命令、FastAPI 管理接口 |
+  | `ai_permission` | 通用列 + 各本子专用列子集，排除含"私密"标签条目 | 仅 `content/ai_tags/ai_note` + 专用列子集 | AI 默认模式 |
+  | `no_permission` | 零访问 | 零访问 | 默认拒绝兜底 |
+
+- **用户可自由创建新身份**：只需构造新的 View 元组并调用 `ops.query(conn, (my_read_view, my_write_view), ...)` 即可。例如：
+  - `guest_permission` — 限制为 `content` 和 `tags` 两列的只读权限
+  - `shared_permission` — 限定 `plan` 本子中 `done=0` 的条目可见
+
+- **AI 多模式扩展**：不同 AI 模式绑定不同 Permission + 工具集：
+  | 模式 | 权限 | 工具集 | 用途 |
+  |------|------|--------|------|
+  | `analyst` | `(只读, no_permission)` | 仅 `query_entries` | 数据分析 |
+  | `editor` | `(ai_read, ai_write)` | 全部 4 个 CRUD | 内容管理 |
+  | `manager` | `(ai_read, ai_write)` | 全部 CRUD + 记忆管理工具 | 记忆管理 |
+  - 此扩展无需修改 Ops 层、View 层或 Notebook 层
+
+- **列级清洗**：通过 `view_clean_columns` 自动清洗非授权列（`id`、`created_at`、`seq` 等系统列受保护）。
+- **安全删除**：删除操作必须经过"预览 → 确认"流程，禁止无条件删除。
 
 #### 3. 记忆系统：显式记忆库（aimemory）+ 分散痕迹的统一检索
 - 显式记忆存储在 `aimemory` 本子（专用于 AI 记忆沉淀，字段：title/content/source/note）。
@@ -114,6 +137,16 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
 - AI 填充 LaTeX 模板 → 后端 `pdflatex` 编译（最多 3 次迭代纠错）→ 输出 PDF。
 - 用户通过 QQ 反馈 → AI 调用 `save_memory` 固化偏好 → 次日日报自动适配。
 - `cron` 定时触发 CLI，通过 QQ 机器人推送 PDF。
+
+#### 5. 多视图：数据视角的文件化
+
+- View 是可序列化的 JSON 结构，通过 `view_to_json()` / `parse_view_json()` 可存为文件。
+- 用户可在 `input/` 目录中保存多份视图文件，如：
+  - `view_daily.json` — "今日概览"（plan 本子当月 + diary 本子当天）
+  - `view_weekly.json` — "本周回顾"（plan 本子当月 `done=1` + diary 本周）
+  - `view_word_review.json` — "待复习单词"（word 本子 `next_review <= 今天`）
+- `view_or` / `view_and` 支持对已有视图做布尔组合，构建更复杂的跨本子数据子集。
+- 未来 FastAPI 后端可增加 `/api/v1/views/` 路由，让用户通过 RESTful API 管理自己的视图集。
 
 ### 模块详解
 
