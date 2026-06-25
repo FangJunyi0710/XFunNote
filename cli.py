@@ -33,6 +33,8 @@ from typer import Argument, Option
 
 from xfun import db, init_db, registry
 from xfun.ai.agent import StreamLevel, agent_invoke
+from xfun.ai.prompts import SYSTEM_PROMPT
+from xfun.ai.tools import add_entries, delete_entries, query_entries, update_entries
 from xfun.config import DB_PATH, LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
 from xfun.core.errors import XFunError
 from xfun.core.filter import parse_filter_json
@@ -87,6 +89,9 @@ def _cli_handle():
 # ════════════════════════════════════════════════════════════
 #  命令：list — 列出笔记本名称
 # ════════════════════════════════════════════════════════════
+
+
+_AI_TOOLS = [query_entries, add_entries, update_entries, delete_entries]
 
 
 @app.command("list")
@@ -255,9 +260,13 @@ def ai(
         typer.echo(_error("请提供文本或 --messages 参数"))
         raise typer.Exit(code=1)
 
+    # 若消息列表中没有 SystemMessage，自动插入默认系统提示词
+    if not any(isinstance(m, SystemMessage) for m in messages):
+        messages.insert(0, SystemMessage(content=SYSTEM_PROMPT))
+
     with _cli_handle():
         stream_level = StreamLevel[stream.upper()]
-        gen = agent_invoke(messages, stream_level=stream_level)
+        gen = agent_invoke(messages, tools=_AI_TOOLS, stream_level=stream_level)
         try:
             for msg in gen:
                 typer.echo(msg.content, nl=False)
@@ -271,15 +280,6 @@ def ai(
                 for m in messages
             ]
             typer.echo(json.dumps(msg_list, ensure_ascii=False))
-        elif stream_level == StreamLevel.SYNC:
-            # SYNC 模式：输出 AI 最终回复（从后往前找第一个有 content 的消息）
-            output = None
-            for m in reversed(messages):
-                if hasattr(m, "content") and m.content:
-                    output = m.content
-                    break
-            if output:
-                typer.echo(output)
 
 
 # ════════════════════════════════════════════════════════════
