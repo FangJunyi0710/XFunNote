@@ -11,9 +11,12 @@ from xfun.core.view import (
     view_clean_filter,
     view_clean_update,
     root_permission,
+    no_permission,
+    no_view,
     view_to_json,
     parse_view_json,
 )
+from xfun.core.filter import Condition, TRUE_CONDITION, FALSE_CONDITION
 from xfun.core.filter import Condition, TRUE_CONDITION
 
 
@@ -143,6 +146,51 @@ class TestRootPermission:
         for table, cols in db.table_infos.items():
             spec_cols = rv[table][0][0]
             assert len(spec_cols) == len(cols)
+
+
+class TestNoView:
+    def test_no_view_contains_all_tables(self, db):
+        nv = no_view(db)
+        for table in db.table_infos:
+            assert table in nv
+
+    def test_no_view_empty_columns(self, db):
+        nv = no_view(db)
+        for table in db.table_infos:
+            cols, flt = nv[table][0]
+            assert cols == []
+
+    def test_no_view_false_condition(self, db):
+        nv = no_view(db)
+        for table in db.table_infos:
+            _, flt = nv[table][0]
+            assert flt == FALSE_CONDITION
+
+
+class TestNoPermission:
+    def test_no_permission_returns_two_views(self, db):
+        rv, wv = no_permission(db)
+        for table in db.table_infos:
+            assert table in rv
+            assert table in wv
+
+    def test_no_permission_empty_columns(self, db):
+        rv, wv = no_permission(db)
+        for table in db.table_infos:
+            rcols, _ = rv[table][0]
+            wcols, _ = wv[table][0]
+            assert rcols == []
+            assert wcols == []
+
+    def test_no_permission_query_returns_nothing(self, registry, db):
+        nb = registry["plan"]
+        with db.transaction() as conn:
+            nb.add(conn, [{"content": "secret", "month": "2606"}])
+        rv, _ = no_permission(db)
+        sql, params = view_to_sql(rv, db, "plan")
+        with db.transaction() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        assert len(rows) == 0
 
 
 class TestViewSerialization:
