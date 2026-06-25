@@ -175,6 +175,7 @@ class DB:
     def _create_table(conn: _ConnWrapper, table_name: str, cols: list[Column]) -> None:
         """创建新表。"""
         cols_sql = ", ".join(col.sql for col in cols)
+        # 只会被 init 调用，其已检查表名
         conn.execute(f"CREATE TABLE {table_name} ({cols_sql})")
     
     @staticmethod
@@ -182,6 +183,7 @@ class DB:
         conn: _ConnWrapper, table_name: str, desired_cols: list[Column]
     ) -> None:
         """补齐缺失列并检查已有列的一致性。"""
+        # 只会被 init 调用，其已检查表名
         existing_cols = {
             row["name"]: row
             for row in conn.execute(f"PRAGMA table_info({table_name})")
@@ -197,6 +199,7 @@ class DB:
     @staticmethod
     def _create_indexes(conn: _ConnWrapper, table_name: str, cols: list[Column]) -> None:
         """为指定列建索引。"""
+        # 只会被 init 调用，其已检查表名
         for col in cols:
             if not col.index:
                 continue

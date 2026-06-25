@@ -13,6 +13,7 @@ _AI_READ_FILTER: Filter = [[
 ]]
 
 _AI_WRITE_FILTER: Filter =[[_AI_READ_FILTER, 
+    # 读取基础上的附加条件：可写必可读。
     TRUE_CONDITION
 ]]
 
