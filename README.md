@@ -33,7 +33,7 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 | ------------ | ----------------------------------------------------------------------------- |
 | 语言         | Python 3.10+                                                                  |
 | 数据库       | SQLite（WAL 模式，读写分离事务）                                              |
-| CLI 框架     | Typer（规划中）                                                               |
+| CLI 框架     | Typer                                                               |
 | AI           | LangChain + LangGraph + DeepSeek API（通过 `langchain_openai.ChatOpenAI` 兼容层） |
 | 数据模型     | Pydantic（JSON Schema 生成与 AI 输入校验）                                     |
 | 测试         | pytest + pytest-cov                                                           |
@@ -53,9 +53,10 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 | **内置本子** | 基于基类扩展的 5 种预置实现 — 计划（字母编号/月分组）、日记（日期维）、单词（复习跟踪/去重）、积累（分类积累）、AI 记忆（标题/来源/备注）。各子类仅需定义扩展列和自动填充逻辑即可获得完整 CRUD + 批量操作 + 筛选查询，通过 dict 注册可插拔扩展 |
 | **注册中心** | 通过 `dict` 管理所有 Notebook 实例，支持注册/查找/注销/迭代 |
 | **AI Tools 层（核心）** | `xfun/ai/tools.py` 4 个纯 CRUD Function Calling 工具（`query_entries`、`add_entries`、`update_entries`、`delete_entries`）+ `xfun/ai/security.py` 行级/列级安全沙箱（`AI_READ_VIEW`、`AI_WRITE_VIEW`）+ `xfun/ai/schema.py` Pydantic JSON Schema 双重校验 + `xfun/ai/prompts.py` 系统提示词 |
-| **AI Tools 层（待重写）** | `xfun/ai/agent.py` LangChain Agent 对话接口已清空，`cli.py` 命令行已清空，待其他模块稳定后重写 |
+| **Agent 对话引擎** | `xfun/ai/agent.py` 工具调用循环（Tool Calling Loop），支持多轮工具调用、自动错误恢复、最大迭代控制（10 轮） |
+| **Ops 操作层** | `xfun/core/ops.py` 4 个高维 CRUD 函数（`query`/`add`/`update`/`delete`），封装 View + Notebook 的组合语义 |
 | **视图层** | `xfun/core/view.py` 6 个核心函数：`view_to_sql`（跨本子 UNION ALL + 主键去重）、`view_or`/`view_and`（并集/交集）、`view_clean_columns`/`view_clean_filter`/`view_clean_update`（AI 安全沙箱列/行清洗）、`view_to_json`/`parse_view_json`（序列化/反序列化） |
-| **测试覆盖** | 全面覆盖核心引擎正常路径、边界条件、错误路径及事务回滚，150+ 个单元测试，13 个测试文件 |
+| **测试覆盖** | 全面覆盖核心引擎正常路径、边界条件、错误路径及事务回滚，230+ 个单元测试，17 个测试文件 |
 
 ### 🗺️ 规划中
 
@@ -86,7 +87,7 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 - [x] `Filter` 递归 `to_sql()`，支持无限嵌套 OR/AND + `negate`
 - [x] `Notebook` 基类抽象 + 5 个本子（`plan`、`word`、`diary`、`accumulation`、`aimemory`）
 - [x] SQLite 数据库引擎（Column / Condition / Filter / DB / View）
-- [x] 单元测试 150+ 个，覆盖率 100%
+- [x] 单元测试 230+ 个，覆盖率 100%
 
 ### 阶段一：AI Tools 层
 - [x] 在 `xfun/ai/tools.py` 中实现 4 个纯 CRUD 工具：
@@ -100,7 +101,8 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
   - `AI_WRITE_VIEW`（行级写权限 View 白名单）
 - [x] 在 `xfun/ai/schema.py` 中实现 Pydantic 模型（`ConditionModel`、`FilterModel`、`TableSpecModel`、`ViewModel`），为 AI 提供 JSON Schema 格式校验 + 运算符枚举校验
 - [x] 在 `xfun/ai/prompts.py` 中定义 AI 系统提示词
-- [ ] `agent.py` 与 `cli.py` 已清空，待核心模块稳定后重写
+- [x] `agent.py` 工具调用循环实现（LLM 绑定 4 个 CRUD Tools，多轮循环 + 自动错误恢复 + 最大迭代控制）
+- [x] `cli.py` 命令行入口（Typer），完整实现 9 个命令（list / schema / query / add / update / delete / ai / config / init），已接入 Agent 对话引擎
 
 ### 阶段一点五：记忆导入与持续学习
 - [ ] 实现 `xfun/ai/importers/` 模块：
@@ -198,9 +200,11 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 | 优先级 | 阶段 | 产出 |
 | :--- | :--- | :--- |
 | ✅ 已完成 | AI Tools 层（精简版） | `xfun/ai/security.py` + `xfun/ai/tools.py`（4 个 CRUD 工具）+ `xfun/ai/prompts.py` + `xfun/ai/schema.py` |
+| ✅ 已完成 | Agent 对话引擎 | `xfun/ai/agent.py` Tool Calling Loop（LLM + 4 CRUD 工具，多轮 + 错误恢复） |
 | ✅ 已完成 | View 层 | `xfun/core/view.py`（跨本子数据水合） |
+| ✅ 已完成 | Ops 操作层 | `xfun/core/ops.py`（query/add/update/delete，封装 View+Notebook 语义） |
 | 🟢 核心 | AI 日报闭环 | `daily.py` + `latex.py` + QQ 集成 |
-| 🟡 后续 | Agent + CLI 重写 | `agent.py` 与 `cli.py` 已清空，待核心稳定后重写 |
+| 🟢 已完成 | CLI 入口 | `cli.py` Typer 命令行（9 个命令），已接入 Agent |
 | 🟡 后续 | 记忆导入与持续学习 | `importers/` + `learner.py` |
 | 🔵 按需 | FastAPI 后端 | `backend/main.py` RESTful API |
 | ⚪ 远期 | 前端可视化 | `frontend/app.py` Streamlit 界面 |
@@ -276,6 +280,8 @@ source .venv/bin/activate
 | **Filter** | 递归结构：外层 `OR`，内层 `AND`，支持无限嵌套与整体取反，最终由 `to_sql()` 展开为 SQL WHERE |
 | **View** | 由 `view_to_sql`（UNION ALL + 主键去重）、`view_or`/`view_and`（并集/交集）、`view_clean_*`（AI 列/行清洗）、`view_to_json`/`parse_view_json`（序列化/反序列化）组成的跨本子数据水合体系，通过 `ai_read_view()` / `ai_write_view()` 自动合并安全沙箱 |
 | **AI Tools** | `query_entries`、`add_entries`、`update_entries`、`delete_entries` 共 4 个纯 CRUD 工具，另外 4 个（`manage_tags`、`add_ai_note`、`search_memories`、`save_memory`）已精简，按需恢复 |
+| **Agent** | `xfun/ai/agent.py` 工具调用循环引擎：绑定 4 个 CRUD Tools，支持多轮迭代（最多 10 轮）、自动错误恢复、System Prompt + 对话历史管理 |
+| **Ops** | `xfun/core/ops.py` 高维 CRUD 函数（`query`/`add`/`update`/`delete`），封装 View + Notebook 组合语义，是 AI Tools 与 CLI 的底层调用入口 |
 | **安全沙箱** | `AI_READ_VIEW` 与 `AI_WRITE_VIEW` 分别定义行级/列级权限白名单，AI 所有操作自动应用 `view_and` 交集约束，杜绝越权 |
 | **记忆系统** | `aimemory` 本子存储 AI 结构化记忆（标题 + 内容 + 标签）+ `accumulation` 本子存储通用知识积累 + 各本子 `ai_tags`/`ai_note` 分散索引 |
 
@@ -285,7 +291,7 @@ source .venv/bin/activate
 
 ```
 XFunNote/
-├── cli.py                  # 命令行入口（已清空，待重写）
+├── cli.py                  # 命令行入口（Typer，已接入 Agent）
 ├── setup.sh                # 环境构建脚本
 ├── requirements.txt        # Python 依赖
 ├── .env.example            # 环境变量模板（复制为 .env 后填写）
@@ -297,6 +303,7 @@ XFunNote/
 │   │   ├── errors.py       #     异常体系
 │   │   ├── extras.py       #     自定义运算符注册（JSON_CONTAINS、TEXT_SEARCH、TRUE、FALSE 等）
 │   │   ├── filter.py       #     递归筛选引擎（Filter/Condition）
+│   │   ├── ops.py          #     Ops 操作层（query/add/update/delete 高维 CRUD）
 │   │   └── view.py         #     跨本子数据水合与查询
 │   ├── notebooks/          #   具体 Notebook 实现
 │   │   ├── plan.py         #     计划本
@@ -304,8 +311,8 @@ XFunNote/
 │   │   ├── word.py         #     单词本
 │   │   ├── accumulation.py #     积累本
 │   │   └── aimemory.py     #     AI 记忆本（标题/来源/备注）
-│   ├── ai/                 #   AI 模块（4 个 CRUD Tools + 安全沙箱 + Prompts + Schema）
-│   │   ├── agent.py        #     Agent 对话接口（已清空，待重写）
+│   ├── ai/                 #   AI 模块（Agent 引擎 + 4 个 CRUD Tools + 安全沙箱 + Prompts + Schema）
+│   │   ├── agent.py        #     Agent 对话引擎（Tool Calling Loop，绑定 4 个 CRUD 工具）
 │   │   ├── tools.py        #     4 个 Function Calling CRUD 工具
 │   │   ├── security.py     #     AI 安全沙箱（行级/列级权限）
 │   │   ├── prompts.py      #     系统提示词
@@ -321,7 +328,7 @@ XFunNote/
 │   └── app.py              # [待实现] Streamlit 前端
 ├── scripts/
 │   └── testai.py           # AI 连接测试脚本
-├── tests/                  # 测试套件（13 个文件，150+ 单元测试）
+├── tests/                  # 测试套件（17 个文件，230+ 单元测试）
 ├── data/                   # SQLite 数据库
 ├── input/                  # AI 记忆 / 计划文件
 └── output/                 # AI 输出目录
