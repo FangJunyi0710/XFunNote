@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -451,7 +452,7 @@ def to_mermaid(
         for dep in deps:
             lines.append(f"    {_safe_id(mod)} --> {_safe_id(dep)}")
 
-    return "```mermaid\n" + "\n".join(lines) + "\n```"
+    return "\n".join(lines)
 
 
 # ════════════════════════════════════════════════════════════
@@ -530,15 +531,19 @@ def mermaid(
 
 @app.command()
 def validate():
-    """校验有无循环依赖"""
+    """校验有无循环依赖（JSON 结构化输出）"""
     graph = scan_deps()
     cycles = find_cycles(graph)
+    result: dict = {
+        "valid": len(cycles) == 0,
+        "cycles": [
+            [Path(m).name for m in cycle]
+            for cycle in cycles
+        ],
+    }
+    print(json.dumps(result, ensure_ascii=False))
     if cycles:
-        print("⚠️  发现循环依赖:")
-        for c in cycles:
-            print(f"  {' → '.join(Path(m).name for m in c)}")
         raise typer.Exit(code=1)
-    print("✅  无循环依赖")
 
 
 @app.command()
