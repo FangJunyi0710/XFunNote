@@ -26,7 +26,7 @@ import os
 from typing import Optional
 
 import typer
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from typer import Argument, Option
 
 from xfun import db, init_db, registry
@@ -61,15 +61,13 @@ def _validate_notetype(notetype: str) -> None:
 
 
 def _msg_role(msg) -> str:
-    """返回消息的 role 字符串（user / assistant / system / tool）。"""
-    name = type(msg).__name__
-    if "Human" in name:
+    if isinstance(msg, HumanMessage):
         return "user"
-    if "AI" in name or "AIMessage" in name:
+    if isinstance(msg, AIMessage):
         return "assistant"
-    if "System" in name:
+    if isinstance(msg, SystemMessage):
         return "system"
-    if "Tool" in name:
+    if isinstance(msg, ToolMessage):
         return "tool"
     return "unknown"
 
@@ -273,47 +271,6 @@ def ai(
         raise typer.Exit(code=1)
     except Exception as e:
         typer.echo(_error(str(e)))
-        raise typer.Exit(code=1)
-
-
-# ════════════════════════════════════════════════════════════
-#  命令：config — 配置管理
-# ════════════════════════════════════════════════════════════
-
-
-@app.command()
-def config(
-    action: str = Argument(help="操作: show / set"),
-    key: Optional[str] = Argument(None, help="配置键（set 时必填）"),
-    value: Optional[str] = Argument(None, help="配置值（set 时必填）"),
-):
-    """配置管理。show：查看当前配置；set：设置配置项并写入 .env。"""
-    if action == "show":
-        typer.echo(
-            json.dumps(
-                {
-                    "DB_PATH": DB_PATH,
-                    "LLM_MODEL": LLM_MODEL,
-                    "LLM_BASE_URL": LLM_BASE_URL,
-                    "LLM_API_KEY": "***" if LLM_API_KEY else "",
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
-    elif action == "set":
-        if not key or value is None:
-            typer.echo(_error("set 操作需要 KEY 和 VALUE"))
-            raise typer.Exit(code=1)
-        # 写入 .env 文件
-        env_path = os.path.join(os.path.dirname(__file__), ".env")
-        with open(env_path, "a") as f:
-            f.write(f"\n{key}={value}")
-        # 立即生效
-        os.environ[key] = value
-        typer.echo(json.dumps({"message": f"{key}={value} 已设置"}, ensure_ascii=False))
-    else:
-        typer.echo(_error(f"未知操作: {action}, 可用: show, set"))
         raise typer.Exit(code=1)
 
 
