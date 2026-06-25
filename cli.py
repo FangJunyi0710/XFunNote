@@ -28,11 +28,11 @@ import os
 from typing import Optional
 
 import typer
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, SystemMessage, ToolMessage
 from typer import Argument, Option
 
 from xfun import db, init_db, registry
-from xfun.ai.agent import agent_invoke
+from xfun.ai.agent import StreamLevel, agent_invoke
 from xfun.config import DB_PATH, LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
 from xfun.core.errors import XFunError
 from xfun.core.filter import parse_filter_json
@@ -216,11 +216,17 @@ def ai(
         "--json",
         help="以 JSON 格式输出完整消息列表",
     ),
+    stream: bool = Option(
+        False,
+        "--stream",
+        help="启用流式输出（逐 token 实时显示 LLM 回复）",
+    ),
 ):
     """AI 对话。
 
     支持单轮 / 多轮对话。通过 [TEXT]... 传入当前提问，
     通过 --messages 传入历史消息实现持续对话。
+    通过 --stream 启用流式输出。
     """
     # 解析 --messages 参数
     messages: list = []
@@ -250,15 +256,40 @@ def ai(
         raise typer.Exit(code=1)
 
     with _cli_handle():
-        messages.extend(agent_invoke(messages))
+        if stream:
+            # 流式模式：逐 token 显示，工具结果同样实时输出
+            def _on_chunk(msg):
+                if isinstance(msg, AIMessageChunk):
+                    typer.echo(msg.content, nl=False)
+                elif isinstance(msg, ToolMessage):
+                    data = json.loads(msg.content)
+                    results = data.get("results", [])
+                    err = data.get("error")
+                    if err:
+                        typer.echo(f"\n  ❌ {err}")
+                    elif isinstance(results, list) and len(results) > 0:
+                        typer.echo(f"\n  ✅ {len(results)} 条记录")
+                    else:
+                        typer.echo(f"\n  ✅ 完成")
+
+            new_messages = agent_invoke(
+                messages,
+                stream_level=StreamLevel.FULL,
+                on_chunk=_on_chunk,
+            )
+            messages.extend(new_messages)
+            typer.echo()  # 流式输出后补换行
+        else:
+            messages.extend(agent_invoke(messages))
+
         if json_output:
             msg_list = [
                 {"role": _msg_role(m), "content": m.content}
                 for m in messages
             ]
             typer.echo(json.dumps(msg_list, ensure_ascii=False))
-        else:
-            # 输出 AI 最终回复（从后往前找第一个有 content 的消息）
+        elif not stream:
+            # 非流式模式：输出 AI 最终回复（从后往前找第一个有 content 的消息）
             output = None
             for m in reversed(messages):
                 if hasattr(m, "content") and m.content:
