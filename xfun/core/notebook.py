@@ -145,8 +145,7 @@ class Notebook:
         if order_by:
             Column.check_order_by(order_by)
             sql += f" ORDER BY {order_by}"
-        if limit >= 0:
-            sql += f" LIMIT {limit} OFFSET {offset}"
+        sql += f" LIMIT {limit} OFFSET {offset}"
         rows = conn.execute(sql, params).fetchall()
         return [row["id"] for row in rows]
 
