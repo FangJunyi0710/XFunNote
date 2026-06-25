@@ -72,6 +72,8 @@ def replace(
         parts.append(original[cursor:marker_begin_end])
         # 插入新内容
         parts.append(new_content)
+        # 保留 end 标志
+        parts.append(original[end_idx:end_idx + len(end)])
         # 跳过 end 标志
         cursor = end_idx + len(end)
         replaced += 1
