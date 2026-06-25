@@ -24,9 +24,13 @@ build/
 
 diff.*
 
-input/
-output/
-scripts/
-data/
+input/*
+output/*
+data/*.db*
+data/backups/*
+
+!input/.gitkeep
+!output/.gitkeep
+!data/backups/.gitkeep
 
 .coverage
