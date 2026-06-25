@@ -20,6 +20,7 @@ XFunNote CLI — 命令行接口
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import asdict
 import json
 import os
@@ -72,6 +73,16 @@ def _msg_role(msg) -> str:
     return "unknown"
 
 
+@contextmanager
+def _cli_handle():
+    """统一捕获异常，输出 JSON 错误并退出。"""
+    try:
+        yield
+    except Exception as e:
+        typer.echo(_error(str(e)))
+        raise typer.Exit(code=1)
+
+
 # ════════════════════════════════════════════════════════════
 #  命令：list — 列出笔记本名称
 # ════════════════════════════════════════════════════════════
@@ -111,7 +122,7 @@ def query(
 ):
     """通用查询。返回匹配的条目列表。"""
     _validate_notetype(notetype)
-    try:
+    with _cli_handle():
         view = parse_view_json(view_json)
         perm = root_permission(db)
         with db.read_transaction() as conn:
@@ -120,9 +131,6 @@ def query(
                 order_by=order_by, limit=limit, offset=offset,
             )
         typer.echo(json.dumps(results, ensure_ascii=False, default=str))
-    except Exception as e:
-        typer.echo(_error(str(e)))
-        raise typer.Exit(code=1)
 
 
 # ════════════════════════════════════════════════════════════
@@ -137,15 +145,12 @@ def add(
 ):
     """通用添加。返回新增条目的完整信息。"""
     _validate_notetype(notetype)
-    try:
+    with _cli_handle():
         entries = json.loads(entries_json)
         perm = root_permission(db)
         with db.transaction() as conn:
             results = ops_add(conn, perm, notetype, entries)
         typer.echo(json.dumps(results, ensure_ascii=False, default=str))
-    except Exception as e:
-        typer.echo(_error(str(e)))
-        raise typer.Exit(code=1)
 
 
 # ════════════════════════════════════════════════════════════
@@ -161,16 +166,13 @@ def update(
 ):
     """通用更新。返回更新后条目的完整信息。"""
     _validate_notetype(notetype)
-    try:
+    with _cli_handle():
         flt = parse_filter_json(filter_json)
         values = json.loads(values_json)
         perm = root_permission(db)
         with db.transaction() as conn:
             results = ops_update(conn, perm, notetype, flt, values)
         typer.echo(json.dumps(results, ensure_ascii=False, default=str))
-    except Exception as e:
-        typer.echo(_error(str(e)))
-        raise typer.Exit(code=1)
 
 
 # ════════════════════════════════════════════════════════════
@@ -185,15 +187,12 @@ def delete(
 ):
     """通用删除。返回被删除条目的完整信息。"""
     _validate_notetype(notetype)
-    try:
+    with _cli_handle():
         flt = parse_filter_json(filter_json)
         perm = root_permission(db)
         with db.transaction() as conn:
             results = ops_delete(conn, perm, notetype, flt)
         typer.echo(json.dumps(results, ensure_ascii=False, default=str))
-    except Exception as e:
-        typer.echo(_error(str(e)))
-        raise typer.Exit(code=1)
 
 
 # ════════════════════════════════════════════════════════════
@@ -249,7 +248,7 @@ def ai(
         typer.echo(_error("请提供文本或 --messages 参数"))
         raise typer.Exit(code=1)
 
-    try:
+    with _cli_handle():
         messages.extend(agent_invoke(messages))
         if json_output:
             msg_list = [
@@ -266,12 +265,6 @@ def ai(
                     break
             if output:
                 typer.echo(output)
-    except XFunError as e:
-        typer.echo(_error(str(e)))
-        raise typer.Exit(code=1)
-    except Exception as e:
-        typer.echo(_error(str(e)))
-        raise typer.Exit(code=1)
 
 
 # ════════════════════════════════════════════════════════════
@@ -282,13 +275,10 @@ def ai(
 @app.command()
 def init():
     """初始化数据库（建表 / 同步列 / 建索引）。"""
-    try:
+    with _cli_handle():
         with db.transaction() as conn:
             init_db(conn)
             typer.echo(json.dumps({"message": "数据库初始化完成"}, ensure_ascii=False))
-    except Exception as e:
-        typer.echo(_error(str(e)))
-        raise typer.Exit(code=1)
 
 
 # ════════════════════════════════════════════════════════════
@@ -299,13 +289,10 @@ def init():
 @app.command()
 def backup():
     """在线热备份数据库。"""
-    try:
+    with _cli_handle():
         with db.read_transaction() as conn:
             path = db.backup(conn)
             typer.echo(json.dumps({"message": f"备份完成: {path}"}, ensure_ascii=False))
-    except Exception as e:
-        typer.echo(_error(str(e)))
-        raise typer.Exit(code=1)
 
 
 # ════════════════════════════════════════════════════════════
@@ -321,16 +308,13 @@ def reset(
     """重置数据库（清空所有表并重新初始化）。"""
     if not force:
         typer.confirm("⚠️  重置将清空所有数据，是否继续？", abort=True)
-    try:
+    with _cli_handle():
         with db.read_transaction() as conn:
             if not no_backup:
                 path = db.backup(conn)
                 typer.echo(json.dumps({"backup": path}, ensure_ascii=False))
             db.reset(conn)
             typer.echo(json.dumps({"message": "数据库已重置"}, ensure_ascii=False))
-    except Exception as e:
-        typer.echo(_error(str(e)))
-        raise typer.Exit(code=1)
 
 
 # ════════════════════════════════════════════════════════════

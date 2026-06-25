@@ -14,6 +14,7 @@ from .schema import FilterModel, ViewModel
 def _query(conn, table: str, view: View, order_by: str = "", limit: int = -1, offset: int = 0) -> list[dict]:
     return ops.query(conn, ai_permission(), table, view, order_by, limit, offset)
 
+
 def _add(conn, notetype: str, entries: list[dict]) -> list[dict]:
     if notetype not in registry:
         raise ToolError(f"不支持的笔记类型: {notetype}")
@@ -21,11 +22,35 @@ def _add(conn, notetype: str, entries: list[dict]) -> list[dict]:
     ids = [r["id"] for r in results if "id" in r]
     return ops.update(conn, root_permission(conn.db), notetype, Condition("id", ids, "IN"), {"is_ai_gen": 1})
 
+
 def _update(conn, notetype: str, filter, values: dict) -> list[dict]:
     return ops.update(conn, ai_permission(), notetype, filter, values)
 
+
 def _delete(conn, notetype: str, filter) -> list[dict]:
     return ops.delete(conn, ai_permission(), notetype, filter)
+
+
+# ---- 事务 + 异常处理辅助 ----
+
+def _with_read_tool(impl) -> str:
+    """只读事务 + XFunError 处理，返回 JSON。"""
+    try:
+        with db.read_transaction() as conn:
+            results = impl(conn)
+        return json.dumps({"results": results}, ensure_ascii=False, default=str)
+    except XFunError as e:
+        return json.dumps({"error": str(e)}, ensure_ascii=False)
+
+
+def _with_write_tool(impl) -> str:
+    """写事务 + XFunError 处理，返回 JSON。"""
+    try:
+        with db.transaction() as conn:
+            results = impl(conn)
+        return json.dumps({"results": results}, ensure_ascii=False, default=str)
+    except XFunError as e:
+        return json.dumps({"error": str(e)}, ensure_ascii=False)
 
 
 @tool
@@ -51,12 +76,7 @@ def query_entries(
     Returns:
         JSON 字符串，包含 results 列表或 error 信息。
     """
-    try:
-        with db.read_transaction() as conn:
-            results = _query(conn, notetype, view.to_view(), order_by, limit, offset)
-        return json.dumps({"results": results}, ensure_ascii=False, default=str)
-    except XFunError as e:
-        return json.dumps({"error": str(e)}, ensure_ascii=False)
+    return _with_read_tool(lambda conn: _query(conn, notetype, view.to_view(), order_by, limit, offset))
 
 
 @tool
@@ -73,12 +93,7 @@ def add_entries(notetype: str, entries: list[dict[str, Any]]) -> str:
     Returns:
         JSON 字符串，包含 results（新增条目的完整信息，含 id）或 error。
     """
-    try:
-        with db.transaction() as conn:
-            results = _add(conn, notetype, entries)
-        return json.dumps({"results": results}, ensure_ascii=False, default=str)
-    except XFunError as e:
-        return json.dumps({"error": str(e)}, ensure_ascii=False)
+    return _with_write_tool(lambda conn: _add(conn, notetype, entries))
 
 
 @tool
@@ -96,12 +111,7 @@ def update_entries(notetype: str, filter: FilterModel, values: dict[str, Any]) -
     Returns:
         JSON 字符串，包含 results（更新后条目的完整信息）或 error。
     """
-    try:
-        with db.transaction() as conn:
-            results = _update(conn, notetype, filter.to_filter(), values)
-        return json.dumps({"results": results}, ensure_ascii=False, default=str)
-    except XFunError as e:
-        return json.dumps({"error": str(e)}, ensure_ascii=False)
+    return _with_write_tool(lambda conn: _update(conn, notetype, filter.to_filter(), values))
 
 
 @tool
@@ -117,9 +127,4 @@ def delete_entries(notetype: str, filter: FilterModel) -> str:
     Returns:
         JSON 字符串，包含 results（被删除条目的完整信息）或 error。
     """
-    try:
-        with db.transaction() as conn:
-            results = _delete(conn, notetype, filter.to_filter())
-        return json.dumps({"results": results}, ensure_ascii=False, default=str)
-    except XFunError as e:
-        return json.dumps({"error": str(e)}, ensure_ascii=False)
+    return _with_write_tool(lambda conn: _delete(conn, notetype, filter.to_filter()))
