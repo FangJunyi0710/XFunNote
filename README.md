@@ -39,8 +39,8 @@ source .venv/bin/activate
 |------|------|
 | `XFUN_USER` | 数据库用户名，拼接为 `data/{用户名}.db`。若未设置，默认回退为 `data/default.db` |
 | `LLM_API_KEY` | DeepSeek API Key，用于 AI 功能 |
-| `LLM_BASE_URL` | DeepSeek API 端点，默认为 `https://api.deepseek.com` |
-| `LLM_MODEL` | 默认模型，建议 `deepseek-v4-flash` |
+| `LLM_BASE_URL` | DeepSeek API 端点，若不设置则为 None（ChatOpenAI 使用默认端点） |
+| `LLM_MODEL` | 默认模型，若不设置则为 None，建议设为 `deepseek-v4-flash` |
 | `QQ_BOT_HTTP_URL` | QQ 机器人 HTTP API 地址（推送日报用） |
 
 ### 2. 数据库路径
@@ -123,7 +123,7 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
 | `xfun/notebooks/` | 内置本子 — 5 种预置 Notebook 实现 | `plan.py` / `diary.py` / `word.py` / `accumulation.py` / `aimemory.py` |
 | `xfun/ai/` | AI 集成层 — 安全沙箱、CRUD Tools、Agent 引擎、提示词与 Schema 校验 | `tools.py` / `agent.py` / `security.py` / `schema.py` / `prompts.py` |
 | `xfun/utils/` | 工具函数 | `time_utils.py` |
-| `cli.py` | 命令行入口（Typer, 9 个命令） | — |
+| `cli.py` | 命令行入口（Typer, 10 个命令） | — |
 | `tests/` | 测试套件 | 17 个文件，230+ 测试 |
 | `backend/`、`frontend/` | 规划中的 FastAPI 后端与 Streamlit 前端 | — |
 
@@ -134,7 +134,7 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
 | 语言 | Python 3.10+ |
 | 数据库 | SQLite（WAL 模式，读写分离事务） |
 | CLI 框架 | Typer |
-| AI | LangChain + LangGraph + DeepSeek API（通过 `langchain_openai.ChatOpenAI` 兼容层） |
+| AI | LangChain + DeepSeek API（通过 `langchain_openai.ChatOpenAI` 兼容层） |
 | 数据模型 | Pydantic（JSON Schema 生成与 AI 输入校验） |
 | 测试 | pytest + pytest-cov |
 | 后端 API | FastAPI（规划中） |
@@ -202,7 +202,7 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
 - [x] 在 `xfun/ai/schema.py` 中实现 Pydantic 模型（`ConditionModel`、`FilterModel`、`TableSpecModel`、`ViewModel`），为 AI 提供 JSON Schema 格式校验 + 运算符枚举校验
 - [x] 在 `xfun/ai/prompts.py` 中定义 AI 系统提示词
 - [x] `agent.py` 工具调用循环实现（LLM 绑定 4 个 CRUD Tools，多轮循环 + 自动错误恢复 + 最大迭代控制）
-- [x] `cli.py` 命令行入口（Typer），完整实现 9 个命令（list / schema / query / add / update / delete / ai / config / init），已接入 Agent 对话引擎
+- [x] `cli.py` 命令行入口（Typer），完整实现 10 个命令（list / schema / query / add / update / delete / ai / init / backup / reset），已接入 Agent 对话引擎
 
 #### 阶段一点五：记忆导入与持续学习
 - [ ] 实现 `xfun/ai/importers/` 模块：

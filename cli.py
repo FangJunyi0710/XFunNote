@@ -14,8 +14,9 @@ XFunNote CLI — 命令行接口
     xfun update    NOTE_TYPE FILTER_JSON VALUES_JSON  → 通用更新
     xfun delete    NOTE_TYPE FILTER_JSON    → 通用删除
     xfun ai        [TEXT]...               → AI 对话
-    xfun config    show / set KEY VALUE     → 配置管理
     xfun init                               → 初始化数据库
+    xfun backup                             → 在线热备份数据库
+    xfun reset     [--force] [--no-backup]  → 重置数据库
 """
 
 from __future__ import annotations
