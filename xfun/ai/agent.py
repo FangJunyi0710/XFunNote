@@ -91,13 +91,13 @@ def agent_invoke(
                         yield chunk  # AIMessageChunk — 逐 token 流式
 
                 for tcc in chunk.tool_call_chunks or []:
-                    idx = getattr(tcc, "index", 0) or 0
+                    idx = tcc.get("index", 0) or 0
                     if idx not in tool_call_buffers:
                         tool_call_buffers[idx] = {"name": "", "args": "", "id": ""}
                     buf = tool_call_buffers[idx]
-                    buf["name"] += getattr(tcc, "name", "") or ""
-                    buf["args"] += getattr(tcc, "args", "") or ""
-                    buf["id"] += getattr(tcc, "id", "") or ""
+                    buf["name"] += tcc.get("name", "") or ""
+                    buf["args"] += tcc.get("args", "") or ""
+                    buf["id"] += tcc.get("id", "") or ""
 
             tool_calls = _accumulate_tool_calls(tool_call_buffers)
             response = AIMessage(content=full_content, tool_calls=tool_calls)
@@ -152,9 +152,7 @@ def _execute_tool_call(
     tc: dict[str, Any],
     tools: list[BaseTool],
 ) -> ToolMessage:
-    """
-    执行单次工具调用并返回 ToolMessage。
-    """
+    """执行单次工具调用并返回 ToolMessage。"""
     tool_name = tc["name"]
     tool_args = tc["args"]
     tool_id: str = tc["id"]
