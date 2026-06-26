@@ -507,7 +507,6 @@ graph LR
     tests_conftest --> xfun_notebooks_word
     tests_test_accumulation --> xfun_core_filter
     tests_test_ai_agent --> xfun_ai_agent
-    tests_test_ai_agent --> xfun_core_errors
     tests_test_ai_prompts --> xfun_ai___init__
     tests_test_ai_prompts --> xfun_ai_prompts
     tests_test_ai_prompts --> xfun_core_errors

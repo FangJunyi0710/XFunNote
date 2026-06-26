@@ -10,12 +10,11 @@ from langchain_core.messages import AIMessage, AIMessageChunk, ToolCall, ToolMes
 from xfun.ai.agent import (
     StreamLevel,
     _accumulate_tool_calls,
+    _build_llm,
     _execute_tool_call,
     _find_tool,
     agent_invoke,
-    agent_sync_invoke,
 )
-from xfun.core.errors import ToolError
 
 
 # ════════════════════════════════════════════════════════════════
@@ -43,7 +42,6 @@ def mock_error_tool():
 def mock_tcc():
     """创建一个 ToolCallChunk 风格的 dict。"""
     return {"name": "test_tool", "args": '{"key": "val"}', "id": "call_1", "index": 0}
-    return chunk
 
 
 # ════════════════════════════════════════════════════════════════
@@ -117,8 +115,11 @@ class TestExecuteToolCall:
 
     def test_tool_not_found(self):
         tc = ToolCall(name="nonexistent", args={}, id="call_3")
-        with pytest.raises(ToolError, match="未知工具"):
-            _execute_tool_call(tc, [])
+        tm = _execute_tool_call(tc, [])
+        result = json.loads(tm.content)
+        assert "error" in result
+        assert "未知工具" in result["error"]
+        assert tm.tool_call_id == "call_3"
 
 
 class TestStreamLevel:
@@ -129,6 +130,42 @@ class TestStreamLevel:
 
     def test_is_enum(self):
         assert isinstance(StreamLevel.TOKEN, StreamLevel)
+
+
+# ════════════════════════════════════════════════════════════════
+#  _build_llm 测试
+# ════════════════════════════════════════════════════════════════
+
+
+class TestBuildLLM:
+    """直接测试 _build_llm，不 mock 它，只 mock ChatOpenAI。"""
+
+    def test_builds_llm_with_tools(self, monkeypatch, mock_tool):
+        class FakeChatOpenAI:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+            def bind_tools(self, tools):
+                self.bound_tools = tools
+                return self
+
+        monkeypatch.setattr("xfun.ai.agent.ChatOpenAI", FakeChatOpenAI)
+        llm = _build_llm([mock_tool], timeout=30, max_retries=3)
+        assert llm.bound_tools == [mock_tool]
+        assert llm.kwargs.get("timeout") == 30
+        assert llm.kwargs.get("max_retries") == 3
+        assert "streaming" not in llm.kwargs
+
+    def test_builds_llm_without_tools(self, monkeypatch):
+        class FakeChatOpenAI:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+            def bind_tools(self, tools):
+                self.bound_tools = tools
+                return self
+
+        monkeypatch.setattr("xfun.ai.agent.ChatOpenAI", FakeChatOpenAI)
+        llm = _build_llm([])
+        assert llm.bound_tools == []
 
 
 # ════════════════════════════════════════════════════════════════
@@ -184,57 +221,13 @@ def _drive(gen):
     return yielded, None  # pragma: no cover
 
 
-class TestAgentInvokeSync:
-    """StreamLevel.SYNC — 全程不 yield，仅通过 StopIteration 返回。"""
-
-    def test_no_tools(self, monkeypatch):
-        responses = [AIMessage(content="你好", tool_calls=[])]
-        _patch_llm(monkeypatch, MockInvokeLLM(responses))
-
-        yielded, new_msgs = _drive(agent_invoke([], tools=[]))
-
-        assert yielded == []
-        assert len(new_msgs) == 1
-        assert new_msgs[0].content == "你好"
-
-    def test_with_tool_call(self, monkeypatch, mock_tool):
-        first = AIMessage(
-            content="查一下",
-            tool_calls=[ToolCall(name="test_tool", args={"key": "val"}, id="c1")],
-        )
-        second = AIMessage(content="结果: ok", tool_calls=[])
-        _patch_llm(monkeypatch, MockInvokeLLM([first, second]))
-
-        yielded, new_msgs = _drive(agent_invoke([], tools=[mock_tool]))
-
-        # SYNC: 不 yield 任何消息
-        assert yielded == []
-        # new_messages 包含所有消息
-        assert len(new_msgs) == 3
-        assert new_msgs[0].content == "查一下"
-        assert isinstance(new_msgs[1], ToolMessage)
-        assert new_msgs[1].content == '{"result": "ok"}'
-        assert new_msgs[2].content == "结果: ok"
-
-    def test_default_stream_level(self, monkeypatch):
-        """默认 stream_level=SYNC。"""
-        responses = [AIMessage(content="默认模式", tool_calls=[])]
-        _patch_llm(monkeypatch, MockInvokeLLM(responses))
-
-        yielded, new_msgs = _drive(agent_invoke([], tools=[]))
-        assert yielded == []
-        assert new_msgs[0].content == "默认模式"
-
 
 class TestAgentInvokeMsg:
-    """StreamLevel.MSG — yield 完整 AIMessage + ToolMessage。"""
+    """StreamLevel.MSG — yield 完整 AIMessage + ToolMessage（走 invoke 分支）。"""
 
     def test_no_tools(self, monkeypatch):
-        chunks = [
-            AIMessageChunk(content="你好", tool_call_chunks=[]),
-            AIMessageChunk(content="世界", tool_call_chunks=[]),
-        ]
-        _patch_llm(monkeypatch, MockStreamLLM([chunks]))
+        responses = [AIMessage(content="你好世界", tool_calls=[])]
+        _patch_llm(monkeypatch, MockInvokeLLM(responses))
 
         yielded, new_msgs = _drive(agent_invoke([], tools=[], stream_level=StreamLevel.MSG))
 
@@ -243,22 +236,26 @@ class TestAgentInvokeMsg:
         assert len(new_msgs) == 1
         assert new_msgs[0].content == "你好世界"
 
-    def test_with_tool_call(self, monkeypatch, mock_tool, mock_tcc):
+    def test_with_timeout(self, monkeypatch):
+        """传递 timeout 参数，覆盖 line 75 的 timeout 分支。"""
+        responses = [AIMessage(content="超时测试", tool_calls=[])]
+        _patch_llm(monkeypatch, MockInvokeLLM(responses))
+
+        yielded, new_msgs = _drive(
+            agent_invoke([], tools=[], stream_level=StreamLevel.MSG, timeout=30)
+        )
+
+        assert yielded[0].content == "超时测试"
+        assert len(new_msgs) == 1
+
+    def test_with_tool_call(self, monkeypatch, mock_tool):
         """MSG 模式含工具调用：yield 顺序 AIMessage → ToolMessage → AIMessage。"""
-        first_chunks = [
-            AIMessageChunk(
-                content="让我",
-                tool_call_chunks=[mock_tcc],
-            ),
-            AIMessageChunk(
-                content="查查",
-                tool_call_chunks=[],
-            ),
-        ]
-        second_chunks = [
-            AIMessageChunk(content="完成", tool_call_chunks=[]),
-        ]
-        _patch_llm(monkeypatch, MockStreamLLM([first_chunks, second_chunks]))
+        first = AIMessage(
+            content="让我查查",
+            tool_calls=[ToolCall(name="test_tool", args={"key": "val"}, id="c1")],
+        )
+        second = AIMessage(content="完成", tool_calls=[])
+        _patch_llm(monkeypatch, MockInvokeLLM([first, second]))
 
         yielded, new_msgs = _drive(
             agent_invoke([], tools=[mock_tool], stream_level=StreamLevel.MSG)
@@ -270,8 +267,6 @@ class TestAgentInvokeMsg:
         assert isinstance(yielded[1], ToolMessage)
         assert yielded[1].content == '{"result": "ok"}'
         assert yielded[2].content == "完成"
-
-        # new_messages 也包含全部
         assert len(new_msgs) == 3
 
 
@@ -293,6 +288,23 @@ class TestAgentInvokeToken:
         # new_messages 是完整组装后的消息
         assert len(new_msgs) == 1
         assert new_msgs[0].content == "Hello"
+
+    def test_stream_tokens_with_reasoning(self, monkeypatch):
+        """TOKEN 模式含 reasoning_content，覆盖 line 89 分支。"""
+        chunk = AIMessageChunk(
+            content="最终答案",
+            tool_call_chunks=[],
+            additional_kwargs={"reasoning_content": "思考中"},
+        )
+        _patch_llm(monkeypatch, MockStreamLLM([[chunk]]))
+
+        yielded, new_msgs = _drive(
+            agent_invoke([], tools=[], stream_level=StreamLevel.TOKEN)
+        )
+
+        assert yielded[0].content == "最终答案"
+        assert len(new_msgs) == 1
+        assert new_msgs[0].additional_kwargs.get("reasoning_content") == "思考中"
 
     def test_with_tool_call(self, monkeypatch, mock_tool, mock_tcc):
         """TOKEN 模式含工具调用：yield chunk → ToolMessage → 下一轮 chunk。"""
@@ -367,13 +379,18 @@ class TestAgentInvokeEdgeCases:
         assert new_msgs[0].content == "回复1"
 
 
-class TestAgentSyncInvoke:
+class TestAgentInvokeSyncMode:
+    """StreamLevel.SYNC 通过 `agent_invoke` 生成器驱动。"""
+
     def test_returns_new_messages(self, monkeypatch):
         responses = [AIMessage(content="同步结果", tool_calls=[])]
         _patch_llm(monkeypatch, MockInvokeLLM(responses))
 
-        new_msgs = agent_sync_invoke([], tools=[])
+        yielded, new_msgs = _drive(agent_invoke([], tools=[], stream_level=StreamLevel.SYNC))
 
+        # SYNC 模式：所有消息在最后统一 yield
+        assert len(yielded) == 1
+        assert yielded[0].content == "同步结果"
         assert len(new_msgs) == 1
         assert new_msgs[0].content == "同步结果"
 
@@ -385,7 +402,12 @@ class TestAgentSyncInvoke:
         second = AIMessage(content="完成", tool_calls=[])
         _patch_llm(monkeypatch, MockInvokeLLM([first, second]))
 
-        new_msgs = agent_sync_invoke([], tools=[mock_tool])
+        yielded, new_msgs = _drive(
+            agent_invoke([], tools=[mock_tool], stream_level=StreamLevel.SYNC)
+        )
 
+        # SYNC 模式 yield 所有消息（3条）
+        assert len(yielded) == 3
+        assert isinstance(yielded[1], ToolMessage)
         assert len(new_msgs) == 3
         assert isinstance(new_msgs[1], ToolMessage)
