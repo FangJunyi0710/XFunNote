@@ -8,6 +8,8 @@ from typing import Any
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
+    HumanMessage,
+    SystemMessage,
     ToolCall,
     ToolMessage,
 )
@@ -168,3 +170,82 @@ def _execute_tool_call(
 def _find_tool(name: str, tools: list[BaseTool]) -> BaseTool | None:
     """根据名称在工具列表中查找工具。"""
     return next((t for t in tools if t.name == name), None)
+
+
+# ════════════════════════════════════════════════════════════
+#  消息序列化 / 反序列化
+# ════════════════════════════════════════════════════════════
+
+_ROLE_MAP: list[tuple[type[BaseMessage], str]] = [
+    (HumanMessage, "user"),
+    (AIMessage, "assistant"),
+    (SystemMessage, "system"),
+    (ToolMessage, "tool"),
+]
+_ROLE_CLASS_MAP: dict[str, type[BaseMessage]] = {r: c for c, r in _ROLE_MAP}
+
+
+def _role(msg: BaseMessage) -> str:
+    """返回 BaseMessage 对应的 role 字符串（循环判断，扩展友好）。"""
+    for cls, role in _ROLE_MAP:
+        if isinstance(msg, cls):
+            return role
+    return "unknown"
+
+
+def parse_messages_json(obj: list[dict]) -> list[BaseMessage]:
+    """将 Python 列表对象（来自 json.loads）解析为 BaseMessage 列表。
+
+    使用 ``model_validate`` 保留所有扩展字段（如 ``additional_kwargs``），
+    避免了手动选取字段导致的信息丢失。
+
+    Args:
+        obj: 格式 ``[{"role": "user|assistant|system|tool", "content": "..."}, ...]``
+
+    Returns:
+        解析后的 BaseMessage 列表。
+    """
+    messages: list[BaseMessage] = []
+    for msg in obj:
+        role = msg.get("role", "user")
+        cls = _ROLE_CLASS_MAP.get(role, HumanMessage)
+        data = {k: v for k, v in msg.items() if k != "role"}
+        messages.append(cls.model_validate(data))
+    return messages
+
+
+def messages_to_json(messages: list[BaseMessage]) -> list[dict]:
+    """将 BaseMessage 列表序列化为可 JSON 序列化的 Python 对象。
+
+    使用 ``model_dump`` 保留所有扩展字段，再补上 ``role`` 字段。
+
+    Args:
+        messages: BaseMessage 列表。
+
+    Returns:
+        可直接用于 ``json.dumps`` 的列表，格式同 ``parse_messages_json`` 输入。
+    """
+    result: list[dict] = []
+    for m in messages:
+        d = m.model_dump()
+        d["role"] = _role(m)
+        result.append(d)
+    return result
+
+
+def ensure_system_message(
+    messages: list[BaseMessage],
+    system_prompt: str,
+) -> list[BaseMessage]:
+    """若消息列表中无 SystemMessage，在开头插入给定系统提示词。
+
+    Args:
+        messages: 现有的消息列表（会被原地修改）。
+        system_prompt: 要插入的系统提示词内容。
+
+    Returns:
+        修改后的消息列表（与入参为同一对象）。
+    """
+    if not any(isinstance(m, SystemMessage) for m in messages):
+        messages.insert(0, SystemMessage(content=system_prompt))
+    return messages
