@@ -7,6 +7,7 @@ from typing import Any
 
 from langchain_core.messages import (
     AIMessage,
+    AIMessageChunk,
     BaseMessage,
     HumanMessage,
     SystemMessage,
@@ -46,6 +47,15 @@ def _build_llm(
     )
     return llm.bind_tools(tools)
 
+def _chunk_to_message(chunk: AIMessageChunk) -> AIMessage:
+    """将累积的 AIMessageChunk 转换为完整的 AIMessage。"""
+    return AIMessage(
+        content=chunk.content,
+        additional_kwargs=chunk.additional_kwargs,
+        response_metadata=chunk.response_metadata,
+        usage_metadata=chunk.usage_metadata,
+        tool_calls=chunk.tool_calls,
+    )
 
 def agent_invoke(
     messages: list[BaseMessage],
@@ -81,30 +91,12 @@ def agent_invoke(
     new_messages: list[BaseMessage] = []
     for _ in range(max_iterations):
         if stream_level == StreamLevel.TOKEN:
-            full_content = ""
-            full_reasoning = ""
-            tool_call_buffers: dict[int, dict[str, str]] = {}
-
+            accumulated = AIMessageChunk(content="")
             for chunk in llm_with_tools.stream(working_messages):
-                reasoning = chunk.additional_kwargs.get("reasoning_content", "")
-                if reasoning:
-                    full_reasoning += reasoning
-                if isinstance(chunk.content, str) and chunk.content:
-                    full_content += chunk.content
+                accumulated += chunk
                 yield chunk  # AIMessageChunk — 逐 token 流式
 
-                for tcc in chunk.tool_call_chunks or []:
-                    idx = tcc.get("index", 0) or 0
-                    if idx not in tool_call_buffers:
-                        tool_call_buffers[idx] = {"name": "", "args": "", "id": ""}
-                    buf = tool_call_buffers[idx]
-                    buf["name"] += tcc.get("name", "") or ""
-                    buf["args"] += tcc.get("args", "") or ""
-                    buf["id"] += tcc.get("id", "") or ""
-
-            tool_calls = _accumulate_tool_calls(tool_call_buffers)
-            additional_kwargs = {"reasoning_content": full_reasoning} if full_reasoning else {}
-            response = AIMessage(content=full_content, tool_calls=tool_calls, additional_kwargs=additional_kwargs)
+            response = _chunk_to_message(accumulated)
         else:
             response = llm_with_tools.invoke(working_messages)
 
@@ -128,25 +120,6 @@ def agent_invoke(
             yield msg
 
     return new_messages
-
-
-def _accumulate_tool_calls(tool_call_buffers: dict[int, dict[str, str]]) -> list[ToolCall]:
-    """将流式累积的工具调用片段组装为 ``ToolCall`` 列表。"""
-    tool_calls: list[ToolCall] = []
-    for idx in sorted(tool_call_buffers):
-        buf = tool_call_buffers[idx]
-        try:
-            parsed_args = json.loads(buf["args"]) if buf["args"] else {}
-        except json.JSONDecodeError:
-            parsed_args = {}
-        tool_calls.append(ToolCall(
-                name=buf["name"],
-                args=parsed_args,
-                id=buf["id"] or f"stream_{idx}",
-            )
-        )
-    return tool_calls
-
 
 def _execute_tool_call(
     tc: dict[str, Any],
