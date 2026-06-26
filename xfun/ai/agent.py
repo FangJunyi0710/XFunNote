@@ -7,6 +7,7 @@ from typing import Any
 
 from langchain_core.messages import (
     AIMessage,
+    AIMessageChunk,
     BaseMessage,
     ToolCall,
     ToolMessage,
@@ -80,9 +81,16 @@ def agent_invoke(
     for _ in range(_MAX_ITERATIONS):
         if stream_level == StreamLevel.TOKEN:
             full_content = ""
+            full_reasoning = ""
             tool_call_buffers: dict[int, dict[str, str]] = {}
 
             for chunk in llm_with_tools.stream(working_messages):
+                reasoning = chunk.additional_kwargs.get("reasoning_content", "")
+                if reasoning:
+                    full_reasoning += reasoning
+                    chunk.additional_kwargs["is_reasoning"] = True
+                    yield chunk
+
                 if isinstance(chunk.content, str) and chunk.content:
                     full_content += chunk.content
                     yield chunk  # AIMessageChunk — 逐 token 流式
@@ -97,7 +105,8 @@ def agent_invoke(
                     buf["id"] += tcc.get("id", "") or ""
 
             tool_calls = _accumulate_tool_calls(tool_call_buffers)
-            response = AIMessage(content=full_content, tool_calls=tool_calls)
+            additional_kwargs = {"reasoning_content": full_reasoning} if full_reasoning else {}
+            response = AIMessage(content=full_content, tool_calls=tool_calls, additional_kwargs=additional_kwargs)
         else:
             response = llm_with_tools.invoke(working_messages)
 
