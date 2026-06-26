@@ -1,5 +1,7 @@
 """测试 View 系统 — 跨本子查询、并集/交集、安全清洗。"""
 
+import json
+
 import pytest
 
 from xfun.core.view import (
@@ -202,6 +204,6 @@ class TestViewSerialization:
 
     def test_parse_view_json(self):
         s = '{"plan": [{"columns": ["content", "month"], "filter": {"column": "_", "value": null, "op": "TRUE"}}]}'
-        view = parse_view_json(s)
+        view = parse_view_json(json.loads(s))
         assert "plan" in view
         assert len(view["plan"]) == 1

@@ -1,7 +1,7 @@
 from typing import Any
 
 from .db import Column, DB
-from .filter import TRUE_CONDITION, FALSE_CONDITION, Filter, convert_filter_object, filter_to_json, filter_to_sql
+from .filter import TRUE_CONDITION, FALSE_CONDITION, Filter, filter_to_json, filter_to_sql, parse_filter_json
 import json
 
 TableSpec = tuple[list[str], Filter]
@@ -66,17 +66,14 @@ def view_to_json(view: View) -> dict:
     return data
 
 
-def parse_view_json(s: str) -> View:
-    """
-    将 JSON 筛选条件解析为 View
-    """
-    data = json.loads(s)
+def parse_view_json(obj) -> View:
+    """将 JSON 筛选条件解析为 View。传入 json.loads(s)。"""
     result: View = {}
-    for table_name, specs in data.items():
+    for table_name, specs in obj.items():
         table_specs: list[TableSpec] = []
         for spec in specs:
             columns = spec["columns"]
-            flt = convert_filter_object(spec["filter"])
+            flt = parse_filter_json(spec["filter"])
             table_specs.append((columns, flt))
         result[table_name] = table_specs
     return result

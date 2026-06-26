@@ -9,7 +9,6 @@ from xfun.core.filter import (
     filter_to_sql,
     filter_to_json,
     parse_filter_json,
-    convert_filter_object,
 )
 from xfun.core.errors import InvalidConditionError, InvalidFilterError, InvalidSQLError
 
@@ -272,14 +271,14 @@ class TestFilterSerialization:
 
     def test_parse_filter_json_condition(self):
         s = '{"column": "month", "value": "2606", "op": "="}'
-        flt = parse_filter_json(s)
+        flt = parse_filter_json(json.loads(s))
         assert isinstance(flt, Condition)
         assert flt.column == "month"
         assert flt.value == "2606"
 
     def test_parse_filter_json_complex(self):
         s = '[[{"column": "a", "value": 1}, {"column": "b", "value": 2}], [{"column": "c", "value": 3}]]'
-        flt = parse_filter_json(s)
+        flt = parse_filter_json(json.loads(s))
         assert isinstance(flt, list)
         assert len(flt) == 2
         assert len(flt[0]) == 2
@@ -287,17 +286,17 @@ class TestFilterSerialization:
 
     def test_convert_filter_object_condition(self):
         obj = {"column": "month", "value": "2606", "op": "="}
-        c = convert_filter_object(obj)
+        c = parse_filter_json(obj)
         assert isinstance(c, Condition)
         assert c.column == "month"
 
     def test_convert_filter_object_invalid(self):
         with pytest.raises(InvalidFilterError):
-            convert_filter_object(42)
+            parse_filter_json(42)
 
     def test_convert_filter_object_invalid_inner(self):
         with pytest.raises(InvalidFilterError):
-            convert_filter_object([42])
+            parse_filter_json([42])
 
     def test_invalid_op_raises(self):
         cond = Condition("a", 1, "NONEXISTENT")
@@ -328,10 +327,10 @@ class TestFilterEdgeCases:
 
 
 class TestConvertFilterEdge:
-    """覆盖 convert_filter_object 中的 tuple+bool 分支 (l.168)。"""
+    """覆盖 parse_filter_json 中的 tuple+bool 分支 (l.168)。"""
 
     def test_convert_filter_tuple_with_bool(self):
         obj = [{"column": "a", "value": 1}, True]
-        result = convert_filter_object(obj)
+        result = parse_filter_json(obj)
         assert isinstance(result, tuple)
         assert result[1] is True

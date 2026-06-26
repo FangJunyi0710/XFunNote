@@ -133,7 +133,7 @@ def query(
     """通用查询。返回匹配的条目列表。"""
     _validate_notetype(notetype)
     with _cli_handle():
-        view = parse_view_json(view_json)
+        view = parse_view_json(json.load(view_json))
         perm = root_permission(db)
         with db.read_transaction() as conn:
             results = ops_query(
@@ -177,7 +177,7 @@ def update(
     """通用更新。返回更新后条目的完整信息。"""
     _validate_notetype(notetype)
     with _cli_handle():
-        flt = parse_filter_json(filter_json)
+        flt = parse_filter_json(json.load(filter_json))
         values = json.loads(values_json)
         perm = root_permission(db)
         with db.transaction() as conn:
@@ -198,7 +198,7 @@ def delete(
     """通用删除。返回被删除条目的完整信息。"""
     _validate_notetype(notetype)
     with _cli_handle():
-        flt = parse_filter_json(filter_json)
+        flt = parse_filter_json(json.load(filter_json))
         perm = root_permission(db)
         with db.transaction() as conn:
             results = ops_delete(conn, perm, notetype, flt)
