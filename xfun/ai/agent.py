@@ -78,17 +78,14 @@ def agent_invoke(
     new_messages: list[BaseMessage] = []
 
     for _ in range(_MAX_ITERATIONS):
-        if stream_level == StreamLevel.SYNC:
-            response = llm_with_tools.invoke(working_messages)
-        else:
+        if stream_level == StreamLevel.TOKEN:
             full_content = ""
             tool_call_buffers: dict[int, dict[str, str]] = {}
 
             for chunk in llm_with_tools.stream(working_messages):
                 if isinstance(chunk.content, str) and chunk.content:
                     full_content += chunk.content
-                    if stream_level == StreamLevel.TOKEN:
-                        yield chunk  # AIMessageChunk — 逐 token 流式
+                    yield chunk  # AIMessageChunk — 逐 token 流式
 
                 for tcc in chunk.tool_call_chunks or []:
                     idx = tcc.get("index", 0) or 0
@@ -101,10 +98,11 @@ def agent_invoke(
 
             tool_calls = _accumulate_tool_calls(tool_call_buffers)
             response = AIMessage(content=full_content, tool_calls=tool_calls)
+        else:
+            response = llm_with_tools.invoke(working_messages)
 
-            if stream_level == StreamLevel.MSG:
-                yield response  # 完整消息模式：yield 组装好的 AIMessage
-
+        if stream_level == StreamLevel.MSG:
+            yield response  # 完整消息模式：yield 组装好的 AIMessage
         new_messages.append(response)
         working_messages.append(response)
 
@@ -118,17 +116,12 @@ def agent_invoke(
             new_messages.append(tm)
             working_messages.append(tm)
 
+    if stream_level == StreamLevel.SYNC:
+        for msg in new_messages:
+            yield msg
+
     return new_messages
 
-def agent_sync_invoke(messages: list[BaseMessage], tools: list[BaseTool], **llm_kwargs: Any) -> list[BaseMessage]:
-    """
-    同步模式便捷调用：直接返回新消息列表，无需手动处理 ``StopIteration``。
-    messages.extend(agent_sync_invoke(messages, tools=AI_TOOLS))
-    """
-    try:
-        next(agent_invoke(messages, tools=tools, stream_level=StreamLevel.SYNC, **llm_kwargs))
-    except StopIteration as e:
-        return e.value
 
 def _accumulate_tool_calls(tool_call_buffers: dict[int, dict[str, str]]) -> list[ToolCall]:
     """将流式累积的工具调用片段组装为 ``ToolCall`` 列表。"""
