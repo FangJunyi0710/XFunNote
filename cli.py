@@ -88,7 +88,14 @@ def _cli_handle():
 # ════════════════════════════════════════════════════════════
 
 
-_AI_TOOLS = [query_entries, add_entries, update_entries, delete_entries, get_ai_permission]
+_AI_TOOLS = [
+    # query_entries, 
+    # add_entries, 
+    # update_entries, 
+    # delete_entries, 
+    # get_ai_permission
+]
+# _AI_TOOLS = [query_entries, add_entries, update_entries, delete_entries, get_ai_permission]
 
 
 @app.command("list")
