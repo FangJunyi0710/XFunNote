@@ -1,4 +1,3 @@
-import json
 from typing import Any
 from langchain_core.tools import tool
 
@@ -33,24 +32,24 @@ def _delete(conn, notetype: str, filter) -> list[dict]:
 
 # ---- 事务 + 异常处理辅助 ----
 
-def _with_read_tool(impl) -> str:
-    """只读事务 + XFunError 处理，返回 JSON。"""
+def _with_read_tool(impl) -> dict:
+    """只读事务 + XFunError 处理，返回字典。"""
     try:
         with db.read_transaction() as conn:
             results = impl(conn)
-        return json.dumps({"results": results}, ensure_ascii=False, default=str)
+        return {"results": results}
     except XFunError as e:
-        return json.dumps({"error": str(e)}, ensure_ascii=False)
+        return {"error": str(e)}
 
 
-def _with_write_tool(impl) -> str:
-    """写事务 + XFunError 处理，返回 JSON。"""
+def _with_write_tool(impl) -> dict:
+    """写事务 + XFunError 处理，返回字典。"""
     try:
         with db.transaction() as conn:
             results = impl(conn)
-        return json.dumps({"results": results}, ensure_ascii=False, default=str)
+        return {"results": results}
     except XFunError as e:
-        return json.dumps({"error": str(e)}, ensure_ascii=False)
+        return {"error": str(e)}
 
 
 @tool
@@ -60,7 +59,7 @@ def query_entries(
     order_by: str = "",
     limit: int = -1,
     offset: int = 0,
-) -> str:
+) -> dict:
     """查询笔记条目。
 
     根据字段、条件筛选查询指定笔记类型的条目，支持排序、分页。
@@ -74,13 +73,13 @@ def query_entries(
         offset: 偏移量，用于分页。
 
     Returns:
-        JSON 字符串，包含 results 列表或 error 信息。
+        字典，包含 results 列表或 error 信息。
     """
     return _with_read_tool(lambda conn: _query(conn, notetype, view.to_view(), order_by, limit, offset))
 
 
 @tool
-def add_entries(notetype: str, entries: list[dict[str, Any]]) -> str:
+def add_entries(notetype: str, entries: list[dict[str, Any]]) -> dict:
     """添加笔记条目。
 
     向指定笔记类型中批量新增条目。
@@ -91,13 +90,13 @@ def add_entries(notetype: str, entries: list[dict[str, Any]]) -> str:
                  注意：entries 会被写入权限视图清洗，不在写入白名单中的字段将被移除。
 
     Returns:
-        JSON 字符串，包含 results（新增条目的完整信息，含 id）或 error。
+        字典，包含 results（新增条目的完整信息，含 id）或 error。
     """
     return _with_write_tool(lambda conn: _add(conn, notetype, entries))
 
 
 @tool
-def update_entries(notetype: str, filter: FilterModel, values: dict[str, Any]) -> str:
+def update_entries(notetype: str, filter: FilterModel, values: dict[str, Any]) -> dict:
     """更新笔记条目。
 
     按条件筛选匹配的条目，批量更新指定字段的值。
@@ -109,13 +108,13 @@ def update_entries(notetype: str, filter: FilterModel, values: dict[str, Any]) -
                 注意：values 会被写入权限视图清洗，不在写入白名单中的字段将被忽略。
 
     Returns:
-        JSON 字符串，包含 results（更新后条目的完整信息）或 error。
+        字典，包含 results（更新后条目的完整信息）或 error。
     """
     return _with_write_tool(lambda conn: _update(conn, notetype, filter.to_filter(), values))
 
 
 @tool
-def delete_entries(notetype: str, filter: FilterModel) -> str:
+def delete_entries(notetype: str, filter: FilterModel) -> dict:
     """删除笔记条目。
 
     按条件筛选匹配的条目并永久删除。
@@ -125,23 +124,23 @@ def delete_entries(notetype: str, filter: FilterModel) -> str:
         filter: 筛选条件，决定哪些条目被删除。
 
     Returns:
-        JSON 字符串，包含 results（被删除条目的完整信息）或 error。
+        字典，包含 results（被删除条目的完整信息）或 error。
     """
     return _with_write_tool(lambda conn: _delete(conn, notetype, filter.to_filter()))
 
 
 @tool
-def get_ai_permission() -> str:
-    """获取当前 AI 可读/可写字段的完整权限白名单（JSON 格式）。
+def get_ai_permission() -> dict:
+    """获取当前 AI 可读/可写字段的完整权限白名单。
 
     当你对某个字段是否可查询或可修改不确定时，调用此工具获取详细约束。
 
     Returns:
-        JSON 字符串，包含 read 和 write 两个权限视图。
+        字典，包含 read 和 write 两个权限视图。
         格式：{"read": {...}, "write": {...}}
     """
     read_view, write_view = ai_permission()
-    return json.dumps({
+    return {
         "read": view_to_json(read_view),
         "write": view_to_json(write_view),
-    }, ensure_ascii=False, default=str)
+    }

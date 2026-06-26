@@ -9,7 +9,6 @@ from langchain_core.messages import AIMessage, AIMessageChunk, ToolCall, ToolMes
 
 from xfun.ai.agent import (
     StreamLevel,
-    _accumulate_tool_calls,
     _build_llm,
     _execute_tool_call,
     _find_tool,
@@ -26,7 +25,7 @@ from xfun.ai.agent import (
 def mock_tool():
     tool = MagicMock()
     tool.name = "test_tool"
-    tool.invoke.return_value = '{"result": "ok"}'
+    tool.invoke.return_value = {"result": "ok"}
     return tool
 
 
@@ -57,47 +56,6 @@ class TestFindTool:
     def test_not_found(self, mock_tool):
         result = _find_tool("nonexistent", [mock_tool])
         assert result is None
-
-
-class TestAccumulateToolCalls:
-    """_accumulate_tool_calls: dict[int, dict[str, str]] → list[ToolCall]"""
-
-    def test_single_call(self):
-        buf = {0: {"name": "tool_a", "args": '{"x": 1}', "id": "call_0"}}
-        calls = _accumulate_tool_calls(buf)
-        assert len(calls) == 1
-        assert calls[0]["name"] == "tool_a"
-        assert calls[0]["args"] == {"x": 1}
-        assert calls[0]["id"] == "call_0"
-
-    def test_empty_args(self):
-        buf = {0: {"name": "tool_a", "args": "", "id": ""}}
-        calls = _accumulate_tool_calls(buf)
-        assert len(calls) == 1
-        assert calls[0]["args"] == {}
-        assert calls[0]["id"].startswith("stream_")
-
-    def test_invalid_json_args(self):
-        buf = {0: {"name": "tool_a", "args": "not-json{", "id": "call_1"}}
-        calls = _accumulate_tool_calls(buf)
-        assert len(calls) == 1
-        assert calls[0]["args"] == {}
-
-    def test_multiple_indices(self):
-        buf = {
-            1: {"name": "tool_b", "args": '{"b": 2}', "id": "call_1"},
-            0: {"name": "tool_a", "args": '{"a": 1}', "id": "call_0"},
-        }
-        calls = _accumulate_tool_calls(buf)
-        assert len(calls) == 2
-        assert calls[0]["name"] == "tool_a"
-        assert calls[0]["id"] == "call_0"
-        assert calls[1]["name"] == "tool_b"
-        assert calls[1]["id"] == "call_1"
-
-    def test_empty_buffers(self):
-        assert _accumulate_tool_calls({}) == []
-
 
 class TestExecuteToolCall:
     def test_success(self, mock_tool):

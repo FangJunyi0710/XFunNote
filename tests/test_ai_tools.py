@@ -4,8 +4,6 @@
 这些工具使用 xfun.db 模块级 DB，测试时需 monkeypatch 替换。
 """
 
-import json
-
 import pytest
 
 import xfun
@@ -57,12 +55,10 @@ def _patch_db(_shared_ai_db, monkeypatch):
 class TestAITools:
     def _query(self, view_data: dict, notetype: str, **kwargs):
         view = ViewModel.model_validate(view_data)
-        raw = query_entries.invoke({"view": view, "notetype": notetype, **kwargs})
-        return json.loads(raw)
+        return query_entries.invoke({"view": view, "notetype": notetype, **kwargs})
 
     def _add(self, notetype: str, entries: list):
-        raw = add_entries.invoke({"notetype": notetype, "entries": entries})
-        return json.loads(raw)
+        return add_entries.invoke({"notetype": notetype, "entries": entries})
 
     def test_query_empty(self):
         result = self._query(
@@ -100,8 +96,8 @@ class TestAITools:
 
         filter_m = FilterModel.model_validate(
             [[{"column": "id", "value": [entry_id], "op": "IN"}]])
-        upd_result = json.loads(update_entries.invoke(
-            {"notetype": "plan", "filter": filter_m, "values": {"content": "updated"}}))
+        upd_result = update_entries.invoke(
+            {"notetype": "plan", "filter": filter_m, "values": {"content": "updated"}})
         assert "results" in upd_result
         assert upd_result["results"][0]["content"] == "updated"
 
@@ -112,8 +108,8 @@ class TestAITools:
 
         filter_m = FilterModel.model_validate(
             [[{"column": "id", "value": [entry_id], "op": "IN"}]])
-        del_result = json.loads(delete_entries.invoke(
-            {"notetype": "plan", "filter": filter_m}))
+        del_result = delete_entries.invoke(
+            {"notetype": "plan", "filter": filter_m})
         assert "results" in del_result
         assert len(del_result["results"]) == 1
 
@@ -135,38 +131,37 @@ class TestAITools:
         assert result["results"][0]["is_ai_gen"] == 1
 
     def test_query_entries_error_handling(self):
-        """query_entries 中 XFunError → error JSON (l.58-59)。"""
+        """query_entries 中 XFunError → error 字典。"""
         view = ViewModel.model_validate({
             "plan": [{"columns": ["content"], "filter": {"column": "_", "value": None, "op": "TRUE"}}]
         })
-        result = json.loads(query_entries.invoke({
+        result = query_entries.invoke({
             "view": view, "notetype": "plan", "order_by": "123invalid",
-        }))
+        })
         assert "error" in result
 
     def test_update_entries_error_handling(self):
-        """update_entries 中 XFunError → error JSON (l.103-104)。"""
+        """update_entries 中 XFunError → error 字典。"""
         filter_m = FilterModel.model_validate(
-            # 使用 filter 中非法列名触发 Column.check → InvalidSQLError
             [[{"column": "123invalid", "value": 1, "op": "="}]])
-        result = json.loads(update_entries.invoke(
-            {"notetype": "plan", "filter": filter_m, "values": {"content": "x"}}))
+        result = update_entries.invoke(
+            {"notetype": "plan", "filter": filter_m, "values": {"content": "x"}})
         assert "error" in result
 
     def test_delete_entries_error_handling(self):
-        """delete_entries 中 XFunError → error JSON (l.124-125)。"""
+        """delete_entries 中 XFunError → error 字典。"""
         filter_m = FilterModel.model_validate(
             [[{"column": "123invalid", "value": 1, "op": "="}]])
-        result = json.loads(delete_entries.invoke(
-            {"notetype": "plan", "filter": filter_m}))
+        result = delete_entries.invoke(
+            {"notetype": "plan", "filter": filter_m})
         assert "error" in result
 
     def test_update_entries_no_match(self):
         """update_entries 匹配 0 条 → 空 results。"""
         filter_m = FilterModel.model_validate(
             [[{"column": "id", "value": ["nonexistent"], "op": "IN"}]])
-        upd_result = json.loads(update_entries.invoke(
-            {"notetype": "plan", "filter": filter_m, "values": {"content": "x"}}))
+        upd_result = update_entries.invoke(
+            {"notetype": "plan", "filter": filter_m, "values": {"content": "x"}})
         assert "results" in upd_result
         assert upd_result["results"] == []
 
@@ -174,15 +169,14 @@ class TestAITools:
         """delete_entries 匹配 0 条 → 空 results。"""
         filter_m = FilterModel.model_validate(
             [[{"column": "id", "value": ["nonexistent"], "op": "IN"}]])
-        del_result = json.loads(delete_entries.invoke(
-            {"notetype": "plan", "filter": filter_m}))
+        del_result = delete_entries.invoke(
+            {"notetype": "plan", "filter": filter_m})
         assert "results" in del_result
         assert del_result["results"] == []
 
     def test_get_ai_permission(self):
-        """get_ai_permission 返回包含 read/write 权限的 JSON。"""
-        raw = get_ai_permission.invoke({})
-        result = json.loads(raw)
+        """get_ai_permission 返回包含 read/write 权限的字典。"""
+        result = get_ai_permission.invoke({})
         assert "read" in result
         assert "write" in result
         # 验证包含已知本子的权限信息

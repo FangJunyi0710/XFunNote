@@ -125,7 +125,10 @@ def _execute_tool_call(
     tc: dict[str, Any],
     tools: list[BaseTool],
 ) -> ToolMessage:
-    """执行单次工具调用并返回 ToolMessage。"""
+    """执行单次工具调用并返回 ToolMessage。
+
+    工具返回值保存为 ``artifact``，``content`` 统一由 ``json.dumps`` 生成。
+    """
     tool_name = tc["name"]
     tool_args = tc["args"]
     tool_id: str = tc["id"]
@@ -134,11 +137,19 @@ def _execute_tool_call(
     try:
         if tool is None:
             raise ToolError(f"未知工具: {tool_name}")
-        content = tool.invoke(tool_args)
+        artifact = tool.invoke(tool_args)
+        status = "success"
     except Exception as e:
-        content = json.dumps({"error": str(e)}, ensure_ascii=False)
+        artifact = {"error": str(e)}
+        status = "error"
 
-    return ToolMessage(content=content, tool_call_id=tool_id)
+    return ToolMessage(
+        content=json.dumps(artifact, ensure_ascii=False, default=str),
+        artifact=artifact,
+        tool_call_id=tool_id,
+        name=tool_name,
+        status=status,
+    )
 
 def _find_tool(name: str, tools: list[BaseTool]) -> BaseTool | None:
     """根据名称在工具列表中查找工具。"""
