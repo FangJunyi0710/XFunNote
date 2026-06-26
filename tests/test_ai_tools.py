@@ -14,7 +14,7 @@ from xfun.core import ops
 from xfun.core.db import DB
 from xfun.core.filter import Condition
 from xfun.core.view import root_permission
-from xfun.ai.tools import query_entries, add_entries, update_entries, delete_entries
+from xfun.ai.tools import get_ai_permission, query_entries, add_entries, update_entries, delete_entries
 from xfun.ai.schema import ViewModel, FilterModel
 
 
@@ -178,3 +178,18 @@ class TestAITools:
             {"notetype": "plan", "filter": filter_m}))
         assert "results" in del_result
         assert del_result["results"] == []
+
+    def test_get_ai_permission(self):
+        """get_ai_permission 返回包含 read/write 权限的 JSON。"""
+        raw = get_ai_permission.invoke({})
+        result = json.loads(raw)
+        assert "read" in result
+        assert "write" in result
+        # 验证包含已知本子的权限信息
+        assert "plan" in result["read"]
+        assert "diary" in result["read"]
+        assert "word" in result["read"]
+        assert "accumulation" in result["read"]
+        assert "aimemory" in result["read"]
+        # 可写视图应包含至少一个本子
+        assert len(result["write"]) > 0

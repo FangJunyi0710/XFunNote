@@ -5,7 +5,7 @@ from langchain_core.tools import tool
 from xfun import db, registry
 from xfun.core import ops
 from xfun.core.filter import Condition
-from xfun.core.view import View, root_permission
+from xfun.core.view import View, root_permission, view_to_json
 from xfun.ai.security import ai_permission
 from xfun.core.errors import XFunError, ToolError
 from .schema import FilterModel, ViewModel
@@ -128,3 +128,20 @@ def delete_entries(notetype: str, filter: FilterModel) -> str:
         JSON 字符串，包含 results（被删除条目的完整信息）或 error。
     """
     return _with_write_tool(lambda conn: _delete(conn, notetype, filter.to_filter()))
+
+
+@tool
+def get_ai_permission() -> str:
+    """获取当前 AI 可读/可写字段的完整权限白名单（JSON 格式）。
+
+    当你对某个字段是否可查询或可修改不确定时，调用此工具获取详细约束。
+
+    Returns:
+        JSON 字符串，包含 read 和 write 两个权限视图。
+        格式：{"read": {...}, "write": {...}}
+    """
+    read_view, write_view = ai_permission()
+    return json.dumps({
+        "read": view_to_json(read_view),
+        "write": view_to_json(write_view),
+    }, ensure_ascii=False, default=str)

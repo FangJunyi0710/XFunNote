@@ -33,7 +33,7 @@ from typer import Argument, Option
 from xfun import db, init_db, registry
 from xfun.ai.agent import StreamLevel, agent_invoke
 from xfun.ai.prompts import SYSTEM_PROMPT
-from xfun.ai.tools import add_entries, delete_entries, query_entries, update_entries
+from xfun.ai.tools import add_entries, delete_entries, get_ai_permission, query_entries, update_entries
 from xfun.core.filter import parse_filter_json
 from xfun.core.ops import add as ops_add
 from xfun.core.ops import delete as ops_delete
@@ -88,7 +88,7 @@ def _cli_handle():
 # ════════════════════════════════════════════════════════════
 
 
-_AI_TOOLS = [query_entries, add_entries, update_entries, delete_entries]
+_AI_TOOLS = [query_entries, add_entries, update_entries, delete_entries, get_ai_permission]
 
 
 @app.command("list")

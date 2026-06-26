@@ -25,8 +25,7 @@ class TestAIPrompts:
         assert "格式说明" in SYSTEM_PROMPT
 
     def test_system_prompt_contains_permission_section(self):
-        assert "读白名单" in SYSTEM_PROMPT or "可查询" in SYSTEM_PROMPT
-        assert "写白名单" in SYSTEM_PROMPT or "可修改" in SYSTEM_PROMPT
+        assert "get_ai_permission" in SYSTEM_PROMPT
 
     def test_notebook_infos_contains_base_columns(self):
         info = _notebook_infos()
