@@ -13,7 +13,7 @@ XFunNote CLI — 命令行接口
     xfun add       NOTE_TYPE ENTRIES_JSON   → 通用添加
     xfun update    NOTE_TYPE FILTER_JSON VALUES_JSON  → 通用更新
     xfun delete    NOTE_TYPE FILTER_JSON    → 通用删除
-    xfun ai        [TEXT]...               → AI 对话
+    xfun ai        --messages JSON          → AI 对话（同步，输出新消息 JSON）
     xfun init                               → 初始化数据库
     xfun backup                             → 在线热备份数据库
     xfun reset     [--force] [--no-backup]  → 重置数据库
@@ -22,18 +22,29 @@ XFunNote CLI — 命令行接口
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 import json
-from typing import Optional
 
 import typer
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from typer import Argument, Option
 
 from xfun import db, init_db, registry
-from xfun.ai.agent import StreamLevel, agent_invoke
+from xfun.ai.agent import (
+    StreamLevel,
+    agent_invoke,
+    ensure_system_message,
+    messages_to_json,
+    parse_messages_json,
+)
 from xfun.ai.prompts import SYSTEM_PROMPT
-from xfun.ai.tools import add_entries, delete_entries, get_ai_permission, query_entries, update_entries
+from langchain_core.messages import AIMessageChunk, HumanMessage, SystemMessage, ToolMessage
+from xfun.ai.tools import (
+    add_entries,
+    delete_entries,
+    get_ai_permission,
+    query_entries,
+    update_entries,
+)
 from xfun.core.filter import parse_filter_json
 from xfun.core.ops import add as ops_add
 from xfun.core.ops import delete as ops_delete
@@ -42,6 +53,7 @@ from xfun.core.ops import update as ops_update
 from xfun.core.view import parse_view_json, root_permission
 
 app = typer.Typer(no_args_is_help=True)
+ai_app = typer.Typer(no_args_is_help=True)
 
 
 # ════════════════════════════════════════════════════════════
@@ -59,18 +71,6 @@ def _validate_notetype(notetype: str) -> None:
         names = list(registry.keys())
         typer.echo(_error(f"未知笔记本类型: {notetype}, 可用: {names}"))
         raise typer.Exit(code=1)
-
-
-def _msg_role(msg) -> str:
-    if isinstance(msg, HumanMessage):
-        return "user"
-    if isinstance(msg, AIMessage):
-        return "assistant"
-    if isinstance(msg, SystemMessage):
-        return "system"
-    if isinstance(msg, ToolMessage):
-        return "tool"
-    return "unknown"
 
 
 @contextmanager
@@ -206,85 +206,133 @@ def delete(
 
 
 # ════════════════════════════════════════════════════════════
-#  命令：ai — AI 对话
+#  命令：ai — AI 对话命令组
 # ════════════════════════════════════════════════════════════
 
 
-@app.command()
+@dataclass
+class AIConfig:
+    """AI 命令组共享参数。"""
+    messages_json: str | None = None
+    temperature: float = 0.7
+    max_iterations: int = 10
+    timeout: float | None = None
+    max_retries: int = 2
+    system_prompt: str | None = None
+
+
+def _load_system_prompt(custom: str | None) -> str:
+    """返回用户自定义系统提示词或默认提示词。"""
+    if custom:
+        return custom
+    return SYSTEM_PROMPT
+
+
+def _build_llm_kwargs(cfg: AIConfig) -> dict:
+    """从 AIConfig 提取 LLM 关键字参数。"""
+    kwargs = {}
+    if cfg.temperature is not None:
+        kwargs["temperature"] = cfg.temperature
+    return kwargs
+
+
+def _echo_token(chunk: AIMessageChunk) -> None:
+    """流式输出单个 AIMessageChunk，将 reasoning_content 以灰色输出到 stderr。"""
+    reasoning = chunk.additional_kwargs.get("reasoning_content", "")
+    if reasoning:
+        typer.echo(f"\x1b[2m[思考] {reasoning}\x1b[0m", err=True, nl=True)
+    if chunk.content:
+        typer.echo(chunk.content, nl=False, err=True)
+
+
+@ai_app.callback()
 def ai(
-    text: Optional[list[str]] = Argument(
-        None, help="对话文本（可多个，自动拼接为一条 HumanMessage）"
-    ),
-    messages_json: Optional[str] = Option(
-        None,
-        "--messages",
-        help="消息历史 JSON 数组，格式: [{\"role\": \"user\", \"content\": \"...\"}, ...]",
-    ),
-    json_output: bool = Option(
-        False,
-        "--json",
-        help="以 JSON 格式输出完整消息列表",
-    ),
-    stream: str = Option(
-        "token",
-        "--stream",
-        help="流式模式: token (默认, 逐token), msg (逐消息), sync (阻塞等待完整响应)",
-    ),
+    ctx: typer.Context,
+    messages_json: str | None = Option(None, "--messages", "-m", help="消息历史 JSON 数组"),
+    temperature: float = Option(0.7, "--temperature", "-t", help="LLM 温度参数"),
+    max_iterations: int = Option(10, "--max-iterations", "-n", help="最大迭代轮次"),
+    timeout: float | None = Option(None, "--timeout", help="请求超时秒数"),
+    max_retries: int = Option(2, "--max-retries", help="最大重试次数"),
+    system_prompt: str | None = Option(None, "--system-prompt", "--sp", help="自定义系统提示词，留空使用默认"),
 ):
-    """AI 对话。
+    """AI 对话系列命令。所有子命令最终 stdout 输出完整消息列表 JSON。"""
+    ctx.obj = AIConfig(
+        messages_json=messages_json,
+        temperature=temperature,
+        max_iterations=max_iterations,
+        timeout=timeout,
+        max_retries=max_retries,
+        system_prompt=system_prompt,
+    )
 
-    支持单轮 / 多轮对话。通过 [TEXT]... 传入当前提问，
-    通过 --messages 传入历史消息实现持续对话。
-    通过 --stream 启用流式输出。
-    """
-    # 解析 --messages 参数
-    messages: list = []
-    if messages_json:
-        try:
-            raw_messages = json.loads(messages_json)
-        except json.JSONDecodeError:
-            typer.echo(_error("messages 参数不是有效的 JSON"))
-            raise typer.Exit(code=1)
 
-        for msg in raw_messages:
-            role = msg.get("role", "user")
-            content = msg.get("content", "")
-            if role == "system":
-                messages.append(SystemMessage(content=content))
-            elif role == "assistant":
-                messages.append(AIMessage(content=content))
-            else:
-                messages.append(HumanMessage(content=content))
-
-    # 将 [TEXT]... 参数拼接为一条 HumanMessage
-    if text:
-        messages.append(HumanMessage(content=" ".join(text)))
-
-    if not messages:
-        typer.echo(_error("请提供文本或 --messages 参数"))
+@ai_app.command("sync")
+def ai_sync(ctx: typer.Context):
+    """同步模式：静默调用 LLM，仅 stdout 输出完整消息列表 JSON。"""
+    cfg: AIConfig = ctx.obj
+    if cfg.messages_json is None:
+        typer.echo("sync 模式必须提供 --messages", err=True)
         raise typer.Exit(code=1)
-
-    # 若消息列表中没有 SystemMessage，自动插入默认系统提示词
-    if not any(isinstance(m, SystemMessage) for m in messages):
-        messages.insert(0, SystemMessage(content=SYSTEM_PROMPT))
-
     with _cli_handle():
-        stream_level = StreamLevel[stream.upper()]
-        gen = agent_invoke(messages, tools=_AI_TOOLS, stream_level=stream_level)
+        system_prompt_text = _load_system_prompt(cfg.system_prompt)
+        messages = parse_messages_json(json.loads(cfg.messages_json))
+        ensure_system_message(messages, system_prompt_text)
+        gen = agent_invoke(
+            messages, tools=_AI_TOOLS,
+            stream_level=StreamLevel.SYNC,
+            max_iterations=cfg.max_iterations,
+            timeout=cfg.timeout,
+            max_retries=cfg.max_retries,
+            **_build_llm_kwargs(cfg),
+        )
         try:
-            for msg in gen:
-                typer.echo(msg.content, nl=False)
+            for _ in gen:
+                pass
         except StopIteration as e:
-            messages.extend(e.value)
-        typer.echo()
+            new_messages = e.value
+        typer.echo(json.dumps(messages_to_json(new_messages), ensure_ascii=False))
 
-        if json_output:
-            msg_list = [
-                {"role": _msg_role(m), "content": m.content}
-                for m in messages
-            ]
-            typer.echo(json.dumps(msg_list, ensure_ascii=False))
 
+@ai_app.command("chat")
+def ai_chat(ctx: typer.Context):
+    """交互模式：stderr 流式输出（含思考内容），退出后 stdout JSON。"""
+    cfg: AIConfig = ctx.obj
+    with _cli_handle():
+        system_prompt_text = _load_system_prompt(cfg.system_prompt)
+        messages: list = []
+        if cfg.messages_json:
+            messages = parse_messages_json(json.loads(cfg.messages_json))
+        ensure_system_message(messages, system_prompt_text)
+
+        while True:
+            user_input = typer.prompt("\n🧑 你", prompt_suffix="\n", err=True).strip()
+            if user_input.lower() in ("exit", "quit", "/q"):
+                break
+            messages.append(HumanMessage(content=user_input))
+            gen = agent_invoke(
+                messages, tools=_AI_TOOLS,
+                stream_level=StreamLevel.TOKEN,
+                max_iterations=cfg.max_iterations,
+                timeout=cfg.timeout,
+                max_retries=cfg.max_retries,
+                **_build_llm_kwargs(cfg),
+            )
+            try:
+                for yielded in gen:
+                    if isinstance(yielded, AIMessageChunk):
+                        _echo_token(yielded)
+                    elif isinstance(yielded, ToolMessage):
+                        typer.echo(f"\n[工具调用: {yielded.name}]", err=True)
+            except StopIteration as e:
+                messages.extend(e.value)
+            typer.echo(err=True)
+
+        # 退出后 stdout JSON
+        non_system = [m for m in messages if not isinstance(m, SystemMessage)]
+        typer.echo(json.dumps(messages_to_json(non_system), ensure_ascii=False))
+
+
+app.add_typer(ai_app, name="ai")
 
 # ════════════════════════════════════════════════════════════
 #  命令：init — 初始化数据库
