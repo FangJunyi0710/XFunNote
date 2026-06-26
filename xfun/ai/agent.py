@@ -62,8 +62,6 @@ def agent_invoke(
     tools: list[BaseTool] | None = None,
     stream_level: StreamLevel = StreamLevel.SYNC,
     max_iterations: int = 10,
-    timeout: int | float | None = None,
-    max_retries: int = 2,
     **llm_kwargs: Any,
 ) -> Generator[BaseMessage, None, list[BaseMessage]]:
     """
@@ -82,11 +80,7 @@ def agent_invoke(
             messages.extend(e.value)
     """
     tools = tools or []
-    merged_kwargs = dict(llm_kwargs)
-    if timeout is not None:
-        merged_kwargs["timeout"] = timeout
-    merged_kwargs["max_retries"] = max_retries
-    llm_with_tools = _build_llm(tools, **merged_kwargs)
+    llm_with_tools = _build_llm(tools, **llm_kwargs)
     working_messages = list(messages)
     new_messages: list[BaseMessage] = []
     for _ in range(max_iterations):

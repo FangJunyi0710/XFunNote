@@ -214,11 +214,9 @@ def delete(
 class AIConfig:
     """AI 命令组共享参数。"""
     messages_json: str | None = None
-    temperature: float = 0.7
     max_iterations: int = 10
-    timeout: float | None = None
-    max_retries: int = 2
     system_prompt: str | None = None
+    llm_kwargs_json: str | None = None
 
 
 def _load_system_prompt(custom: str | None) -> str:
@@ -229,11 +227,13 @@ def _load_system_prompt(custom: str | None) -> str:
 
 
 def _build_llm_kwargs(cfg: AIConfig) -> dict:
-    """从 AIConfig 提取 LLM 关键字参数。"""
-    kwargs = {}
-    if cfg.temperature is not None:
-        kwargs["temperature"] = cfg.temperature
-    return kwargs
+    """从 AIConfig 的 llm_kwargs_json 字段解析 LLM 关键字参数。"""
+    if not cfg.llm_kwargs_json:
+        return {}
+    extra = json.loads(cfg.llm_kwargs_json)
+    if not isinstance(extra, dict):
+        raise ValueError("--llm-kwargs 必须是 JSON 对象")
+    return extra
 
 
 def _echo_token(chunk: AIMessageChunk) -> None:
@@ -249,20 +249,16 @@ def _echo_token(chunk: AIMessageChunk) -> None:
 def ai(
     ctx: typer.Context,
     messages_json: str | None = Option(None, "--messages", "-m", help="消息历史 JSON 数组"),
-    temperature: float = Option(0.7, "--temperature", "-t", help="LLM 温度参数"),
     max_iterations: int = Option(10, "--max-iterations", "-n", help="最大迭代轮次"),
-    timeout: float | None = Option(None, "--timeout", help="请求超时秒数"),
-    max_retries: int = Option(2, "--max-retries", help="最大重试次数"),
     system_prompt: str | None = Option(None, "--system-prompt", "--sp", help="自定义系统提示词，留空使用默认"),
+    llm_kwargs_json: str | None = Option(None, "--llm-kwargs", help="LLM 参数 JSON 字典，如 '{\"temperature\": 0.7, \"timeout\": 60, \"max_retries\": 2}'"),
 ):
     """AI 对话系列命令。所有子命令最终 stdout 输出完整消息列表 JSON。"""
     ctx.obj = AIConfig(
         messages_json=messages_json,
-        temperature=temperature,
         max_iterations=max_iterations,
-        timeout=timeout,
-        max_retries=max_retries,
         system_prompt=system_prompt,
+        llm_kwargs_json=llm_kwargs_json,
     )
 
 
@@ -281,8 +277,6 @@ def ai_sync(ctx: typer.Context):
             messages, tools=_AI_TOOLS,
             stream_level=StreamLevel.SYNC,
             max_iterations=cfg.max_iterations,
-            timeout=cfg.timeout,
-            max_retries=cfg.max_retries,
             **_build_llm_kwargs(cfg),
         )
         try:
@@ -313,8 +307,6 @@ def ai_chat(ctx: typer.Context):
                 messages, tools=_AI_TOOLS,
                 stream_level=StreamLevel.TOKEN,
                 max_iterations=cfg.max_iterations,
-                timeout=cfg.timeout,
-                max_retries=cfg.max_retries,
                 **_build_llm_kwargs(cfg),
             )
             try:
