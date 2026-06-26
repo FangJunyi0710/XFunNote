@@ -7,7 +7,6 @@ from typing import Any
 
 from langchain_core.messages import (
     AIMessage,
-    AIMessageChunk,
     BaseMessage,
     ToolCall,
     ToolMessage,
@@ -16,15 +15,7 @@ from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 
 from xfun.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
-from xfun.core.errors import AIError, ToolError
-
-_MAX_ITERATIONS = 10
-"""单次 ``agent_invoke`` 内最大工具调用轮数，防止无限循环。"""
-
-_DEFAULT_LLM_KWARGS: dict[str, Any] = {
-    "temperature": 0.1,
-    "extra_body": {"thinking": {"type": "disabled"}},
-}
+from xfun.core.errors import ToolError
 
 
 class StreamLevel(Enum):
@@ -43,7 +34,8 @@ def _build_llm(
     **llm_kwargs: Any,
 ):
     """构建绑定了工具的 ``ChatOpenAI`` 实例。"""
-    merged_kwargs = {**_DEFAULT_LLM_KWARGS, **llm_kwargs}
+    merged_kwargs = dict(llm_kwargs)
+    merged_kwargs.pop("streaming", None)  # 防止与 stream()/invoke() 冲突
     llm = ChatOpenAI(
         api_key=LLM_API_KEY,
         base_url=LLM_BASE_URL,
@@ -55,8 +47,11 @@ def _build_llm(
 
 def agent_invoke(
     messages: list[BaseMessage],
-    tools: list[BaseTool],
+    tools: list[BaseTool] | None = None,
     stream_level: StreamLevel = StreamLevel.SYNC,
+    max_iterations: int = 10,
+    timeout: int | float | None = None,
+    max_retries: int = 2,
     **llm_kwargs: Any,
 ) -> Generator[BaseMessage, None, list[BaseMessage]]:
     """
@@ -74,11 +69,15 @@ def agent_invoke(
         except StopIteration as e:
             messages.extend(e.value)
     """
-    llm_with_tools = _build_llm(tools, **llm_kwargs)
+    tools = tools or []
+    merged_kwargs = dict(llm_kwargs)
+    if timeout is not None:
+        merged_kwargs["timeout"] = timeout
+    merged_kwargs["max_retries"] = max_retries
+    llm_with_tools = _build_llm(tools, **merged_kwargs)
     working_messages = list(messages)
     new_messages: list[BaseMessage] = []
-
-    for _ in range(_MAX_ITERATIONS):
+    for _ in range(max_iterations):
         if stream_level == StreamLevel.TOKEN:
             full_content = ""
             full_reasoning = ""
@@ -88,12 +87,9 @@ def agent_invoke(
                 reasoning = chunk.additional_kwargs.get("reasoning_content", "")
                 if reasoning:
                     full_reasoning += reasoning
-                    chunk.additional_kwargs["is_reasoning"] = True
-                    yield chunk
-
                 if isinstance(chunk.content, str) and chunk.content:
                     full_content += chunk.content
-                    yield chunk  # AIMessageChunk — 逐 token 流式
+                yield chunk  # AIMessageChunk — 逐 token 流式
 
                 for tcc in chunk.tool_call_chunks or []:
                     idx = tcc.get("index", 0) or 0
@@ -158,12 +154,11 @@ def _execute_tool_call(
     tool_name = tc["name"]
     tool_args = tc["args"]
     tool_id: str = tc["id"]
-
     tool = _find_tool(tool_name, tools)
-    if tool is None:
-        raise ToolError(f"未知工具: {tool_name}")
 
     try:
+        if tool is None:
+            raise ToolError(f"未知工具: {tool_name}")
         content = tool.invoke(tool_args)
     except Exception as e:
         content = json.dumps({"error": str(e)}, ensure_ascii=False)

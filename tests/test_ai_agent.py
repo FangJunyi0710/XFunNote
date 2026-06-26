@@ -325,7 +325,7 @@ class TestAgentInvokeToken:
 
 class TestAgentInvokeEdgeCases:
     def test_max_iterations(self, monkeypatch, mock_tool):
-        """超过 _MAX_ITERATIONS 轮时强制终止。"""
+        """超过 max_iterations 限制时强制终止。"""
         tc = ToolCall(name="test_tool", args={}, id="loop")
         resp = AIMessage(content="继续", tool_calls=[tc])
 

@@ -347,6 +347,7 @@ XFunNote/
 │   ├── __init__.py
 │   ├── conftest.py
 │   ├── test_accumulation.py
+│   ├── test_ai_agent.py
 │   ├── test_ai_prompts.py
 │   ├── test_ai_schema.py
 │   ├── test_ai_security.py
@@ -434,6 +435,7 @@ graph LR
         tests___init__(__init__)
         tests_conftest(conftest)
         tests_test_accumulation(test_accumulation)
+        tests_test_ai_agent(test_ai_agent)
         tests_test_ai_prompts(test_ai_prompts)
         tests_test_ai_schema(test_ai_schema)
         tests_test_ai_security(test_ai_security)
@@ -488,6 +490,8 @@ graph LR
     style xfun_notebooks fill:#e8daef,stroke:#333,stroke-width:1px,color:#333
     cli --> xfun___init__
     cli --> xfun_ai_agent
+    cli --> xfun_ai_prompts
+    cli --> xfun_ai_tools
     cli --> xfun_config
     cli --> xfun_core_errors
     cli --> xfun_core_filter
@@ -502,6 +506,8 @@ graph LR
     tests_conftest --> xfun_notebooks_plan
     tests_conftest --> xfun_notebooks_word
     tests_test_accumulation --> xfun_core_filter
+    tests_test_ai_agent --> xfun_ai_agent
+    tests_test_ai_agent --> xfun_core_errors
     tests_test_ai_prompts --> xfun_ai___init__
     tests_test_ai_prompts --> xfun_ai_prompts
     tests_test_ai_prompts --> xfun_core_errors
@@ -549,8 +555,6 @@ graph LR
     xfun___init__ --> xfun_notebooks_diary
     xfun___init__ --> xfun_notebooks_plan
     xfun___init__ --> xfun_notebooks_word
-    xfun_ai_agent --> xfun_ai_prompts
-    xfun_ai_agent --> xfun_ai_tools
     xfun_ai_agent --> xfun_config
     xfun_ai_agent --> xfun_core_errors
     xfun_ai_prompts --> xfun___init__
