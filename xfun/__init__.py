@@ -1,4 +1,3 @@
-from . import config
 from .core.db       import DB
 from .core.notebook import Notebook
 from .notebooks.plan         import PlanNotebook

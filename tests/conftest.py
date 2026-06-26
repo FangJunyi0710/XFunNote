@@ -22,9 +22,6 @@ from xfun.notebooks.word import WordNotebook
 from xfun.notebooks.accumulation import AccumulationNotebook
 from xfun.notebooks.aimemory import AIMemoryNotebook
 
-from xfun.core.filter import Condition
-
-
 # ---------------------------------------------------------------------------
 # 夹具
 # ---------------------------------------------------------------------------

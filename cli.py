@@ -24,7 +24,6 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import asdict
 import json
-import os
 from typing import Optional
 
 import typer
@@ -35,8 +34,6 @@ from xfun import db, init_db, registry
 from xfun.ai.agent import StreamLevel, agent_invoke
 from xfun.ai.prompts import SYSTEM_PROMPT
 from xfun.ai.tools import add_entries, delete_entries, query_entries, update_entries
-from xfun.config import DB_PATH, LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
-from xfun.core.errors import XFunError
 from xfun.core.filter import parse_filter_json
 from xfun.core.ops import add as ops_add
 from xfun.core.ops import delete as ops_delete

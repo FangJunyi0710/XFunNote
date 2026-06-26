@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any
 from pydantic import BaseModel, Field, RootModel, field_validator
 
-from xfun.core.errors import InvalidConditionError, InvalidFilterError
+from xfun.core.errors import InvalidFilterError
 from xfun.core.filter import Condition, Filter
 
 def _inject_op_enum(schema: dict) -> None:

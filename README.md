@@ -492,13 +492,10 @@ graph LR
     cli --> xfun_ai_agent
     cli --> xfun_ai_prompts
     cli --> xfun_ai_tools
-    cli --> xfun_config
-    cli --> xfun_core_errors
     cli --> xfun_core_filter
     cli --> xfun_core_ops
     cli --> xfun_core_view
     tests_conftest --> xfun_core_db
-    tests_conftest --> xfun_core_filter
     tests_conftest --> xfun_core_notebook
     tests_conftest --> xfun_notebooks_accumulation
     tests_conftest --> xfun_notebooks_aimemory
@@ -546,7 +543,6 @@ graph LR
     tests_test_view --> xfun_core_filter
     tests_test_view --> xfun_core_view
     tests_test_word --> xfun_core_filter
-    xfun___init__ --> xfun_config
     xfun___init__ --> xfun_core_db
     xfun___init__ --> xfun_core_notebook
     xfun___init__ --> xfun_notebooks_accumulation
