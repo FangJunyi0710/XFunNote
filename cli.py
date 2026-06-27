@@ -16,7 +16,7 @@ XFunNote CLI — 命令行接口
     xfun ai        --messages JSON          → AI 对话（同步，输出新消息 JSON）
     xfun init                               → 初始化数据库
     xfun backup                             → 在线热备份数据库
-    xfun reset     [--force] [--no-backup]  → 重置数据库
+    xfun reset               [--no-backup]  → 重置数据库
 """
 
 from __future__ import annotations
@@ -137,7 +137,7 @@ def query(
     """通用查询。返回匹配的条目列表。"""
     _validate_notetype(notetype)
     with _cli_handle():
-        view = parse_view_json(json.load(view_json))
+        view = parse_view_json(json.loads(view_json))
         perm = root_permission(db)
         with db.read_transaction() as conn:
             results = ops_query(
@@ -181,7 +181,7 @@ def update(
     """通用更新。返回更新后条目的完整信息。"""
     _validate_notetype(notetype)
     with _cli_handle():
-        flt = parse_filter_json(json.load(filter_json))
+        flt = parse_filter_json(json.loads(filter_json))
         values = json.loads(values_json)
         perm = root_permission(db)
         with db.transaction() as conn:
@@ -202,7 +202,7 @@ def delete(
     """通用删除。返回被删除条目的完整信息。"""
     _validate_notetype(notetype)
     with _cli_handle():
-        flt = parse_filter_json(json.load(filter_json))
+        flt = parse_filter_json(json.loads(filter_json))
         perm = root_permission(db)
         with db.transaction() as conn:
             results = ops_delete(conn, perm, notetype, flt)
@@ -381,12 +381,9 @@ def backup():
 
 @app.command()
 def reset(
-    force: bool = Option(False, "--force", "-f", help="跳过确认提示"),
     no_backup: bool = Option(False, "--no-backup", help="重置前不备份"),
 ):
     """重置数据库（清空所有表并重新初始化）。"""
-    if not force:
-        typer.confirm("⚠️  重置将清空所有数据，是否继续？", abort=True)
     with _cli_handle():
         with db.read_transaction() as conn:
             if not no_backup:
