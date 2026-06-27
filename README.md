@@ -39,7 +39,7 @@ source .venv/bin/activate
 |------|------|
 | `XFUN_USER` | 数据库用户名，拼接为 `data/{用户名}.db`。若未设置，默认回退为 `data/default.db` |
 | `LLM_API_KEY` | DeepSeek API Key，用于 AI 功能 |
-| `LLM_BASE_URL` | DeepSeek API 端点，若不设置则为 None（ChatOpenAI 使用默认端点） |
+| `LLM_BASE_URL` | DeepSeek API 端点，若不设置则为 None（ChatAnthropic 使用默认端点） |
 | `LLM_MODEL` | 默认模型，若不设置则为 None，建议设为 `deepseek-v4-flash` |
 | `QQ_BOT_HTTP_URL` | QQ 机器人 HTTP API 地址（推送日报用） |
 
@@ -69,7 +69,7 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
 |------|------|
 | **权限体系** | `Permission = (read_view, write_view)` 身份系统，内置 root / ai / no 三种身份。AI 所有操作自动应用 `view_and` 交集约束，支持多角色切换 |
 | **AI Tools** | `query_entries`、`add_entries`、`update_entries`、`delete_entries` 共 4 个纯 CRUD 工具。不同 AI 模式可绑定不同工具子集，实现能力分级 |
-| **Agent** | `xfun/ai/agent.py` 工具调用循环引擎：支持多轮迭代（最多 10 轮）、自动错误恢复、System Prompt + 对话历史管理 |
+| **Agent** | `xfun/ai/agent.py` 工具调用循环引擎：支持多轮迭代（最多 10 轮）、自动错误恢复、System Prompt + 对话历史管理。<br><br>**流式输出体系**：支持三级流式粒度控制 `StreamLevel`（`TOKEN` / `MSG` / `SYNC`），通过 `accumulate_messages()` + `_chunk_to_message()` 自动将连续 `AIMessageChunk` 合并为完整 `AIMessage`。<br><br>**思考内容解析**：`extract_content_parts()` 解析 Anthropic 风格的 thinking blocks，将块内容按 type 分组为 `{"thinking": "...", "text": "..."}` 字典，在 CLI 中以灰色输出到 stderr。<br><br>**消息序列化**：`messages_to_json()` / `parse_messages_json()` 支持完整的 BaseMessage ↔ JSON 双向转换，对话历史可持久化到文件。<br><br>**SystemMessage 管理**：`ensure_system_message()` 自动在消息列表开头插入/替换 SystemMessage，支持多次对话复用同一提示词 |
 | **多模式扩展** | 当前 AI 默认使用 `ai_permission()` + 4 个 CRUD 工具。未来可新增 `analyst`（只读）、`editor`（读写）、`manager`（含记忆管理）等模式，各自绑定不同的 Permission + 工具集，通过 `agent_invoke(messages, permission=..., tools=...)` 参数化调用 |
 
 ### 记忆系统
@@ -157,8 +157,28 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
 | `xfun/ai/` | AI 集成层 — 安全沙箱、CRUD Tools、Agent 引擎、提示词与 Schema 校验 | `tools.py` / `agent.py` / `security.py` / `schema.py` / `prompts.py` |
 | `xfun/utils/` | 工具函数 | `time_utils.py` |
 | `cli.py` | 命令行入口（Typer, 10 个命令） | — |
-| `tests/` | 测试套件 | 17 个文件，230+ 测试 |
+| `tests/` | 测试套件 | 18 个文件，287 测试 |
 | `backend/`、`frontend/` | 规划中的 FastAPI 后端与 Streamlit 前端 | — |
+
+### CLI `ai` 命令详解
+
+AI 对话支持两种模式，`stdout` 统一输出完整消息列表 JSON：
+
+| 子命令 | 说明 |
+|--------|------|
+| `xfun ai sync --messages JSON` | **同步模式**：静默调用 LLM，无终端输出，仅 stdout 输出 JSON。适合脚本集成和自动化 |
+| `xfun ai chat` | **交互模式**：`stderr` 流式输出 LLM 回复（思考内容以灰色显示），退出后 stdout 输出完整消息 JSON |
+
+**全局参数：**
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--messages, -m` | `None` | 消息历史 JSON 数组（仅 sync 模式必需） |
+| `--max-iterations, -n` | `10` | Agent 工具调用最大迭代轮次 |
+| `--system-prompt, --sp` | 默认提示词 | 自定义系统提示词 |
+| `--llm-kwargs` | `{"thinking": {"type": "disabled"}}` | LLM 额外参数 JSON 字典 |
+
+> **💡 开发调试**：`cli.py` 中的 `_AI_TOOLS` 变量默认注释了全部 CRUD 工具（`query_entries` / `add_entries` / `update_entries` / `delete_entries`），这是为了在调试对话逻辑时节省 Token。需要启用工具调用时，取消对应行的注释即可。
 
 ### 技术栈
 
@@ -167,7 +187,7 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
 | 语言 | Python 3.10+ |
 | 数据库 | SQLite（WAL 模式，读写分离事务） |
 | CLI 框架 | Typer |
-| AI | LangChain + DeepSeek API（通过 `langchain_openai.ChatOpenAI` 兼容层） |
+| AI | LangChain + DeepSeek API（通过 `langchain_anthropic.ChatAnthropic` 兼容层，完整支持 thinking blocks） |
 | 数据模型 | Pydantic（JSON Schema 生成与 AI 输入校验） |
 | 测试 | pytest + pytest-cov |
 | 后端 API | FastAPI（规划中） |
@@ -191,7 +211,7 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
 | **Agent 对话引擎** | `xfun/ai/agent.py` 工具调用循环（Tool Calling Loop），支持多轮工具调用、自动错误恢复、最大迭代控制（10 轮） |
 | **Ops 操作层** | `xfun/core/ops.py` 4 个高维 CRUD 函数（`query`/`add`/`update`/`delete`），封装 View + Notebook 的组合语义 |
 | **视图层** | `xfun/core/view.py` 6 个核心函数：`view_to_sql`（跨本子 UNION ALL + 主键去重）、`view_or`/`view_and`（并集/交集）、`view_clean_columns`/`view_clean_filter`/`view_clean_update`（AI 安全沙箱列/行清洗）、`view_to_json`/`parse_view_json`（序列化/反序列化） |
-| **测试覆盖** | 全面覆盖核心引擎正常路径、边界条件、错误路径及事务回滚，230+ 个单元测试，17 个测试文件 |
+| **测试覆盖** | 全面覆盖核心引擎及 AI 集成层正常路径、边界条件、错误路径及事务回滚，287 个单元测试，18 个测试文件（含 `test_ai_agent.py`、`test_ai_prompts.py`、`test_ai_schema.py`、`test_ai_security.py`、`test_ai_tools.py`），覆盖率 100% |
 
 #### 🗺️ 规划中
 
@@ -220,7 +240,7 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
 - [x] `Filter` 递归 `to_sql()`，支持无限嵌套 OR/AND + `negate`
 - [x] `Notebook` 基类抽象 + 5 个本子（`plan`、`word`、`diary`、`accumulation`、`aimemory`）
 - [x] SQLite 数据库引擎（Column / Condition / Filter / DB / View）
-- [x] 单元测试 230+ 个，覆盖率 100%
+- [x] 单元测试 287 个，覆盖率 100%
 
 #### 阶段一：AI Tools 层（已完成）
 - [x] 在 `xfun/ai/tools.py` 中实现 4 个纯 CRUD 工具：
