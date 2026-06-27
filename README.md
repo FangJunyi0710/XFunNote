@@ -68,9 +68,9 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
 | 概念 | 说明 |
 |------|------|
 | **权限体系** | `Permission = (read_view, write_view)` 身份系统，内置 root / ai / no 三种身份。AI 所有操作自动应用 `view_and` 交集约束，支持多角色切换 |
-| **AI Tools** | `query_entries`、`add_entries`、`update_entries`、`delete_entries` 共 4 个纯 CRUD 工具。不同 AI 模式可绑定不同工具子集，实现能力分级 |
+| **AI Tools** | `query_entries`、`add_entries`、`update_entries`、`delete_entries`、`get_ai_permission` 共 **5 个**工具（4 个 CRUD + 权限查询）。不同 AI 模式可绑定不同工具子集，实现能力分级 |
 | **Agent** | `xfun/ai/agent.py` 工具调用循环引擎：支持多轮迭代（最多 10 轮）、自动错误恢复、System Prompt + 对话历史管理。<br><br>**流式输出体系**：支持三级流式粒度控制 `StreamLevel`（`TOKEN` / `MSG` / `SYNC`），通过 `accumulate_messages()` + `_chunk_to_message()` 自动将连续 `AIMessageChunk` 合并为完整 `AIMessage`。<br><br>**思考内容解析**：`extract_content_parts()` 解析 Anthropic 风格的 thinking blocks，将块内容按 type 分组为 `{"thinking": "...", "text": "..."}` 字典，在 CLI 中以灰色输出到 stderr。<br><br>**消息序列化**：`messages_to_json()` / `parse_messages_json()` 支持完整的 BaseMessage ↔ JSON 双向转换，对话历史可持久化到文件。<br><br>**SystemMessage 管理**：`ensure_system_message()` 自动在消息列表开头插入/替换 SystemMessage，支持多次对话复用同一提示词 |
-| **多模式扩展** | 当前 AI 默认使用 `ai_permission()` + 4 个 CRUD 工具。未来可新增 `analyst`（只读）、`editor`（读写）、`manager`（含记忆管理）等模式，各自绑定不同的 Permission + 工具集，通过 `agent_invoke(messages, permission=..., tools=...)` 参数化调用 |
+| **多模式扩展** | 当前 AI 默认使用 `ai_permission()` + 5 个工具。未来可新增 `analyst`（只读）、`editor`（读写）、`manager`（全工具）等模式，各自绑定不同的 Permission + 工具集，通过 `agent_invoke(messages, permission=..., tools=...)` 参数化调用 |
 
 ### 记忆系统
 
@@ -113,6 +113,8 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
   | `ai_permission` | 通用列 + 各本子专用列子集，排除含"私密"标签条目 | 仅 `content/ai_tags/ai_note` + 专用列子集 | AI 默认模式 |
   | `no_permission` | 零访问 | 零访问 | 默认拒绝兜底 |
 
+- **写权限是读权限的子集**：`_AI_WRITE_FILTER` 定义为 `[[_AI_READ_FILTER, TRUE_CONDITION]]`，AI 可写行必须同时满足可读过滤条件（排除含"私密"标签的条目），杜绝越权修改。
+
 - **用户可自由创建新身份**：只需构造新的 View 元组并调用 `ops.query(conn, (my_read_view, my_write_view), ...)` 即可。例如：
   - `guest_permission` — 限制为 `content` 和 `tags` 两列的只读权限
   - `shared_permission` — 限定 `plan` 本子中 `done=0` 的条目可见
@@ -121,8 +123,8 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
   | 模式 | 权限 | 工具集 | 用途 |
   |------|------|--------|------|
   | `analyst` | `(只读, no_permission)` | 仅 `query_entries` | 数据分析 |
-  | `editor` | `(ai_read, ai_write)` | 全部 4 个 CRUD | 内容管理 |
-  | `manager` | `(ai_read, ai_write)` | 全部 CRUD + 记忆管理工具 | 记忆管理 |
+  | `editor` | `(ai_read, ai_write)` | 全部 5 个工具 | 内容管理 |
+  | `manager` | `(ai_read, ai_write)` | 全部 5 个工具 | 全功能 |
   - 此扩展无需修改 Ops 层、View 层或 Notebook 层
 
 - **列级清洗**：通过 `view_clean_columns` 自动清洗非授权列（`id`、`created_at`、`seq` 等系统列受保护）。
@@ -132,6 +134,7 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
 - 显式记忆存储在 `aimemory` 本子（专用于 AI 记忆沉淀，字段：title/content/source/note）。
 - `accumulation` 本子用于用户的通用知识积累。
 - 分散痕迹存储在各类条目的 `ai_tags` 和 `ai_note` 中，通过 `JSON_CONTAINS` / `TEXT_SEARCH` 运算符检索。
+- **三级记忆分层**：`aimemory` 本子的 `title` 以 `[事实]`（客观属性）、`[历史]`（操作记录）或 `[策略]`（处理规则）为前缀。AI 执行任务前自动检索 `[策略]` 记忆作为默认配置，冲突时以用户当次指令为最高优先级。
 
 #### 4. AI 日报闭环：从生成到交付的自动化
 - AI 填充 LaTeX 模板 → 后端 `pdflatex` 编译（最多 3 次迭代纠错）→ 输出 PDF。
@@ -178,7 +181,7 @@ AI 对话支持两种模式，`stdout` 统一输出完整消息列表 JSON：
 | `--system-prompt, --sp` | 默认提示词 | 自定义系统提示词 |
 | `--llm-kwargs` | `{"thinking": {"type": "disabled"}}` | LLM 额外参数 JSON 字典 |
 
-> **💡 开发调试**：`cli.py` 中的 `_AI_TOOLS` 变量默认注释了全部 CRUD 工具（`query_entries` / `add_entries` / `update_entries` / `delete_entries`），这是为了在调试对话逻辑时节省 Token。需要启用工具调用时，取消对应行的注释即可。
+> **💡 开发调试**：`cli.py` 中的 `_AI_TOOLS` 变量管理着 AI 绑定的工具集，当前包含全部 5 个工具（4 个 CRUD + `get_ai_permission` 权限查询）。可按需增删工具来定制不同 AI 模式的能力。
 
 ### 技术栈
 
@@ -207,7 +210,7 @@ AI 对话支持两种模式，`stdout` 统一输出完整消息列表 JSON：
 | **Notebook 体系** | 抽象基类封装通用 CRUD + 自动建表 + 批量操作，子类只需定义扩展列和自动填充逻辑 |
 | **内置本子** | 基于基类扩展的 5 种预置实现 — 计划（字母编号/月分组）、日记（日期维）、单词（复习跟踪/去重）、积累（分类积累）、AI 记忆（标题/来源/备注）。各子类仅需定义扩展列和自动填充逻辑即可获得完整 CRUD + 批量操作 + 筛选查询，通过 dict 注册可插拔扩展 |
 | **注册中心** | 通过 `dict` 管理所有 Notebook 实例，支持注册/查找/注销/迭代 |
-| **AI Tools 层（核心）** | `xfun/ai/tools.py` 4 个纯 CRUD Function Calling 工具（`query_entries`、`add_entries`、`update_entries`、`delete_entries`）+ `xfun/ai/security.py` 行级/列级安全沙箱（`AI_READ_VIEW`、`AI_WRITE_VIEW`）+ `xfun/ai/schema.py` Pydantic JSON Schema 双重校验 + `xfun/ai/prompts.py` 系统提示词 |
+| **AI Tools 层（核心）** | `xfun/ai/tools.py` 5 个 Function Calling 工具（`query_entries`、`add_entries`、`update_entries`、`delete_entries`、`get_ai_permission`）+ `xfun/ai/security.py` 行级/列级安全沙箱（`AI_READ_VIEW`、`AI_WRITE_VIEW`）+ `xfun/ai/schema.py` Pydantic JSON Schema 双重校验 + `xfun/ai/prompts.py` 系统提示词 |
 | **Agent 对话引擎** | `xfun/ai/agent.py` 工具调用循环（Tool Calling Loop），支持多轮工具调用、自动错误恢复、最大迭代控制（10 轮） |
 | **Ops 操作层** | `xfun/core/ops.py` 4 个高维 CRUD 函数（`query`/`add`/`update`/`delete`），封装 View + Notebook 的组合语义 |
 | **视图层** | `xfun/core/view.py` 6 个核心函数：`view_to_sql`（跨本子 UNION ALL + 主键去重）、`view_or`/`view_and`（并集/交集）、`view_clean_columns`/`view_clean_filter`/`view_clean_update`（AI 安全沙箱列/行清洗）、`view_to_json`/`parse_view_json`（序列化/反序列化） |
@@ -218,16 +221,16 @@ AI 对话支持两种模式，`stdout` 统一输出完整消息列表 JSON：
 按优先级分三个梯队：
 
 **🚀 第一梯队（近期）**
-- **AI 日报闭环** — `xfun/ai/daily.py` 拉取当日数据，调用 DeepSeek 生成结构化摘要，支持 LaTeX 编译
-- **记忆导入与持续学习** — 导入外部数据（AI 对话导出、Markdown 笔记等），自动提炼标签与记忆总结
+- **FastAPI 后端** — `backend/main.py` 暴露 RESTful 接口
+- **Streamlit 前端** — `frontend/app.py` 可视化界面
 
 **📡 第二梯队（中期）**
+- **AI 日报闭环** — `xfun/ai/daily.py` 拉取当日数据，调用 DeepSeek 生成结构化摘要，支持 LaTeX 编译
+- **记忆导入与持续学习** — 导入外部数据（AI 对话导出、Markdown 笔记等），自动提炼标签与记忆总结
 - **QQ 机器人推送** — 集成 go-cqhttp HTTP API，定时推送日报
-- **FastAPI 后端** — `backend/main.py` 暴露 RESTful 接口
-- **工具函数补全** — `file_utils.py`、`string_utils.py`
 
 **🔭 第三梯队（远期）**
-- **Streamlit 前端** — `frontend/app.py` 可视化界面
+- **工具函数补全** — `file_utils.py`、`string_utils.py`
 - **单词复习调度** — SM-2 间隔重复算法集成
 - **多端同步** — 数据库文件置于 iCloud/OneDrive/WebDAV
 
@@ -243,21 +246,56 @@ AI 对话支持两种模式，`stdout` 统一输出完整消息列表 JSON：
 - [x] 单元测试 287 个，覆盖率 100%
 
 #### 阶段一：AI Tools 层（已完成）
-- [x] 在 `xfun/ai/tools.py` 中实现 4 个纯 CRUD 工具：
+- [x] 在 `xfun/ai/tools.py` 中实现 5 个工具：
   - `query_entries`（只读，自动合并 `AI_READ_VIEW`）
   - `update_entries`（可写，自动合并 `AI_WRITE_VIEW` + 列白名单）
   - `add_entries`（自动注入 `is_ai_gen=1`）
   - `delete_entries`（强制安全条件 + 预览拦截）
-  - （另有 4 个工具：`manage_tags`、`add_ai_note`、`search_memories`、`save_memory` 已精简，按需恢复）
+  - `get_ai_permission`（返回当前 AI 可读/可写字段的完整权限白名单）
 - [x] 在 `xfun/ai/security.py` 中定义：
   - `AI_READ_VIEW`（行级读权限 View 白名单）
   - `AI_WRITE_VIEW`（行级写权限 View 白名单）
 - [x] 在 `xfun/ai/schema.py` 中实现 Pydantic 模型（`ConditionModel`、`FilterModel`、`TableSpecModel`、`ViewModel`），为 AI 提供 JSON Schema 格式校验 + 运算符枚举校验
 - [x] 在 `xfun/ai/prompts.py` 中定义 AI 系统提示词
-- [x] `agent.py` 工具调用循环实现（LLM 绑定 4 个 CRUD Tools，多轮循环 + 自动错误恢复 + 最大迭代控制）
+- [x] `agent.py` 工具调用循环实现（LLM 绑定 5 个 Tools，多轮循环 + 自动错误恢复 + 最大迭代控制）
 - [x] `cli.py` 命令行入口（Typer），完整实现 10 个命令（list / schema / query / add / update / delete / ai / init / backup / reset），已接入 Agent 对话引擎
 
-#### 阶段一点五：记忆导入与持续学习
+#### 阶段二：View 层（已完成）
+- [x] 实现 `xfun/core/view.py`，6 个核心函数：
+  - `view_to_sql` — 跨本子 UNION ALL + GROUP BY 主键去重，全部下推 SQLite
+  - `view_or` / `view_and` — View 的并集/交集操作（安全沙箱通过交集自动约束 AI 权限范围）
+  - `view_clean_columns` / `view_clean_filter` / `view_clean_update` — AI 安全沙箱的列/行清洗工具（自动应用列白名单 + 行筛选）
+  - `view_to_json` / `parse_view_json` — View 的序列化与反序列化
+- [x] 在 `xfun/ai/schema.py` 中定义 `ViewModel`，通过 Pydantic 为 View JSON 格式提供双重校验
+
+#### 阶段三：FastAPI 后端（对外接口）
+- [ ] 实现 `backend/main.py`：
+  - 路由：`/api/v1/notebooks/{name}/entries`（`GET`/`POST`/`PUT`/`DELETE`）
+  - 路由：`/api/v1/views/` 视图管理路由
+  - 路由：`/api/v1/ai/daily`（日报生成）
+  - 路由：`/api/v1/ai/memory`（记忆查询与保存）
+- [ ] 依赖注入 + CORS 配置
+- [ ] Pydantic Schemas 映射（`ConditionModel` ↔ `Condition`）
+- [ ] 启动：`uvicorn backend.main:app --reload`
+
+#### 阶段四：前端可视化
+- [ ] Streamlit 界面 `frontend/app.py`：
+  - 计划列表/筛选/增删改
+  - 日记时间线
+  - 日报查看/导出
+- [ ] 调用 FastAPI 后端（而非直接操作数据库）
+
+#### 阶段五：AI 日报闭环（核心 AI 功能）
+- [ ] 实现 `xfun/ai/daily.py`：
+  - `generate_daily_report()` — 拉取当日计划/单词/积累，调用 DeepSeek 生成结构化摘要
+  - 支持 **LaTeX 模板填充** + **迭代编译**（`pdflatex`，最多重试 3 次，失败回退纯文本）
+- [ ] 实现 `xfun/ai/latex.py`：
+  - `compile_latex(content: str) -> (pdf_path, error_log)` — 临时目录编译，超时保护
+- [ ] 实现用户反馈学习：
+  - 用户在 QQ 中反馈意见 → AI 调用 `save_memory` 存储偏好到 aimemory 本子
+  - 下次生成日报时，AI 先查询 `aimemory` 中 tags 含 `日报` 的记忆，自动调整模板
+
+#### 阶段六：记忆导入与持续学习
 - [ ] 实现 `xfun/ai/importers/` 模块：
   - `chatgpt.py` — ChatGPT 对话导出解析
   - `markdown.py` — 个人 Markdown 笔记批量导入
@@ -270,47 +308,13 @@ AI 对话支持两种模式，`stdout` 统一输出完整消息列表 JSON：
   - 对话结束后自动调用 `save_memory` 保存关键结论
 - [ ] CLI 命令手动触发学习任务
 
-#### 阶段二：View 层（已完成）
-- [x] 实现 `xfun/core/view.py`，6 个核心函数：
-  - `view_to_sql` — 跨本子 UNION ALL + GROUP BY 主键去重，全部下推 SQLite
-  - `view_or` / `view_and` — View 的并集/交集操作（安全沙箱通过交集自动约束 AI 权限范围）
-  - `view_clean_columns` / `view_clean_filter` / `view_clean_update` — AI 安全沙箱的列/行清洗工具（自动应用列白名单 + 行筛选）
-  - `view_to_json` / `parse_view_json` — View 的序列化与反序列化
-- [x] 在 `xfun/ai/schema.py` 中定义 `ViewModel`，通过 Pydantic 为 View JSON 格式提供双重校验
-
-#### 阶段三：AI 日报闭环（核心 AI 功能）
-- [ ] 实现 `xfun/ai/daily.py`：
-  - `generate_daily_report()` — 拉取当日计划/单词/积累，调用 DeepSeek 生成结构化摘要
-  - 支持 **LaTeX 模板填充** + **迭代编译**（`pdflatex`，最多重试 3 次，失败回退纯文本）
-- [ ] 实现 `xfun/ai/latex.py`：
-  - `compile_latex(content: str) -> (pdf_path, error_log)` — 临时目录编译，超时保护
-- [ ] 实现用户反馈学习：
-  - 用户在 QQ 中反馈意见 → AI 调用 `save_memory` 存储偏好到 aimemory 本子
-  - 下次生成日报时，AI 先查询 `aimemory` 中 tags 含 `日报` 的记忆，自动调整模板
-
-#### 阶段四：推送与定时任务
+#### 阶段七：推送与定时任务
 - [ ] 集成 QQ 机器人（HTTP API 客户端）：
   - 通过 `go-cqhttp` 或 `mirai` 接收推送
   - 在 `config.py` 中配置 `QQ_GROUP_ID` / `QQ_USER_ID`
 - [ ] 配置 Cron 定时任务
 
-#### 阶段五：FastAPI 后端（对外接口）
-- [ ] 实现 `backend/main.py`：
-  - 路由：`/api/v1/notebooks/{name}/entries`（`GET`/`POST`/`PUT`/`DELETE`）
-  - 路由：`/api/v1/ai/daily`（日报生成）
-  - 路由：`/api/v1/ai/memory`（记忆查询与保存）
-- [ ] 依赖注入 + CORS 配置
-- [ ] Pydantic Schemas 映射（`ConditionModel` ↔ `Condition`）
-- [ ] 启动：`uvicorn backend.main:app --reload`
-
-#### 阶段六：前端可视化（可选）
-- [ ] Streamlit 界面 `frontend/app.py`：
-  - 计划列表/筛选/增删改
-  - 日记时间线
-  - 日报查看/导出
-- [ ] 调用 FastAPI 后端（而非直接操作数据库）
-
-#### 阶段七：多端同步与扩展（远期）
+#### 阶段八：多端同步与扩展（远期）
 - [ ] `import/export` 命令：JSON 导入导出（已有 `add` 支持 JSON，`dump` 只需 `SELECT *` + `json.dump`）
 - [ ] 多账户支持：`--user` 参数切换数据库文件
 - [ ] 多端同步：数据库文件置于 iCloud/OneDrive/WebDAV（由用户自行配置）
