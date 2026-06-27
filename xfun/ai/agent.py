@@ -37,13 +37,13 @@ def _build_llm(
     **llm_kwargs: Any,
 ):
     """构建绑定了工具的 ``ChatOpenAI`` 实例。"""
-    merged_kwargs = dict(llm_kwargs)
-    merged_kwargs.pop("streaming", None)  # 防止与 stream()/invoke() 冲突
+    llm_kwargs = dict(llm_kwargs)
+    llm_kwargs.pop("streaming", None)  # 防止与 stream()/invoke() 冲突
     llm = ChatOpenAI(
         api_key=LLM_API_KEY,
         base_url=LLM_BASE_URL,
         model=LLM_MODEL,
-        **merged_kwargs,
+        **llm_kwargs,
     )
     return llm.bind_tools(tools)
 
@@ -57,27 +57,44 @@ def _chunk_to_message(chunk: AIMessageChunk) -> AIMessage:
         tool_calls=chunk.tool_calls,
     )
 
+
+def accumulate_messages(result: list[BaseMessage], item: BaseMessage | None) -> None:
+    """
+    将流式输出项累积到 ``result`` 列表中，连续的 AIMessageChunk 自动合并为一个 AIMessage。
+    若 item 为 ``None``，则作为结束信号，将最后一个挂起的 AIMessageChunk 转为 AIMessage。
+    """
+    if isinstance(item, AIMessageChunk):
+        if result and isinstance(result[-1], AIMessageChunk):
+            result[-1] += item
+        else:
+            result.append(item)
+        return
+
+    if result and isinstance(result[-1], AIMessageChunk):
+        chunk = result.pop()
+        result.append(_chunk_to_message(chunk))
+
+    if item is not None:
+        result.append(item)
+
+
 def agent_invoke(
     messages: list[BaseMessage],
     tools: list[BaseTool] | None = None,
     stream_level: StreamLevel = StreamLevel.SYNC,
     max_iterations: int = 10,
     **llm_kwargs: Any,
-) -> Generator[BaseMessage, None, list[BaseMessage]]:
+) -> Generator[BaseMessage, None, None]:
     """
-    核心函数：生成器，yield 中间消息，StopIteration.value 返回完整新消息列表。
+    核心函数：生成器，yield 中间消息（AIMessageChunk / ToolMessage / AIMessage）。
 
-    用法::
+    配合 ``accumulate_messages`` 使用::
 
-        messages = [
-            SystemMessage(content="你是一个助手..."),
-            HumanMessage(content="今天有什么计划？"),
-        ]
-        try:
-            for msg in agent_invoke(messages, tools=...):
-                print(msg.content, end="", flush=True)
-        except StopIteration as e:
-            messages.extend(e.value)
+        new_messages: list[BaseMessage] = []
+        for yielded in agent_invoke(messages, tools=...):
+            accumulate_messages(new_messages, yielded)
+        accumulate_messages(new_messages, None)  # flush 挂起的 chunk（仅在 StreamLevel.TOKEN 下必要）
+        messages.extend(new_messages)
     """
     tools = tools or []
     llm_with_tools = _build_llm(tools, **llm_kwargs)
@@ -112,8 +129,6 @@ def agent_invoke(
     if stream_level == StreamLevel.SYNC:
         for msg in new_messages:
             yield msg
-
-    return new_messages
 
 def _execute_tool_call(
     tc: dict[str, Any],

@@ -24,20 +24,22 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 import json
+import traceback
 
 import typer
-from typer import Argument, Option
+from typer import Abort, Argument, Option
 
 from xfun import db, init_db, registry
 from xfun.ai.agent import (
     StreamLevel,
+    accumulate_messages,
     agent_invoke,
     ensure_system_message,
     messages_to_json,
     parse_messages_json,
 )
 from xfun.ai.prompts import SYSTEM_PROMPT
-from langchain_core.messages import AIMessageChunk, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessageChunk, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from xfun.ai.tools import (
     add_entries,
     delete_entries,
@@ -79,6 +81,7 @@ def _cli_handle():
     try:
         yield
     except Exception as e:
+        traceback.print_exc()
         typer.echo(_error(str(e)))
         raise typer.Exit(code=1)
 
@@ -240,10 +243,19 @@ def _echo_token(chunk: AIMessageChunk) -> None:
     """流式输出单个 AIMessageChunk，将 reasoning_content 以灰色输出到 stderr。"""
     reasoning = chunk.additional_kwargs.get("reasoning_content", "")
     if reasoning:
-        typer.echo(f"\x1b[2m[思考] {reasoning}\x1b[0m", err=True, nl=True)
+        typer.echo(f"\033[2m{reasoning}\033[0m", err=True, nl=False)
     if chunk.content:
         typer.echo(chunk.content, nl=False, err=True)
 
+def _read_multiline_input() -> str:
+    """读取用户输入，支持 \\ 续行。如果某行不以 \\ 结尾，表示输入结束。"""
+    l = typer.prompt("\n>>> ", prompt_suffix="", err=True)
+    lines = [l]
+    while l.endswith("\\"):
+        lines[-1] = lines[-1][:-1]
+        l = typer.prompt("..> ", prompt_suffix="", err=True)
+        lines.append(l)
+    return "\n".join(lines)
 
 @ai_app.callback()
 def ai(
@@ -251,7 +263,7 @@ def ai(
     messages_json: str | None = Option(None, "--messages", "-m", help="消息历史 JSON 数组"),
     max_iterations: int = Option(10, "--max-iterations", "-n", help="最大迭代轮次"),
     system_prompt: str | None = Option(None, "--system-prompt", "--sp", help="自定义系统提示词，留空使用默认"),
-    llm_kwargs_json: str | None = Option(None, "--llm-kwargs", help="LLM 参数 JSON 字典，如 '{\"temperature\": 0.7, \"timeout\": 60, \"max_retries\": 2}'"),
+    llm_kwargs_json: str | None = Option('{"extra_body": {"thinking": {"type": "disabled"}}}', "--llm-kwargs", help="LLM 参数 JSON 字典，如 '{\"temperature\": 0.1, \"timeout\": 60, \"max_retries\": 2}'"),
 ):
     """AI 对话系列命令。所有子命令最终 stdout 输出完整消息列表 JSON。"""
     ctx.obj = AIConfig(
@@ -279,12 +291,10 @@ def ai_sync(ctx: typer.Context):
             max_iterations=cfg.max_iterations,
             **_build_llm_kwargs(cfg),
         )
-        try:
-            for _ in gen:
-                pass
-        except StopIteration as e:
-            new_messages = e.value
-        typer.echo(json.dumps(messages_to_json(new_messages), ensure_ascii=False))
+        new_messages: list[BaseMessage] = []
+        for msg in gen:
+            accumulate_messages(new_messages, msg)
+        typer.echo(json.dumps(messages_to_json(messages + new_messages), ensure_ascii=False))
 
 
 @ai_app.command("chat")
@@ -299,9 +309,12 @@ def ai_chat(ctx: typer.Context):
         ensure_system_message(messages, system_prompt_text)
 
         while True:
-            user_input = typer.prompt("\n🧑 你", prompt_suffix="\n", err=True).strip()
-            if user_input.lower() in ("exit", "quit", "/q"):
+            try:
+                user_input = _read_multiline_input()
+            except (EOFError, KeyboardInterrupt, Abort):
+                typer.echo(err=True)
                 break
+
             messages.append(HumanMessage(content=user_input))
             gen = agent_invoke(
                 messages, tools=_AI_TOOLS,
@@ -309,19 +322,23 @@ def ai_chat(ctx: typer.Context):
                 max_iterations=cfg.max_iterations,
                 **_build_llm_kwargs(cfg),
             )
+            extension: list[BaseMessage] = []
             try:
                 for yielded in gen:
+                    accumulate_messages(extension, yielded)
                     if isinstance(yielded, AIMessageChunk):
                         _echo_token(yielded)
                     elif isinstance(yielded, ToolMessage):
-                        typer.echo(f"\n[工具调用: {yielded.name}]", err=True)
-            except StopIteration as e:
-                messages.extend(e.value)
+                        typer.echo(f"\n[{yielded.name}]: {yielded.content}\n", err=True)
+            except KeyboardInterrupt:
+                gen.close()
+
+            accumulate_messages(extension, None)
+            messages.extend(extension)
             typer.echo(err=True)
 
         # 退出后 stdout JSON
-        non_system = [m for m in messages if not isinstance(m, SystemMessage)]
-        typer.echo(json.dumps(messages_to_json(non_system), ensure_ascii=False))
+        typer.echo(json.dumps(messages_to_json(messages), ensure_ascii=False))
 
 
 app.add_typer(ai_app, name="ai")
