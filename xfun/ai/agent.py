@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Generator
 from enum import Enum, auto
-from typing import Annotated, Any, Literal, Sequence
-
-from typing_extensions import TypedDict
+from typing import Any
 
 from langchain_core.messages import (
     AIMessage,
@@ -12,40 +11,26 @@ from langchain_core.messages import (
     BaseMessage,
     HumanMessage,
     SystemMessage,
+    ToolCall,
     ToolMessage,
 )
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
-from langgraph.graph import StateGraph
-from langgraph.graph.message import add_messages
-from langgraph.prebuilt import ToolNode
 
 from xfun.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
+from xfun.core.errors import ToolError
 
 
 class StreamLevel(Enum):
     """AI Agent 流式输出的详细程度。
     - ``TOKEN``: 逐个 token 流式输出 LLM 回复（默认），yield ``AIMessageChunk``。
     - ``MSG``: 逐条完整消息输出，yield ``AIMessage`` / ``ToolMessage``。
-    - ``SYNC``: 阻塞等待 LLM 完整响应，全程静默，仅在结束循环后 yield 最终消息。
+    - ``SYNC``: 阻塞等待 LLM 完整响应，全程静默，仅在结束循环后 yield 最终 ``AIMessage`` 一次。
     """
     TOKEN = auto()
     MSG = auto()
     SYNC = auto()
 
-
-# ════════════════════════════════════════════════════════════
-#  LangGraph State
-# ════════════════════════════════════════════════════════════
-
-class State(TypedDict):
-    """Agent 状态。``add_messages`` reducer 自动处理消息追加与 AIMessageChunk 合并。"""
-    messages: Annotated[Sequence[BaseMessage], add_messages]
-
-
-# ════════════════════════════════════════════════════════════
-#  LLM 构建
-# ════════════════════════════════════════════════════════════
 
 def _build_llm(
     tools: list[BaseTool],
@@ -53,7 +38,7 @@ def _build_llm(
 ):
     """构建绑定了工具的 ``ChatOpenAI`` 实例。"""
     llm_kwargs = dict(llm_kwargs)
-    llm_kwargs.pop("streaming", None)
+    llm_kwargs.pop("streaming", None)  # 防止与 stream()/invoke() 冲突
     llm = ChatOpenAI(
         api_key=LLM_API_KEY,
         base_url=LLM_BASE_URL,
@@ -61,7 +46,6 @@ def _build_llm(
         **llm_kwargs,
     )
     return llm.bind_tools(tools)
-
 
 def _chunk_to_message(chunk: AIMessageChunk) -> AIMessage:
     """将累积的 AIMessageChunk 转换为完整的 AIMessage。"""
@@ -73,10 +57,6 @@ def _chunk_to_message(chunk: AIMessageChunk) -> AIMessage:
         tool_calls=chunk.tool_calls,
     )
 
-
-# ════════════════════════════════════════════════════════════
-#  消息累积
-# ════════════════════════════════════════════════════════════
 
 def accumulate_messages(result: list[BaseMessage], item: BaseMessage | None) -> None:
     """
@@ -98,50 +78,6 @@ def accumulate_messages(result: list[BaseMessage], item: BaseMessage | None) -> 
         result.append(item)
 
 
-# ════════════════════════════════════════════════════════════
-#  LangGraph Agent 构建
-# ════════════════════════════════════════════════════════════
-
-def _build_agent_graph(
-    tools: list[BaseTool],
-    max_iterations: int,
-    **llm_kwargs: Any,
-):
-    """构建 LangGraph Agent。
-    
-    流程：
-        call_model → should_continue ──有工具调用──→ tools → call_model
-                                    ──无工具调用──→ END
-    """
-    llm = _build_llm(tools, **llm_kwargs)
-
-    def call_model(state: State) -> dict:
-        response = llm.invoke(state["messages"])
-        return {"messages": [response]}
-
-    def should_continue(state: State) -> Literal["tools", "__end__"]:
-        last = state["messages"][-1]
-        if hasattr(last, "tool_calls") and last.tool_calls:
-            return "tools"
-        return "__end__"
-
-    # 每次迭代需要两个节点：call_model + tools，最后至少还要一次 call_model
-    recursion_limit = max_iterations * 2 + 1
-
-    graph = StateGraph(State)
-    graph.add_node("call_model", call_model)
-    graph.add_node("tools", ToolNode(tools))
-    graph.set_entry_point("call_model")
-    graph.add_conditional_edges("call_model", should_continue)
-    graph.add_edge("tools", "call_model")
-
-    return graph.compile(), recursion_limit
-
-
-# ════════════════════════════════════════════════════════════
-#  agent_invoke — 统一入口
-# ════════════════════════════════════════════════════════════
-
 def agent_invoke(
     messages: list[BaseMessage],
     tools: list[BaseTool] | None = None,
@@ -161,85 +97,72 @@ def agent_invoke(
         messages.extend(new_messages)
     """
     tools = tools or []
-
-    if stream_level == StreamLevel.TOKEN:
-        yield from _token_invoke(messages, tools, max_iterations, **llm_kwargs)
-    elif stream_level == StreamLevel.MSG:
-        yield from _msg_invoke(messages, tools, max_iterations, **llm_kwargs)
-    else:
-        yield from _sync_invoke(messages, tools, max_iterations, **llm_kwargs)
-
-
-# ════════════════════════════════════════════════════════════
-#  三种流式策略
-# ════════════════════════════════════════════════════════════
-
-def _sync_invoke(
-    messages: list[BaseMessage],
-    tools: list[BaseTool],
-    max_iterations: int,
-    **llm_kwargs: Any,
-) -> Generator[BaseMessage, None, None]:
-    """SYNC 模式：用 LangGraph 完整执行，最后统一 yield 所有新消息。"""
-    graph, recursion_limit = _build_agent_graph(tools, max_iterations, **llm_kwargs)
-    initial_state = {"messages": list(messages)}
-    result = graph.invoke(initial_state, {"recursion_limit": recursion_limit})
-    new_msgs = result["messages"][len(messages):]
-    for msg in new_msgs:
-        yield msg
-
-
-def _msg_invoke(
-    messages: list[BaseMessage],
-    tools: list[BaseTool],
-    max_iterations: int,
-    **llm_kwargs: Any,
-) -> Generator[BaseMessage, None, None]:
-    """MSG 模式：用 LangGraph stream(updates)，逐个 node 产出完整消息。"""
-    graph, recursion_limit = _build_agent_graph(tools, max_iterations, **llm_kwargs)
-    initial_state = {"messages": list(messages)}
-    for event in graph.stream(
-        initial_state,
-        stream_mode="updates",
-        config={"recursion_limit": recursion_limit},
-    ):
-        for node_output in event.values():
-            if "messages" in node_output:
-                for msg in node_output["messages"]:
-                    yield msg
-
-
-def _token_invoke(
-    messages: list[BaseMessage],
-    tools: list[BaseTool],
-    max_iterations: int,
-    **llm_kwargs: Any,
-) -> Generator[BaseMessage, None, None]:
-    """TOKEN 模式：LLM 逐 token 流式输出，ToolNode 执行工具调用。
-
-    TOKEN 模式不使用 LangGraph 编排，因为 graph node 内不支持原生逐 token yield。
-    采用手动循环：LLM.stream() yield chunk → ToolNode.invoke() yield ToolMessage。
-    """
-    llm = _build_llm(tools, **llm_kwargs)
-    tool_node = ToolNode(tools)
-    working = list(messages)
-
+    llm_with_tools = _build_llm(tools, **llm_kwargs)
+    working_messages = list(messages)
+    new_messages: list[BaseMessage] = []
     for _ in range(max_iterations):
-        accumulated = AIMessageChunk(content="")
-        for chunk in llm.stream(working):
-            accumulated += chunk
-            yield chunk  # AIMessageChunk — 逐 token
+        if stream_level == StreamLevel.TOKEN:
+            accumulated = AIMessageChunk(content="")
+            for chunk in llm_with_tools.stream(working_messages):
+                accumulated += chunk
+                yield chunk  # AIMessageChunk — 逐 token 流式
 
-        response = _chunk_to_message(accumulated)
-        working.append(response)
+            response = _chunk_to_message(accumulated)
+        else:
+            response = llm_with_tools.invoke(working_messages)
+
+        if stream_level == StreamLevel.MSG:
+            yield response  # 完整消息模式：yield 组装好的 AIMessage
+        new_messages.append(response)
+        working_messages.append(response)
 
         if not response.tool_calls:
             break
 
-        tool_results = tool_node.invoke({"messages": [response]})
-        for tm in tool_results["messages"]:
-            yield tm  # ToolMessage
-            working.append(tm)
+        for tc in response.tool_calls:
+            tm = _execute_tool_call(tc, tools)
+            if stream_level != StreamLevel.SYNC:
+                yield tm
+            new_messages.append(tm)
+            working_messages.append(tm)
+
+    if stream_level == StreamLevel.SYNC:
+        for msg in new_messages:
+            yield msg
+
+def _execute_tool_call(
+    tc: dict[str, Any],
+    tools: list[BaseTool],
+) -> ToolMessage:
+    """执行单次工具调用并返回 ToolMessage。
+
+    工具返回值保存为 ``artifact``，``content`` 统一由 ``json.dumps`` 生成。
+    """
+    tool_name = tc["name"]
+    tool_args = tc["args"]
+    tool_id: str = tc["id"]
+    tool = _find_tool(tool_name, tools)
+
+    try:
+        if tool is None:
+            raise ToolError(f"未知工具: {tool_name}")
+        artifact = tool.invoke(tool_args)
+        status = "success"
+    except Exception as e:
+        artifact = {"error": str(e)}
+        status = "error"
+
+    return ToolMessage(
+        content=json.dumps(artifact, ensure_ascii=False, default=str),
+        artifact=artifact,
+        tool_call_id=tool_id,
+        name=tool_name,
+        status=status,
+    )
+
+def _find_tool(name: str, tools: list[BaseTool]) -> BaseTool | None:
+    """根据名称在工具列表中查找工具。"""
+    return next((t for t in tools if t.name == name), None)
 
 
 # ════════════════════════════════════════════════════════════

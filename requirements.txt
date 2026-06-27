@@ -6,7 +6,6 @@ future-uuid         # uuid7 生成（plan.py）
 langchain>=0.3.0    # AI Agent 框架
 langchain-openai>=0.2.0  # OpenAI/DeepSeek 兼容封装
 langchain-core>=0.3.0    # LangChain 核心抽象
-langgraph>=0.3.0    # LangGraph 有状态 Agent 编排
 
 # ===================== 测试依赖 =====================
 
