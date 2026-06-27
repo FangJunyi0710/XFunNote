@@ -1,148 +1,217 @@
-"""测试 Notebook CRUD 集成：增删改查在主流程上是否正常工作。"""
+"""测试 Notebook 基类 CRUD。"""
+
+import re
 
 import pytest
-from xfun.core.db import Column
-from xfun.core.filter import Condition
-from xfun.core.errors import EntryInvalidError
+
+from xfun.core.db import Column, DB
 from xfun.core.notebook import Notebook, BASE_COLUMNS
+from xfun.core.filter import Condition, filter_to_sql
+from xfun.core.errors import EntryInvalidError
 
 
-class _EmptyColumnsNotebook(Notebook):
-    """没有列的 notebook，用于测试 init_table 空列分支。"""
-    name = "empty_nb"
-
-    @property
-    def columns(self):
-        return []
-
-
-class TestCRUD:
-    """验证完整 CRUD 流程走通，而不是逐行检查基类代码。"""
-
-    def test_add_then_get(self, db, test_nb):
-        db.init({test_nb.name: test_nb.columns})
-        with db.transaction() as conn:
-            ids = test_nb.add(conn, [
-                {"content": "hello", "title": "A"},
-                {"content": "world", "title": "B"},
-            ])
-        assert len(ids) == 2
-        assert ids[0] != ids[1]
-
-        with db.read_transaction() as conn:
-            results = test_nb.get_by_ids(conn, ids)
-        assert len(results) == 2
-        assert results[0]["title"] == "A"
-
-    def test_add_then_list_with_filter(self, db, test_nb):
-        db.init({test_nb.name: test_nb.columns})
-        with db.transaction() as conn:
-            test_nb.add(conn, [
-                {"content": "A", "title": "X"},
-                {"content": "B", "title": "Y"},
-                {"content": "C", "title": "Z"},
-            ])
-        with db.read_transaction() as conn:
-            ids = test_nb.list_ids(conn, [[Condition("title", "Y")]])
-        assert len(ids) == 1
-
-    def test_add_then_delete(self, db, test_nb):
-        db.init({test_nb.name: test_nb.columns})
-        with db.transaction() as conn:
-            ids = test_nb.add(conn, [
-                {"content": "A", "title": "X"},
-                {"content": "B", "title": "Y"},
-            ])
-            test_nb.delete(conn, [ids[0]])
-        with db.read_transaction() as conn:
-            remaining = test_nb.get_by_ids(conn, ids)
-        assert len(remaining) == 1
-
-    def test_add_then_update(self, db, test_nb):
-        db.init({test_nb.name: test_nb.columns})
-        with db.transaction() as conn:
-            ids = test_nb.add(conn, [{"content": "A", "title": "X"}])
-            test_nb.update(conn, ids, {"title": "Y"})
-        with db.read_transaction() as conn:
-            result = test_nb.get_by_ids(conn, ids)
-        assert result[0]["title"] == "Y"
-        assert result[0]["content"] == "A"  # 未更新字段不变
+class SimpleNotebook(Notebook):
+    """用于测试的简单 Notebook 子类。"""
+    name = "test_nb"
+    _extra_columns = [
+        Column("category", "TEXT", nullable=False),
+        Column("score", "REAL", nullable=True),
+    ]
 
 
-class TestValidate:
-    """验证必填字段检查生效。"""
+# ===================================================================
+# Notebook 基类
+# ===================================================================
 
-    def test_missing_required_raises(self, test_nb):
-        with pytest.raises(EntryInvalidError):
-            test_nb._validate({"content": "hello"})  # 缺 title
+class TestNotebookBase:
+    def test_columns_merged(self):
+        nb = SimpleNotebook()
+        assert len(nb.columns) == len(BASE_COLUMNS) + 2
+        assert nb.columns[-2].name == "category"
+        assert nb.columns[-1].name == "score"
+        for i, bc in enumerate(BASE_COLUMNS):
+            assert nb.columns[i].name == bc.name
 
+    def test_repr(self):
+        nb = SimpleNotebook()
+        assert repr(nb) == "<Notebook:test_nb>"
 
-class TestNotebookEdgeCases:
-    """Notebook 基类的边界分支覆盖。"""
+    def test_str(self):
+        nb = SimpleNotebook()
+        assert str(nb) == "test_nb"
 
-    def test_get_by_id_empty(self, db, test_nb):
-        """空 ID 列表应直接返回 []。"""
-        with db.read_transaction() as conn:
-            assert test_nb.get_by_ids(conn, []) == []
-
-    def test_init_table_empty_columns(self, db):
-        """没有列的 notebook，init 应直接返回。"""
-        nb = _EmptyColumnsNotebook()
-        db.init({nb.name: nb.columns})  # 不抛异常即通过
-
-    def test_list_with_order_by(self, db, test_nb):
-        """list 传入 order_by 参数。"""
-        db.init({test_nb.name: test_nb.columns})
-        with db.transaction() as conn:
-            test_nb.add(conn, [
-                {"content": "C", "title": "Z"},
-                {"content": "A", "title": "X"},
-                {"content": "B", "title": "Y"},
-            ])
-        with db.read_transaction() as conn:
-            ids = test_nb.list_ids(conn, [], order_by="title ASC")
-        with db.read_transaction() as conn:
-            results = test_nb.get_by_ids(conn, ids)
-        assert [r["title"] for r in results] == ["X", "Y", "Z"]
-
-    def test_delete_empty(self, db, test_nb):
-        """空列表 delete 应无操作。"""
-        db.init({test_nb.name: test_nb.columns})
-        with db.transaction() as conn:
-            test_nb.delete(conn, [])  # 不抛异常即通过
-
-    def test_update_empty(self, db, test_nb):
-        """空列表 update 应无操作。"""
-        db.init({test_nb.name: test_nb.columns})
-        with db.transaction() as conn:
-            test_nb.update(conn, [], {"title": "X"})  # 不抛异常即通过
-
-    def test_repr(self, test_nb):
-        assert repr(test_nb) == "<Notebook:test_nb>"
-
-    def test_str(self, test_nb):
-        assert str(test_nb) == "test_nb"
-
-    def test_str_fallback(self):
-        """name 为空时使用类名。"""
-        class _NoName(Notebook):
+    def test_name_empty_by_default(self):
+        class Unnamed(Notebook):
             pass
-        nb = _NoName()
-        assert str(nb) == "_NoName"
+        assert str(Unnamed()) == "Unnamed"
 
 
-class TestTransaction:
-    """验证回滚语义正确。"""
+# ===================================================================
+# Notebook CRUD（使用 db 夹具直接操作表）
+# ===================================================================
 
-    def test_rollback_undoes_insert(self, db, test_nb):
-        # 先建表
-        db.init({test_nb.name: test_nb.columns})
-        # 插入操作在另一个事务中回滚
-        with pytest.raises(RuntimeError):
-            with db.transaction() as conn:
-                test_nb.add(conn, [{"content": "hello", "title": "A"}])
-                raise RuntimeError("rollback!")
-        # 回滚后表还在但无数据
-        with db.read_transaction() as conn:
-            rows = conn.execute("SELECT * FROM test_nb").fetchall()
-        assert len(rows) == 0
+class TestNotebookCRUD:
+    NB_NAME = "test_nb"
+
+    @pytest.fixture
+    def nb(self, db):
+        with db.transaction() as conn:
+            db.init(conn, {self.NB_NAME: SimpleNotebook().columns})
+        return SimpleNotebook()
+
+    def _add_test_entries(self, nb, db, entries):
+        """辅助：在单独事务中添加条目并返回 ID。"""
+        with db.transaction() as conn:
+            return nb.add(conn, entries)
+
+    def _get_by_ids(self, nb, db, ids):
+        """辅助：在单独事务中查询。"""
+        with db.transaction() as conn:
+            return nb.get_by_ids(conn, ids)
+
+    def test_add(self, nb, db):
+        ids = self._add_test_entries(nb, db, [{"content": "hello", "category": "greeting"}])
+        assert len(ids) == 1
+        assert ids[0].startswith("test_nb-")
+
+    def test_add_multiple(self, nb, db):
+        ids = self._add_test_entries(nb, db, [
+            {"content": "a", "category": "cat1"},
+            {"content": "b", "category": "cat2"},
+        ])
+        assert len(ids) == 2
+
+    def test_autofill_defaults(self, nb, db):
+        ids = self._add_test_entries(nb, db, [{"content": "test", "category": "cat"}])
+        row = self._get_by_ids(nb, db, ids)[0]
+        assert row["tags"] == "[]"
+        assert row["ai_tags"] == "[]"
+        assert row["is_ai_gen"] == 0
+        assert row["created_at"] is not None
+        assert row["updated_at"] is not None
+
+    def test_add_missing_required_field(self, nb, db):
+        with db.transaction() as conn:
+            with pytest.raises(EntryInvalidError):
+                nb.add(conn, [{"content": "missing category"}])
+
+    def test_get_by_ids(self, nb, db):
+        ids = self._add_test_entries(nb, db, [
+            {"content": "a", "category": "c1"},
+            {"content": "b", "category": "c2"},
+        ])
+        rows = self._get_by_ids(nb, db, ids)
+        assert len(rows) == 2
+        assert rows[0]["content"] == "a"
+        assert rows[1]["content"] == "b"
+        assert rows[0]["id"] == ids[0]
+        assert rows[1]["id"] == ids[1]
+
+    def test_get_by_ids_empty(self, nb, db):
+        with db.transaction() as conn:
+            rows = nb.get_by_ids(conn, [])
+        assert rows == []
+
+    def test_get_by_ids_nonexistent(self, nb, db):
+        with db.transaction() as conn:
+            rows = nb.get_by_ids(conn, ["nonexistent"])
+        assert rows == []
+
+    def test_get_by_ids_partial(self, nb, db):
+        ids = self._add_test_entries(nb, db, [{"content": "a", "category": "c1"}])
+        with db.transaction() as conn:
+            rows = nb.get_by_ids(conn, ids + ["nonexistent"])
+        assert len(rows) == 1
+
+    def test_list_ids_with_filter(self, nb, db):
+        self._add_test_entries(nb, db, [
+            {"content": "a", "category": "urgent"},
+            {"content": "b", "category": "normal"},
+            {"content": "c", "category": "urgent"},
+        ])
+        with db.transaction() as conn:
+            ids = nb.list_ids(conn, [[Condition("category", "urgent", "=")]])
+        assert len(ids) == 2
+
+    def test_list_ids_empty_filter(self, nb, db):
+        self._add_test_entries(nb, db, [
+            {"content": "a", "category": "c1"},
+            {"content": "b", "category": "c2"},
+        ])
+        with db.transaction() as conn:
+            ids = nb.list_ids(conn, [[]])
+        assert len(ids) == 2
+
+    def test_list_ids_with_order_by(self, nb, db):
+        self._add_test_entries(nb, db, [
+            {"content": "b", "category": "c2"},
+            {"content": "a", "category": "c1"},
+        ])
+        # 用单次事务包装查询
+        with db.transaction() as conn:
+            ids = nb.list_ids(conn, [[]], order_by="content ASC")
+            rows = nb.get_by_ids(conn, ids)
+        assert rows[0]["content"] == "a"
+
+    def test_list_ids_with_limit(self, nb, db):
+        self._add_test_entries(nb, db, [
+            {"content": f"item{i}", "category": "cat"}
+            for i in range(10)
+        ])
+        with db.transaction() as conn:
+            limited = nb.list_ids(conn, [[]], limit=3)
+        assert len(limited) == 3
+
+    def test_list_ids_with_offset(self, nb, db):
+        self._add_test_entries(nb, db, [
+            {"content": f"item{i}", "category": "cat"}
+            for i in range(10)
+        ])
+        with db.transaction() as conn:
+            all_ids = nb.list_ids(conn, [[]])
+            offset_ids = nb.list_ids(conn, [[]], offset=5)
+        assert len(offset_ids) == 5
+        assert offset_ids == all_ids[5:]
+
+    def test_delete(self, nb, db):
+        ids = self._add_test_entries(nb, db, [{"content": "delete me", "category": "cat"}])
+        with db.transaction() as conn:
+            nb.delete(conn, ids)
+        rows = self._get_by_ids(nb, db, ids)
+        assert rows == []
+
+    def test_delete_empty(self, nb, db):
+        with db.transaction() as conn:
+            nb.delete(conn, [])
+
+    def test_update(self, nb, db):
+        ids = self._add_test_entries(nb, db, [{"content": "old", "category": "cat"}])
+        with db.transaction() as conn:
+            nb.update(conn, ids, {"content": "new"})
+        row = self._get_by_ids(nb, db, ids)[0]
+        assert row["content"] == "new"
+
+    def test_update_multiple_ids(self, nb, db):
+        ids = self._add_test_entries(nb, db, [
+            {"content": "a", "category": "c1"},
+            {"content": "b", "category": "c2"},
+        ])
+        with db.transaction() as conn:
+            nb.update(conn, ids, {"category": "common"})
+        rows = self._get_by_ids(nb, db, ids)
+        assert rows[0]["category"] == "common"
+        assert rows[1]["category"] == "common"
+
+    def test_update_empty(self, nb, db):
+        with db.transaction() as conn:
+            nb.update(conn, [], {"content": "new"})
+
+    def test_update_autofills_updated_at(self, nb, db):
+        ids = self._add_test_entries(nb, db, [{"content": "old", "category": "cat"}])
+        with db.transaction() as conn:
+            row = nb.get_by_ids(conn, ids)[0]
+            old_updated = row["updated_at"]
+        with db.transaction() as conn:
+            nb.update(conn, ids, {"content": "new"})
+        row = self._get_by_ids(nb, db, ids)[0]
+        assert row["updated_at"] != old_updated

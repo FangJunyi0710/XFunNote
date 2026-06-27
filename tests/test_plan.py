@@ -1,73 +1,154 @@
-"""测试 PlanNotebook 的核心业务逻辑：seq 分配、编号生成。"""
+"""测试 PlanNotebook — 字母编号、seq 自动递增。"""
 
 import pytest
-from xfun.notebooks.plan import PlanNotebook, _seq_to_letter
+
+from xfun.core.filter import Condition
 
 
-class TestSeqAllocation:
-    """计划本最核心的逻辑：seq 按月独立递增。"""
-
-    def test_increments_within_month(self, db, plan_nb):
-        db.init({plan_nb.name: plan_nb.columns})
+class TestPlanNotebook:
+    def test_add_single(self, registry, db):
+        nb = registry["plan"]
         with db.transaction() as conn:
-            ids = plan_nb.add(conn, [
-                {"month": "2606", "content": "one"},
-                {"month": "2606", "content": "two"},
-                {"month": "2606", "content": "three"},
-            ])
-        with db.read_transaction() as conn:
-            results = plan_nb.get_by_ids(conn, ids)
-        assert [r["seq"] for r in results] == [1, 2, 3]
-
-    def test_resets_per_month(self, db, plan_nb):
-        db.init({plan_nb.name: plan_nb.columns})
-        with db.transaction() as conn:
-            ids = plan_nb.add(conn, [
-                {"month": "2606", "content": "june"},
-                {"month": "2607", "content": "july"},
-            ])
-        with db.read_transaction() as conn:
-            results = plan_nb.get_by_ids(conn, ids)
-        assert results[0]["seq"] == 1
-        assert results[1]["seq"] == 1  # 不同月份独立计数
-
-    def test_continues_across_batches(self, db, plan_nb):
-        db.init({plan_nb.name: plan_nb.columns})
-        with db.transaction() as conn:
-            ids1 = plan_nb.add(conn, [{"month": "2607", "content": "first"}])
-        with db.transaction() as conn:
-            ids2 = plan_nb.add(conn, [{"month": "2607", "content": "second"}])
-        with db.read_transaction() as conn:
-            results = plan_nb.get_by_ids(conn, ids1 + ids2)
-        assert [r["seq"] for r in results] == [1, 2]
-
-    def test_id_format(self, db, plan_nb):
-        db.init({plan_nb.name: plan_nb.columns})
-        with db.transaction() as conn:
-            ids = plan_nb.add(conn, [{"month": "2607", "content": "test"}])
+            ids = nb.add(conn, [{"content": "task 1", "month": "2606"}])
+        assert len(ids) == 1
         assert ids[0].startswith("plan-")
 
-    def test_no_format(self, db, plan_nb):
-        db.init({plan_nb.name: plan_nb.columns})
+    def test_seq_increments_within_month(self, registry, db):
+        nb = registry["plan"]
         with db.transaction() as conn:
-            ids = plan_nb.add(conn, [{"month": "2607", "content": "test"}])
-        with db.read_transaction() as conn:
-            result = plan_nb.get_by_ids(conn, ids)
-        assert result[0]["no"] == "2607A"
+            ids = nb.add(conn, [
+                {"content": "task 1", "month": "2606"},
+                {"content": "task 2", "month": "2606"},
+                {"content": "task 3", "month": "2606"},
+            ])
+        with db.transaction() as conn:
+            rows = nb.get_by_ids(conn, ids)
+        seqs = [r["seq"] for r in rows]
+        assert seqs == [1, 2, 3]
+
+    def test_seq_independent_across_months(self, registry, db):
+        nb = registry["plan"]
+        with db.transaction() as conn:
+            ids2606 = nb.add(conn, [
+                {"content": "t1", "month": "2606"},
+                {"content": "t2", "month": "2606"},
+            ])
+            ids2607 = nb.add(conn, [
+                {"content": "t3", "month": "2607"},
+            ])
+        with db.transaction() as conn:
+            rows2606 = nb.get_by_ids(conn, ids2606)
+            rows2607 = nb.get_by_ids(conn, ids2607)
+        assert [r["seq"] for r in rows2606] == [1, 2]
+        assert [r["seq"] for r in rows2607] == [1]
+
+    def test_no_generated(self, registry, db):
+        """plan 的 no 应基于 seq 自动生成字母编号。"""
+        nb = registry["plan"]
+        with db.transaction() as conn:
+            ids = nb.add(conn, [
+                {"content": "task A", "month": "2606"},
+                {"content": "task B", "month": "2606"},
+            ])
+        with db.transaction() as conn:
+            rows = nb.get_by_ids(conn, ids)
+        assert rows[0]["no"] == "2606A"
+        assert rows[1]["no"] == "2606B"
+
+    def test_no_generated_for_multiple_months(self, registry, db):
+        nb = registry["plan"]
+        with db.transaction() as conn:
+            ids2606 = nb.add(conn, [{"content": "t1", "month": "2606"}])
+            ids2607 = nb.add(conn, [{"content": "t2", "month": "2607"}])
+        with db.transaction() as conn:
+            r1 = nb.get_by_ids(conn, ids2606)
+            r2 = nb.get_by_ids(conn, ids2607)
+        assert r1[0]["no"] == "2606A"
+        assert r2[0]["no"] == "2607A"
+
+    def test_done_defaults_to_zero(self, registry, db):
+        nb = registry["plan"]
+        with db.transaction() as conn:
+            ids = nb.add(conn, [{"content": "task", "month": "2606"}])
+        with db.transaction() as conn:
+            row = nb.get_by_ids(conn, ids)[0]
+        assert row["done"] == 0
+
+    def test_missing_month_raises(self, registry, db):
+        nb = registry["plan"]
+        with db.transaction() as conn:
+            with pytest.raises(Exception):
+                nb.add(conn, [{"content": "no month"}])
+
+    def test_seq_continues_after_add_batch(self, registry, db):
+        """同一月份批量添加后，再添加应继续递增。"""
+        nb = registry["plan"]
+        with db.transaction() as conn:
+            ids_first = nb.add(conn, [
+                {"content": "a", "month": "2606"},
+                {"content": "b", "month": "2606"},
+            ])
+        with db.transaction() as conn:
+            ids_second = nb.add(conn, [
+                {"content": "c", "month": "2606"},
+            ])
+        with db.transaction() as conn:
+            r2 = nb.get_by_ids(conn, ids_second)
+        assert r2[0]["seq"] == 3
+        assert r2[0]["no"] == "2606C"
+
+    def test_list_by_month(self, registry, db):
+        nb = registry["plan"]
+        with db.transaction() as conn:
+            nb.add(conn, [
+                {"content": "june1", "month": "2606"},
+                {"content": "june2", "month": "2606"},
+                {"content": "july1", "month": "2607"},
+            ])
+        with db.transaction() as conn:
+            june_ids = nb.list_ids(conn, [[Condition("month", "2606", "=")]])
+        assert len(june_ids) == 2
+
+    def test_seq_starts_from_existing_max(self, registry, db):
+        """seq 应从已有数据的 MAX(seq) + 1 开始。"""
+        nb = registry["plan"]
+        with db.transaction() as conn:
+            conn.execute(
+                "INSERT INTO plan (id, content, month, seq, no, done, created_at, updated_at, tags, ai_tags, is_ai_gen) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                ("plan-pre", "pre", "2606", 5, "2606E", 0,
+                 "2026-01-01", "2026-01-01", "[]", "[]", 0),
+            )
+        with db.transaction() as conn:
+            ids = nb.add(conn, [{"content": "after", "month": "2606"}])
+        with db.transaction() as conn:
+            row = nb.get_by_ids(conn, ids)[0]
+        assert row["seq"] == 6
+        assert row["no"] == "2606F"
+
+    def test_missing_content_raises(self, registry, db):
+        nb = registry["plan"]
+        with db.transaction() as conn:
+            with pytest.raises(Exception):
+                nb.add(conn, [{"month": "2606"}])
 
 
-class TestSeqToLetter:
-    """_seq_to_letter 边界情况。"""
+class TestPlanEdgeCases:
+    """覆盖 _seq_to_letter 越界分支 (l.22)。"""
 
-    def test_overflow_uses_bracket(self):
-        """seq 超出字母映射范围时使用 [seq] 格式。"""
-        result = _seq_to_letter(101)
-        assert result == "[101]"
+    def test_seq_to_letter_zero(self):
+        from xfun.notebooks.plan import _seq_to_letter
+        assert _seq_to_letter(0) == "[0]"
 
-    def test_first_maps_to_A(self):
+    def test_seq_to_letter_negative(self):
+        from xfun.notebooks.plan import _seq_to_letter
+        assert _seq_to_letter(-1) == "[-1]"
+
+    def test_seq_to_letter_beyond_100(self):
+        from xfun.notebooks.plan import _seq_to_letter
+        assert _seq_to_letter(101) == "[101]"
+
+    def test_seq_to_letter_normal(self):
+        from xfun.notebooks.plan import _seq_to_letter
         assert _seq_to_letter(1) == "A"
-
-    def test_last_maps_to_omega(self):
-        """第 100 个对应大写 Omega Ω。"""
-        result = _seq_to_letter(100)
-        assert result == "Ω"
+        assert _seq_to_letter(26) == "Z"

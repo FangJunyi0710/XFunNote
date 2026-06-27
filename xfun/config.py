@@ -7,10 +7,12 @@
 
 import os
 from dotenv import load_dotenv
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # 加载 .env 文件（优先当前目录，其次项目根目录）
-load_dotenv()
-
+load_dotenv(str(PROJECT_ROOT / ".env"))
 
 # ---- 用户 ----
 
@@ -18,8 +20,7 @@ XFUN_USER = os.environ.get("XFUN_USER", "default")
 
 
 # ---- 数据库 ----
-
-DB_PATH = f"data/{XFUN_USER}.db"
+DB_PATH = str(PROJECT_ROOT / "data" / f"{XFUN_USER}.db")
 
 
 # ---- AI ----

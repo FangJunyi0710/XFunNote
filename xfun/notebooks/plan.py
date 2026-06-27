@@ -6,7 +6,6 @@ plan 本：以月份为分组，管理待办事项 / 目标条目。
 
 from collections import defaultdict
 from typing import Any
-from future_uuid import uuid7
 
 from ..core.db import Column
 from ..core.notebook import Notebook

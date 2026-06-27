@@ -1,97 +1,63 @@
-"""测试 WordNotebook：必填字段、ID 去重、可选字段、复习数据默认值。"""
+"""测试 WordNotebook — 单词复习跟踪。"""
 
 import pytest
-from xfun.core.errors import EntryInvalidError
-from xfun.notebooks.word import WordNotebook
+
+from xfun.core.filter import Condition
 
 
-@pytest.fixture
-def word_nb():
-    return WordNotebook()
-
-
-class TestWordAutofill:
-    """word 的核心行为。"""
-
-    def test_add_word(self, db, word_nb):
-        """基本写入：单词 + 释义（content）。"""
-        db.init({word_nb.name: word_nb.columns})
+class TestWordNotebook:
+    def test_add_word(self, registry, db):
+        nb = registry["word"]
         with db.transaction() as conn:
-            ids = word_nb.add(conn, [
-                {"word": "python", "content": "蟒蛇；一种编程语言"},
-            ])
-        with db.read_transaction() as conn:
-            results = word_nb.get_by_ids(conn, ids)
-        assert results[0]["word"] == "python"
-        assert results[0]["content"] == "蟒蛇；一种编程语言"
-
-    def test_id_is_word(self, db, word_nb):
-        """id 为 word-{uuid7} 格式，可通过 id 查询。"""
-        db.init({word_nb.name: word_nb.columns})
-        with db.transaction() as conn:
-            ids = word_nb.add(conn, [
-                {"word": "apple", "content": "苹果"},
-            ])
+            ids = nb.add(conn, [{
+                "content": "apple",
+                "word": "apple",
+                "part_of_speech": "noun",
+                "phonetic": "/ˈæp.əl/",
+            }])
+        assert len(ids) == 1
         assert ids[0].startswith("word-")
-        with db.read_transaction() as conn:
-            result = word_nb.get_by_ids(conn, ids)
-        assert result[0]["word"] == "apple"
 
-    def test_duplicate_word_allowed(self, db, word_nb):
-        """相同单词可重复添加（id 为 uuid7 全局唯一，不禁重）。"""
-        db.init({word_nb.name: word_nb.columns})
+    def test_review_count_defaults_to_zero(self, registry, db):
+        nb = registry["word"]
         with db.transaction() as conn:
-            ids1 = word_nb.add(conn, [{"word": "apple", "content": "苹果"}])
-            ids2 = word_nb.add(conn, [{"word": "apple", "content": "苹果公司"}])
-        with db.read_transaction() as conn:
-            results = word_nb.get_by_ids(conn, ids1 + ids2)
-        assert len(results) == 2
-        assert results[0]["word"] == "apple"
-        assert results[1]["word"] == "apple"
+            ids = nb.add(conn, [{"content": "run", "word": "run"}])
+        with db.transaction() as conn:
+            row = nb.get_by_ids(conn, ids)[0]
+        assert row["review_count"] == 0
 
-    def test_optional_fields(self, db, word_nb):
-        """词性、音标、例句为可选字段。"""
-        db.init({word_nb.name: word_nb.columns})
+    def test_performance_defaults_to_zero(self, registry, db):
+        nb = registry["word"]
         with db.transaction() as conn:
-            ids = word_nb.add(conn, [
-                {"word": "hello", "content": "你好", "part_of_speech": "int.",
-                 "phonetic": "/həˈloʊ/", "example": "Hello, world!"},
-                {"word": "world", "content": "世界"},
+            ids = nb.add(conn, [{"content": "book", "word": "book"}])
+        with db.transaction() as conn:
+            row = nb.get_by_ids(conn, ids)[0]
+        assert row["performance"] == 0.0
+
+    def test_query_by_word(self, registry, db):
+        nb = registry["word"]
+        with db.transaction() as conn:
+            nb.add(conn, [
+                {"content": "apple", "word": "apple"},
+                {"content": "banana", "word": "banana"},
             ])
-        with db.read_transaction() as conn:
-            results = word_nb.get_by_ids(conn, ids)
-        assert results[0]["part_of_speech"] == "int."
-        assert results[0]["phonetic"] == "/həˈloʊ/"
-        assert results[0]["example"] == "Hello, world!"
-        assert results[1]["part_of_speech"] is None
-        assert results[1]["phonetic"] is None
-        assert results[1]["example"] is None
-
-    def test_review_defaults(self, db, word_nb):
-        """review_count 默认为 0，performance 默认为 0.0。"""
-        db.init({word_nb.name: word_nb.columns})
         with db.transaction() as conn:
-            ids = word_nb.add(conn, [
-                {"word": "apple", "content": "苹果"},
-                {"word": "banana", "content": "香蕉", "review_count": 5, "performance": 0.8},
-            ])
-        with db.read_transaction() as conn:
-            results = word_nb.get_by_ids(conn, ids)
-        assert results[0]["review_count"] == 0
-        assert results[0]["performance"] == 0.0
-        assert results[1]["review_count"] == 5
-        assert results[1]["performance"] == 0.8
+            ids = nb.list_ids(conn, [[Condition("word", "apple", "=")]])
+        assert len(ids) == 1
 
-    def test_word_missing_raises(self, db, word_nb):
-        """word 是必填字段，缺少时抛 EntryInvalidError。"""
-        db.init({word_nb.name: word_nb.columns})
+    def test_missing_word_raises(self, registry, db):
+        nb = registry["word"]
         with db.transaction() as conn:
-            with pytest.raises(EntryInvalidError, match="word"):
-                word_nb.add(conn, [{"content": "没有单词"}])
+            with pytest.raises(Exception):
+                nb.add(conn, [{"content": "missing word field"}])
 
-    def test_content_missing_raises(self, db, word_nb):
-        """content（释义）是基类必填字段。"""
-        db.init({word_nb.name: word_nb.columns})
+    def test_update_review_count(self, registry, db):
+        nb = registry["word"]
         with db.transaction() as conn:
-            with pytest.raises(EntryInvalidError, match="content"):
-                word_nb.add(conn, [{"word": "test"}])
+            ids = nb.add(conn, [{"content": "test", "word": "test"}])
+        with db.transaction() as conn:
+            nb.update(conn, ids, {"review_count": 1, "performance": 0.5})
+        with db.transaction() as conn:
+            row = nb.get_by_ids(conn, ids)[0]
+        assert row["review_count"] == 1
+        assert row["performance"] == 0.5

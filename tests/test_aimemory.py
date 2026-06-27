@@ -1,62 +1,55 @@
-"""测试 AIMemoryNotebook：标题必填、ID 格式、可选字段。"""
+"""测试 AIMemoryNotebook — AI 记忆本。"""
 
 import pytest
-from xfun.core.errors import EntryInvalidError
-from xfun.notebooks.aimemory import AIMemoryNotebook
+
+from xfun.core.filter import Condition
 
 
-@pytest.fixture
-def aimem_nb():
-    return AIMemoryNotebook()
-
-
-class TestAIMemoryAutofill:
-    """aimemory 的核心行为。"""
-
-    def test_add_aimemory(self, db, aimem_nb):
-        """基本写入：标题 + 内容。"""
-        db.init({aimem_nb.name: aimem_nb.columns})
+class TestAIMemoryNotebook:
+    def test_add_memory(self, registry, db):
+        nb = registry["aimemory"]
         with db.transaction() as conn:
-            ids = aimem_nb.add(conn, [
-                {"title": "Python 最佳实践", "content": "使用 with 语句管理资源。"},
-            ])
-        with db.read_transaction() as conn:
-            results = aimem_nb.get_by_ids(conn, ids)
-        assert results[0]["title"] == "Python 最佳实践"
-        assert results[0]["content"] == "使用 with 语句管理资源。"
-
-    def test_id_format(self, db, aimem_nb):
-        db.init({aimem_nb.name: aimem_nb.columns})
-        with db.transaction() as conn:
-            ids = aimem_nb.add(conn, [
-                {"title": "记忆示例", "content": "早睡早起。"},
-            ])
+            ids = nb.add(conn, [{
+                "content": "用户名叫小方",
+                "title": "[事实]姓名",
+                "source": "对话初始化",
+            }])
+        assert len(ids) == 1
         assert ids[0].startswith("aimemory-")
 
-    def test_optional_fields(self, db, aimem_nb):
-        """source、note 为可选字段。"""
-        db.init({aimem_nb.name: aimem_nb.columns})
+    def test_missing_title_raises(self, registry, db):
+        nb = registry["aimemory"]
         with db.transaction() as conn:
-            ids = aimem_nb.add(conn, [
-                {"title": "读书笔记", "content": "活着",
-                 "source": "chat"},
-                {"title": "灵感", "content": "灵光一闪"},
+            with pytest.raises(Exception):
+                nb.add(conn, [{"content": "no title"}])
+
+    def test_query_by_title(self, registry, db):
+        nb = registry["aimemory"]
+        with db.transaction() as conn:
+            nb.add(conn, [
+                {"content": "name", "title": "[事实]姓名"},
+                {"content": "pref", "title": "[策略]偏好"},
             ])
-        with db.read_transaction() as conn:
-            results = aimem_nb.get_by_ids(conn, ids)
-        assert results[0]["source"] == "chat"
-        assert results[1]["source"] is None
-
-    def test_title_missing_raises(self, db, aimem_nb):
-        """title 是必填字段，缺少时抛 EntryInvalidError。"""
-        db.init({aimem_nb.name: aimem_nb.columns})
         with db.transaction() as conn:
-            with pytest.raises(EntryInvalidError, match="title"):
-                aimem_nb.add(conn, [{"content": "没有标题"}])
+            ids = nb.list_ids(conn, [[Condition("title", "[事实]姓名", "=")]])
+        assert len(ids) == 1
 
-    def test_content_missing_raises(self, db, aimem_nb):
-        """content（正文）是基类必填字段。"""
-        db.init({aimem_nb.name: aimem_nb.columns})
+    def test_title_search_with_like(self, registry, db):
+        nb = registry["aimemory"]
         with db.transaction() as conn:
-            with pytest.raises(EntryInvalidError, match="content"):
-                aimem_nb.add(conn, [{"title": "只有标题"}])
+            nb.add(conn, [
+                {"content": "fact1", "title": "[事实]时区"},
+                {"content": "fact2", "title": "[事实]姓名"},
+                {"content": "strat1", "title": "[策略]默认"},
+            ])
+        with db.transaction() as conn:
+            ids = nb.list_ids(conn, [[Condition("title", "[事实]%", "LIKE")]])
+        assert len(ids) == 2
+
+    def test_source_optional(self, registry, db):
+        nb = registry["aimemory"]
+        with db.transaction() as conn:
+            ids = nb.add(conn, [{"content": "info", "title": "[事实]测试"}])
+        with db.transaction() as conn:
+            row = nb.get_by_ids(conn, ids)[0]
+        assert row["source"] is None

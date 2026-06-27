@@ -1,4 +1,3 @@
-from . import config
 from .core.db       import DB
 from .core.notebook import Notebook
 from .notebooks.plan         import PlanNotebook
@@ -16,6 +15,7 @@ registry: dict[str, Notebook] = {
     "aimemory":     AIMemoryNotebook(),
 }
 
-db.init({name: nb.columns for name, nb in registry.items()})
+def init_db(conn):
+    db.init(conn, {name: nb.columns for name, nb in registry.items()})
 
 __all__ = ["db", "registry"]

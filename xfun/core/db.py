@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from pathlib import Path
 import re
 import sqlite3
 from dataclasses import dataclass
 
 from .. import config
+from ..utils.time_utils import timestamp_str
 from .errors import InvalidSQLError
 
 
@@ -138,6 +140,7 @@ class DB:
 
     def _connect(self) -> sqlite3.Connection:
         """建立新连接，统一设置 row_factory 并启用 WAL 模式。"""
+        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
@@ -172,6 +175,7 @@ class DB:
     def _create_table(conn: _ConnWrapper, table_name: str, cols: list[Column]) -> None:
         """创建新表。"""
         cols_sql = ", ".join(col.sql for col in cols)
+        # 只会被 init 调用，其已检查表名
         conn.execute(f"CREATE TABLE {table_name} ({cols_sql})")
     
     @staticmethod
@@ -179,6 +183,7 @@ class DB:
         conn: _ConnWrapper, table_name: str, desired_cols: list[Column]
     ) -> None:
         """补齐缺失列并检查已有列的一致性。"""
+        # 只会被 init 调用，其已检查表名
         existing_cols = {
             row["name"]: row
             for row in conn.execute(f"PRAGMA table_info({table_name})")
@@ -194,6 +199,7 @@ class DB:
     @staticmethod
     def _create_indexes(conn: _ConnWrapper, table_name: str, cols: list[Column]) -> None:
         """为指定列建索引。"""
+        # 只会被 init 调用，其已检查表名
         for col in cols:
             if not col.index:
                 continue
@@ -202,7 +208,7 @@ class DB:
                 f"ON {table_name}({col.name})"
             )
 
-    def init(self, table_infos: dict[str, list[Column]]) -> None:
+    def init(self, conn, table_infos: dict[str, list[Column]]) -> None:
         """
         根据表信息初始化数据库。
 
@@ -210,22 +216,44 @@ class DB:
         - 缺失的列通过 ``ALTER TABLE ADD COLUMN`` 自动补齐（不可空或主键列抛出异常）。
         - 已有列与代码定义不一致时抛出异常，不自动修改已有表结构。
         """
-        with self.transaction() as conn:
-            for table_name, desired_cols in table_infos.items():
-                if not desired_cols:
-                    continue
-                Column.check(table_name)
-                for col in desired_cols:
-                    Column.check(col.name)
+        for table_name, desired_cols in table_infos.items():
+            if not desired_cols:
+                continue
+            Column.check(table_name)
+            for col in desired_cols:
+                Column.check(col.name)
 
-                if DB._table_exists(conn, table_name):
-                    DB._sync_existing_table(conn, table_name, desired_cols)
-                else:
-                    DB._create_table(conn, table_name, desired_cols)
+            if DB._table_exists(conn, table_name):
+                DB._sync_existing_table(conn, table_name, desired_cols)
+            else:
+                DB._create_table(conn, table_name, desired_cols)
 
-                DB._create_indexes(conn, table_name, desired_cols)
+            DB._create_indexes(conn, table_name, desired_cols)
 
-            self.table_infos.update(table_infos)
+        self.table_infos.update(table_infos)
+
+    # ---- 备份与重置 ----
+
+    def backup(self, conn) -> str:
+        """
+        在线热备份数据库到 ``data/backups/{basename}.backup.{timestamp}``。
+        注意：conn 必须使用只读事务避免死锁。
+        """
+        dst = Path(self.db_path).parent / "backups" / f"{Path(self.db_path).stem}.backup.{timestamp_str()}"
+        dest_conn = DB(str(dst))._connect()
+        try:
+            conn.backup(dest_conn)
+        finally:
+            dest_conn.close()
+        return str(dst)
+
+    def reset(self, conn) -> None:
+        """
+        清空所有表并重新初始化。
+        """
+        for table_name in self.table_infos:
+            conn.execute(f"DROP TABLE IF EXISTS {table_name}")
+        self.init(conn, self.table_infos)
 
     # ---- 自动生成 INSERT SQL ----
 

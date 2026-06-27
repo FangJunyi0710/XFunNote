@@ -8,3 +8,7 @@ def now_str() -> str:
 def today_str() -> str:
     """返回今天日期的字符串，格式 "2026-06-18"。"""
     return date.today().isoformat()
+
+def timestamp_str() -> str:
+    """返回适合文件名的时间戳，如 "20260625_143000"。"""
+    return datetime.now().strftime("%Y%m%d_%H%M%S")

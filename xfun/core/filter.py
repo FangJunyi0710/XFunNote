@@ -160,12 +160,13 @@ def filter_to_sql(filter: Filter) -> tuple[str, list]:
     return where_sql, params
 
 
-def convert_filter_object(obj):
+def parse_filter_json(obj) -> Filter:
+    """将 JSON 筛选条件解析为 Filter。传入 json.loads(s)。"""
     if isinstance(obj, dict):
         condition = Condition(**obj)
         return condition
     if isinstance(obj, list) and len(obj) == 2 and isinstance(obj[1], bool):
-        return (convert_filter_object(obj[0]), obj[1])
+        return (parse_filter_json(obj[0]), obj[1])
     if not isinstance(obj, list):
         raise InvalidFilterError(obj)
     result = []
@@ -174,14 +175,9 @@ def convert_filter_object(obj):
         if not isinstance(group, list):
             raise InvalidFilterError(obj)
         for item in group:
-            clause.append(convert_filter_object(item))
+            clause.append(parse_filter_json(item))
         result.append(clause)
     return result
-
-def parse_filter_json(s: str) -> Filter:
-    """将 JSON 筛选条件解析为 Filter。"""
-    return convert_filter_object(json.loads(s))
-
 
 def filter_to_json(filter: Filter) -> Any:
     """递归将 Filter 转换为可 JSON 序列化的 Python 对象。
@@ -205,4 +201,7 @@ def filter_to_json(filter: Filter) -> Any:
     return [[filter_to_json(item) for item in group] for group in filter]
 
 
-from .extras import TRUE_CONDITION, FALSE_CONDITION
+TRUE_CONDITION = Condition("_", None, "TRUE")
+FALSE_CONDITION = Condition("_", None, "FALSE")
+
+from . import extras # 完成运算符注册
