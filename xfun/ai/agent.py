@@ -15,7 +15,7 @@ from langchain_core.messages import (
     ToolMessage,
 )
 from langchain_core.tools import BaseTool
-from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 
 from xfun.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
 from xfun.core.errors import ToolError
@@ -36,10 +36,10 @@ def _build_llm(
     tools: list[BaseTool],
     **llm_kwargs: Any,
 ):
-    """构建绑定了工具的 ``ChatOpenAI`` 实例。"""
+    """构建绑定了工具的 ``ChatAnthropic`` 实例。"""
     llm_kwargs = dict(llm_kwargs)
     llm_kwargs.pop("streaming", None)  # 防止与 stream()/invoke() 冲突
-    llm = ChatOpenAI(
+    llm = ChatAnthropic(
         api_key=LLM_API_KEY,
         base_url=LLM_BASE_URL,
         model=LLM_MODEL,

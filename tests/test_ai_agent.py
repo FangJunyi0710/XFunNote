@@ -12,6 +12,7 @@ from xfun.ai.agent import (
     _build_llm,
     _execute_tool_call,
     _find_tool,
+    accumulate_messages,
     agent_invoke,
 )
 
@@ -96,17 +97,17 @@ class TestStreamLevel:
 
 
 class TestBuildLLM:
-    """直接测试 _build_llm，不 mock 它，只 mock ChatOpenAI。"""
+    """直接测试 _build_llm，不 mock 它，只 mock ChatAnthropic。"""
 
     def test_builds_llm_with_tools(self, monkeypatch, mock_tool):
-        class FakeChatOpenAI:
+        class FakeChatAnthropic:
             def __init__(self, **kwargs):
                 self.kwargs = kwargs
             def bind_tools(self, tools):
                 self.bound_tools = tools
                 return self
 
-        monkeypatch.setattr("xfun.ai.agent.ChatOpenAI", FakeChatOpenAI)
+        monkeypatch.setattr("xfun.ai.agent.ChatAnthropic", FakeChatAnthropic)
         llm = _build_llm([mock_tool], timeout=30, max_retries=3)
         assert llm.bound_tools == [mock_tool]
         assert llm.kwargs.get("timeout") == 30
@@ -114,14 +115,14 @@ class TestBuildLLM:
         assert "streaming" not in llm.kwargs
 
     def test_builds_llm_without_tools(self, monkeypatch):
-        class FakeChatOpenAI:
+        class FakeChatAnthropic:
             def __init__(self, **kwargs):
                 self.kwargs = kwargs
             def bind_tools(self, tools):
                 self.bound_tools = tools
                 return self
 
-        monkeypatch.setattr("xfun.ai.agent.ChatOpenAI", FakeChatOpenAI)
+        monkeypatch.setattr("xfun.ai.agent.ChatAnthropic", FakeChatAnthropic)
         llm = _build_llm([])
         assert llm.bound_tools == []
 
@@ -168,15 +169,15 @@ def _patch_llm(monkeypatch: pytest.MonkeyPatch, mock_llm: Any) -> None:
 # ════════════════════════════════════════════════════════════════
 
 
-def _drive(gen):
-    """驱动生成器，返回 (yielded, StopIteration.value)。"""
+def _consume(gen):
+    """驱动生成器，用 accumulate_messages 累积消息。返回 (yielded, new_msgs)。"""
     yielded: list = []
-    try:
-        while True:
-            yielded.append(next(gen))
-    except StopIteration as e:
-        return yielded, e.value
-    return yielded, None  # pragma: no cover
+    new_msgs: list = []
+    for item in gen:
+        yielded.append(item)
+        accumulate_messages(new_msgs, item)
+    accumulate_messages(new_msgs, None)
+    return yielded, new_msgs
 
 
 
@@ -187,7 +188,7 @@ class TestAgentInvokeMsg:
         responses = [AIMessage(content="你好世界", tool_calls=[])]
         _patch_llm(monkeypatch, MockInvokeLLM(responses))
 
-        yielded, new_msgs = _drive(agent_invoke([], tools=[], stream_level=StreamLevel.MSG))
+        yielded, new_msgs = _consume(agent_invoke([], tools=[], stream_level=StreamLevel.MSG))
 
         assert len(yielded) == 1
         assert yielded[0].content == "你好世界"
@@ -199,7 +200,7 @@ class TestAgentInvokeMsg:
         responses = [AIMessage(content="超时测试", tool_calls=[])]
         _patch_llm(monkeypatch, MockInvokeLLM(responses))
 
-        yielded, new_msgs = _drive(
+        yielded, new_msgs = _consume(
             agent_invoke([], tools=[], stream_level=StreamLevel.MSG, timeout=30)
         )
 
@@ -215,7 +216,7 @@ class TestAgentInvokeMsg:
         second = AIMessage(content="完成", tool_calls=[])
         _patch_llm(monkeypatch, MockInvokeLLM([first, second]))
 
-        yielded, new_msgs = _drive(
+        yielded, new_msgs = _consume(
             agent_invoke([], tools=[mock_tool], stream_level=StreamLevel.MSG)
         )
 
@@ -236,7 +237,7 @@ class TestAgentInvokeToken:
         chunk_b = AIMessageChunk(content="lo", tool_call_chunks=[])
         _patch_llm(monkeypatch, MockStreamLLM([[chunk_a, chunk_b]]))
 
-        yielded, new_msgs = _drive(
+        yielded, new_msgs = _consume(
             agent_invoke([], tools=[], stream_level=StreamLevel.TOKEN)
         )
 
@@ -256,7 +257,7 @@ class TestAgentInvokeToken:
         )
         _patch_llm(monkeypatch, MockStreamLLM([[chunk]]))
 
-        yielded, new_msgs = _drive(
+        yielded, new_msgs = _consume(
             agent_invoke([], tools=[], stream_level=StreamLevel.TOKEN)
         )
 
@@ -281,7 +282,7 @@ class TestAgentInvokeToken:
         ]
         _patch_llm(monkeypatch, MockStreamLLM([first_chunks, second_chunks]))
 
-        yielded, new_msgs = _drive(
+        yielded, new_msgs = _consume(
             agent_invoke([], tools=[mock_tool], stream_level=StreamLevel.TOKEN)
         )
 
@@ -309,7 +310,7 @@ class TestAgentInvokeEdgeCases:
         infinite = InfiniteLLM()
         _patch_llm(monkeypatch, infinite)
 
-        yielded, new_msgs = _drive(
+        yielded, new_msgs = _consume(
             agent_invoke([], tools=[mock_tool], stream_level=StreamLevel.SYNC)
         )
 
@@ -327,7 +328,7 @@ class TestAgentInvokeEdgeCases:
         first = AIMessage(content="回复1", tool_calls=[])
         _patch_llm(monkeypatch, MockInvokeLLM([first]))
 
-        _, new_msgs = _drive(agent_invoke(original, tools=[]))
+        _, new_msgs = _consume(agent_invoke(original, tools=[]))
 
         # 原始消息未被修改
         assert len(original) == 1
@@ -344,7 +345,7 @@ class TestAgentInvokeSyncMode:
         responses = [AIMessage(content="同步结果", tool_calls=[])]
         _patch_llm(monkeypatch, MockInvokeLLM(responses))
 
-        yielded, new_msgs = _drive(agent_invoke([], tools=[], stream_level=StreamLevel.SYNC))
+        yielded, new_msgs = _consume(agent_invoke([], tools=[], stream_level=StreamLevel.SYNC))
 
         # SYNC 模式：所有消息在最后统一 yield
         assert len(yielded) == 1
@@ -360,7 +361,7 @@ class TestAgentInvokeSyncMode:
         second = AIMessage(content="完成", tool_calls=[])
         _patch_llm(monkeypatch, MockInvokeLLM([first, second]))
 
-        yielded, new_msgs = _drive(
+        yielded, new_msgs = _consume(
             agent_invoke([], tools=[mock_tool], stream_level=StreamLevel.SYNC)
         )
 
