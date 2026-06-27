@@ -35,6 +35,7 @@ from xfun.ai.agent import (
     accumulate_messages,
     agent_invoke,
     ensure_system_message,
+    extract_content_parts,
     messages_to_json,
     parse_messages_json,
 )
@@ -240,12 +241,14 @@ def _build_llm_kwargs(cfg: AIConfig) -> dict:
 
 
 def _echo_token(chunk: AIMessageChunk) -> None:
-    """流式输出单个 AIMessageChunk，将 reasoning_content 以灰色输出到 stderr。"""
-    reasoning = chunk.additional_kwargs.get("reasoning_content", "")
-    if reasoning:
-        typer.echo(f"\033[2m{reasoning}\033[0m", err=True, nl=False)
-    if chunk.content:
-        typer.echo(chunk.content, nl=False, err=True)
+    """
+    流式输出单个 AIMessageChunk，将 thinking 内容以灰色输出到 stderr。
+    """
+    parts = extract_content_parts(chunk)
+    if "thinking" in parts.keys():
+        typer.echo(f"\033[2m{parts['thinking']}\033[0m", err=True, nl=False)
+    if "text" in parts.keys():
+        typer.echo(parts["text"], nl=False, err=True)
 
 def _read_multiline_input() -> str:
     """读取用户输入，支持 \\ 续行。如果某行不以 \\ 结尾，表示输入结束。"""
@@ -263,7 +266,7 @@ def ai(
     messages_json: str | None = Option(None, "--messages", "-m", help="消息历史 JSON 数组"),
     max_iterations: int = Option(10, "--max-iterations", "-n", help="最大迭代轮次"),
     system_prompt: str | None = Option(None, "--system-prompt", "--sp", help="自定义系统提示词，留空使用默认"),
-    llm_kwargs_json: str | None = Option('{"extra_body": {"thinking": {"type": "disabled"}}}', "--llm-kwargs", help="LLM 参数 JSON 字典，如 '{\"temperature\": 0.1, \"timeout\": 60, \"max_retries\": 2}'"),
+    llm_kwargs_json: str | None = Option('{"thinking": {"type": "disabled"}}', "--llm-kwargs", help="LLM 参数 JSON 字典。"),
 ):
     """AI 对话系列命令。所有子命令最终 stdout 输出完整消息列表 JSON。"""
     ctx.obj = AIConfig(

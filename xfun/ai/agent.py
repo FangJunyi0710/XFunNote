@@ -226,6 +226,28 @@ def messages_to_json(messages: list[BaseMessage]) -> list[dict]:
     return result
 
 
+def extract_content_parts(msg: BaseMessage) -> dict[str, str]:
+    """从 BaseMessage 中按 block type 提取内容。
+
+    仅支持 ``msg.content`` 为 ``list[dict]`` 的格式（Anthropic thinking
+    mode 的输出格式）。返回的 dict 中只包含实际出现的 block type 作为 key
+    （通常是 ``"thinking"`` 和/或 ``"text"``），不保证二者都存在。
+
+    Args:
+        msg: 包含 Anthropic 格式内容的 BaseMessage。
+
+    Returns:
+        以 block type 为 key、内容字符串为 value 的 dict。
+        例如: ``{"thinking": "思考过程...", "text": "最终答案"}``
+        或: ``{"text": "纯文本回复"}`` （无 thinking 块时）。
+    """
+    parts: dict[str, str] = {}
+    for block in msg.content:
+        parts.setdefault(block.get("type"), "")
+        parts[block.get("type")] += block.get(block.get("type"), "")
+    return parts
+
+
 def ensure_system_message(
     messages: list[BaseMessage],
     system_prompt: str,
