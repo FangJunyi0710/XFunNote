@@ -93,13 +93,12 @@ def _cli_handle():
 
 
 _AI_TOOLS = [
-    # query_entries, 
-    # add_entries, 
-    # update_entries, 
-    # delete_entries, 
-    # get_ai_permission
+    query_entries, 
+    add_entries, 
+    update_entries, 
+    delete_entries, 
+    get_ai_permission
 ]
-# _AI_TOOLS = [query_entries, add_entries, update_entries, delete_entries, get_ai_permission]
 
 
 @app.command("list")
@@ -332,7 +331,7 @@ def ai_chat(ctx: typer.Context):
                     if isinstance(yielded, AIMessageChunk):
                         _echo_token(yielded)
                     elif isinstance(yielded, ToolMessage):
-                        typer.echo(f"\n[{yielded.name}]: {yielded.content}\n", err=True)
+                        typer.echo(f"\n{yielded.name}: {json.dumps(yielded.additional_kwargs.get("args",""), ensure_ascii=False, default=str)}\n{yielded.content}\n", err=True)
             except KeyboardInterrupt:
                 gen.close()
 

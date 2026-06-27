@@ -32,12 +32,16 @@ def _delete(conn, notetype: str, filter) -> list[dict]:
 
 # ---- 事务 + 异常处理辅助 ----
 
+def _clean_null_fields(data: list[dict]) -> list[dict]:
+    """移除字典中值为 None 的字段。"""
+    return [{k: v for k, v in item.items() if v is not None} for item in data]
+
 def _with_read_tool(impl) -> dict:
     """只读事务 + XFunError 处理，返回字典。"""
     try:
         with db.read_transaction() as conn:
             results = impl(conn)
-        return {"results": results}
+        return {"results": _clean_null_fields(results), "count": (len(results) if isinstance(results, list) else None)}
     except XFunError as e:
         return {"error": str(e)}
 
@@ -47,7 +51,7 @@ def _with_write_tool(impl) -> dict:
     try:
         with db.transaction() as conn:
             results = impl(conn)
-        return {"results": results}
+        return {"results": _clean_null_fields(results), "count": (len(results) if isinstance(results, list) else None)}
     except XFunError as e:
         return {"error": str(e)}
 

@@ -158,6 +158,7 @@ def _execute_tool_call(
         tool_call_id=tool_id,
         name=tool_name,
         status=status,
+        additional_kwargs={"args": tool_args},
     )
 
 def _find_tool(name: str, tools: list[BaseTool]) -> BaseTool | None:
