@@ -15,7 +15,7 @@ from langchain_core.messages import (
     ToolMessage,
 )
 from langchain_core.tools import BaseTool
-from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 
 from xfun.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
 from xfun.core.errors import ToolError
@@ -36,10 +36,10 @@ def _build_llm(
     tools: list[BaseTool],
     **llm_kwargs: Any,
 ):
-    """构建绑定了工具的 ``ChatOpenAI`` 实例。"""
+    """构建绑定了工具的 ``ChatAnthropic`` 实例。"""
     llm_kwargs = dict(llm_kwargs)
     llm_kwargs.pop("streaming", None)  # 防止与 stream()/invoke() 冲突
-    llm = ChatOpenAI(
+    llm = ChatAnthropic(
         api_key=LLM_API_KEY,
         base_url=LLM_BASE_URL,
         model=LLM_MODEL,
@@ -76,7 +76,29 @@ def accumulate_messages(result: list[BaseMessage], item: BaseMessage | None) -> 
 
     if item is not None:
         result.append(item)
-
+        return
+    # 补全最后一个 AIMessage 后缺失于 tool_call 的 tool_result
+    ai_msg = None
+    existing_tool_call_ids = set()
+    for msg in reversed(result):
+        if isinstance(msg, AIMessage):
+            ai_msg = msg
+            break
+        elif isinstance(msg, ToolMessage):
+            existing_tool_call_ids.add(msg.tool_call_id)
+    
+    if ai_msg is None:
+        return
+    
+    for tc in ai_msg.tool_calls:
+        if tc["id"] in existing_tool_call_ids:
+            continue
+        result.append(ToolMessage(
+            content=json.dumps({"error": "工具调用被中断"}, ensure_ascii=False),
+            tool_call_id=tc["id"],
+            name=tc["name"],
+            status="error"
+        ))
 
 def agent_invoke(
     messages: list[BaseMessage],
@@ -93,7 +115,8 @@ def agent_invoke(
         new_messages: list[BaseMessage] = []
         for yielded in agent_invoke(messages, tools=...):
             accumulate_messages(new_messages, yielded)
-        accumulate_messages(new_messages, None)  # flush 挂起的 chunk（仅在 StreamLevel.TOKEN 下必要）
+            # 其他处理逻辑...
+        accumulate_messages(new_messages, None)  # flush 挂起的 chunk，并执行后处理逻辑
         messages.extend(new_messages)
     """
     tools = tools or []
@@ -158,6 +181,7 @@ def _execute_tool_call(
         tool_call_id=tool_id,
         name=tool_name,
         status=status,
+        additional_kwargs={"args": tool_args},
     )
 
 def _find_tool(name: str, tools: list[BaseTool]) -> BaseTool | None:
@@ -224,6 +248,28 @@ def messages_to_json(messages: list[BaseMessage]) -> list[dict]:
         d["role"] = _role(m)
         result.append(d)
     return result
+
+
+def extract_content_parts(msg: BaseMessage) -> dict[str, str]:
+    """从 BaseMessage 中按 block type 提取内容。
+
+    仅支持 ``msg.content`` 为 ``list[dict]`` 的格式（Anthropic thinking
+    mode 的输出格式）。返回的 dict 中只包含实际出现的 block type 作为 key
+    （通常是 ``"thinking"`` 和/或 ``"text"``），不保证二者都存在。
+
+    Args:
+        msg: 包含 Anthropic 格式内容的 BaseMessage。
+
+    Returns:
+        以 block type 为 key、内容字符串为 value 的 dict。
+        例如: ``{"thinking": "思考过程...", "text": "最终答案"}``
+        或: ``{"text": "纯文本回复"}`` （无 thinking 块时）。
+    """
+    parts: dict[str, str] = {}
+    for block in msg.content:
+        parts.setdefault(block.get("type"), "")
+        parts[block.get("type")] += block.get(block.get("type"), "")
+    return parts
 
 
 def ensure_system_message(

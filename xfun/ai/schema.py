@@ -47,13 +47,25 @@ class ConditionModel(BaseModel):
 # ========== Filter (递归) ==========
 
 class FilterModel(RootModel):
-    """递归筛选条件 — 嵌套解析并转换为内部 Filter 类型。
+    """
+    筛选条件 — 两层列表（DNF 析取范式）。
+    - 外层 = OR（并集），内层 = AND（交集）。
+    - 取反：`[子Filter, true]`。
 
-    按优先级匹配以下三种形式（``oneOf``）：
+    格式对照：
+    | 意图 | 正确写法 | 错误写法 |
+    |---|---|---|
+    | A 且 B | `[[condA, condB]]` | `[condA, condB]`（结构错误，解析会失败） |
+    | A 或 B | `[[condA], [condB]]` | `[[condA, condB]]`（这是且） |
+    
+    ⚠️ 区分取反与组合：
+    - 取反：`[cond, true]`（一层，第二个元素是布尔值）
+    - 组合：`[[cond1, cond2], [...], ...]`（两层列表，基本元素是 cond）
 
-    1. **Condition** — 单个条件: ``{"column":"x", "value":"y"}``
-    2. **取反包装** — ``[条件/子筛选器, true/false表示是否取反]``
-    3. **OR / AND 组合** — ``[[条件组1], [条件组2], ...]``，外层 OR 内层 AND 的 DNF 析取范式
+    嵌套示例：`[[condA, [condB, true]]]` 表示 (A) 且 (非 B)。
+
+    其中上述所有 condA 等均可以是任意 Filter 结构，支持嵌套组合。
+    若解析失败，请检查层数是否匹配上述示例。
     """
 
     root: ConditionModel | tuple["FilterModel", bool] | list[list["FilterModel"]] 
@@ -92,7 +104,11 @@ class TableSpecModel(BaseModel):
 
 
 class ViewModel(RootModel):
-    """查询视图 — ``{表名: [TableSpec, ...]}``，多组间 OR 关系。"""
+    """
+    查询视图：`{表名: [TableSpec, ...]}`。
+    - 列表内各 TableSpec 为 **OR** 关系（并集），不可嵌套。
+    - 例：`{"plan": [spec1, spec2]}` 表示查询计划表中满足 spec1 **或** spec2 的条目。
+    """
     root: dict[str, list[TableSpecModel]]
 
     def to_view(self) -> dict[str, list[tuple[list[str], Filter]]]:

@@ -18,4 +18,7 @@ registry: dict[str, Notebook] = {
 def init_db(conn):
     db.init(conn, {name: nb.columns for name, nb in registry.items()})
 
+with db.transaction() as conn:
+    init_db(conn)
+
 __all__ = ["db", "registry"]

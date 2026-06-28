@@ -16,7 +16,7 @@ XFunNote CLI — 命令行接口
     xfun ai        --messages JSON          → AI 对话（同步，输出新消息 JSON）
     xfun init                               → 初始化数据库
     xfun backup                             → 在线热备份数据库
-    xfun reset     [--force] [--no-backup]  → 重置数据库
+    xfun reset               [--no-backup]  → 重置数据库
 """
 
 from __future__ import annotations
@@ -35,6 +35,7 @@ from xfun.ai.agent import (
     accumulate_messages,
     agent_invoke,
     ensure_system_message,
+    extract_content_parts,
     messages_to_json,
     parse_messages_json,
 )
@@ -92,13 +93,12 @@ def _cli_handle():
 
 
 _AI_TOOLS = [
-    # query_entries, 
-    # add_entries, 
-    # update_entries, 
-    # delete_entries, 
-    # get_ai_permission
+    query_entries, 
+    add_entries, 
+    update_entries, 
+    delete_entries, 
+    get_ai_permission
 ]
-# _AI_TOOLS = [query_entries, add_entries, update_entries, delete_entries, get_ai_permission]
 
 
 @app.command("list")
@@ -136,7 +136,7 @@ def query(
     """通用查询。返回匹配的条目列表。"""
     _validate_notetype(notetype)
     with _cli_handle():
-        view = parse_view_json(json.load(view_json))
+        view = parse_view_json(json.loads(view_json))
         perm = root_permission(db)
         with db.read_transaction() as conn:
             results = ops_query(
@@ -180,7 +180,7 @@ def update(
     """通用更新。返回更新后条目的完整信息。"""
     _validate_notetype(notetype)
     with _cli_handle():
-        flt = parse_filter_json(json.load(filter_json))
+        flt = parse_filter_json(json.loads(filter_json))
         values = json.loads(values_json)
         perm = root_permission(db)
         with db.transaction() as conn:
@@ -201,7 +201,7 @@ def delete(
     """通用删除。返回被删除条目的完整信息。"""
     _validate_notetype(notetype)
     with _cli_handle():
-        flt = parse_filter_json(json.load(filter_json))
+        flt = parse_filter_json(json.loads(filter_json))
         perm = root_permission(db)
         with db.transaction() as conn:
             results = ops_delete(conn, perm, notetype, flt)
@@ -231,8 +231,6 @@ def _load_system_prompt(custom: str | None) -> str:
 
 def _build_llm_kwargs(cfg: AIConfig) -> dict:
     """从 AIConfig 的 llm_kwargs_json 字段解析 LLM 关键字参数。"""
-    if not cfg.llm_kwargs_json:
-        return {}
     extra = json.loads(cfg.llm_kwargs_json)
     if not isinstance(extra, dict):
         raise ValueError("--llm-kwargs 必须是 JSON 对象")
@@ -240,12 +238,14 @@ def _build_llm_kwargs(cfg: AIConfig) -> dict:
 
 
 def _echo_token(chunk: AIMessageChunk) -> None:
-    """流式输出单个 AIMessageChunk，将 reasoning_content 以灰色输出到 stderr。"""
-    reasoning = chunk.additional_kwargs.get("reasoning_content", "")
-    if reasoning:
-        typer.echo(f"\033[2m{reasoning}\033[0m", err=True, nl=False)
-    if chunk.content:
-        typer.echo(chunk.content, nl=False, err=True)
+    """
+    流式输出单个 AIMessageChunk，将 thinking 内容以灰色输出到 stderr。
+    """
+    parts = extract_content_parts(chunk)
+    if "thinking" in parts.keys():
+        typer.echo(f"\033[2m{parts['thinking']}\033[0m", err=True, nl=False)
+    if "text" in parts.keys():
+        typer.echo(parts["text"], nl=False, err=True)
 
 def _read_multiline_input() -> str:
     """读取用户输入，支持 \\ 续行。如果某行不以 \\ 结尾，表示输入结束。"""
@@ -257,13 +257,14 @@ def _read_multiline_input() -> str:
         lines.append(l)
     return "\n".join(lines)
 
+_DEFAULT_LLM_KWARGS = {"thinking": {"type": "disabled"}, "timeout": 30.0, "max_retries": 2}
 @ai_app.callback()
 def ai(
     ctx: typer.Context,
     messages_json: str | None = Option(None, "--messages", "-m", help="消息历史 JSON 数组"),
     max_iterations: int = Option(10, "--max-iterations", "-n", help="最大迭代轮次"),
     system_prompt: str | None = Option(None, "--system-prompt", "--sp", help="自定义系统提示词，留空使用默认"),
-    llm_kwargs_json: str | None = Option('{"extra_body": {"thinking": {"type": "disabled"}}}', "--llm-kwargs", help="LLM 参数 JSON 字典，如 '{\"temperature\": 0.1, \"timeout\": 60, \"max_retries\": 2}'"),
+    llm_kwargs_json: str | None = Option(json.dumps(_DEFAULT_LLM_KWARGS, ensure_ascii=False), "--llm-kwargs", help="LLM 参数 JSON 字典。"),
 ):
     """AI 对话系列命令。所有子命令最终 stdout 输出完整消息列表 JSON。"""
     ctx.obj = AIConfig(
@@ -308,37 +309,37 @@ def ai_chat(ctx: typer.Context):
             messages = parse_messages_json(json.loads(cfg.messages_json))
         ensure_system_message(messages, system_prompt_text)
 
-        while True:
-            try:
-                user_input = _read_multiline_input()
-            except (EOFError, KeyboardInterrupt, Abort):
+        try:
+            while True:
+                try:
+                    messages.append(HumanMessage(content=_read_multiline_input()))
+                except (EOFError, KeyboardInterrupt, Abort):
+                    break
+                gen = agent_invoke(
+                    messages, tools=_AI_TOOLS,
+                    stream_level=StreamLevel.TOKEN,
+                    max_iterations=cfg.max_iterations,
+                    **_build_llm_kwargs(cfg),
+                )
+                extension: list[BaseMessage] = []
+                try:
+                    for yielded in gen:
+                        accumulate_messages(extension, yielded)
+                        if isinstance(yielded, AIMessageChunk):
+                            _echo_token(yielded)
+                        elif isinstance(yielded, ToolMessage):
+                            typer.echo(f"\n{yielded.name}: {json.dumps(yielded.additional_kwargs.get("args",""), ensure_ascii=False, default=str)}\n{yielded.content}\n", err=True)
+                except KeyboardInterrupt:
+                    gen.close()
+                except Exception as e:
+                    typer.echo(json.dumps(_error(str(e)), ensure_ascii=False), err=True)
+
+                accumulate_messages(extension, None)
+                messages.extend(extension)
                 typer.echo(err=True)
-                break
-
-            messages.append(HumanMessage(content=user_input))
-            gen = agent_invoke(
-                messages, tools=_AI_TOOLS,
-                stream_level=StreamLevel.TOKEN,
-                max_iterations=cfg.max_iterations,
-                **_build_llm_kwargs(cfg),
-            )
-            extension: list[BaseMessage] = []
-            try:
-                for yielded in gen:
-                    accumulate_messages(extension, yielded)
-                    if isinstance(yielded, AIMessageChunk):
-                        _echo_token(yielded)
-                    elif isinstance(yielded, ToolMessage):
-                        typer.echo(f"\n[{yielded.name}]: {yielded.content}\n", err=True)
-            except KeyboardInterrupt:
-                gen.close()
-
-            accumulate_messages(extension, None)
-            messages.extend(extension)
-            typer.echo(err=True)
-
-        # 退出后 stdout JSON
-        typer.echo(json.dumps(messages_to_json(messages), ensure_ascii=False))
+        finally:
+            # 退出后 stdout JSON
+            typer.echo(json.dumps(messages_to_json(messages), ensure_ascii=False))
 
 
 app.add_typer(ai_app, name="ai")
@@ -378,12 +379,9 @@ def backup():
 
 @app.command()
 def reset(
-    force: bool = Option(False, "--force", "-f", help="跳过确认提示"),
     no_backup: bool = Option(False, "--no-backup", help="重置前不备份"),
 ):
     """重置数据库（清空所有表并重新初始化）。"""
-    if not force:
-        typer.confirm("⚠️  重置将清空所有数据，是否继续？", abort=True)
     with _cli_handle():
         with db.read_transaction() as conn:
             if not no_backup:
