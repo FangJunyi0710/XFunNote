@@ -76,7 +76,29 @@ def accumulate_messages(result: list[BaseMessage], item: BaseMessage | None) -> 
 
     if item is not None:
         result.append(item)
-
+        return
+    # 补全最后一个 AIMessage 后缺失于 tool_call 的 tool_result
+    ai_msg = None
+    existing_tool_call_ids = set()
+    for msg in reversed(result):
+        if isinstance(msg, AIMessage):
+            ai_msg = msg
+            break
+        elif isinstance(msg, ToolMessage):
+            existing_tool_call_ids.add(msg.tool_call_id)
+    
+    if ai_msg is None:
+        return
+    
+    for tc in ai_msg.tool_calls:
+        if tc["id"] in existing_tool_call_ids:
+            continue
+        result.append(ToolMessage(
+            content=json.dumps({"error": "工具调用被中断"}, ensure_ascii=False),
+            tool_call_id=tc["id"],
+            name=tc["name"],
+            status="error"
+        ))
 
 def agent_invoke(
     messages: list[BaseMessage],
@@ -93,7 +115,8 @@ def agent_invoke(
         new_messages: list[BaseMessage] = []
         for yielded in agent_invoke(messages, tools=...):
             accumulate_messages(new_messages, yielded)
-        accumulate_messages(new_messages, None)  # flush 挂起的 chunk（仅在 StreamLevel.TOKEN 下必要）
+            # 其他处理逻辑...
+        accumulate_messages(new_messages, None)  # flush 挂起的 chunk，并执行后处理逻辑
         messages.extend(new_messages)
     """
     tools = tools or []

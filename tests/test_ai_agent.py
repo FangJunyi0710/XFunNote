@@ -193,6 +193,20 @@ def _consume(gen):
     return yielded, new_msgs
 
 
+def _consume_catching_interrupt(gen):
+    """驱动生成器直到 KeyboardInterrupt，返回中断前累积的 (yielded, new_msgs)。"""
+    yielded: list = []
+    new_msgs: list = []
+    try:
+        for item in gen:
+            yielded.append(item)
+            accumulate_messages(new_msgs, item)
+    except KeyboardInterrupt:
+        pass
+    accumulate_messages(new_msgs, None)
+    return yielded, new_msgs
+
+
 
 class TestAgentInvokeMsg:
     """StreamLevel.MSG — yield 完整 AIMessage + ToolMessage（走 invoke 分支）。"""
@@ -349,6 +363,91 @@ class TestAgentInvokeEdgeCases:
         # 新消息追加
         assert len(new_msgs) == 1
         assert new_msgs[0].content == "回复1"
+
+    def test_tool_call_interrupted_msg_mode(self, monkeypatch):
+        """MSG 模式：工具被 KeyboardInterrupt 中断，yield 仅收到 AIMessage，
+        accumulate_messages(None) 后 new_msgs 自动补上错误 ToolMessage。"""
+        interrupt_tool = MagicMock()
+        interrupt_tool.name = "interrupt_tool"
+        interrupt_tool.invoke.side_effect = KeyboardInterrupt()
+
+        first = AIMessage(
+            content="正在执行",
+            tool_calls=[ToolCall(name="interrupt_tool", args={}, id="c_interrupt")],
+        )
+        _patch_llm(monkeypatch, MockInvokeLLM([first]))
+
+        yielded, new_msgs = _consume_catching_interrupt(
+            agent_invoke([], tools=[interrupt_tool], stream_level=StreamLevel.MSG)
+        )
+
+        # yield: 仅 AIMessage（KeyboardInterrupt 发生在 yield ToolMessage 之前）
+        assert len(yielded) == 1
+        assert isinstance(yielded[0], AIMessage)
+        assert yielded[0].content == "正在执行"
+        # new_messages 包含 AIMessage + accumulate_messages(None) 补全的错误 ToolMessage
+        assert len(new_msgs) == 2
+        assert isinstance(new_msgs[0], AIMessage)
+        assert new_msgs[0].content == "正在执行"
+        assert isinstance(new_msgs[1], ToolMessage)
+        assert new_msgs[1].status == "error"
+        assert new_msgs[1].tool_call_id == "c_interrupt"
+        assert "被中断" in new_msgs[1].content
+
+    def test_tool_call_interrupted_sync_mode(self, monkeypatch):
+        """SYNC 模式：工具被中断时 finally 补发错误 ToolMessage，但不 yield（覆盖 line 146 false 分支）。"""
+        interrupt_tool = MagicMock()
+        interrupt_tool.name = "interrupt_tool"
+        interrupt_tool.invoke.side_effect = KeyboardInterrupt()
+
+        first = AIMessage(
+            content="同步中断",
+            tool_calls=[ToolCall(name="interrupt_tool", args={}, id="c_sync_interrupt")],
+        )
+        _patch_llm(monkeypatch, MockInvokeLLM([first]))
+
+        # SYNC 模式下 finally 不 yield、异常后也不进入最后的统一 yield 循环
+        yielded, new_msgs = _consume_catching_interrupt(
+            agent_invoke([], tools=[interrupt_tool], stream_level=StreamLevel.SYNC)
+        )
+
+        # 生成器未 yield 任何消息（AIMessage 在 SYNC 下也不 yield）
+        assert len(yielded) == 0
+        # new_msgs 也为空（local new_messages 未 yield 出来）
+        assert len(new_msgs) == 0
+
+    def test_tool_call_interrupted_token_mode(self, monkeypatch):
+        """TOKEN 模式：工具被中断时 yield 仅收到 AIMessageChunk，
+        accumulate_messages(None) 后 new_msgs 自动补上错误 ToolMessage。"""
+        interrupt_tool = MagicMock()
+        interrupt_tool.name = "interrupt_tool"
+        interrupt_tool.invoke.side_effect = KeyboardInterrupt()
+
+        first_chunks = [
+            AIMessageChunk(
+                content="token中断",
+                tool_call_chunks=[
+                    {"name": "interrupt_tool", "args": '{}', "id": "c_token_interrupt", "index": 0}
+                ],
+            ),
+        ]
+        _patch_llm(monkeypatch, MockStreamLLM([first_chunks]))
+
+        yielded, new_msgs = _consume_catching_interrupt(
+            agent_invoke([], tools=[interrupt_tool], stream_level=StreamLevel.TOKEN)
+        )
+
+        # yield: 仅 AIMessageChunk（KeyboardInterrupt 发生在 yield ToolMessage 之前）
+        assert len(yielded) == 1
+        assert isinstance(yielded[0], AIMessageChunk)
+        assert yielded[0].content == "token中断"
+        # new_messages: chunk 被 flush 为 AIMessage，再补上错误 ToolMessage
+        assert len(new_msgs) == 2
+        assert isinstance(new_msgs[0], AIMessage)
+        assert isinstance(new_msgs[1], ToolMessage)
+        assert new_msgs[1].status == "error"
+        assert new_msgs[1].tool_call_id == "c_token_interrupt"
+        assert "被中断" in new_msgs[1].content
 
 
 # ════════════════════════════════════════════════════════════════
