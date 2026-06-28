@@ -61,7 +61,7 @@ def query_entries(
     view: ViewModel,
     notetype: str,
     order_by: str = "",
-    limit: int = -1,
+    limit: int = 100,
     offset: int = 0,
 ) -> dict:
     """查询笔记条目。
@@ -73,7 +73,7 @@ def query_entries(
               注意：view 会被读取权限视图清洗，不在读取白名单中的条目将被移除、字段将被置空。
         notetype: 笔记类型。
         order_by: 排序字段，可选。格式如 "created_at DESC"、"updated_at ASC"。
-        limit: 最大返回条数，-1 表示不限制。
+        limit: 最大返回条数，-1 表示不限制，默认为 100。
         offset: 偏移量，用于分页。
 
     Returns:
@@ -148,3 +148,5 @@ def get_ai_permission() -> dict:
         "read": view_to_json(read_view),
         "write": view_to_json(write_view),
     }
+
+# TODO 计算/分析工具 联网搜索工具 文本搜索工具
