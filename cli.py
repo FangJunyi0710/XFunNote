@@ -309,37 +309,37 @@ def ai_chat(ctx: typer.Context):
             messages = parse_messages_json(json.loads(cfg.messages_json))
         ensure_system_message(messages, system_prompt_text)
 
-        while True:
-            try:
-                user_input = _read_multiline_input()
-            except (EOFError, KeyboardInterrupt, Abort):
+        try:
+            while True:
+                try:
+                    messages.append(HumanMessage(content=_read_multiline_input()))
+                except (EOFError, KeyboardInterrupt, Abort):
+                    break
+                gen = agent_invoke(
+                    messages, tools=_AI_TOOLS,
+                    stream_level=StreamLevel.TOKEN,
+                    max_iterations=cfg.max_iterations,
+                    **_build_llm_kwargs(cfg),
+                )
+                extension: list[BaseMessage] = []
+                try:
+                    for yielded in gen:
+                        accumulate_messages(extension, yielded)
+                        if isinstance(yielded, AIMessageChunk):
+                            _echo_token(yielded)
+                        elif isinstance(yielded, ToolMessage):
+                            typer.echo(f"\n{yielded.name}: {json.dumps(yielded.additional_kwargs.get("args",""), ensure_ascii=False, default=str)}\n{yielded.content}\n", err=True)
+                except KeyboardInterrupt:
+                    gen.close()
+                except Exception as e:
+                    typer.echo(json.dumps(_error(str(e)), ensure_ascii=False), err=True)
+
+                accumulate_messages(extension, None)
+                messages.extend(extension)
                 typer.echo(err=True)
-                break
-
-            messages.append(HumanMessage(content=user_input))
-            gen = agent_invoke(
-                messages, tools=_AI_TOOLS,
-                stream_level=StreamLevel.TOKEN,
-                max_iterations=cfg.max_iterations,
-                **_build_llm_kwargs(cfg),
-            )
-            extension: list[BaseMessage] = []
-            try:
-                for yielded in gen:
-                    accumulate_messages(extension, yielded)
-                    if isinstance(yielded, AIMessageChunk):
-                        _echo_token(yielded)
-                    elif isinstance(yielded, ToolMessage):
-                        typer.echo(f"\n{yielded.name}: {json.dumps(yielded.additional_kwargs.get("args",""), ensure_ascii=False, default=str)}\n{yielded.content}\n", err=True)
-            except KeyboardInterrupt:
-                gen.close()
-
-            accumulate_messages(extension, None)
-            messages.extend(extension)
-            typer.echo(err=True)
-
-        # 退出后 stdout JSON
-        typer.echo(json.dumps(messages_to_json(messages), ensure_ascii=False))
+        finally:
+            # 退出后 stdout JSON
+            typer.echo(json.dumps(messages_to_json(messages), ensure_ascii=False))
 
 
 app.add_typer(ai_app, name="ai")
