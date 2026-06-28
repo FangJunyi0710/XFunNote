@@ -231,8 +231,6 @@ def _load_system_prompt(custom: str | None) -> str:
 
 def _build_llm_kwargs(cfg: AIConfig) -> dict:
     """从 AIConfig 的 llm_kwargs_json 字段解析 LLM 关键字参数。"""
-    if not cfg.llm_kwargs_json:
-        return {}
     extra = json.loads(cfg.llm_kwargs_json)
     if not isinstance(extra, dict):
         raise ValueError("--llm-kwargs 必须是 JSON 对象")
@@ -259,13 +257,14 @@ def _read_multiline_input() -> str:
         lines.append(l)
     return "\n".join(lines)
 
+_DEFAULT_LLM_KWARGS = {"thinking": {"type": "disabled"}, "timeout": 30.0, "max_retries": 2}
 @ai_app.callback()
 def ai(
     ctx: typer.Context,
     messages_json: str | None = Option(None, "--messages", "-m", help="消息历史 JSON 数组"),
     max_iterations: int = Option(10, "--max-iterations", "-n", help="最大迭代轮次"),
     system_prompt: str | None = Option(None, "--system-prompt", "--sp", help="自定义系统提示词，留空使用默认"),
-    llm_kwargs_json: str | None = Option('{"thinking": {"type": "disabled"}}', "--llm-kwargs", help="LLM 参数 JSON 字典。"),
+    llm_kwargs_json: str | None = Option(json.dumps(_DEFAULT_LLM_KWARGS, ensure_ascii=False), "--llm-kwargs", help="LLM 参数 JSON 字典。"),
 ):
     """AI 对话系列命令。所有子命令最终 stdout 输出完整消息列表 JSON。"""
     ctx.obj = AIConfig(
