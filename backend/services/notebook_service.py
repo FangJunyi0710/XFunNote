@@ -1,13 +1,12 @@
 """本子 CRUD 业务逻辑，封装 xfun.core.ops。"""
 
-import json
 from typing import Any
 
 from fastapi import HTTPException, status
 
 from xfun import db, registry
 from xfun.core import ops
-from xfun.core.view import Permission, root_permission, parse_view_json
+from xfun.core.view import Permission, root_permission
 from xfun.core.filter import TRUE_CONDITION, parse_filter_json
 
 
@@ -23,7 +22,7 @@ def get_schema(notetype: str) -> list[dict]:
 
 def query_entries(
     notetype: str,
-    view_json: str | None,
+    view: dict | None,
     order_by: str = "",
     limit: int = 100,
     offset: int = 0,
@@ -33,15 +32,14 @@ def query_entries(
 
     Parameters
     ----------
-    view_json : str | None
-        View JSON 字符串。若为 None，默认查询所有列、无筛选。
+    view : dict | None
+        内部 View 格式：``{表名: [(列列表, Filter), ...]}``。
+        若为 None，默认查询所有列、无筛选。
     """
     _validate_notetype(notetype)
     perm = permission or root_permission(db)
 
-    if view_json:
-        view = parse_view_json(json.loads(view_json))
-    else:
+    if view is None:
         nb = registry[notetype]
         view = {notetype: [([c.name for c in nb.columns], TRUE_CONDITION)]}
 
