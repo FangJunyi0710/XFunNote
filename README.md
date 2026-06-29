@@ -353,12 +353,35 @@ AI 对话支持两种模式，`stdout` 统一输出完整消息列表 JSON：
 ```
 XFunNote/
 ├── backend/
-│   └── main.py
+│   ├── routers/
+│   │   ├── __init__.py
+│   │   ├── ai.py
+│   │   ├── management.py
+│   │   └── notebooks.py
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── ai_service.py
+│   │   ├── management_service.py
+│   │   └── notebook_service.py
+│   ├── __init__.py
+│   ├── deps.py
+│   ├── main.py
+│   └── schemas.py
 ├── data/
 │   └── backups/
 │       └── .gitkeep
 ├── frontend/
-│   └── app.py
+│   ├── pages/
+│   │   ├── 01_browse.py
+│   │   ├── 02_add.py
+│   │   ├── 03_update.py
+│   │   ├── 04_delete.py
+│   │   ├── 05_ai_chat.py
+│   │   └── 06_management.py
+│   ├── __init__.py
+│   ├── api.py
+│   ├── app.py
+│   └── components.py
 ├── input/
 │   └── .gitkeep
 ├── output/
@@ -433,28 +456,57 @@ XFunNote/
 <!-- begin dependence graph -->
 ```mermaid
 graph LR
-    subgraph backend[backend]
-        backend_main(main)
-    end
-    style backend fill:#d4f0c0,stroke:#333,stroke-width:1px,color:#333
-    subgraph frontend[frontend]
-        frontend_app(app)
-    end
-    style frontend fill:#e8f4fd,stroke:#333,stroke-width:1px,color:#333
     subgraph scripts[scripts]
         scripts_project_info(project_info)
         scripts_replace(replace)
     end
-    style scripts fill:#ffe0f0,stroke:#333,stroke-width:1px,color:#333
+    style scripts fill:#d4f0c0,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun_utils[xfun/utils]
         xfun_utils___init__(__init__)
         xfun_utils_time_utils(time_utils)
     end
-    style xfun_utils fill:#f0e6ff,stroke:#333,stroke-width:1px,color:#333
+    style xfun_utils fill:#e8f4fd,stroke:#333,stroke-width:1px,color:#333
+    subgraph backend[backend]
+        backend___init__(__init__)
+        backend_deps(deps)
+        backend_main(main)
+        backend_schemas(schemas)
+    end
+    style backend fill:#ffe0f0,stroke:#333,stroke-width:1px,color:#333
+    subgraph backend_routers[backend/routers]
+        backend_routers___init__(__init__)
+        backend_routers_ai(ai)
+        backend_routers_management(management)
+        backend_routers_notebooks(notebooks)
+    end
+    style backend_routers fill:#f0e6ff,stroke:#333,stroke-width:1px,color:#333
+    subgraph backend_services[backend/services]
+        backend_services___init__(__init__)
+        backend_services_ai_service(ai_service)
+        backend_services_management_service(management_service)
+        backend_services_notebook_service(notebook_service)
+    end
+    style backend_services fill:#fff3cd,stroke:#333,stroke-width:1px,color:#333
     subgraph _[.]
         cli(cli)
     end
-    style _ fill:#fff3cd,stroke:#333,stroke-width:1px,color:#333
+    style _ fill:#ffe0e0,stroke:#333,stroke-width:1px,color:#333
+    subgraph frontend[frontend]
+        frontend___init__(__init__)
+        frontend_api(api)
+        frontend_app(app)
+        frontend_components(components)
+    end
+    style frontend fill:#d5f5e3,stroke:#333,stroke-width:1px,color:#333
+    subgraph frontend_pages[frontend/pages]
+        frontend_pages_01_browse(01_browse)
+        frontend_pages_02_add(02_add)
+        frontend_pages_03_update(03_update)
+        frontend_pages_04_delete(04_delete)
+        frontend_pages_05_ai_chat(05_ai_chat)
+        frontend_pages_06_management(06_management)
+    end
+    style frontend_pages fill:#fdebd0,stroke:#333,stroke-width:1px,color:#333
     subgraph tests[tests]
         tests___init__(__init__)
         tests_conftest(conftest)
@@ -477,12 +529,12 @@ graph LR
         tests_test_view(test_view)
         tests_test_word(test_word)
     end
-    style tests fill:#ffe0e0,stroke:#333,stroke-width:1px,color:#333
+    style tests fill:#d6eaf8,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun[xfun]
         xfun___init__(__init__)
         xfun_config(config)
     end
-    style xfun fill:#d5f5e3,stroke:#333,stroke-width:1px,color:#333
+    style xfun fill:#e8daef,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun_ai[xfun/ai]
         xfun_ai___init__(__init__)
         xfun_ai_agent(agent)
@@ -491,7 +543,7 @@ graph LR
         xfun_ai_security(security)
         xfun_ai_tools(tools)
     end
-    style xfun_ai fill:#fdebd0,stroke:#333,stroke-width:1px,color:#333
+    style xfun_ai fill:#d4f0c0,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun_core[xfun/core]
         xfun_core___init__(__init__)
         xfun_core_db(db)
@@ -502,7 +554,7 @@ graph LR
         xfun_core_ops(ops)
         xfun_core_view(view)
     end
-    style xfun_core fill:#d6eaf8,stroke:#333,stroke-width:1px,color:#333
+    style xfun_core fill:#e8f4fd,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun_notebooks[xfun/notebooks]
         xfun_notebooks___init__(__init__)
         xfun_notebooks_accumulation(accumulation)
@@ -511,7 +563,33 @@ graph LR
         xfun_notebooks_plan(plan)
         xfun_notebooks_word(word)
     end
-    style xfun_notebooks fill:#e8daef,stroke:#333,stroke-width:1px,color:#333
+    style xfun_notebooks fill:#ffe0f0,stroke:#333,stroke-width:1px,color:#333
+    backend_deps --> xfun___init__
+    backend_deps --> xfun_core_view
+    backend_main --> backend_routers___init__
+    backend_main --> backend_routers_ai
+    backend_main --> backend_routers_management
+    backend_main --> backend_routers_notebooks
+    backend_main --> xfun_config
+    backend_main --> xfun_core_errors
+    backend_routers_ai --> backend_services___init__
+    backend_routers_ai --> backend_services_ai_service
+    backend_routers_management --> backend_services___init__
+    backend_routers_management --> backend_services_management_service
+    backend_routers_notebooks --> backend_schemas
+    backend_routers_notebooks --> backend_services___init__
+    backend_routers_notebooks --> backend_services_notebook_service
+    backend_services_ai_service --> xfun_ai_agent
+    backend_services_ai_service --> xfun_ai_prompts
+    backend_services_ai_service --> xfun_ai_security
+    backend_services_ai_service --> xfun_ai_tools
+    backend_services_ai_service --> xfun_core_view
+    backend_services_management_service --> xfun___init__
+    backend_services_notebook_service --> xfun___init__
+    backend_services_notebook_service --> xfun_core___init__
+    backend_services_notebook_service --> xfun_core_filter
+    backend_services_notebook_service --> xfun_core_ops
+    backend_services_notebook_service --> xfun_core_view
     cli --> xfun___init__
     cli --> xfun_ai_agent
     cli --> xfun_ai_prompts
@@ -519,6 +597,17 @@ graph LR
     cli --> xfun_core_filter
     cli --> xfun_core_ops
     cli --> xfun_core_view
+    frontend_app --> frontend_components
+    frontend_app --> xfun_config
+    frontend_components --> frontend_api
+    frontend_pages_01_browse --> frontend_components
+    frontend_pages_01_browse --> xfun___init__
+    frontend_pages_01_browse --> xfun_core_filter
+    frontend_pages_02_add --> frontend_components
+    frontend_pages_03_update --> frontend_components
+    frontend_pages_04_delete --> frontend_components
+    frontend_pages_05_ai_chat --> frontend_components
+    frontend_pages_06_management --> frontend_components
     tests_conftest --> xfun_core_db
     tests_conftest --> xfun_core_notebook
     tests_conftest --> xfun_notebooks_accumulation

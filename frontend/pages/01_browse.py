@@ -10,6 +10,7 @@ from frontend.components import (
     display_results,
     api_call,
 )
+import xfun
 
 st.set_page_config(page_title="浏览查询 - XFunNote", page_icon="📋", layout="wide")
 
@@ -76,9 +77,11 @@ with tab1:
     # 构建 view JSON
     view_obj = None
     if selected_cols or simple_filter:
-        from xfun.core.filter import TRUE_CONDITION
-        flt = simple_filter or TRUE_CONDITION
-        view_obj = {notebook: [selected_cols or [], flt]}
+        from xfun.core.filter import TRUE_CONDITION, filter_to_json
+        flt_json = simple_filter if simple_filter else filter_to_json(TRUE_CONDITION)
+        view_obj = {
+            notebook: [{"columns": selected_cols or [], "filter": flt_json}]
+        }
 
     view_json = json.dumps(view_obj, ensure_ascii=False) if view_obj else None
 
@@ -89,7 +92,7 @@ with tab2:
         value=view_json or "",
         height=200,
         key="query_view_json_advanced",
-        placeholder='{"笔记本名": [["列1","列2"], {"字段": {"$eq": "值"}}]}',
+        placeholder='{"笔记本名": [{"columns": ["列1","列2"], "filter": {"column": "字段", "op": "=", "value": "值"}}]}',
     )
     if view_json_raw.strip():
         view_json = view_json_raw.strip()

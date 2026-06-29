@@ -67,9 +67,19 @@ def show_schema(notetype: str) -> list[dict] | None:
 
 
 def build_simple_filter(columns: list[dict]) -> dict | None:
-    """构建简单筛选条件（字段=值）。"""
+    """构建简单筛选条件（字段=值），返回 xfun Filter JSON 格式。"""
     if not columns:
         return None
+
+    op_map = {
+        "$eq": "=",
+        "$ne": "!=",
+        "$contains": "LIKE",
+        "$gt": ">",
+        "$lt": "<",
+        "$gte": ">=",
+        "$lte": "<=",
+    }
 
     col1, col2, col3 = st.columns([2, 1, 2])
     with col1:
@@ -84,7 +94,7 @@ def build_simple_filter(columns: list[dict]) -> dict | None:
     with col2:
         op = st.selectbox(
             "运算符",
-            options=["$eq", "$ne", "$contains", "$gt", "$lt", "$gte", "$lte"],
+            options=list(op_map.keys()),
             format_func=lambda x: {
                 "$eq": "=",
                 "$ne": "≠",
@@ -102,7 +112,7 @@ def build_simple_filter(columns: list[dict]) -> dict | None:
     if not value:
         return None
 
-    return {field: {op: value}}
+    return {"column": field, "op": op_map[op], "value": value}
 
 
 def display_results(data: dict, max_rows: int = 100):

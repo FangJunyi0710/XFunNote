@@ -1,4 +1,14 @@
 """XFunNote Streamlit 前端 — 主入口。"""
+import sys
+from pathlib import Path
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from xfun.config import PROJECT_ROOT
+
+assert PROJECT_ROOT == _PROJECT_ROOT
 
 import streamlit as st
 

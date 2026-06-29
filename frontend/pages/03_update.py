@@ -43,14 +43,14 @@ if filter_mode == "简单筛选":
         filter_value = st.text_input("值", key="update_filter_value")
 
     if filter_value:
-        filter_obj = {filter_field: {"$eq": filter_value}}
+        filter_obj = {"column": filter_field, "op": "=", "value": filter_value}
     else:
         filter_obj = None
         st.info("请输入筛选值。")
 else:
     filter_json_raw = st.text_area(
         "筛选 JSON",
-        placeholder='{"字段名": {"$eq": "值"}} 或 {"$and": [...]}',
+        placeholder='{"column": "字段名", "op": "=", "value": "值"}',
         height=120,
         key="update_filter_json",
     )
@@ -62,7 +62,7 @@ else:
 
 # 先查询匹配条目
 if filter_obj and st.button("🔍 查询匹配条目", key="update_query_btn"):
-    view_obj = {notebook: [[c["name"] for c in columns], filter_obj]}
+    view_obj = {notebook: [{"columns": [c["name"] for c in columns], "filter": filter_obj}]}
     api = get_client()
     result = api_call(
         api.query_entries,

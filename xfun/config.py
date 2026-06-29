@@ -11,7 +11,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# 加载 .env 文件（优先当前目录，其次项目根目录）
+# 加载 .env 文件
 load_dotenv(str(PROJECT_ROOT / ".env"))
 
 # ---- 用户 ----
