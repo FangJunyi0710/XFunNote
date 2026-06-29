@@ -15,7 +15,7 @@ def _api_call(func, *args, **kwargs):
 
 st.title("⚙️ 系统管理")
 
-tab1, tab2 = st.tabs(["🗄️ 数据库管理", "📁 视图文件管理"])
+tab1, tab2, tab3 = st.tabs(["🗄️ 数据库管理", "📁 视图文件管理", "🔌 连接配置"])
 
 # ==================== Database Management ====================
 
@@ -25,14 +25,14 @@ with tab1:
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        if st.button("🔄 初始化数据库", use_container_width=True):
+        if st.button("🔄 初始化数据库", width='stretch'):
             api = get_client()
             result = _api_call(api.init_db)
             if result:
                 st.success(result.get("message", "初始化完成"))
 
     with col2:
-        if st.button("💾 热备份", use_container_width=True):
+        if st.button("💾 热备份", width='stretch'):
             api = get_client()
             result = _api_call(api.backup_db)
             if result:
@@ -41,7 +41,7 @@ with tab1:
     with col3:
         st.warning("⚠️ 重置将清空所有数据")
         backup_first = st.checkbox("重置前先备份", value=True, key="reset_backup")
-        if st.button("🗑️ 重置数据库", type="primary", use_container_width=True):
+        if st.button("🗑️ 重置数据库", type="primary", width='stretch'):
             confirm = st.checkbox(
                 "我确认要重置数据库（此操作不可撤销）",
                 key="reset_confirm",
@@ -97,7 +97,7 @@ with tab2:
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        if st.button("💾 保存视图", type="primary", use_container_width=True):
+        if st.button("💾 保存视图", type="primary", width='stretch'):
             if not view_name:
                 st.error("请输入视图名称")
             else:
@@ -113,7 +113,7 @@ with tab2:
 
     with col2:
         if selected_view != "(新建)":
-            if st.button("🗑️ 删除视图", use_container_width=True):
+            if st.button("🗑️ 删除视图", width='stretch'):
                 if st.checkbox("确认删除", key="view_delete_confirm"):
                     api = get_client()
                     result = _api_call(api.delete_view, view_name)
@@ -122,5 +122,41 @@ with tab2:
                         st.rerun()
 
     with col3:
-        if st.button("🔄 刷新列表", use_container_width=True):
+        if st.button("🔄 刷新列表", width='stretch'):
             st.rerun()
+
+# ==================== Connection Config ====================
+
+with tab3:
+    st.subheader("连接配置")
+
+    new_url = st.text_input(
+        "后端地址",
+        value=st.session_state.api_base_url,
+        help="FastAPI 后端地址，默认 http://localhost:8000",
+        key="mgmt_api_url",
+    )
+    if new_url != st.session_state.api_base_url:
+        st.session_state.api_base_url = new_url.rstrip("/")
+        st.rerun()
+
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        if st.button("🔍 测试连接", width='stretch', key="mgmt_test_conn"):
+            try:
+                api = get_client()
+                notebooks = api.list_notebooks()
+                st.success(f"✅ 连接成功！{len(notebooks)} 个笔记本可用")
+            except Exception as e:
+                st.error(f"❌ 连接失败: {e}")
+
+    st.divider()
+
+    try:
+        api = get_client()
+        notebooks = api.list_notebooks()
+        st.metric("可用笔记本", len(notebooks))
+        st.caption(f"📚 {', '.join(notebooks) if notebooks else '(无)'}")
+    except Exception:
+        st.metric("可用笔记本", "—")
+        st.caption("📚 (未连接)")

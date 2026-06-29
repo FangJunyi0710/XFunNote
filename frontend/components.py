@@ -1,4 +1,4 @@
-"""共享 UI 组件 — 配置驱动 + 通用笔记本渲染。"""
+"""共享 UI 组件 — 视图选择 + 筛选分页 + 交互表格。"""
 
 from __future__ import annotations
 
@@ -125,7 +125,6 @@ def get_field_config(notebook_name: str, col_name: str, col_type: str = "TEXT") 
         return fc[col_name]
     if col_name in _BASE_FIELDS:
         return _BASE_FIELDS[col_name]
-    # 类型回退
     cfg: dict = {"label": col_name, "widget": "text_input"}
     if col_type in ("BOOLEAN", "BOOL"):
         cfg["widget"] = "checkbox"
@@ -139,9 +138,10 @@ def get_field_config(notebook_name: str, col_name: str, col_type: str = "TEXT") 
 # ==================== Widget Helpers ====================
 
 def _render_field_widget(
-    col_def: dict, field_cfg: dict, key_prefix: str, disabled: bool = False
+    col_def: dict, field_cfg: dict, key_prefix: str, disabled: bool = False,
+    value=None,
 ):
-    """根据字段配置渲染对应的 widget。"""
+    """根据字段配置渲染对应的 widget，支持初始值。"""
     name = col_def.get("name", "")
     col_type = col_def.get("type", "TEXT")
     required = col_def.get("required", False) or field_cfg.get("required", False)
@@ -152,55 +152,36 @@ def _render_field_widget(
     if required:
         label = f"{label} *"
 
+    # 设置 session_state 初始值（仅当还未设置时）
+    if value is not None and key not in st.session_state:
+        st.session_state[key] = value
+
     if widget == "checkbox":
-        return st.checkbox(label, key=key, disabled=disabled)
+        return st.checkbox(label, key=key, disabled=disabled,
+                          value=bool(value) if value is not None else False)
     elif widget == "text_area":
         rows = field_cfg.get("rows", 4)
-        return st.text_area(label, key=key, height=rows * 25 + 12, disabled=disabled)
+        return st.text_area(label, key=key, height=rows * 25 + 12, disabled=disabled,
+                           value=str(value) if value is not None else "")
     elif widget == "select":
         options = field_cfg.get("options", [])
-        return st.selectbox(label, options=options, key=key, disabled=disabled)
+        idx = 0
+        if value is not None and options:
+            try:
+                idx = options.index(str(value))
+            except ValueError:
+                pass
+        return st.selectbox(label, options=options, index=idx, key=key, disabled=disabled)
     elif widget == "number_int":
-        return st.number_input(label, step=1, key=key, disabled=disabled)
+        return st.number_input(label, step=1, key=key, disabled=disabled,
+                              value=int(value) if value is not None else 0)
     elif widget == "number_float":
-        return st.number_input(label, step=0.1, key=key, disabled=disabled)
+        return st.number_input(label, step=0.1, key=key, disabled=disabled,
+                              value=float(value) if value is not None else 0.0)
     else:  # text_input
         placeholder = field_cfg.get("placeholder", "")
-        return st.text_input(label, key=key, placeholder=placeholder, disabled=disabled)
-
-
-def _build_simple_filter(columns: list[dict], key_prefix: str) -> dict | None:
-    """构建简单筛选条件控件。返回 filter dict 或 None。"""
-    op_map = {
-        "$eq": "=", "$ne": "!=", "$contains": "包含",
-        "$gt": ">", "$lt": "<", "$gte": ">=", "$lte": "<=",
-    }
-    backend_op = {
-        "$eq": "=", "$ne": "!=", "$contains": "LIKE",
-        "$gt": ">", "$lt": "<", "$gte": ">=", "$lte": "<=",
-    }
-
-    c1, c2, c3 = st.columns([2, 1, 2])
-    with c1:
-        field = st.selectbox(
-            "筛选字段",
-            options=["(不过滤)"] + [c["name"] for c in columns],
-            key=f"{key_prefix}_flt_f",
-        )
-    if field == "(不过滤)":
-        return None
-    with c2:
-        op = st.selectbox(
-            "运算符",
-            options=list(op_map.keys()),
-            format_func=lambda x: op_map[x],
-            key=f"{key_prefix}_flt_o",
-        )
-    with c3:
-        value = st.text_input("值", key=f"{key_prefix}_flt_v")
-    if not value:
-        return None
-    return {"column": field, "op": backend_op[op], "value": value}
+        return st.text_input(label, key=key, placeholder=placeholder, disabled=disabled,
+                            value=str(value) if value is not None else "")
 
 
 def _show_schema(columns: list[dict]):
@@ -213,13 +194,13 @@ def _show_schema(columns: list[dict]):
                 "类型": c.get("type", ""),
                 "必填": "✅" if c.get("required") else "",
             })
-        st.dataframe(rows, use_container_width=True, hide_index=True)
+        st.dataframe(rows, width='stretch', hide_index=True)
 
 
 # ==================== Main Render Function ====================
 
 def render_notebook_page(notebook_name: str):
-    """配置驱动的完整笔记本 CRUD 页面。"""
+    """配置驱动的完整笔记本页面 — 视图选择 + 筛选分页 + 交互表格。"""
     config = NOTEBOOK_CONFIGS.get(notebook_name)
     if not config:
         st.error(f"未知笔记本: {notebook_name}")
@@ -242,32 +223,142 @@ def render_notebook_page(notebook_name: str):
     auto_fields = set(config.get("auto_fields", []))
     prefix = f"nb_{notebook_name}"
 
-    # ---- Sidebar: View Settings ----
+    # ---- Sidebar: 仅视图下拉 ----
+    selected_view_name = None
+    view_columns = []
+    view_filter = None
+    view_sort = ""
+
+    # 获取已保存的视图列表
+    try:
+        all_views = api.list_views()
+    except Exception:
+        all_views = []
+
+    # 过滤出与当前 notebook 相关的视图
+    related_views = []
+    other_views = []
+    for v in all_views:
+        vname = v.get("name", "")
+        try:
+            vdata = api.get_view(vname)
+        except Exception:
+            continue
+        if vdata and isinstance(vdata, dict) and notebook_name in vdata:
+            related_views.append(vname)
+        elif vdata is not None:
+            other_views.append(vname)
+
+    view_options = ["(手动配置)"] + sorted(related_views) + sorted(other_views)
+
+    sel_key = f"{prefix}_sel_view"
+    if sel_key not in st.session_state:
+        st.session_state[sel_key] = 0
+
     with st.sidebar:
-        st.header("👁️ 视图设置")
-
-        default_disp = config.get("default_display", all_cols[: min(8, len(all_cols))])
-        selected_cols = st.multiselect(
-            "显示列",
-            options=all_cols,
-            default=[c for c in default_disp if c in all_cols],
-            key=f"{prefix}_cols",
+        selected_idx = st.selectbox(
+            "📋 视图预设",
+            options=range(len(view_options)),
+            format_func=lambda i: view_options[i],
+            key=sel_key,
+            help="选择已保存的视图预设，或手动配置",
         )
+    selected_label = view_options[selected_idx]
 
-        st.divider()
-        st.caption("筛选条件")
-        simple_filter = _build_simple_filter(columns, prefix)
+    if selected_label != "(手动配置)":
+        selected_view_name = selected_label
+        try:
+            view_data = api.get_view(selected_view_name)
+        except Exception:
+            view_data = None
 
-        st.divider()
-        c1, c2 = st.columns([2, 1])
-        with c1:
+        if view_data and isinstance(view_data, dict):
+            nb_views = view_data.get(notebook_name, [])
+            if nb_views and isinstance(nb_views, list) and len(nb_views) > 0:
+                first = nb_views[0]
+                view_columns = first.get("columns", [])
+                view_filter = first.get("filter")
+                view_sort = first.get("sort", "")
+
+        if view_columns:
+            st.caption(
+                f"已加载视图 `{selected_view_name}` → "
+                f"{', '.join(view_columns[:6])}{'...' if len(view_columns) > 6 else ''}"
+            )
+
+    # ---- Main Area: 查询按钮 ----
+    effective_cols = (
+        view_columns
+        if view_columns
+        else config.get("default_display", all_cols[:min(8, len(all_cols))])
+    )
+    do_query = st.button("🔍 查询", type="primary", width='stretch', key=f"{prefix}_qbtn")
+
+    # ---- 筛选条件 ----
+    with st.expander("🔍 筛选条件（叠加在视图之上）", expanded=False):
+        n_filters_key = f"{prefix}_n_filters"
+        if n_filters_key not in st.session_state:
+            st.session_state[n_filters_key] = 1
+
+        extra_filters = []
+        op_map = {
+            "=": "=", "!=": "!=", "包含": "LIKE",
+            ">": ">", "<": "<", ">=": ">=", "<=": "<=",
+        }
+
+        for fi in range(st.session_state[n_filters_key]):
+            fcol1, fcol2, fcol3 = st.columns([2, 1, 2])
+            with fcol1:
+                field = st.selectbox(
+                    "字段" if fi == 0 else f"字段 #{fi+1}",
+                    options=["(无)"] + all_cols,
+                    key=f"{prefix}_flt_f{fi}",
+                )
+            with fcol2:
+                op = st.selectbox(
+                    "运算符" if fi == 0 else "运算符",
+                    options=list(op_map.keys()),
+                    key=f"{prefix}_flt_o{fi}",
+                )
+            with fcol3:
+                value = st.text_input(
+                    "值" if fi == 0 else "值",
+                    key=f"{prefix}_flt_v{fi}",
+                )
+            if field != "(无)" and value:
+                extra_filters.append({
+                    "column": field,
+                    "op": op_map[op],
+                    "value": value,
+                })
+
+        bcol1, bcol2 = st.columns(2)
+        with bcol1:
+            if st.button("➕ 添加条件", width='stretch', key=f"{prefix}_add_flt"):
+                st.session_state[n_filters_key] += 1
+                st.rerun()
+        with bcol2:
+            if st.button("➖ 移除条件", width='stretch', key=f"{prefix}_del_flt",
+                        disabled=st.session_state[n_filters_key] <= 1):
+                st.session_state[n_filters_key] = max(1, st.session_state[n_filters_key] - 1)
+                st.rerun()
+
+    # ---- 排序 + 分页（可折叠） ----
+    if f"{prefix}_limit" not in st.session_state:
+        st.session_state[f"{prefix}_limit"] = 20
+    if f"{prefix}_offset" not in st.session_state:
+        st.session_state[f"{prefix}_offset"] = 0
+
+    with st.expander("📐 排序与分页", expanded=False):
+        s1, s2 = st.columns([2, 1])
+        with s1:
             order_col = st.selectbox(
-                "排序",
+                "排序字段",
                 options=[""] + all_cols,
                 format_func=lambda x: "不排序" if x == "" else x,
                 key=f"{prefix}_sort_c",
             )
-        with c2:
+        with s2:
             order_dir = st.selectbox(
                 "方向", options=["ASC", "DESC"],
                 key=f"{prefix}_sort_d",
@@ -275,66 +366,227 @@ def render_notebook_page(notebook_name: str):
             )
         order_by = f"{order_col} {order_dir}" if order_col else ""
 
-        st.divider()
-        c1, c2 = st.columns(2)
+        p1, p2 = st.columns(2)
+        with p1:
+            new_limit = st.number_input(
+                "limit（返回条数）", min_value=1, max_value=500,
+                value=st.session_state[f"{prefix}_limit"],
+                step=5, key=f"{prefix}_limit_inp",
+            )
+        with p2:
+            new_offset = st.number_input(
+                "offset（偏移量）", min_value=0, max_value=10000,
+                value=st.session_state[f"{prefix}_offset"],
+                step=5, key=f"{prefix}_offset_inp",
+            )
+        if new_limit != st.session_state[f"{prefix}_limit"]:
+            st.session_state[f"{prefix}_limit"] = new_limit
+            st.session_state[f"{prefix}_offset"] = 0
+        if new_offset != st.session_state[f"{prefix}_offset"]:
+            st.session_state[f"{prefix}_offset"] = new_offset
+
+    # ---- 执行查询 ----
+    if do_query:
+        # 合并 view filter + extra filters
+        combined_filters = []
+        if view_filter:
+            combined_filters.append(view_filter)
+        combined_filters.extend(extra_filters)
+
+        # 始终构建 view JSON（filter 必填）
+        section: dict = {"columns": effective_cols}
+        if len(combined_filters) == 1:
+            section["filter"] = combined_filters[0]
+        elif len(combined_filters) > 1:
+            section["filter"] = {"$and": combined_filters}
+        else:
+            # 无筛选条件 → 永真条件
+            section["filter"] = {"column": "_", "value": None, "op": "TRUE"}
+        view_obj: dict = {notebook_name: [section]}
+        view_json = json.dumps(view_obj, ensure_ascii=False)
+
+        limit = st.session_state.get(f"{prefix}_limit", 20)
+        offset = st.session_state.get(f"{prefix}_offset", 0)
+
+        try:
+            result = api.query_entries(
+                notebook_name, view=view_json,
+                order_by=order_by or view_sort,
+                limit=limit, offset=offset,
+            )
+            st.session_state[f"{prefix}_res"] = result
+            st.session_state[f"{prefix}_sel_row"] = None
+        except Exception as e:
+            st.error(f"查询失败: {e}")
+
+    # ---- 获取当前结果 ----
+    results = st.session_state.get(f"{prefix}_res")
+    rows = results.get("results", []) if results else []
+    total_count = results.get("count", 0) if results else 0
+
+    if results is not None:
+        limit = st.session_state.get(f"{prefix}_limit", 20)
+        offset = st.session_state.get(f"{prefix}_offset", 0)
+
+        # ---- 结果计数 + 分页控件 ----
+        c1, c2, c3 = st.columns([2, 1, 1])
         with c1:
-            limit = st.number_input(
-                "条数", min_value=-1, value=100, step=10,
-                key=f"{prefix}_lim", help="-1 = 不限制",
-            )
+            st.metric("匹配条目", total_count)
         with c2:
-            offset = st.number_input(
-                "偏移", min_value=0, value=0, step=10,
-                key=f"{prefix}_off",
-            )
+            if st.button("⬅️ 上一页", key=f"{prefix}_prev",
+                        disabled=(offset <= 0), width='stretch'):
+                st.session_state[f"{prefix}_offset"] = max(0, offset - limit)
+                st.session_state[f"{prefix}_sel_row"] = None
+                st.rerun()
+        with c3:
+            next_disabled = (offset + limit >= total_count) if limit > 0 else True
+            if st.button("➡️ 下一页", key=f"{prefix}_next",
+                        disabled=next_disabled, width='stretch'):
+                st.session_state[f"{prefix}_offset"] = offset + limit
+                st.session_state[f"{prefix}_sel_row"] = None
+                st.rerun()
 
-    # ---- Main Tabs ----
-    tab_browse, tab_add, tab_update, tab_delete = st.tabs(
-        ["📋 浏览", "➕ 添加", "✏️ 更新", "🗑️ 删除"]
-    )
+    # ---- 预览表格 ----
+    if rows:
+        import pandas as pd
+        df = pd.DataFrame(rows)
+        available = [c for c in effective_cols if c in df.columns] if effective_cols else list(df.columns)
+        if available:
+            df = df[available]
 
-    # ===== BROWSE =====
-    with tab_browse:
-        _show_schema(columns)
+        st.subheader("📊 预览表格")
 
-        if st.button("🔍 查询", type="primary", key=f"{prefix}_q"):
-            view_obj = None
-            if simple_filter:
-                view_obj = {
-                    notebook_name: [{
-                        "columns": selected_cols,
-                        "filter": simple_filter,
-                    }]
-                }
-            view_json = json.dumps(view_obj, ensure_ascii=False) if view_obj else None
-            try:
-                result = api.query_entries(
-                    notebook_name, view=view_json,
-                    order_by=order_by, limit=limit, offset=offset,
+        # 使用可选择的 dataframe
+        table_key = f"{prefix}_table"
+        event = st.dataframe(
+            df,
+            width='stretch',
+            hide_index=True,
+            selection_mode="single-row",
+            on_select="rerun",
+            key=table_key,
+        )
+
+        # 处理行选择
+        if event is not None and hasattr(event, 'selection') and event.selection is not None:
+            sel_rows = getattr(event.selection, 'rows', [])
+            if sel_rows:
+                sel_idx = sel_rows[0]
+                if sel_idx < len(rows):
+                    st.session_state[f"{prefix}_sel_row"] = rows[sel_idx]
+                    st.session_state[f"{prefix}_sel_idx"] = sel_idx
+    elif results is not None:
+        st.info("没有匹配的条目。")
+
+    # ---- 选中行详情面板 ----
+    selected_row = st.session_state.get(f"{prefix}_sel_row")
+    if selected_row:
+        st.divider()
+        st.subheader("📝 选中行详情")
+
+        detail_cols = st.columns([3, 1])
+
+        with detail_cols[0]:
+            # 展示所有字段
+            with st.container(border=True):
+                st.caption(f"ID: {selected_row.get('id', 'N/A')}")
+
+                # 按列配置展示字段
+                display_fields = [c for c in columns if c["name"] in selected_row]
+                field_groups = [display_fields[i:i+3] for i in range(0, len(display_fields), 3)]
+
+                for group in field_groups:
+                    fcols = st.columns(len(group))
+                    for j, col_def in enumerate(group):
+                        name = col_def["name"]
+                        value = selected_row.get(name, "")
+                        fcfg = get_field_config(notebook_name, name, col_def.get("type", "TEXT"))
+
+                        with fcols[j]:
+                            # 自动字段只展示
+                            if name in auto_fields:
+                                st.metric(
+                                    label=fcfg.get("label", name),
+                                    value=str(value) if value is not None else "(空)",
+                                )
+                            else:
+                                widget_type = fcfg.get("widget", "text_input")
+                                if widget_type == "checkbox":
+                                    st.write(f"**{fcfg.get('label', name)}**: {'✅' if value else '❌'}")
+                                elif widget_type == "select":
+                                    opt_label = str(value) if value is not None else "(空)"
+                                    st.write(f"**{fcfg.get('label', name)}**: {opt_label}")
+                                else:
+                                    display_val = str(value)[:100] + "..." if isinstance(value, str) and len(str(value)) > 100 else str(value) if value else "(空)"
+                                    st.write(f"**{fcfg.get('label', name)}**: {display_val}")
+
+        row_id = selected_row.get("id", "unknown")
+        edit_prefix = f"{prefix}_edit_{row_id}"
+
+        with detail_cols[1]:
+            with st.container(border=True):
+                st.caption("⚡ 操作")
+
+                # 选择要编辑的字段
+                editable_fields = [c for c in columns if c["name"] in selected_row and c["name"] not in auto_fields]
+                edit_field_names = ["(选择字段)"] + [c["name"] for c in editable_fields]
+
+                edit_sel = st.selectbox(
+                    "选择要编辑的字段",
+                    options=edit_field_names,
+                    format_func=lambda x: get_field_config(notebook_name, x).get("label", x) if x != "(选择字段)" else x,
+                    key=f"{edit_prefix}_sel",
                 )
-                st.session_state[f"{prefix}_res"] = result
-            except Exception as e:
-                st.error(f"查询失败: {e}")
 
-        results = st.session_state.get(f"{prefix}_res")
-        if results:
-            count = results.get("count", 0)
-            rows = results.get("results", [])
-            st.metric("匹配条目", count)
-            if rows:
-                import pandas as pd
-                df = pd.DataFrame(rows)
-                available = [c for c in selected_cols if c in df.columns]
-                if available:
-                    df = df[available]
-                st.dataframe(df, use_container_width=True, hide_index=True)
-                with st.expander("📄 JSON"):
-                    st.json(rows[:50])
-            else:
-                st.info("没有匹配的条目。")
+                if edit_sel != "(选择字段)":
+                    edit_col_def = next((c for c in columns if c["name"] == edit_sel), None)
+                    if edit_col_def:
+                        fcfg = get_field_config(notebook_name, edit_sel, edit_col_def.get("type", "TEXT"))
+                        current_val = selected_row.get(edit_sel)
 
-    # ===== ADD =====
-    with tab_add:
+                        # 使用含 row_id 的 key 避免切换行时值残留
+                        new_val = _render_field_widget(
+                            edit_col_def, fcfg, edit_prefix,
+                            value=current_val,
+                        )
+
+                        if st.button("💾 保存修改", type="primary", width='stretch', key=f"{edit_prefix}_save"):
+                            # 处理 checkbox
+                            if fcfg.get("widget") == "checkbox":
+                                save_val = new_val
+                            elif new_val is not None and new_val != "":
+                                save_val = new_val
+                            else:
+                                save_val = None
+
+                            if save_val is not None:
+                                try:
+                                    upd_filter = {"column": "id", "op": "=", "value": selected_row.get("id")}
+                                    r = api.update_entries(notebook_name, upd_filter, {edit_sel: save_val})
+                                    st.success(f"✅ 已更新 {r['count']} 条")
+                                    st.session_state[f"{prefix}_sel_row"] = None
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"更新失败: {e}")
+
+                st.divider()
+
+                # 删除操作
+                with st.expander("🗑️ 删除此行", expanded=False):
+                    st.warning("此操作将永久删除该条目！")
+                    if st.button("确认删除", type="primary", key=f"{edit_prefix}_del"):
+                        try:
+                            del_filter = {"column": "id", "op": "=", "value": selected_row.get("id")}
+                            r = api.delete_entries(notebook_name, del_filter)
+                            st.success(f"✅ 已删除 {r['count']} 条")
+                            st.session_state[f"{prefix}_sel_row"] = None
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"删除失败: {e}")
+
+    # ---- 添加新条目 ----
+    st.divider()
+    with st.expander("➕ 添加新条目", expanded=False):
         mode = st.radio(
             "输入模式", ["📝 表单", "📄 JSON"],
             horizontal=True, key=f"{prefix}_add_mode",
@@ -385,6 +637,8 @@ def render_notebook_page(notebook_name: str):
                         st.success(f"✅ 成功添加 {r['count']} 条")
                         with st.expander("📄 详情"):
                             st.json(r["results"])
+                        # 清除旧查询结果以提示用户重新查询
+                        st.session_state[f"{prefix}_res"] = None
                     except Exception as e:
                         st.error(f"添加失败: {e}")
         else:
@@ -409,129 +663,14 @@ def render_notebook_page(notebook_name: str):
                         try:
                             r = api.add_entries(notebook_name, data)
                             st.success(f"✅ 成功添加 {r['count']} 条")
+                            st.session_state[f"{prefix}_res"] = None
                         except Exception as e:
                             st.error(f"添加失败: {e}")
 
-    # ===== UPDATE =====
-    with tab_update:
-        st.subheader("1️⃣ 筛选目标")
+    # ---- JSON 原始数据 ----
+    if rows:
+        with st.expander("📄 JSON 原始数据", expanded=False):
+            st.json(rows[:50])
 
-        c1, c2 = st.columns(2)
-        with c1:
-            uf = st.selectbox(
-                "字段", options=all_cols, key=f"{prefix}_upd_f",
-            )
-        with c2:
-            uv = st.text_input("值", key=f"{prefix}_upd_v")
-
-        upd_filter = None
-        if uv:
-            upd_filter = {"column": uf, "op": "=", "value": uv}
-
-        if upd_filter and st.button("🔍 查询匹配", key=f"{prefix}_upd_q"):
-            vobj = {notebook_name: [{"columns": all_cols, "filter": upd_filter}]}
-            try:
-                r = api.query_entries(
-                    notebook_name,
-                    view=json.dumps(vobj, ensure_ascii=False),
-                )
-                st.session_state[f"{prefix}_upd_m"] = r
-            except Exception as e:
-                st.error(f"查询失败: {e}")
-
-        matches = st.session_state.get(f"{prefix}_upd_m")
-        if matches:
-            st.metric("将更新条目数", matches["count"])
-            if matches["count"] > 0:
-                st.dataframe(
-                    matches["results"][:20],
-                    use_container_width=True, hide_index=True,
-                )
-
-        st.divider()
-        st.subheader("2️⃣ 设置新值")
-
-        upd_vals: dict = {}
-        groups = [
-            columns[i : i + 3] for i in range(0, len(columns), 3)
-        ]
-        for group in groups:
-            row_cols = st.columns(len(group))
-            for j, col_def in enumerate(group):
-                name = col_def["name"]
-                with row_cols[j]:
-                    en = st.checkbox(f"更新 {name}", key=f"{prefix}_upd_en_{name}")
-                    if en:
-                        fcfg = get_field_config(
-                            notebook_name, name,
-                            col_def.get("type", "TEXT"),
-                        )
-                        val = _render_field_widget(
-                            col_def, fcfg, f"{prefix}_upd_val",
-                        )
-                        upd_vals[name] = val
-
-        if upd_filter and upd_vals:
-            st.warning(
-                f"将对筛选匹配的条目更新：{', '.join(upd_vals.keys())}"
-            )
-            if st.button("✅ 确认更新", type="primary", key=f"{prefix}_upd_go"):
-                try:
-                    r = api.update_entries(notebook_name, upd_filter, upd_vals)
-                    st.success(f"✅ 成功更新 {r['count']} 条")
-                    st.session_state[f"{prefix}_upd_m"] = None
-                except Exception as e:
-                    st.error(f"更新失败: {e}")
-
-    # ===== DELETE =====
-    with tab_delete:
-        st.caption("安全流程：先预览再确认删除。")
-
-        c1, c2 = st.columns(2)
-        with c1:
-            df = st.selectbox(
-                "筛选字段", options=all_cols, key=f"{prefix}_del_f",
-            )
-        with c2:
-            dv = st.text_input("筛选值", key=f"{prefix}_del_v")
-
-        del_filter = None
-        if dv:
-            del_filter = {"column": df, "op": "=", "value": dv}
-
-        if del_filter and st.button("👁️ 预览", key=f"{prefix}_del_p"):
-            try:
-                r = api.preview_delete(notebook_name, del_filter)
-                st.session_state[f"{prefix}_del_prv"] = r
-                st.session_state[f"{prefix}_del_flt"] = del_filter
-            except Exception as e:
-                st.error(f"预览失败: {e}")
-
-        preview = st.session_state.get(f"{prefix}_del_prv")
-        if preview:
-            cnt = preview["count"]
-            st.metric("将删除条目数", cnt)
-            if cnt > 0:
-                st.dataframe(
-                    preview["results"], use_container_width=True,
-                    hide_index=True,
-                )
-                st.error(f"⚠️ 此操作将**永久删除**上述 {cnt} 条记录！")
-
-                confirm = st.text_input(
-                    "输入 DELETE 确认", key=f"{prefix}_del_cfm",
-                )
-                if st.button(
-                    "🗑️ 确认删除", type="primary",
-                    disabled=(confirm != "DELETE"),
-                    key=f"{prefix}_del_go",
-                ):
-                    try:
-                        saved_filter = st.session_state.get(f"{prefix}_del_flt")
-                        r = api.delete_entries(notebook_name, saved_filter)
-                        st.success(f"✅ 成功删除 {r['count']} 条")
-                        st.session_state[f"{prefix}_del_prv"] = None
-                        st.session_state[f"{prefix}_del_flt"] = None
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"删除失败: {e}")
+    # ---- 字段结构 ----
+    _show_schema(columns)

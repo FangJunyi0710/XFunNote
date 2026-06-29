@@ -372,12 +372,14 @@ XFunNote/
 │       └── .gitkeep
 ├── frontend/
 │   ├── pages/
-│   │   ├── 01_browse.py
-│   │   ├── 02_add.py
-│   │   ├── 03_update.py
-│   │   ├── 04_delete.py
-│   │   ├── 05_ai_chat.py
-│   │   └── 06_management.py
+│   │   ├── ai_chat.py
+│   │   ├── home.py
+│   │   ├── management.py
+│   │   ├── notebook_accumulation.py
+│   │   ├── notebook_aimemory.py
+│   │   ├── notebook_diary.py
+│   │   ├── notebook_plan.py
+│   │   └── notebook_word.py
 │   ├── __init__.py
 │   ├── api.py
 │   ├── app.py
@@ -499,12 +501,14 @@ graph LR
     end
     style frontend fill:#d5f5e3,stroke:#333,stroke-width:1px,color:#333
     subgraph frontend_pages[frontend/pages]
-        frontend_pages_01_browse(01_browse)
-        frontend_pages_02_add(02_add)
-        frontend_pages_03_update(03_update)
-        frontend_pages_04_delete(04_delete)
-        frontend_pages_05_ai_chat(05_ai_chat)
-        frontend_pages_06_management(06_management)
+        frontend_pages_ai_chat(ai_chat)
+        frontend_pages_home(home)
+        frontend_pages_management(management)
+        frontend_pages_notebook_accumulation(notebook_accumulation)
+        frontend_pages_notebook_aimemory(notebook_aimemory)
+        frontend_pages_notebook_diary(notebook_diary)
+        frontend_pages_notebook_plan(notebook_plan)
+        frontend_pages_notebook_word(notebook_word)
     end
     style frontend_pages fill:#fdebd0,stroke:#333,stroke-width:1px,color:#333
     subgraph tests[tests]
@@ -579,6 +583,7 @@ graph LR
     backend_routers_notebooks --> backend_schemas
     backend_routers_notebooks --> backend_services___init__
     backend_routers_notebooks --> backend_services_notebook_service
+    backend_routers_notebooks --> xfun_ai_schema
     backend_services_ai_service --> xfun_ai_agent
     backend_services_ai_service --> xfun_ai_prompts
     backend_services_ai_service --> xfun_ai_security
@@ -600,14 +605,13 @@ graph LR
     frontend_app --> frontend_components
     frontend_app --> xfun_config
     frontend_components --> frontend_api
-    frontend_pages_01_browse --> frontend_components
-    frontend_pages_01_browse --> xfun___init__
-    frontend_pages_01_browse --> xfun_core_filter
-    frontend_pages_02_add --> frontend_components
-    frontend_pages_03_update --> frontend_components
-    frontend_pages_04_delete --> frontend_components
-    frontend_pages_05_ai_chat --> frontend_components
-    frontend_pages_06_management --> frontend_components
+    frontend_pages_ai_chat --> frontend_components
+    frontend_pages_management --> frontend_components
+    frontend_pages_notebook_accumulation --> frontend_components
+    frontend_pages_notebook_aimemory --> frontend_components
+    frontend_pages_notebook_diary --> frontend_components
+    frontend_pages_notebook_plan --> frontend_components
+    frontend_pages_notebook_word --> frontend_components
     tests_conftest --> xfun_core_db
     tests_conftest --> xfun_core_notebook
     tests_conftest --> xfun_notebooks_accumulation

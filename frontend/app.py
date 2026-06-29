@@ -19,46 +19,15 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from frontend.components import init_session, get_client
+from frontend.components import init_session
 
 init_session()
 
-# ==================== Global Sidebar ====================
-
-with st.sidebar:
-    st.header("⚙️ 连接配置")
-
-    new_url = st.text_input(
-        "后端地址",
-        value=st.session_state.api_base_url,
-        help="FastAPI 后端地址，默认 http://localhost:8000",
-    )
-    if new_url != st.session_state.api_base_url:
-        st.session_state.api_base_url = new_url.rstrip("/")
-        st.rerun()
-
-    if st.button("🔍 测试连接", use_container_width=True):
-        try:
-            api = get_client()
-            notebooks = api.list_notebooks()
-            st.success(f"✅ 连接成功！{len(notebooks)} 个笔记本可用")
-        except Exception as e:
-            st.error(f"❌ 连接失败: {e}")
-
-    st.divider()
-
-    try:
-        api = get_client()
-        notebooks = api.list_notebooks()
-        st.caption(f"📚 笔记本: {', '.join(notebooks) if notebooks else '(无)'}")
-    except Exception:
-        st.caption("📚 笔记本: (未连接)")
-
-    st.divider()
-    st.caption("XFunNote v2.0.0")
-
 # ==================== Navigation ====================
 
+home_page = st.Page(
+    "pages/home.py", title="主页", icon="🏠",
+)
 plan_page = st.Page(
     "pages/notebook_plan.py", title="计划", icon="📋"
 )
@@ -82,6 +51,7 @@ management_page = st.Page(
 )
 
 pg = st.navigation({
+    "🏠 首页": [home_page],
     "📒 笔记本": [
         plan_page, diary_page, word_page,
         accumulation_page, aimemory_page,

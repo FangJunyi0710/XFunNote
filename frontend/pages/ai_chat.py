@@ -39,7 +39,7 @@ with st.sidebar:
         help="控制随机性，越高越有创造性",
     )
 
-    if st.button("🗑️ 清除对话", use_container_width=True):
+    if st.button("🗑️ 清除对话", width='stretch'):
         st.session_state.chat_messages = []
         st.rerun()
 
