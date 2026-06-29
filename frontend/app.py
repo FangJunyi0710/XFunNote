@@ -1,4 +1,4 @@
-"""XFunNote Streamlit 前端 — 主入口。"""
+"""XFunNote Streamlit 前端 — 主入口（st.navigation）。"""
 import sys
 from pathlib import Path
 
@@ -23,7 +23,7 @@ from frontend.components import init_session, get_client
 
 init_session()
 
-# ==================== 侧边栏 ====================
+# ==================== Global Sidebar ====================
 
 with st.sidebar:
     st.header("⚙️ 连接配置")
@@ -55,39 +55,37 @@ with st.sidebar:
         st.caption("📚 笔记本: (未连接)")
 
     st.divider()
-    st.caption("XFunNote v0.1.0")
+    st.caption("XFunNote v2.0.0")
 
-# ==================== 主页面 ====================
+# ==================== Navigation ====================
 
-st.title("📒 XFunNote")
-st.markdown("### 智能笔记本管理系统")
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown("""
-    #### 📋 浏览查询
-    查看笔记本字段结构，使用视图和筛选条件查询条目，
-    支持排序和分页。
-    """)
-
-with col2:
-    st.markdown("""
-    #### 🛠️ 数据操作
-    添加新条目、批量更新已有数据、安全删除条目。
-    删除前可预览确认。
-    """)
-
-with col3:
-    st.markdown("""
-    #### 🤖 AI 对话
-    使用自然语言操作笔记本。
-    AI 可自动查询、添加、更新和删除数据。
-    """)
-
-st.divider()
-
-st.info(
-    "💡 **快速开始**：使用左侧导航栏进入各功能模块。"
-    "确保 FastAPI 后端已启动（`uvicorn backend.main:app --reload`）。"
+plan_page = st.Page(
+    "pages/notebook_plan.py", title="计划", icon="📋"
 )
+diary_page = st.Page(
+    "pages/notebook_diary.py", title="日记", icon="📔"
+)
+word_page = st.Page(
+    "pages/notebook_word.py", title="单词", icon="📖"
+)
+accumulation_page = st.Page(
+    "pages/notebook_accumulation.py", title="积累", icon="📚"
+)
+aimemory_page = st.Page(
+    "pages/notebook_aimemory.py", title="AI记忆", icon="🧠"
+)
+ai_chat_page = st.Page(
+    "pages/ai_chat.py", title="AI 对话", icon="🤖"
+)
+management_page = st.Page(
+    "pages/management.py", title="系统管理", icon="⚙️"
+)
+
+pg = st.navigation({
+    "📒 笔记本": [
+        plan_page, diary_page, word_page,
+        accumulation_page, aimemory_page,
+    ],
+    "🛠️ 工具": [ai_chat_page, management_page],
+})
+pg.run()

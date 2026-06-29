@@ -2,15 +2,22 @@
 
 import json
 import streamlit as st
-from frontend.components import get_client, api_call
+from frontend.components import get_client
 
-st.set_page_config(page_title="系统管理 - XFunNote", page_icon="⚙️", layout="wide")
+
+def _api_call(func, *args, **kwargs):
+    try:
+        return func(*args, **kwargs)
+    except Exception as e:
+        st.error(str(e))
+        return None
+
 
 st.title("⚙️ 系统管理")
 
 tab1, tab2 = st.tabs(["🗄️ 数据库管理", "📁 视图文件管理"])
 
-# ==================== 数据库管理 ====================
+# ==================== Database Management ====================
 
 with tab1:
     st.subheader("数据库操作")
@@ -20,14 +27,14 @@ with tab1:
     with col1:
         if st.button("🔄 初始化数据库", use_container_width=True):
             api = get_client()
-            result = api_call(api.init_db)
+            result = _api_call(api.init_db)
             if result:
                 st.success(result.get("message", "初始化完成"))
 
     with col2:
         if st.button("💾 热备份", use_container_width=True):
             api = get_client()
-            result = api_call(api.backup_db)
+            result = _api_call(api.backup_db)
             if result:
                 st.success(result.get("message", "备份完成"))
 
@@ -41,7 +48,7 @@ with tab1:
             )
             if confirm:
                 api = get_client()
-                result = api_call(api.reset_db, backup_first=backup_first)
+                result = _api_call(api.reset_db, backup_first=backup_first)
                 if result:
                     st.success(result.get("message", "重置完成"))
                     st.rerun()
@@ -52,13 +59,13 @@ with tab1:
         "备份生成带时间戳的副本文件；重置会清空所有表结构。"
     )
 
-# ==================== 视图文件管理 ====================
+# ==================== View File Management ====================
 
 with tab2:
     st.subheader("视图文件管理")
 
     api = get_client()
-    views = api_call(api.list_views)
+    views = _api_call(api.list_views)
     if views is None:
         st.stop()
 
@@ -76,19 +83,15 @@ with tab2:
     if selected_view == "(新建)":
         view_name = st.text_input("视图名称", placeholder="my_view", key="view_new_name")
         view_content = st.text_area(
-            "视图 JSON",
-            value="{}",
-            height=300,
-            key="view_new_content",
+            "视图 JSON", value="{}", height=300, key="view_new_content",
         )
     else:
         view_name = selected_view
-        view_data = api_call(api.get_view, view_name) or {}
+        view_data = _api_call(api.get_view, view_name) or {}
         view_content = st.text_area(
             "视图 JSON",
             value=json.dumps(view_data, ensure_ascii=False, indent=2),
-            height=300,
-            key="view_edit_content",
+            height=300, key="view_edit_content",
         )
 
     col1, col2, col3 = st.columns(3)
@@ -101,7 +104,7 @@ with tab2:
                 try:
                     data = json.loads(view_content)
                     api = get_client()
-                    result = api_call(api.save_view, view_name, data)
+                    result = _api_call(api.save_view, view_name, data)
                     if result:
                         st.success(f"视图 `{view_name}` 已保存")
                         st.rerun()
@@ -113,7 +116,7 @@ with tab2:
             if st.button("🗑️ 删除视图", use_container_width=True):
                 if st.checkbox("确认删除", key="view_delete_confirm"):
                     api = get_client()
-                    result = api_call(api.delete_view, view_name)
+                    result = _api_call(api.delete_view, view_name)
                     if result:
                         st.success(f"视图 `{view_name}` 已删除")
                         st.rerun()
