@@ -12,9 +12,13 @@ langchain-core      # LangChain 核心抽象
 pytest              # 测试框架
 pytest-cov          # 测试覆盖率
 
-# ===================== 规划中（暂未使用） =====================
+# ===================== 后端 =====================
 
-# fastapi           # 后端 API（backend/main.py 尚未实现）
-# uvicorn[standard] # ASGI 服务器（配合 FastAPI）
-# streamlit         # 前端界面（frontend/app.py 尚未实现）
-# httpx             # HTTP 客户端（后端完成后使用）
+fastapi              # 后端 API（backend/）
+uvicorn[standard]    # ASGI 服务器
+
+# ===================== 前端 =====================
+
+streamlit          # 前端界面（frontend/）
+httpx              # HTTP 客户端（前端调用后端）
+pandas             # DataFrame 展示
