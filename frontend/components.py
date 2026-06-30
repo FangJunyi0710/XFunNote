@@ -446,35 +446,58 @@ def render_notebook_page(notebook_name: str):
                 st.session_state[f"{prefix}_sel_row"] = None
                 st.rerun()
 
-    # ---- 预览表格 ----
+    # ---- 卡片展示 ----
     if rows:
-        import pandas as pd
-        df = pd.DataFrame(rows)
-        available = [c for c in effective_cols if c in df.columns] if effective_cols else list(df.columns)
-        if available:
-            df = df[available]
+        # 公共元字段集合（auto_fields + 跨 notebook 的通用字段→灰色小字）
+        meta_fields: set = set(config.get("auto_fields", [])) | {"tags", "is_ai_gen", "ai_tags", "ai_note"}
 
-        st.subheader("📊 预览表格")
+        # effective_cols 中实际出现在数据中的字段
+        present_cols = [c for c in effective_cols if c in rows[0]]
 
-        # 使用可选择的 dataframe
-        table_key = f"{prefix}_table"
-        event = st.dataframe(
-            df,
-            width='stretch',
-            hide_index=True,
-            selection_mode="single-row",
-            on_select="rerun",
-            key=table_key,
-        )
+        # 主字段 = present_cols 中非元字段的部分（按 effective_cols 顺序）
+        primary_fields = [c for c in present_cols if c not in meta_fields]
+        # 如果全是元字段，直接展示全部
+        if not primary_fields:
+            primary_fields = present_cols[:3]
 
-        # 处理行选择
-        if event is not None and hasattr(event, 'selection') and event.selection is not None:
-            sel_rows = getattr(event.selection, 'rows', [])
-            if sel_rows:
-                sel_idx = sel_rows[0]
-                if sel_idx < len(rows):
-                    st.session_state[f"{prefix}_sel_row"] = rows[sel_idx]
-                    st.session_state[f"{prefix}_sel_idx"] = sel_idx
+        # 灰色元字段（在 present_cols 中但不在 primary_fields 中）
+        gray_fields = [c for c in present_cols if c not in primary_fields]
+
+        st.subheader(f"📇 共 {len(rows)} 条结果")
+
+        for idx, row in enumerate(rows):
+            with st.container(border=True):
+                # ── 主字段（正常字号、加粗标题） ──
+                for field in primary_fields:
+                    value = row.get(field, "")
+                    fcfg = get_field_config(notebook_name, field)
+                    label = fcfg.get("label", field)
+                    display_val = str(value) if value is not None else "(空)"
+                    if isinstance(value, str) and len(value) > 200:
+                        display_val = value[:200] + "…"
+                    st.markdown(f"**{label}**: {display_val}")
+
+                # ── 元字段（灰色小字） ──
+                if gray_fields:
+                    parts = []
+                    for field in gray_fields:
+                        value = row.get(field, "")
+                        fcfg = get_field_config(notebook_name, field)
+                        label = fcfg.get("label", field)
+                        display_val = str(value) if value is not None else "-"
+                        if isinstance(value, str) and len(value) > 30:
+                            display_val = value[:30] + "…"
+                        parts.append(f"{label}: {display_val}")
+                    st.markdown(
+                        f"<span style='color: #999; font-size: 0.8em;'>{'  ·  '.join(parts)}</span>",
+                        unsafe_allow_html=True,
+                    )
+
+                # ── 查看详情按钮 ──
+                if st.button("📝 详情", key=f"{prefix}_card_sel_{idx}"):
+                    st.session_state[f"{prefix}_sel_row"] = row
+                    st.session_state[f"{prefix}_sel_idx"] = idx
+                    st.rerun()
     elif results is not None:
         st.info("没有匹配的条目。")
 
