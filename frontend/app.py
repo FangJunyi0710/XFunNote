@@ -19,6 +19,26 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# ── 全局字体：仿终端等宽字体 Ubuntu Mono ──
+st.markdown("""
+<style>
+@import url('https://fonts.loli.net/css2?family=Ubuntu+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+
+html, body, [class*="css"], [class*="st-"] {
+    font-family: 'Ubuntu Mono', 'Courier New', monospace !important;
+}
+
+/* 用 :not 精确排除图标 */
+[data-testid^="stIcon"],
+[data-testid^="stIcon"] *,
+[class*="material-symbols"],
+[class*="material-icons"] {
+    font-family: "Material Symbols Outlined", "Material Icons" !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 from frontend.components import init_session
 
 init_session()
