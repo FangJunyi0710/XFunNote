@@ -49,6 +49,9 @@ ai_chat_page = st.Page(
 management_page = st.Page(
     "pages/management.py", title="系统管理", icon="⚙️"
 )
+view_mgmt_page = st.Page(
+    "pages/view_management.py", title="视图管理", icon="👁️"
+)
 
 pg = st.navigation({
     "🏠 首页": [home_page],
@@ -56,6 +59,6 @@ pg = st.navigation({
         plan_page, diary_page, word_page,
         accumulation_page, aimemory_page,
     ],
-    "🛠️ 工具": [ai_chat_page, management_page],
+    "🛠️ 工具": [ai_chat_page, management_page, view_mgmt_page],
 })
 pg.run()
