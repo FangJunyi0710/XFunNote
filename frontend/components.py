@@ -152,36 +152,26 @@ def _render_field_widget(
     if required:
         label = f"{label} *"
 
-    # 设置 session_state 初始值（仅当还未设置时）
+    # 通过 session_state 设置初始值（仅当还未设置时）
+    # widget 不传 value/index 参数，避免与 session_state 冲突
     if value is not None and key not in st.session_state:
         st.session_state[key] = value
 
     if widget == "checkbox":
-        return st.checkbox(label, key=key, disabled=disabled,
-                          value=bool(value) if value is not None else False)
+        return st.checkbox(label, key=key, disabled=disabled)
     elif widget == "text_area":
         rows = field_cfg.get("rows", 4)
-        return st.text_area(label, key=key, height=rows * 25 + 12, disabled=disabled,
-                           value=str(value) if value is not None else "")
+        return st.text_area(label, key=key, height=rows * 25 + 12, disabled=disabled)
     elif widget == "select":
         options = field_cfg.get("options", [])
-        idx = 0
-        if value is not None and options:
-            try:
-                idx = options.index(str(value))
-            except ValueError:
-                pass
-        return st.selectbox(label, options=options, index=idx, key=key, disabled=disabled)
+        return st.selectbox(label, options=options, key=key, disabled=disabled)
     elif widget == "number_int":
-        return st.number_input(label, step=1, key=key, disabled=disabled,
-                              value=int(value) if value is not None else 0)
+        return st.number_input(label, step=1, key=key, disabled=disabled)
     elif widget == "number_float":
-        return st.number_input(label, step=0.1, key=key, disabled=disabled,
-                              value=float(value) if value is not None else 0.0)
+        return st.number_input(label, step=0.1, key=key, disabled=disabled)
     else:  # text_input
         placeholder = field_cfg.get("placeholder", "")
-        return st.text_input(label, key=key, placeholder=placeholder, disabled=disabled,
-                            value=str(value) if value is not None else "")
+        return st.text_input(label, key=key, placeholder=placeholder, disabled=disabled)
 
 
 def _show_schema(columns: list[dict]):
@@ -286,14 +276,6 @@ def render_notebook_page(notebook_name: str):
                 f"{', '.join(view_columns[:6])}{'...' if len(view_columns) > 6 else ''}"
             )
 
-    # ---- Main Area: 查询按钮 ----
-    effective_cols = (
-        view_columns
-        if view_columns
-        else config.get("default_display", all_cols[:min(8, len(all_cols))])
-    )
-    do_query = st.button("🔍 查询", type="primary", width='stretch', key=f"{prefix}_qbtn")
-
     # ---- 筛选条件 ----
     with st.expander("🔍 筛选条件（叠加在视图之上）", expanded=False):
         n_filters_key = f"{prefix}_n_filters"
@@ -348,6 +330,8 @@ def render_notebook_page(notebook_name: str):
         st.session_state[f"{prefix}_limit"] = 20
     if f"{prefix}_offset" not in st.session_state:
         st.session_state[f"{prefix}_offset"] = 0
+    if f"{prefix}_should_query" not in st.session_state:
+        st.session_state[f"{prefix}_should_query"] = True
 
     with st.expander("📐 排序与分页", expanded=False):
         s1, s2 = st.columns([2, 1])
@@ -369,7 +353,7 @@ def render_notebook_page(notebook_name: str):
         p1, p2 = st.columns(2)
         with p1:
             new_limit = st.number_input(
-                "limit（返回条数）", min_value=1, max_value=500,
+                "limit（返回条数）", min_value=1, max_value=1000,
                 value=st.session_state[f"{prefix}_limit"],
                 step=5, key=f"{prefix}_limit_inp",
             )
@@ -377,7 +361,7 @@ def render_notebook_page(notebook_name: str):
             new_offset = st.number_input(
                 "offset（偏移量）", min_value=0, max_value=10000,
                 value=st.session_state[f"{prefix}_offset"],
-                step=5, key=f"{prefix}_offset_inp",
+                step=st.session_state[f"{prefix}_limit"],
             )
         if new_limit != st.session_state[f"{prefix}_limit"]:
             st.session_state[f"{prefix}_limit"] = new_limit
@@ -385,8 +369,29 @@ def render_notebook_page(notebook_name: str):
         if new_offset != st.session_state[f"{prefix}_offset"]:
             st.session_state[f"{prefix}_offset"] = new_offset
 
-    # ---- 执行查询 ----
-    if do_query:
+    effective_cols = (
+        view_columns
+        if view_columns
+        else config.get("default_display", all_cols[:min(8, len(all_cols))])
+    )
+
+    # ---- 查询 + 新增按钮（并列） ----
+    qb1, qb2 = st.columns(2)
+    with qb1:
+        if st.button("🔍 查询", type="primary", use_container_width=True, key=f"{prefix}_query_btn"):
+            st.session_state[f"{prefix}_should_query"] = True
+            st.rerun()
+    with qb2:
+        if st.session_state.get(f"{prefix}_sel_row") is None:
+            if st.button("➕ 新增条目", use_container_width=True, key=f"{prefix}_add_top_btn"):
+                st.session_state[f"{prefix}_sel_row"] = {}
+                st.session_state[f"{prefix}_sel_idx"] = None
+                st.rerun()
+
+    # ---- 按需查询（不在编辑器模式且 should_query 时执行） ----
+    current_sel = st.session_state.get(f"{prefix}_sel_row")
+    should_query = st.session_state.get(f"{prefix}_should_query", False)
+    if current_sel is None and should_query:
         # 合并 view filter + extra filters
         combined_filters = []
         if view_filter:
@@ -415,9 +420,10 @@ def render_notebook_page(notebook_name: str):
                 limit=limit, offset=offset,
             )
             st.session_state[f"{prefix}_res"] = result
-            st.session_state[f"{prefix}_sel_row"] = None
+            st.session_state[f"{prefix}_should_query"] = False
         except Exception as e:
             st.error(f"查询失败: {e}")
+            st.session_state[f"{prefix}_should_query"] = False
 
     # ---- 获取当前结果 ----
     results = st.session_state.get(f"{prefix}_res")
@@ -425,270 +431,159 @@ def render_notebook_page(notebook_name: str):
     total_count = results.get("count", 0) if results else 0
 
     if results is not None:
-        limit = st.session_state.get(f"{prefix}_limit", 20)
-        offset = st.session_state.get(f"{prefix}_offset", 0)
+        st.metric("匹配条目", total_count)
 
-        # ---- 结果计数 + 分页控件 ----
-        c1, c2, c3 = st.columns([2, 1, 1])
-        with c1:
-            st.metric("匹配条目", total_count)
-        with c2:
-            if st.button("⬅️ 上一页", key=f"{prefix}_prev",
-                        disabled=(offset <= 0), width='stretch'):
-                st.session_state[f"{prefix}_offset"] = max(0, offset - limit)
-                st.session_state[f"{prefix}_sel_row"] = None
-                st.rerun()
-        with c3:
-            next_disabled = (offset + limit >= total_count) if limit > 0 else True
-            if st.button("➡️ 下一页", key=f"{prefix}_next",
-                        disabled=next_disabled, width='stretch'):
-                st.session_state[f"{prefix}_offset"] = offset + limit
-                st.session_state[f"{prefix}_sel_row"] = None
-                st.rerun()
+    # ---- 根据选中状态：显示卡片 或 条目编辑器 ----
+    current_sel = st.session_state.get(f"{prefix}_sel_row")
 
-    # ---- 卡片展示 ----
-    if rows:
-        # 公共元字段集合（auto_fields + 跨 notebook 的通用字段→灰色小字）
-        meta_fields: set = set(config.get("auto_fields", [])) | {"tags", "is_ai_gen", "ai_tags", "ai_note"}
+    if current_sel is None:
+        # ========== 卡片展示 ==========
+        if rows:
+            # 公共元字段集合（auto_fields + 跨 notebook 的通用字段→灰色小字）
+            meta_fields: set = set(config.get("auto_fields", [])) | {"tags", "is_ai_gen", "ai_tags", "ai_note"}
 
-        # effective_cols 中实际出现在数据中的字段
-        present_cols = [c for c in effective_cols if c in rows[0]]
+            # effective_cols 中实际出现在数据中的字段
+            present_cols = [c for c in effective_cols if c in rows[0]]
 
-        # 主字段 = present_cols 中非元字段的部分（按 effective_cols 顺序）
-        primary_fields = [c for c in present_cols if c not in meta_fields]
-        # 如果全是元字段，直接展示全部
-        if not primary_fields:
-            primary_fields = present_cols[:3]
+            # 主字段 = present_cols 中非元字段的部分（按 effective_cols 顺序）
+            primary_fields = [c for c in present_cols if c not in meta_fields]
+            # 如果全是元字段，直接展示全部
+            if not primary_fields:
+                primary_fields = present_cols[:3]
 
-        # 灰色元字段（在 present_cols 中但不在 primary_fields 中）
-        gray_fields = [c for c in present_cols if c not in primary_fields]
+            # 灰色元字段（在 present_cols 中但不在 primary_fields 中）
+            gray_fields = [c for c in present_cols if c not in primary_fields]
 
-        st.subheader(f"📇 共 {len(rows)} 条结果")
+            st.subheader(f"📇 共 {len(rows)} 条结果")
 
-        for idx, row in enumerate(rows):
-            with st.container(border=True):
-                # ── 主字段（正常字号、加粗标题） ──
-                for field in primary_fields:
-                    value = row.get(field, "")
-                    fcfg = get_field_config(notebook_name, field)
-                    label = fcfg.get("label", field)
-                    display_val = str(value) if value is not None else "(空)"
-                    if isinstance(value, str) and len(value) > 200:
-                        display_val = value[:200] + "…"
-                    st.markdown(f"**{label}**: {display_val}")
-
-                # ── 元字段（灰色小字） ──
-                if gray_fields:
-                    parts = []
-                    for field in gray_fields:
+            for idx, row in enumerate(rows):
+                with st.container(border=True):
+                    # ── 主字段（正常字号、加粗标题） ──
+                    for field in primary_fields:
                         value = row.get(field, "")
                         fcfg = get_field_config(notebook_name, field)
                         label = fcfg.get("label", field)
-                        display_val = str(value) if value is not None else "-"
-                        if isinstance(value, str) and len(value) > 30:
-                            display_val = value[:30] + "…"
-                        parts.append(f"{label}: {display_val}")
-                    st.markdown(
-                        f"<span style='color: #999; font-size: 0.8em;'>{'  ·  '.join(parts)}</span>",
-                        unsafe_allow_html=True,
-                    )
+                        display_val = str(value) if value is not None else "(空)"
+                        if isinstance(value, str) and len(value) > 200:
+                            display_val = value[:200] + "…"
+                        st.markdown(f"**{label}**: {display_val}")
 
-                # ── 查看详情按钮 ──
-                if st.button("📝 详情", key=f"{prefix}_card_sel_{idx}"):
-                    st.session_state[f"{prefix}_sel_row"] = row
-                    st.session_state[f"{prefix}_sel_idx"] = idx
-                    st.rerun()
-    elif results is not None:
-        st.info("没有匹配的条目。")
-
-    # ---- 选中行详情面板 ----
-    selected_row = st.session_state.get(f"{prefix}_sel_row")
-    if selected_row:
-        st.divider()
-        st.subheader("📝 选中行详情")
-
-        detail_cols = st.columns([3, 1])
-
-        with detail_cols[0]:
-            # 展示所有字段
-            with st.container(border=True):
-                st.caption(f"ID: {selected_row.get('id', 'N/A')}")
-
-                # 按列配置展示字段
-                display_fields = [c for c in columns if c["name"] in selected_row]
-                field_groups = [display_fields[i:i+3] for i in range(0, len(display_fields), 3)]
-
-                for group in field_groups:
-                    fcols = st.columns(len(group))
-                    for j, col_def in enumerate(group):
-                        name = col_def["name"]
-                        value = selected_row.get(name, "")
-                        fcfg = get_field_config(notebook_name, name, col_def.get("type", "TEXT"))
-
-                        with fcols[j]:
-                            # 自动字段只展示
-                            if name in auto_fields:
-                                st.metric(
-                                    label=fcfg.get("label", name),
-                                    value=str(value) if value is not None else "(空)",
-                                )
-                            else:
-                                widget_type = fcfg.get("widget", "text_input")
-                                if widget_type == "checkbox":
-                                    st.write(f"**{fcfg.get('label', name)}**: {'✅' if value else '❌'}")
-                                elif widget_type == "select":
-                                    opt_label = str(value) if value is not None else "(空)"
-                                    st.write(f"**{fcfg.get('label', name)}**: {opt_label}")
-                                else:
-                                    display_val = str(value)[:100] + "..." if isinstance(value, str) and len(str(value)) > 100 else str(value) if value else "(空)"
-                                    st.write(f"**{fcfg.get('label', name)}**: {display_val}")
-
-        row_id = selected_row.get("id", "unknown")
-        edit_prefix = f"{prefix}_edit_{row_id}"
-
-        with detail_cols[1]:
-            with st.container(border=True):
-                st.caption("⚡ 操作")
-
-                # 选择要编辑的字段
-                editable_fields = [c for c in columns if c["name"] in selected_row and c["name"] not in auto_fields]
-                edit_field_names = ["(选择字段)"] + [c["name"] for c in editable_fields]
-
-                edit_sel = st.selectbox(
-                    "选择要编辑的字段",
-                    options=edit_field_names,
-                    format_func=lambda x: get_field_config(notebook_name, x).get("label", x) if x != "(选择字段)" else x,
-                    key=f"{edit_prefix}_sel",
-                )
-
-                if edit_sel != "(选择字段)":
-                    edit_col_def = next((c for c in columns if c["name"] == edit_sel), None)
-                    if edit_col_def:
-                        fcfg = get_field_config(notebook_name, edit_sel, edit_col_def.get("type", "TEXT"))
-                        current_val = selected_row.get(edit_sel)
-
-                        # 使用含 row_id 的 key 避免切换行时值残留
-                        new_val = _render_field_widget(
-                            edit_col_def, fcfg, edit_prefix,
-                            value=current_val,
+                    # ── 元字段（灰色小字） ──
+                    if gray_fields:
+                        parts = []
+                        for field in gray_fields:
+                            value = row.get(field, "")
+                            fcfg = get_field_config(notebook_name, field)
+                            label = fcfg.get("label", field)
+                            display_val = str(value) if value is not None else "-"
+                            if isinstance(value, str) and len(value) > 30:
+                                display_val = value[:30] + "…"
+                            parts.append(f"{label}: {display_val}")
+                        st.markdown(
+                            f"<span style='color: #999; font-size: 0.8em;'>{'  ·  '.join(parts)}</span>",
+                            unsafe_allow_html=True,
                         )
 
-                        if st.button("💾 保存修改", type="primary", width='stretch', key=f"{edit_prefix}_save"):
-                            # 处理 checkbox
-                            if fcfg.get("widget") == "checkbox":
-                                save_val = new_val
-                            elif new_val is not None and new_val != "":
-                                save_val = new_val
-                            else:
-                                save_val = None
+                    # ── 查看详情按钮 ──
+                    if st.button("📝 详情", key=f"{prefix}_card_sel_{idx}"):
+                        st.session_state[f"{prefix}_sel_row"] = row
+                        st.session_state[f"{prefix}_sel_idx"] = idx
+                        st.rerun()
+        elif results is not None:
+            st.info("没有匹配的条目。")
+    else:
+        # ========== 统一条目编辑器（新增 / 编辑） ==========
+        st.divider()
 
-                            if save_val is not None:
-                                try:
-                                    upd_filter = {"column": "id", "op": "=", "value": selected_row.get("id")}
-                                    r = api.update_entries(notebook_name, upd_filter, {edit_sel: save_val})
-                                    st.success(f"✅ 已更新 {r['count']} 条")
-                                    st.session_state[f"{prefix}_sel_row"] = None
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"更新失败: {e}")
-
-                st.divider()
-
-                # 删除操作
-                with st.expander("🗑️ 删除此行", expanded=False):
-                    st.warning("此操作将永久删除该条目！")
-                    if st.button("确认删除", type="primary", key=f"{edit_prefix}_del"):
-                        try:
-                            del_filter = {"column": "id", "op": "=", "value": selected_row.get("id")}
-                            r = api.delete_entries(notebook_name, del_filter)
-                            st.success(f"✅ 已删除 {r['count']} 条")
-                            st.session_state[f"{prefix}_sel_row"] = None
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"删除失败: {e}")
-
-    # ---- 添加新条目 ----
-    st.divider()
-    with st.expander("➕ 添加新条目", expanded=False):
-        mode = st.radio(
-            "输入模式", ["📝 表单", "📄 JSON"],
-            horizontal=True, key=f"{prefix}_add_mode",
-        )
-
-        if mode == "📝 表单":
-            form_fields = [c for c in columns if c["name"] not in auto_fields]
-
-            n = st.number_input(
-                "条目数量", min_value=1, max_value=20, value=1,
-                key=f"{prefix}_add_n",
-            )
-
-            entries: list[dict] = []
-            for i in range(int(n)):
-                with st.expander(f"条目 #{i + 1}", expanded=(i == 0)):
-                    entry: dict = {}
-                    cols_per_row = 2
-                    groups = [
-                        form_fields[j : j + cols_per_row]
-                        for j in range(0, len(form_fields), cols_per_row)
-                    ]
-                    for group in groups:
-                        row_cols = st.columns(len(group))
-                        for j, col_def in enumerate(group):
-                            name = col_def["name"]
-                            fcfg = get_field_config(
-                                notebook_name, name,
-                                col_def.get("type", "TEXT"),
-                            )
-                            with row_cols[j]:
-                                val = _render_field_widget(
-                                    col_def, fcfg, f"{prefix}_add_{i}",
-                                )
-                                if fcfg.get("widget") == "checkbox":
-                                    entry[name] = val
-                                elif val is not None and val != "":
-                                    entry[name] = val
-                    entries.append(entry)
-
-            if st.button("✅ 提交", type="primary", key=f"{prefix}_add_btn"):
-                valid = [e for e in entries if e]
-                if not valid:
-                    st.warning("请填写至少一个字段。")
-                else:
-                    try:
-                        r = api.add_entries(notebook_name, valid)
-                        st.success(f"✅ 成功添加 {r['count']} 条")
-                        with st.expander("📄 详情"):
-                            st.json(r["results"])
-                        # 清除旧查询结果以提示用户重新查询
-                        st.session_state[f"{prefix}_res"] = None
-                    except Exception as e:
-                        st.error(f"添加失败: {e}")
+        if current_sel.get("id") is None:
+            st.subheader("✏️ 新增条目")
+            editor_mode = "add"
         else:
-            st.caption("输入 JSON 数组，每项是字段→值的映射。")
-            default_json = json.dumps(
-                [{c["name"]: "" for c in columns if c["name"] not in auto_fields}],
-                ensure_ascii=False, indent=2,
-            )
-            raw = st.text_area(
-                "JSON", value=default_json, height=300,
-                key=f"{prefix}_add_json",
-            )
-            if st.button("✅ 提交", type="primary", key=f"{prefix}_add_json_btn"):
-                try:
-                    data = json.loads(raw)
-                except json.JSONDecodeError as e:
-                    st.error(f"JSON 错误: {e}")
-                else:
-                    if not isinstance(data, list):
-                        st.error("JSON 必须是数组")
+            st.subheader(f"✏️ 编辑条目 (ID: {current_sel.get('id')})")
+            editor_mode = "edit"
+
+        # 可编辑字段（非 auto_fields）
+        edit_columns = [c for c in columns if c["name"] not in auto_fields]
+
+        # 按两列分组
+        field_groups = [edit_columns[i:i+2] for i in range(0, len(edit_columns), 2)]
+
+        entry_data = {}
+        row_key = current_sel.get("id", "new")
+
+        for group in field_groups:
+            row_cols = st.columns(len(group))
+            for j, col_def in enumerate(group):
+                name = col_def["name"]
+                fcfg = get_field_config(notebook_name, name, col_def.get("type", "TEXT"))
+                current_val = current_sel.get(name)
+                with row_cols[j]:
+                    val = _render_field_widget(
+                        col_def, fcfg, f"{prefix}_edit_{row_key}",
+                        value=current_val,
+                    )
+                    if fcfg.get("widget") == "checkbox":
+                        entry_data[name] = val
+                    elif val is not None and val != "":
+                        entry_data[name] = val
+                    else:
+                        entry_data[name] = None
+
+        # ---- 操作按钮 ----
+        btn_cols = st.columns([2, 1, 1])
+
+        with btn_cols[0]:
+            if editor_mode == "add":
+                if st.button("➕ 添加", type="primary", use_container_width=True, key=f"{prefix}_unified_add"):
+                    valid = {k: v for k, v in entry_data.items() if v is not None and v != ""}
+                    if not valid:
+                        st.warning("请填写至少一个字段。")
                     else:
                         try:
-                            r = api.add_entries(notebook_name, data)
+                            r = api.add_entries(notebook_name, [valid])
                             st.success(f"✅ 成功添加 {r['count']} 条")
+                            st.session_state[f"{prefix}_sel_row"] = None
                             st.session_state[f"{prefix}_res"] = None
+                            st.session_state[f"{prefix}_should_query"] = True
+                            st.rerun()
                         except Exception as e:
                             st.error(f"添加失败: {e}")
+            else:
+                if st.button("💾 保存修改", type="primary", use_container_width=True, key=f"{prefix}_unified_save"):
+                    changes = {k: v for k, v in entry_data.items() if v is not None and v != ""}
+                    if not changes:
+                        st.warning("没有要修改的字段。")
+                    else:
+                        try:
+                            upd_filter = {"column": "id", "op": "=", "value": current_sel.get("id")}
+                            r = api.update_entries(notebook_name, upd_filter, changes)
+                            st.success(f"✅ 已更新 {r['count']} 条")
+                            st.session_state[f"{prefix}_sel_row"] = None
+                            st.session_state[f"{prefix}_res"] = None
+                            st.session_state[f"{prefix}_should_query"] = True
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"更新失败: {e}")
+
+        with btn_cols[1]:
+            if editor_mode == "edit":
+                if st.button("🗑️ 删除", type="secondary", use_container_width=True, key=f"{prefix}_unified_del"):
+                    try:
+                        del_filter = {"column": "id", "op": "=", "value": current_sel.get("id")}
+                        r = api.delete_entries(notebook_name, del_filter)
+                        st.success(f"✅ 已删除 {r['count']} 条")
+                        st.session_state[f"{prefix}_sel_row"] = None
+                        st.session_state[f"{prefix}_res"] = None
+                        st.session_state[f"{prefix}_should_query"] = True
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"删除失败: {e}")
+
+        with btn_cols[2]:
+            if st.button("✖ 取消", use_container_width=True, key=f"{prefix}_unified_cancel"):
+                st.session_state[f"{prefix}_sel_row"] = None
+                st.session_state[f"{prefix}_should_query"] = True
+                st.rerun()
 
     # ---- JSON 原始数据 ----
     if rows:
