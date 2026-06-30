@@ -22,3 +22,4 @@ uvicorn[standard]    # ASGI 服务器
 streamlit          # 前端界面（frontend/）
 httpx              # HTTP 客户端（前端调用后端）
 pandas             # DataFrame 展示
+transitions        # 有限状态机（frontend/fsm.py）

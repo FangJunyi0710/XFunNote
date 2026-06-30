@@ -383,7 +383,8 @@ XFunNote/
 │   ├── __init__.py
 │   ├── api.py
 │   ├── app.py
-│   └── components.py
+│   ├── components.py
+│   └── fsm.py
 ├── input/
 │   └── .gitkeep
 ├── output/
@@ -498,6 +499,7 @@ graph LR
         frontend_api(api)
         frontend_app(app)
         frontend_components(components)
+        frontend_fsm(fsm)
     end
     style frontend fill:#d5f5e3,stroke:#333,stroke-width:1px,color:#333
     subgraph frontend_pages[frontend/pages]
@@ -605,6 +607,7 @@ graph LR
     frontend_app --> frontend_components
     frontend_app --> xfun_config
     frontend_components --> frontend_api
+    frontend_components --> frontend_fsm
     frontend_pages_ai_chat --> frontend_components
     frontend_pages_management --> frontend_components
     frontend_pages_notebook_accumulation --> frontend_components
