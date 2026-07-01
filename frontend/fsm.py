@@ -1,7 +1,10 @@
 """FSM for notebook CRUD pages using the transitions library."""
+from __future__ import annotations
 
 import streamlit as st
 from transitions import Machine
+
+from frontend.store import StoreProxy
 
 
 class NotebookFSM:
@@ -32,17 +35,23 @@ class NotebookFSM:
         self.machine.add_transition("cancel", ["adding", "editing"], "browsing")
 
 
-def get_store(notebook_name: str) -> dict:
-    """Get or create the centralized state store for a notebook page."""
-    key = f"nb_fsm_{notebook_name}"
-    if key not in st.session_state:
-        st.session_state[key] = {
-            "fsm": NotebookFSM(),
-            "limit": 20,
-            "offset": 0,
-            "n_filters": 1,
-            "results": None,
-            "sel_row": None,
-            "sel_idx": None,
-        }
-    return st.session_state[key]
+def get_store(notebook_name: str) -> StoreProxy:
+    """获取笔记本的扁平 key 单源存储。
+
+    所有 key 为扁平格式：nb_{name}_{key}。
+    """
+    prefix = f"nb_{notebook_name}"
+    defaults = {
+        "fsm": NotebookFSM(),
+        "limit": 20,
+        "offset": 0,
+        "n_filters": 1,
+        "results": None,
+        "sel_row": None,
+        "sel_idx": None,
+    }
+    for key, value in defaults.items():
+        full_key = f"{prefix}_{key}"
+        if full_key not in st.session_state:
+            st.session_state[full_key] = value
+    return StoreProxy(prefix)

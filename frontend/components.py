@@ -6,15 +6,16 @@ import json
 import streamlit as st
 from frontend.api import get_client
 from frontend.fsm import get_store
+from frontend.store import StoreProxy
 
 
 # ==================== Session Init ====================
 
 def init_session():
-    """初始化 session_state 默认值。"""
+    """初始化 session_state 默认值（global_ 前缀）。"""
     defaults = {
-        "api_base_url": "http://localhost:8000",
-        "chat_messages": [],
+        "global_api_base_url": "http://localhost:8000",
+        "global_chat_messages": [],
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -301,7 +302,18 @@ def _render_filter_panel(prefix: str, all_cols: list[str], store: dict) -> list[
 
 # ==================== Sort & Pagination ====================
 
-def _render_sort_pagination(prefix: str, all_cols: list[str], store: dict) -> str:
+def _on_limit_change(prefix: str):
+    """limit 变化时 offset 归零并清除结果。"""
+    st.session_state[f"{prefix}_offset"] = 0
+    st.session_state[f"{prefix}_results"] = None
+
+
+def _on_offset_change(prefix: str):
+    """offset 变化时清除结果。"""
+    st.session_state[f"{prefix}_results"] = None
+
+
+def _render_sort_pagination(prefix: str, all_cols: list[str], store: StoreProxy) -> str:
     """排序与分页 expander。返回 order_by 字符串。"""
     with st.expander("📐 排序与分页", expanded=False):
         s1, s2 = st.columns([2, 1])
@@ -322,29 +334,24 @@ def _render_sort_pagination(prefix: str, all_cols: list[str], store: dict) -> st
 
         p1, p2 = st.columns(2)
         with p1:
-            new_limit = st.number_input(
+            st.number_input(
                 "limit（返回条数）", min_value=1, max_value=1000,
                 value=store["limit"],
-                step=5, key=f"{prefix}_limit_inp",
+                step=5, key=f"{prefix}_limit",
+                on_change=_on_limit_change, args=(prefix,),
             )
         with p2:
             # 当前页无结果时禁止增大 offset
             _results = store.get("results")
             _empty = _results is not None and len(_results.get("results", []) or []) == 0
             off_max = store["offset"] if _empty else 10000
-            new_offset = st.number_input(
+            st.number_input(
                 "offset（偏移量）", min_value=0, max_value=off_max,
                 value=store["offset"],
                 step=store["limit"],
-                key=f"{prefix}_offset_inp",
+                key=f"{prefix}_offset",
+                on_change=_on_offset_change, args=(prefix,),
             )
-        if new_limit != store["limit"]:
-            store["limit"] = new_limit
-            store["offset"] = 0
-        if new_offset != store["offset"]:
-            store["offset"] = new_offset
-            store["results"] = None
-            st.rerun()
 
         return order_by
 

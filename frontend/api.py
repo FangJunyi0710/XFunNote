@@ -178,5 +178,5 @@ def get_client() -> APIClient:
     """从 session_state 获取 API 客户端实例。"""
     import streamlit as st
 
-    base_url = st.session_state.get("api_base_url", "http://localhost:8000")
+    base_url = st.session_state.get("global_api_base_url", "http://localhost:8000")
     return APIClient(base_url)

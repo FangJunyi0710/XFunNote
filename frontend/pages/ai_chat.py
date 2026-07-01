@@ -40,15 +40,15 @@ with st.sidebar:
     )
 
     if st.button("🗑️ 清除对话", width='stretch'):
-        st.session_state.chat_messages = []
+        st.session_state.global_chat_messages = []
         st.rerun()
 
 # ---- Chat Interface ----
 
-if not st.session_state.get("chat_messages"):
-    st.session_state.chat_messages = []
+if not st.session_state.get("global_chat_messages"):
+    st.session_state.global_chat_messages = []
 
-for msg in st.session_state.chat_messages:
+for msg in st.session_state.global_chat_messages:
     role = msg.get("role", "user")
     content = msg.get("content", "")
 
@@ -68,9 +68,9 @@ for msg in st.session_state.chat_messages:
             st.markdown(content)
 
 if prompt := st.chat_input("输入消息..."):
-    st.session_state.chat_messages.append({"role": "user", "content": prompt})
+    st.session_state.global_chat_messages.append({"role": "user", "content": prompt})
 
-    msgs = st.session_state.chat_messages[:]
+    msgs = st.session_state.global_chat_messages[:]
 
     with st.spinner("AI 思考中..."):
         api = get_client()
@@ -82,6 +82,6 @@ if prompt := st.chat_input("输入消息..."):
         )
         if result is not None:
             new_messages = result.get("messages", [])
-            st.session_state.chat_messages = new_messages
+            st.session_state.global_chat_messages = new_messages
 
     st.rerun()

@@ -130,15 +130,11 @@ with tab2:
 with tab3:
     st.subheader("连接配置")
 
-    new_url = st.text_input(
+    st.text_input(
         "后端地址",
-        value=st.session_state.api_base_url,
         help="FastAPI 后端地址，默认 http://localhost:8000",
-        key="mgmt_api_url",
+        key="global_api_base_url",
     )
-    if new_url != st.session_state.api_base_url:
-        st.session_state.api_base_url = new_url.rstrip("/")
-        st.rerun()
 
     col1, col2 = st.columns([1, 2])
     with col1:

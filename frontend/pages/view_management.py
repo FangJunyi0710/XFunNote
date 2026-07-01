@@ -1,5 +1,4 @@
 """视图管理页面 — 可视化编辑 View 预设，FSM 驱动。"""
-
 from __future__ import annotations
 
 import json
@@ -8,6 +7,7 @@ import streamlit as st
 from transitions import Machine
 
 from frontend.api import get_client
+from frontend.store import StoreProxy
 
 
 # ==================== FSM ====================
@@ -36,27 +36,30 @@ class ViewMgmtFSM:
         self.machine.add_transition("cancel_edit", "editing", "browsing")
 
 
-def get_store() -> dict:
-    """获取或创建集中式状态存储。"""
-    key = "vm_fsm"
-    if key not in st.session_state:
-        st.session_state[key] = {
-            "fsm": ViewMgmtFSM(),
-            "view_name": "",
-            "view_data": {},
-            "sel_nb": "",
-            "sel_spec_idx": None,
-            "col_sel": [],
-            "filter_json": '{"column": "_", "op": "TRUE", "value": null}',
-            "sort": "",
-            "saved_view_names": [],
-            "preset": "(自定义)",
-            "prev_nb": "",
-        }
-    return st.session_state[key]
+def get_store() -> StoreProxy:
+    """获取或创建视图管理页面的扁平 key 单源存储。"""
+    prefix = "vm"
+    defaults = {
+        "fsm": ViewMgmtFSM(),
+        "view_name": "",
+        "view_data": {},
+        "sel_nb": "",
+        "sel_spec_idx": None,
+        "col_sel": [],
+        "filter_json": '{"column": "_", "op": "TRUE", "value": null}',
+        "sort": "",
+        "saved_view_names": [],
+        "preset": "(自定义)",
+        "prev_nb": "",
+    }
+    for key, value in defaults.items():
+        full_key = f"{prefix}_{key}"
+        if full_key not in st.session_state:
+            st.session_state[full_key] = value
+    return StoreProxy("vm")
 
 
-def _reset_editor(store: dict):
+def _reset_editor(store: StoreProxy):
     """清空编辑器中的字段。"""
     store["col_sel"] = []
     store["filter_json"] = '{"column": "_", "op": "TRUE", "value": null}'
@@ -86,7 +89,7 @@ def _build_preset_view(api, preset: str) -> dict:
 
 # ==================== Spec CRUD ====================
 
-def _add_spec(nb: str, store: dict):
+def _add_spec(nb: str, store: StoreProxy):
     """添加一个新的 TableSpec。"""
     view_data = store["view_data"]
     try:
@@ -103,7 +106,7 @@ def _add_spec(nb: str, store: dict):
     _reset_editor(store)
 
 
-def _update_spec(nb: str, idx: int, store: dict):
+def _update_spec(nb: str, idx: int, store: StoreProxy):
     """修改指定的 TableSpec。"""
     view_data = store["view_data"]
     specs = view_data.get(nb, [])
@@ -122,7 +125,7 @@ def _update_spec(nb: str, idx: int, store: dict):
     }
 
 
-def _delete_spec(nb: str, idx: int, store: dict):
+def _delete_spec(nb: str, idx: int, store: StoreProxy):
     """删除指定的 TableSpec。"""
     view_data = store["view_data"]
     specs = view_data.get(nb, [])
@@ -134,7 +137,7 @@ def _delete_spec(nb: str, idx: int, store: dict):
 
 # ==================== Save / Preview ====================
 
-def _do_save(api, name: str, data: dict, store: dict):
+def _do_save(api, name: str, data: dict, store: StoreProxy):
     if not name:
         st.error("请输入视图名称")
         return
@@ -167,85 +170,92 @@ def _do_preview(api, nb: str, data: dict):
         st.error(f"预览失败: {e}")
 
 
+# ==================== Callbacks (on_change) ====================
+
+def _on_preset_change(api, store: StoreProxy):
+    """预设下拉变化：构建预设视图或加载已保存视图。"""
+    sel = st.session_state["vm_preset"]
+    store["preset"] = sel
+    if sel in ("full_view", "no_view"):
+        store["view_data"] = _build_preset_view(api, sel)
+        store["sel_nb"] = ""
+        _reset_editor(store)
+        st.rerun()
+    elif sel in store["saved_view_names"]:
+        try:
+            data = api.get_view(sel)
+            if data:
+                store["view_data"] = data
+                store["view_name"] = sel
+                store["sel_nb"] = ""
+                _reset_editor(store)
+                st.rerun()
+        except Exception:
+            pass
+
+
+def _on_nb_change(fsm: ViewMgmtFSM, store: StoreProxy):
+    """笔记本选择器变化：驱动 FSM + 重置编辑器。"""
+    sel = st.session_state["vm_sel_nb"]
+    prev = store.get("prev_nb", "")
+    if not sel:
+        store["sel_nb"] = ""
+        if fsm.state != "idle":
+            fsm.deselect_notebook()
+            st.rerun()
+        return
+    if sel != prev:
+        store["prev_nb"] = sel
+        store["sel_nb"] = sel
+        _reset_editor(store)
+        if fsm.state == "idle":
+            fsm.select_notebook()
+        elif fsm.state == "editing":
+            fsm.cancel_edit()
+        st.rerun()
+
+
 # ==================== Sub-renderers ====================
 
-def _render_top_bar(api, store: dict):
+def _render_top_bar(api, store: StoreProxy):
     """渲染预设选择 + 视图名称输入（所有状态共享）。"""
     preset_opts = ["(自定义)", "full_view", "no_view"] + store["saved_view_names"]
     presets_deduped = list(dict.fromkeys(preset_opts))
 
     col1, col2 = st.columns(2)
     with col1:
-        sel_preset = st.selectbox(
+        st.selectbox(
             "📋 视图预设 / 已保存视图",
             options=presets_deduped,
-            key="vm_preset_dropdown",
+            key="vm_preset",
+            on_change=_on_preset_change, args=(api, store),
         )
-        if sel_preset != store["preset"]:
-            store["preset"] = sel_preset
-            if sel_preset in ("full_view", "no_view"):
-                store["view_data"] = _build_preset_view(api, sel_preset)
-                store["sel_nb"] = ""
-                _reset_editor(store)
-                st.rerun()
-            elif sel_preset in store["saved_view_names"]:
-                try:
-                    data = api.get_view(sel_preset)
-                    if data:
-                        store["view_data"] = data
-                        store["view_name"] = sel_preset
-                        store["sel_nb"] = ""
-                        _reset_editor(store)
-                        st.rerun()
-                except Exception:
-                    pass
 
     with col2:
         st.text_input(
             "📝 视图名称",
-            value=store["view_name"],
-            key="vm_name_input",
+            key="vm_view_name",
             placeholder="保存时使用的文件名",
         )
 
 
-def _render_nb_selector(api, store: dict, fsm: ViewMgmtFSM):
-    """渲染笔记本选择器，切换时自动重置编辑器 + 驱动 FSM。"""
+def _render_nb_selector(api, store: StoreProxy, fsm: ViewMgmtFSM):
+    """渲染笔记本选择器。"""
     try:
         notebooks = api.list_notebooks()
     except Exception:
         notebooks = []
 
-    sel_nb = st.selectbox(
+    st.selectbox(
         "📒 选择笔记本",
         options=[""] + notebooks,
-        key="vm_nb_selector",
+        key="vm_sel_nb",
         format_func=lambda x: x if x else "— 请选择 —",
+        on_change=_on_nb_change, args=(fsm, store),
     )
 
-    # 清空选择 → idle
-    if not sel_nb:
-        store["sel_nb"] = ""
-        if fsm.state != "idle":
-            fsm.deselect_notebook()
-            st.rerun()
-        return
 
-    # 切换笔记本 → 重置编辑器
-    if sel_nb != store["prev_nb"]:
-        store["prev_nb"] = sel_nb
-        store["sel_nb"] = sel_nb
-        _reset_editor(store)
-        if fsm.state == "idle":
-            fsm.select_notebook()
-        else:
-            # 如果在 editing，退回到 browsing
-            if fsm.state == "editing":
-                fsm.cancel_edit()
-        st.rerun()
-
-
-def _render_spec_list(sel_nb: str, specs: list, store: dict, fsm: ViewMgmtFSM):
+def _render_spec_list(sel_nb: str, specs: list, store: StoreProxy, fsm: ViewMgmtFSM):
     """渲染当前笔记本的 TableSpec 列表 + radio 选择。"""
     st.subheader(f"📄 `{sel_nb}` 的 TableSpec 列表 ({len(specs)} 个)")
 
@@ -296,26 +306,23 @@ def _render_spec_list(sel_nb: str, specs: list, store: dict, fsm: ViewMgmtFSM):
                 st.rerun()
 
 
-def _render_editor(sel_nb: str, all_cols: list, store: dict, fsm: ViewMgmtFSM, is_editing: bool):
+def _render_editor(sel_nb: str, all_cols: list, store: StoreProxy, fsm: ViewMgmtFSM, is_editing: bool):
     """渲染 TableSpec 编辑器（添加模式 / 修改模式）。"""
     st.divider()
     st.subheader("✏️ TableSpec 编辑器")
 
     # 列多选 — 切换笔记本时 _reset_editor 已清空 col_sel，默认永不出界
-    current_cols = st.multiselect(
+    st.multiselect(
         "选择列 (TableSpec 中显示)",
         options=all_cols,
         default=store["col_sel"],
-        key="vm_multiselect_cols",
+        key="vm_col_sel",
     )
-    if current_cols != store["col_sel"]:
-        store["col_sel"] = current_cols
 
     st.text_area(
         "筛选条件 (JSON)",
-        value=store["filter_json"],
         height=140,
-        key="vm_filter_textarea",
+        key="vm_filter_json",
         help=(
             "支持三种格式:\n"
             "1. 单个条件: {\"column\": \"month\", \"op\": \"=\", \"value\": \"2025-01\"}\n"
@@ -328,8 +335,7 @@ def _render_editor(sel_nb: str, all_cols: list, store: dict, fsm: ViewMgmtFSM, i
 
     st.text_input(
         "排序 (预留)",
-        value=store["sort"],
-        key="vm_sort_text",
+        key="vm_sort",
         placeholder="如 created_at DESC",
     )
 
@@ -363,7 +369,7 @@ def _render_editor(sel_nb: str, all_cols: list, store: dict, fsm: ViewMgmtFSM, i
                 st.rerun()
 
 
-def _render_action_buttons(api, sel_nb: str, store: dict):
+def _render_action_buttons(api, sel_nb: str, store: StoreProxy):
     """预览 & 保存按钮（仅 browsing 状态显示）。"""
     st.divider()
     bcol1, bcol2, bcol3 = st.columns(3)
@@ -381,7 +387,7 @@ def _render_action_buttons(api, sel_nb: str, store: dict):
             _do_save(api, new_name, store["view_data"], store)
 
 
-def _render_view_json_preview(store: dict):
+def _render_view_json_preview(store: StoreProxy):
     """以 expander 展示完整 View JSON。"""
     view_data = store["view_data"]
     if view_data:
@@ -391,7 +397,7 @@ def _render_view_json_preview(store: dict):
 
 # ==================== State Dispatchers ====================
 
-def _render_idle(api, store: dict, fsm: ViewMgmtFSM):
+def _render_idle(api, store: StoreProxy, fsm: ViewMgmtFSM):
     """idle 状态：未选择笔记本。"""
     _render_top_bar(api, store)
     _render_nb_selector(api, store, fsm)
@@ -399,7 +405,7 @@ def _render_idle(api, store: dict, fsm: ViewMgmtFSM):
     _render_view_json_preview(store)
 
 
-def _render_browsing(api, store: dict, fsm: ViewMgmtFSM):
+def _render_browsing(api, store: StoreProxy, fsm: ViewMgmtFSM):
     """browsing 状态：已选择笔记本，可添加/浏览。"""
     sel_nb = store["sel_nb"]
 
@@ -423,7 +429,7 @@ def _render_browsing(api, store: dict, fsm: ViewMgmtFSM):
     _render_view_json_preview(store)
 
 
-def _render_editing(api, store: dict, fsm: ViewMgmtFSM):
+def _render_editing(api, store: StoreProxy, fsm: ViewMgmtFSM):
     """editing 状态：正在编辑某条 Spec。"""
     sel_nb = store["sel_nb"]
 
