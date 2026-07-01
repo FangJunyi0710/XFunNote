@@ -22,18 +22,32 @@ class ViewMgmtFSM:
     """
 
     def __init__(self):
+        self._sel_spec_idx: int | None = None
         self.machine = Machine(
             model=self,
-            states=["idle", "browsing", "editing"],
+            states=["idle", "browsing", "editing", "reset_pending"],
             initial="idle",
             auto_transitions=False,
             queued=False,
         )
-        self.machine.add_transition("select_notebook", "idle", "browsing")
-        self.machine.add_transition("deselect_notebook", ["browsing", "editing"], "idle")
+        self.machine.add_transition("select_notebook", "idle", "browsing", after=self._clear_spec_idx)
+        self.machine.add_transition("deselect_notebook", ["browsing", "editing"], "idle", after=self._clear_spec_idx)
         self.machine.add_transition("edit_spec", "browsing", "editing")
-        self.machine.add_transition("save_edit", "editing", "browsing")
-        self.machine.add_transition("cancel_edit", "editing", "browsing")
+        self.machine.add_transition("save_edit", "editing", "reset_pending", after=self._clear_spec_idx)
+        self.machine.add_transition("cancel_edit", "editing", "reset_pending", after=self._clear_spec_idx)
+        self.machine.add_transition("finish_add", "browsing", "reset_pending", after=self._clear_spec_idx)
+        self.machine.add_transition("reset_done", "reset_pending", "browsing", after=self._clear_spec_idx)
+
+    @property
+    def sel_spec_idx(self) -> int | None:
+        return self._sel_spec_idx
+
+    @sel_spec_idx.setter
+    def sel_spec_idx(self, value: int | None):
+        self._sel_spec_idx = value
+
+    def _clear_spec_idx(self):
+        self._sel_spec_idx = None
 
 
 def get_store() -> StoreProxy:
@@ -44,7 +58,6 @@ def get_store() -> StoreProxy:
         "view_name": "",
         "view_data": {},
         "sel_nb": "",
-        "sel_spec_idx": None,
         "col_sel": [],
         "filter_json": '{"column": "_", "op": "TRUE", "value": null}',
         "sort": "",
@@ -64,7 +77,6 @@ def _reset_editor(store: StoreProxy):
     store["col_sel"] = []
     store["filter_json"] = '{"column": "_", "op": "TRUE", "value": null}'
     store["sort"] = ""
-    store["sel_spec_idx"] = None
 
 
 # ==================== Preset Helpers ====================
@@ -89,7 +101,7 @@ def _build_preset_view(api, preset: str) -> dict:
 
 # ==================== Spec CRUD ====================
 
-def _add_spec(nb: str, store: StoreProxy):
+def _add_spec(nb: str, store: StoreProxy, fsm: ViewMgmtFSM):
     """添加一个新的 TableSpec。"""
     view_data = store["view_data"]
     try:
@@ -103,7 +115,7 @@ def _add_spec(nb: str, store: StoreProxy):
         "filter": flt,
         "sort": store["sort"] or "",
     })
-    _reset_editor(store)
+    fsm.finish_add()
 
 
 def _update_spec(nb: str, idx: int, store: StoreProxy):
@@ -180,7 +192,6 @@ def _on_preset_change(api, store: StoreProxy):
         store["view_data"] = _build_preset_view(api, sel)
         store["sel_nb"] = ""
         _reset_editor(store)
-        st.rerun()
     elif sel in store["saved_view_names"]:
         try:
             data = api.get_view(sel)
@@ -189,7 +200,6 @@ def _on_preset_change(api, store: StoreProxy):
                 store["view_name"] = sel
                 store["sel_nb"] = ""
                 _reset_editor(store)
-                st.rerun()
         except Exception:
             pass
 
@@ -202,7 +212,6 @@ def _on_nb_change(fsm: ViewMgmtFSM, store: StoreProxy):
         store["sel_nb"] = ""
         if fsm.state != "idle":
             fsm.deselect_notebook()
-            st.rerun()
         return
     if sel != prev:
         store["prev_nb"] = sel
@@ -212,7 +221,6 @@ def _on_nb_change(fsm: ViewMgmtFSM, store: StoreProxy):
             fsm.select_notebook()
         elif fsm.state == "editing":
             fsm.cancel_edit()
-        st.rerun()
 
 
 # ==================== Sub-renderers ====================
@@ -286,16 +294,16 @@ def _render_spec_list(sel_nb: str, specs: list, store: StoreProxy, fsm: ViewMgmt
     )
 
     if sel_label == "(返回浏览)":
-        if store["sel_spec_idx"] is not None:
+        if fsm.sel_spec_idx is not None:
             _reset_editor(store)
             if fsm.state == "editing":
                 fsm.cancel_edit()
                 st.rerun()
     else:
         new_idx = int(sel_label.split(":")[0].lstrip("#"))
-        if new_idx != store["sel_spec_idx"]:
+        if new_idx != fsm.sel_spec_idx:
             spec = specs[new_idx]
-            store["sel_spec_idx"] = new_idx
+            fsm.sel_spec_idx = new_idx
             store["col_sel"] = spec.get("columns", [])
             store["filter_json"] = json.dumps(
                 spec.get("filter", {}), ensure_ascii=False, indent=2
@@ -344,27 +352,24 @@ def _render_editor(sel_nb: str, all_cols: list, store: StoreProxy, fsm: ViewMgmt
     with bcol1:
         if is_editing:
             if st.button("🔄 修改", type="primary", use_container_width=True, key="vm_btn_modify"):
-                _update_spec(sel_nb, store["sel_spec_idx"], store)
-                _reset_editor(store)
+                _update_spec(sel_nb, fsm.sel_spec_idx, store)
                 fsm.save_edit()
                 st.rerun()
         else:
             if st.button("➕ 添加", type="primary", use_container_width=True, key="vm_btn_add"):
-                _add_spec(sel_nb, store)
+                _add_spec(sel_nb, store, fsm)
                 st.rerun()
 
     with bcol2:
         if is_editing:
             if st.button("🗑️ 删除", use_container_width=True, key="vm_btn_delete"):
-                _delete_spec(sel_nb, store["sel_spec_idx"], store)
-                _reset_editor(store)
+                _delete_spec(sel_nb, fsm.sel_spec_idx, store)
                 fsm.save_edit()
                 st.rerun()
 
     with bcol3:
         if is_editing:
             if st.button("✖ 取消编辑", use_container_width=True, key="vm_btn_cancel"):
-                _reset_editor(store)
                 fsm.cancel_edit()
                 st.rerun()
 
@@ -465,6 +470,11 @@ def _render():
         store["saved_view_names"] = [v["name"] for v in saved_views]
     except Exception:
         store["saved_view_names"] = []
+
+    # 延迟复位：按钮触发后，在下一轮 widget 创建之前复位编辑器
+    if fsm.state == "reset_pending":
+        _reset_editor(store)
+        fsm.reset_done()
 
     # 根据 FSM 状态分发
     state = fsm.state

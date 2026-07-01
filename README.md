@@ -379,12 +379,14 @@ XFunNote/
 │   │   ├── notebook_aimemory.py
 │   │   ├── notebook_diary.py
 │   │   ├── notebook_plan.py
-│   │   └── notebook_word.py
+│   │   ├── notebook_word.py
+│   │   └── view_management.py
 │   ├── __init__.py
 │   ├── api.py
 │   ├── app.py
 │   ├── components.py
-│   └── fsm.py
+│   ├── notebook.py
+│   └── store.py
 ├── input/
 │   └── .gitkeep
 ├── output/
@@ -499,7 +501,8 @@ graph LR
         frontend_api(api)
         frontend_app(app)
         frontend_components(components)
-        frontend_fsm(fsm)
+        frontend_notebook(notebook)
+        frontend_store(store)
     end
     style frontend fill:#d5f5e3,stroke:#333,stroke-width:1px,color:#333
     subgraph frontend_pages[frontend/pages]
@@ -511,6 +514,7 @@ graph LR
         frontend_pages_notebook_diary(notebook_diary)
         frontend_pages_notebook_plan(notebook_plan)
         frontend_pages_notebook_word(notebook_word)
+        frontend_pages_view_management(view_management)
     end
     style frontend_pages fill:#fdebd0,stroke:#333,stroke-width:1px,color:#333
     subgraph tests[tests]
@@ -577,7 +581,6 @@ graph LR
     backend_main --> backend_routers_management
     backend_main --> backend_routers_notebooks
     backend_main --> xfun_config
-    backend_main --> xfun_core_errors
     backend_routers_ai --> backend_services___init__
     backend_routers_ai --> backend_services_ai_service
     backend_routers_management --> backend_services___init__
@@ -606,15 +609,17 @@ graph LR
     cli --> xfun_core_view
     frontend_app --> frontend_components
     frontend_app --> xfun_config
-    frontend_components --> frontend_api
-    frontend_components --> frontend_fsm
+    frontend_notebook --> frontend_api
+    frontend_notebook --> frontend_store
     frontend_pages_ai_chat --> frontend_components
     frontend_pages_management --> frontend_components
-    frontend_pages_notebook_accumulation --> frontend_components
-    frontend_pages_notebook_aimemory --> frontend_components
-    frontend_pages_notebook_diary --> frontend_components
-    frontend_pages_notebook_plan --> frontend_components
-    frontend_pages_notebook_word --> frontend_components
+    frontend_pages_notebook_accumulation --> frontend_notebook
+    frontend_pages_notebook_aimemory --> frontend_notebook
+    frontend_pages_notebook_diary --> frontend_notebook
+    frontend_pages_notebook_plan --> frontend_notebook
+    frontend_pages_notebook_word --> frontend_notebook
+    frontend_pages_view_management --> frontend_api
+    frontend_pages_view_management --> frontend_store
     tests_conftest --> xfun_core_db
     tests_conftest --> xfun_core_notebook
     tests_conftest --> xfun_notebooks_accumulation

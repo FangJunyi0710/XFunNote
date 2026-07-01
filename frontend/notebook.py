@@ -15,9 +15,17 @@ class NotebookFSM:
     """Finite State Machine for notebook pages.
 
     States: idle -> browsing <-> adding/editing
+
+    Manages sel_row and sel_idx lifecycle:
+    - sel_row is {} during adding, actual row dict during editing, None otherwise
+    - sel_idx is None during adding, actual index during editing, None otherwise
+    - Results are auto-cleared on mutation transitions (save_add/save_edit/delete_entry)
     """
 
-    def __init__(self):
+    def __init__(self, prefix: str = ""):
+        self._prefix = prefix
+        self._sel_row: dict | None = None
+        self._sel_idx: int | None = None
         self.machine = Machine(
             model=self,
             states=["idle", "browsing", "adding", "editing"],
@@ -29,14 +37,51 @@ class NotebookFSM:
         # Query
         self.machine.add_transition("do_query", "idle", "browsing")
         # Browse actions
-        self.machine.add_transition("start_add", "browsing", "adding")
+        self.machine.add_transition("start_add", "browsing", "adding",
+                                     before=self._reset_adding_state)
         self.machine.add_transition("start_edit", "browsing", "editing")
-        # Save result -> browse
-        self.machine.add_transition("save_add", "adding", "browsing")
-        self.machine.add_transition("save_edit", "editing", "browsing")
-        self.machine.add_transition("delete_entry", "editing", "browsing")
-        # Cancel (from both adding and editing)
-        self.machine.add_transition("cancel", ["adding", "editing"], "browsing")
+        # Save result -> browse (mutations clear selection + results)
+        self.machine.add_transition("save_add", "adding", "browsing",
+                                     after=self._clear_after_mutation)
+        self.machine.add_transition("save_edit", "editing", "browsing",
+                                     after=self._clear_after_mutation)
+        self.machine.add_transition("delete_entry", "editing", "browsing",
+                                     after=self._clear_after_mutation)
+        # Cancel (from both adding and editing, just clears selection)
+        self.machine.add_transition("cancel", ["adding", "editing"], "browsing",
+                                     after=self._clear_selection)
+
+    @property
+    def sel_row(self) -> dict | None:
+        return self._sel_row
+
+    @sel_row.setter
+    def sel_row(self, value: dict | None):
+        self._sel_row = value
+
+    @property
+    def sel_idx(self) -> int | None:
+        return self._sel_idx
+
+    @sel_idx.setter
+    def sel_idx(self, value: int | None):
+        self._sel_idx = value
+
+    def _reset_adding_state(self):
+        """before start_add: set empty row for new entry."""
+        self._sel_row = {}
+        self._sel_idx = None
+
+    def _clear_selection(self):
+        """after cancel: clear selection (but keep results)."""
+        self._sel_row = None
+        self._sel_idx = None
+
+    def _clear_after_mutation(self):
+        """after save_add/save_edit/delete_entry: clear selection + results."""
+        self._sel_row = None
+        self._sel_idx = None
+        st.session_state[f"{self._prefix}_results"] = None
 
 
 def get_store(notebook_name: str) -> StoreProxy:
@@ -46,13 +91,10 @@ def get_store(notebook_name: str) -> StoreProxy:
     """
     prefix = f"nb_{notebook_name}"
     defaults = {
-        "fsm": NotebookFSM(),
+        "fsm": NotebookFSM(prefix),
         "limit": 20,
         "offset": 0,
         "n_filters": 1,
-        "results": None,
-        "sel_row": None,
-        "sel_idx": None,
     }
     for key, value in defaults.items():
         full_key = f"{prefix}_{key}"
@@ -375,7 +417,6 @@ def _render_sort_pagination(prefix: str, all_cols: list[str], store: StoreProxy)
         with p1:
             st.number_input(
                 "limit（返回条数）", min_value=1, max_value=1000,
-                value=store["limit"],
                 step=5, key=f"{prefix}_limit",
                 on_change=_on_limit_change, args=(prefix,),
             )
@@ -386,7 +427,6 @@ def _render_sort_pagination(prefix: str, all_cols: list[str], store: StoreProxy)
             off_max = store["offset"] if _empty else 10000
             st.number_input(
                 "offset（偏移量）", min_value=0, max_value=off_max,
-                value=store["offset"],
                 step=store["limit"],
                 key=f"{prefix}_offset",
                 on_change=_on_offset_change, args=(prefix,),
@@ -473,8 +513,8 @@ def _render_cards(notebook_name: str, config: dict, prefix: str,
 
             # ── 详情按钮 → start_edit ──
             if st.button("📝 详情", key=f"{prefix}_card_sel_{idx}"):
-                store["sel_row"] = row
-                store["sel_idx"] = idx
+                fsm.sel_row = row
+                fsm.sel_idx = idx
                 fsm.start_edit()
                 st.rerun()
 
@@ -485,7 +525,7 @@ def _render_editor(notebook_name: str, config: dict, prefix: str,
                    api, columns: list[dict], auto_fields: set, store: dict):
     """统一编辑器 — 新增或编辑条目。"""
     fsm = store["fsm"]
-    current_sel = store["sel_row"] or {}
+    current_sel = fsm.sel_row or {}
 
     if fsm.state == "adding":
         st.subheader("✏️ 新增条目")
@@ -533,9 +573,6 @@ def _render_editor(notebook_name: str, config: dict, prefix: str,
                     try:
                         api.add_entries(notebook_name, [valid])
                         st.success("✅ 添加成功")
-                        store["sel_row"] = None
-                        store["sel_idx"] = None
-                        store["results"] = None
                         fsm.save_add()
                         st.rerun()
                     except Exception as e:
@@ -552,9 +589,6 @@ def _render_editor(notebook_name: str, config: dict, prefix: str,
                         upd_filter = {"column": "id", "op": "=", "value": current_sel.get("id")}
                         api.update_entries(notebook_name, upd_filter, changes)
                         st.success("✅ 已更新")
-                        store["sel_row"] = None
-                        store["sel_idx"] = None
-                        store["results"] = None
                         fsm.save_edit()
                         st.rerun()
                     except Exception as e:
@@ -568,9 +602,6 @@ def _render_editor(notebook_name: str, config: dict, prefix: str,
                     del_filter = {"column": "id", "op": "=", "value": current_sel.get("id")}
                     api.delete_entries(notebook_name, del_filter)
                     st.success("✅ 已删除")
-                    store["sel_row"] = None
-                    store["sel_idx"] = None
-                    store["results"] = None
                     fsm.delete_entry()
                     st.rerun()
                 except Exception as e:
@@ -579,8 +610,6 @@ def _render_editor(notebook_name: str, config: dict, prefix: str,
     with btn_cols[2]:
         if st.button("✖ 取消", use_container_width=True,
                      key=f"{prefix}_unified_cancel"):
-            store["sel_row"] = None
-            store["sel_idx"] = None
             fsm.cancel()
             st.rerun()
 
@@ -649,8 +678,6 @@ def render_notebook_page(notebook_name: str):
         with qb2:
             if st.button("➕ 新增条目", use_container_width=True,
                          key=f"{prefix}_add_top_btn"):
-                store["sel_row"] = {}
-                store["sel_idx"] = None
                 fsm.start_add()
                 st.rerun()
 
