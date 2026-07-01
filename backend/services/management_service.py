@@ -1,9 +1,9 @@
 """数据库管理和视图文件管理业务逻辑。"""
 
 import json
-from pathlib import Path
 
 from xfun import db, init_db
+from xfun.config import PROJECT_ROOT
 
 
 def init_database() -> str:
@@ -32,7 +32,7 @@ def reset_database(backup_first: bool = True) -> str:
 
 # ---- 视图文件管理 ----
 
-_VIEWS_DIR = Path(__file__).resolve().parent.parent.parent / "input"
+_VIEWS_DIR = PROJECT_ROOT / "views"
 
 
 def _ensure_views_dir() -> None:
