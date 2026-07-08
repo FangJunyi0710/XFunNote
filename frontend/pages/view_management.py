@@ -16,17 +16,14 @@ from frontend.store import StoreProxy
 class ViewMgmtFSM:
     """视图管理页面的有限状态机。
 
-    States:
-        idle      - 未选择笔记本，仅显示预设 + 视图名称 + JSON 预览
-        browsing  - 已选择笔记本，显示 Spec 列表 + 添加模式编辑器
-        editing   - 正在编辑某条 Spec，显示修改/删除模式编辑器
+    状态: idle → browsing → editing
+    reset_pending hack 已移除，操作按钮直接清理编辑器。
     """
 
     def __init__(self):
-        self._sel_spec_idx: int | None = None
         self.machine = Machine(
             model=self,
-            states=["idle", "browsing", "editing", "reset_pending"],
+            states=["idle", "browsing", "editing"],
             initial="idle",
             auto_transitions=False,
             queued=False,
@@ -34,21 +31,11 @@ class ViewMgmtFSM:
         self.machine.add_transition("select_notebook", "idle", "browsing", after=self._clear_spec_idx)
         self.machine.add_transition("deselect_notebook", ["browsing", "editing"], "idle", after=self._clear_spec_idx)
         self.machine.add_transition("edit_spec", "browsing", "editing")
-        self.machine.add_transition("save_edit", "editing", "reset_pending", after=self._clear_spec_idx)
-        self.machine.add_transition("cancel_edit", "editing", "reset_pending", after=self._clear_spec_idx)
-        self.machine.add_transition("finish_add", "browsing", "reset_pending", after=self._clear_spec_idx)
-        self.machine.add_transition("reset_done", "reset_pending", "browsing", after=self._clear_spec_idx)
-
-    @property
-    def sel_spec_idx(self) -> int | None:
-        return self._sel_spec_idx
-
-    @sel_spec_idx.setter
-    def sel_spec_idx(self, value: int | None):
-        self._sel_spec_idx = value
+        self.machine.add_transition("save_edit", "editing", "browsing", after=self._clear_spec_idx)
+        self.machine.add_transition("cancel_edit", "editing", "browsing", after=self._clear_spec_idx)
 
     def _clear_spec_idx(self):
-        self._sel_spec_idx = None
+        st.session_state["vm_sel_spec_idx"] = None
 
 
 def get_store() -> StoreProxy:
@@ -56,6 +43,7 @@ def get_store() -> StoreProxy:
     prefix = "vm"
     defaults = {
         "fsm": ViewMgmtFSM(),
+        "sel_spec_idx": None,
         "view_name": "",
         "view_data": {},
         "sel_nb": "",
@@ -116,7 +104,7 @@ def _add_spec(nb: str, store: StoreProxy, fsm: ViewMgmtFSM):
         "filter": flt,
         "sort": store["sort"] or "",
     })
-    fsm.finish_add()
+    _reset_editor(store)
 
 
 def _update_spec(nb: str, idx: int, store: StoreProxy):
@@ -309,7 +297,7 @@ def _render_spec_list(sel_nb: str, specs: list, store: StoreProxy, fsm: ViewMgmt
     bcol1, bcol2 = st.columns([1, 4])
     with bcol1:
         if st.button("✖ 返回浏览", key="vm_back_to_browse", help="退出编辑模式回到浏览"):
-            if fsm.sel_spec_idx is not None:
+            if store.get("sel_spec_idx") is not None:
                 _reset_editor(store)
                 if fsm.state == "editing":
                     fsm.cancel_edit()
@@ -324,9 +312,9 @@ def _render_spec_list(sel_nb: str, specs: list, store: StoreProxy, fsm: ViewMgmt
         )
 
     new_idx = int(sel_label.split(":")[0].lstrip("#"))
-    if new_idx != fsm.sel_spec_idx:
+    if new_idx != store.get("sel_spec_idx"):
         spec = specs[new_idx]
-        fsm.sel_spec_idx = new_idx
+        store["sel_spec_idx"] = new_idx
         store["col_sel"] = spec.get("columns", [])
         store["filter_json"] = json.dumps(
             spec.get("filter", {}), ensure_ascii=False, indent=2
@@ -362,7 +350,8 @@ def _render_editor(sel_nb: str, all_cols: list, store: StoreProxy, fsm: ViewMgmt
     with bcol1:
         if is_editing:
             if st.button("🔄 修改", type="primary", width='stretch', key="vm_btn_modify"):
-                _update_spec(sel_nb, fsm.sel_spec_idx, store)
+                _update_spec(sel_nb, store["sel_spec_idx"], store)
+                _reset_editor(store)
                 fsm.save_edit()
                 st.rerun()
         else:
@@ -373,13 +362,15 @@ def _render_editor(sel_nb: str, all_cols: list, store: StoreProxy, fsm: ViewMgmt
     with bcol2:
         if is_editing:
             if st.button("🗑️ 删除", width='stretch', key="vm_btn_delete"):
-                _delete_spec(sel_nb, fsm.sel_spec_idx, store)
+                _delete_spec(sel_nb, store["sel_spec_idx"], store)
+                _reset_editor(store)
                 fsm.save_edit()
                 st.rerun()
 
     with bcol3:
         if is_editing:
             if st.button("✖ 取消编辑", width='stretch', key="vm_btn_cancel"):
+                _reset_editor(store)
                 fsm.cancel_edit()
                 st.rerun()
 
@@ -497,11 +488,6 @@ def _render():
     # 空闲且已有默认笔记本 → 自动进入浏览状态
     if fsm.state == "idle" and store["sel_nb"]:
         fsm.select_notebook()
-
-    # 延迟复位：按钮触发后，在下一轮 widget 创建之前复位编辑器
-    if fsm.state == "reset_pending":
-        _reset_editor(store)
-        fsm.reset_done()
 
     # 根据 FSM 状态分发
     state = fsm.state

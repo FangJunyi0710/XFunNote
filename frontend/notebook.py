@@ -13,75 +13,52 @@ from frontend.store import StoreProxy
 # ==================== FSM ====================
 
 class NotebookFSM:
-    """Finite State Machine for notebook pages.
+    """笔记本页面的有限状态机 — 纯状态机，零数据属性。
 
-    States: idle -> browsing <-> adding/editing
-
-    Manages sel_row and sel_idx lifecycle:
-    - sel_row is {} during adding, actual row dict during editing, None otherwise
-    - sel_idx is None during adding, actual index during editing, None otherwise
-    - Results are auto-cleared on mutation transitions (save_add/save_edit/delete_entry)
+    状态: browsing → editing
+    sel_row / sel_idx / results 全部在 StoreProxy 中。
+    sel_row 承载子状态:
+      None           → 浏览模式（显示卡片列表+查询按钮）
+      {}             → 新增模式（显示空表单）
+      {id:42, ...}  → 编辑模式（显示已填表单）
     """
 
     def __init__(self, prefix: str = ""):
         self._prefix = prefix
-        self._sel_row: dict | None = None
-        self._sel_idx: int | None = None
         self.machine = Machine(
             model=self,
-            states=["idle", "browsing", "adding", "editing"],
-            initial="idle",
+            states=["browsing", "editing"],
+            initial="browsing",
             auto_transitions=False,
             queued=False,
         )
 
-        # Query
-        self.machine.add_transition("do_query", "idle", "browsing")
-        # Browse actions
-        self.machine.add_transition("start_add", "browsing", "adding",
+        # Browse → Edit transitions
+        self.machine.add_transition("start_add", "browsing", "editing",
                                      before=self._reset_adding_state)
         self.machine.add_transition("start_edit", "browsing", "editing")
-        # Save result -> browse (mutations clear selection + results)
-        self.machine.add_transition("save_add", "adding", "browsing",
+        # Edit → Browse (mutations: clear selection + results)
+        self.machine.add_transition("save_add", "editing", "browsing",
                                      after=self._clear_after_mutation)
         self.machine.add_transition("save_edit", "editing", "browsing",
                                      after=self._clear_after_mutation)
         self.machine.add_transition("delete_entry", "editing", "browsing",
                                      after=self._clear_after_mutation)
-        # Cancel (from both adding and editing, just clears selection)
-        self.machine.add_transition("cancel", ["adding", "editing"], "browsing",
+        # Cancel (just clears selection, keeps results)
+        self.machine.add_transition("cancel", "editing", "browsing",
                                      after=self._clear_selection)
-
-    @property
-    def sel_row(self) -> dict | None:
-        return self._sel_row
-
-    @sel_row.setter
-    def sel_row(self, value: dict | None):
-        self._sel_row = value
-
-    @property
-    def sel_idx(self) -> int | None:
-        return self._sel_idx
-
-    @sel_idx.setter
-    def sel_idx(self, value: int | None):
-        self._sel_idx = value
 
     def _reset_adding_state(self):
         """before start_add: set empty row for new entry."""
-        self._sel_row = {}
-        self._sel_idx = None
+        st.session_state[f"{self._prefix}_sel_row"] = {}
 
     def _clear_selection(self):
         """after cancel: clear selection (but keep results)."""
-        self._sel_row = None
-        self._sel_idx = None
+        st.session_state[f"{self._prefix}_sel_row"] = None
 
     def _clear_after_mutation(self):
         """after save_add/save_edit/delete_entry: clear selection + results."""
-        self._sel_row = None
-        self._sel_idx = None
+        st.session_state[f"{self._prefix}_sel_row"] = None
         st.session_state[f"{self._prefix}_results"] = None
 
 
@@ -93,8 +70,11 @@ def get_store(notebook_name: str) -> StoreProxy:
     prefix = f"nb_{notebook_name}"
     defaults = {
         "fsm": NotebookFSM(prefix),
+        "sel_row": None,
+        "results": None,
         "limit": 20,
         "offset": 0,
+        "sel_idx": None,
     }
     for key, value in defaults.items():
         full_key = f"{prefix}_{key}"
@@ -504,8 +484,8 @@ def _render_cards(notebook_name: str, config: dict, prefix: str,
 
             # ── 详情按钮 → start_edit ──
             if st.button("📝 详情", key=f"{prefix}_card_sel_{idx}"):
-                fsm.sel_row = row
-                fsm.sel_idx = idx
+                store["sel_row"] = row
+                store["sel_idx"] = idx
                 fsm.start_edit()
                 st.rerun()
 
@@ -516,9 +496,9 @@ def _render_editor(notebook_name: str, config: dict, prefix: str,
                    api, columns: list[dict], auto_fields: set, store: dict):
     """统一编辑器 — 新增或编辑条目。"""
     fsm = store["fsm"]
-    current_sel = fsm.sel_row or {}
+    current_sel = store.get("sel_row") or {}
 
-    if fsm.state == "adding":
+    if store.get("sel_row") == {}:
         st.subheader("✏️ 新增条目")
         editor_mode = "add"
     else:
@@ -650,14 +630,7 @@ def render_notebook_page(notebook_name: str):
     # ---- Dispatch by FSM State ----
     state = fsm.state
 
-    if state == "idle":
-        # 首次进入页面自动触发查询
-        _execute_query(api, notebook_name, effective_cols,
-                       view_filter, view_sort, extra_filters, order_by, store)
-        fsm.do_query()
-        st.rerun()
-
-    elif state == "browsing":
+    if state == "browsing":
         # 查询 + 新增按钮
         qb1, qb2 = st.columns(2)
         with qb1:
@@ -700,7 +673,7 @@ def render_notebook_page(notebook_name: str):
             with st.expander("📄 JSON 原始数据", expanded=False):
                 st.json(rows[:50])
 
-    elif state in ("adding", "editing"):
+    elif state == "editing":
         st.divider()
         _render_editor(notebook_name, config, prefix, api, columns, auto_fields, store)
 
