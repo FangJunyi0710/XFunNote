@@ -2,7 +2,7 @@
 
 import json
 import streamlit as st
-from frontend.components import get_client
+from frontend.api import get_client
 
 
 def _api_call(func, *args, **kwargs):

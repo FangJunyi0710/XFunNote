@@ -6,6 +6,7 @@ import streamlit as st
 from transitions import Machine
 
 from frontend.api import get_client
+from frontend.components import render_filter_editor
 from frontend.store import StoreProxy
 
 
@@ -94,7 +95,6 @@ def get_store(notebook_name: str) -> StoreProxy:
         "fsm": NotebookFSM(prefix),
         "limit": 20,
         "offset": 0,
-        "n_filters": 1,
     }
     for key, value in defaults.items():
         full_key = f"{prefix}_{key}"
@@ -291,23 +291,39 @@ def _render_view_selector(api, notebook_name: str, prefix: str):
         elif vdata is not None:
             other_views.append(vname)
 
-    view_options = ["(手动配置)"] + sorted(related_views) + sorted(other_views)
+    view_options = sorted(related_views) + sorted(other_views)
 
-    sel_key = f"{prefix}_sel_view"
-    if sel_key not in st.session_state:
-        st.session_state[sel_key] = 0
+    # ── 全局共享的视图名称 ──
+    if "_global_view_name" not in st.session_state:
+        st.session_state["_global_view_name"] = view_options[0] if view_options else ""
+    stored = st.session_state["_global_view_name"]
+    if stored not in view_options:
+        stored = view_options[0] if view_options else ""
+    default_index = view_options.index(stored) if stored in view_options else 0
 
+    # 使用 per-notebook 的 widget key 避免 Streamlit 冲突
+    widget_key = f"{prefix}_view_widget"
     with st.sidebar:
-        selected_idx = st.selectbox(
-            "📋 视图预设",
-            options=range(len(view_options)),
-            format_func=lambda i: view_options[i],
-            key=sel_key,
-            help="选择已保存的视图预设，或手动配置",
-        )
-    selected_label = view_options[selected_idx]
+        if view_options:
+            selected_idx = st.selectbox(
+                "📋 视图预设",
+                options=range(len(view_options)),
+                format_func=lambda i: view_options[i],
+                index=default_index,
+                key=widget_key,
+                help=(
+                    "选择已保存的视图预设。视图按名称字母排序，"
+                    "可在名称前加数字前缀自定义顺序，如 `01_周报`。"
+                ),
+            )
+            selected_label = view_options[selected_idx]
+            # 同步回全局状态，下次切换 notebook 时继承
+            st.session_state["_global_view_name"] = selected_label
+        else:
+            selected_label = ""
+            st.caption("暂无已保存的视图")
 
-    if selected_label != "(手动配置)":
+    if selected_label:
         try:
             view_data = api.get_view(selected_label)
         except Exception:
@@ -316,10 +332,15 @@ def _render_view_selector(api, notebook_name: str, prefix: str):
         if view_data and isinstance(view_data, dict):
             nb_views = view_data.get(notebook_name, [])
             if nb_views and isinstance(nb_views, list) and len(nb_views) > 0:
-                first = nb_views[0]
-                view_columns = first.get("columns", [])
-                view_filter = first.get("filter")
-                view_sort = first.get("sort", "")
+                # 合并所有 Spec 的列（不再只取第一个）
+                merged_cols = []
+                for spec in nb_views:
+                    merged_cols.extend(spec.get("columns", []))
+                    if spec.get("filter"):
+                        view_filter = spec["filter"]
+                    if spec.get("sort"):
+                        view_sort = spec["sort"]
+                view_columns = list(dict.fromkeys(merged_cols))  # 去重保持顺序
 
         if view_columns:
             st.caption(
@@ -332,51 +353,21 @@ def _render_view_selector(api, notebook_name: str, prefix: str):
 
 # ==================== Filter Panel ====================
 
-def _render_filter_panel(prefix: str, all_cols: list[str], store: dict) -> list[dict]:
-    """筛选条件 expander。返回 extra_filters 列表。"""
+def _render_filter_panel(prefix: str) -> list[dict]:
+    """筛选条件 expander（JSON 编辑，待后续设计具体 UI）。"""
     with st.expander("🔍 筛选条件（叠加在视图之上）", expanded=False):
-        op_map = {
-            "=": "=", "!=": "!=", "包含": "LIKE",
-            ">": ">", "<": "<", ">=": ">=", "<=": "<=",
-        }
+        filter_text = render_filter_editor(key=f"{prefix}_filter_json_text")
+
         extra_filters = []
-
-        for fi in range(store["n_filters"]):
-            fcol1, fcol2, fcol3 = st.columns([2, 1, 2])
-            with fcol1:
-                field = st.selectbox(
-                    "字段" if fi == 0 else f"字段 #{fi + 1}",
-                    options=["(无)"] + all_cols,
-                    key=f"{prefix}_flt_f{fi}",
-                )
-            with fcol2:
-                op = st.selectbox(
-                    "运算符" if fi == 0 else "运算符",
-                    options=list(op_map.keys()),
-                    key=f"{prefix}_flt_o{fi}",
-                )
-            with fcol3:
-                value = st.text_input(
-                    "值" if fi == 0 else "值",
-                    key=f"{prefix}_flt_v{fi}",
-                )
-            if field != "(无)" and value:
-                extra_filters.append({
-                    "column": field,
-                    "op": op_map[op],
-                    "value": value,
-                })
-
-        bcol1, bcol2 = st.columns(2)
-        with bcol1:
-            if st.button("➕ 添加条件", width="stretch", key=f"{prefix}_add_flt"):
-                store["n_filters"] += 1
-                st.rerun()
-        with bcol2:
-            if st.button("➖ 移除条件", width="stretch", key=f"{prefix}_del_flt",
-                         disabled=store["n_filters"] <= 1):
-                store["n_filters"] = max(1, store["n_filters"] - 1)
-                st.rerun()
+        if filter_text and filter_text.strip():
+            try:
+                parsed = json.loads(filter_text)
+                if isinstance(parsed, list):
+                    extra_filters = parsed
+                elif isinstance(parsed, dict):
+                    extra_filters = [parsed]
+            except json.JSONDecodeError:
+                st.warning("筛选条件 JSON 格式错误")
 
         return extra_filters
 
@@ -563,7 +554,7 @@ def _render_editor(notebook_name: str, config: dict, prefix: str,
 
     with btn_cols[0]:
         if editor_mode == "add":
-            if st.button("➕ 添加", type="primary", use_container_width=True,
+            if st.button("➕ 添加", type="primary", width='stretch',
                          key=f"{prefix}_unified_add"):
                 valid = {k: v for k, v in entry_data.items()
                          if v is not None and v != ""}
@@ -578,7 +569,7 @@ def _render_editor(notebook_name: str, config: dict, prefix: str,
                     except Exception as e:
                         st.error(f"添加失败: {e}")
         else:
-            if st.button("💾 保存修改", type="primary", use_container_width=True,
+            if st.button("💾 保存修改", type="primary", width='stretch',
                          key=f"{prefix}_unified_save"):
                 changes = {k: v for k, v in entry_data.items()
                            if v is not None and v != ""}
@@ -596,7 +587,7 @@ def _render_editor(notebook_name: str, config: dict, prefix: str,
 
     with btn_cols[1]:
         if editor_mode == "edit":
-            if st.button("🗑️ 删除", type="secondary", use_container_width=True,
+            if st.button("🗑️ 删除", type="secondary", width='stretch',
                          key=f"{prefix}_unified_del"):
                 try:
                     del_filter = {"column": "id", "op": "=", "value": current_sel.get("id")}
@@ -608,7 +599,7 @@ def _render_editor(notebook_name: str, config: dict, prefix: str,
                     st.error(f"删除失败: {e}")
 
     with btn_cols[2]:
-        if st.button("✖ 取消", use_container_width=True,
+        if st.button("✖ 取消", width='stretch',
                      key=f"{prefix}_unified_cancel"):
             fsm.cancel()
             st.rerun()
@@ -651,7 +642,7 @@ def render_notebook_page(notebook_name: str):
     )
 
     # ---- Filter Panel ----
-    extra_filters = _render_filter_panel(prefix, all_cols, store)
+    extra_filters = _render_filter_panel(prefix)
 
     # ---- Sort & Pagination ----
     order_by = _render_sort_pagination(prefix, all_cols, store)
@@ -670,13 +661,13 @@ def render_notebook_page(notebook_name: str):
         # 查询 + 新增按钮
         qb1, qb2 = st.columns(2)
         with qb1:
-            if st.button("🔍 查询", type="primary", use_container_width=True,
+            if st.button("🔍 查询", type="primary", width='stretch',
                          key=f"{prefix}_query_btn"):
                 _execute_query(api, notebook_name, effective_cols,
                                view_filter, view_sort, extra_filters, order_by, store)
                 st.rerun()
         with qb2:
-            if st.button("➕ 新增条目", use_container_width=True,
+            if st.button("➕ 新增条目", width='stretch',
                          key=f"{prefix}_add_top_btn"):
                 fsm.start_add()
                 st.rerun()

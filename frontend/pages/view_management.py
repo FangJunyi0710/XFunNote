@@ -7,6 +7,7 @@ import streamlit as st
 from transitions import Machine
 
 from frontend.api import get_client
+from frontend.components import render_filter_editor
 from frontend.store import StoreProxy
 
 
@@ -62,7 +63,7 @@ def get_store() -> StoreProxy:
         "filter_json": '{"column": "_", "op": "TRUE", "value": null}',
         "sort": "",
         "saved_view_names": [],
-        "preset": "(自定义)",
+        "preset": "full_view",
         "prev_nb": "",
     }
     for key, value in defaults.items():
@@ -147,6 +148,15 @@ def _delete_spec(nb: str, idx: int, store: StoreProxy):
             view_data.pop(nb, None)
 
 
+def _move_spec(nb: str, idx: int, direction: int, store: StoreProxy):
+    """移动 Spec 顺序。direction: -1 上移, +1 下移。"""
+    view_data = store["view_data"]
+    specs = view_data.get(nb, [])
+    target = idx + direction
+    if 0 <= target < len(specs):
+        specs[idx], specs[target] = specs[target], specs[idx]
+
+
 # ==================== Save / Preview ====================
 
 def _do_save(api, name: str, data: dict, store: StoreProxy):
@@ -175,7 +185,7 @@ def _do_preview(api, nb: str, data: dict):
         total = results.get("count", len(rows))
         st.success(f"预览完成 — 共 {total} 条 (显示前 {len(rows)} 条)")
         if rows:
-            st.dataframe(rows, use_container_width=True, hide_index=True)
+            st.dataframe(rows, width='stretch', hide_index=True)
         else:
             st.info("无匹配条目")
     except Exception as e:
@@ -190,7 +200,6 @@ def _on_preset_change(api, store: StoreProxy):
     store["preset"] = sel
     if sel in ("full_view", "no_view"):
         store["view_data"] = _build_preset_view(api, sel)
-        store["sel_nb"] = ""
         _reset_editor(store)
     elif sel in store["saved_view_names"]:
         try:
@@ -198,7 +207,6 @@ def _on_preset_change(api, store: StoreProxy):
             if data:
                 store["view_data"] = data
                 store["view_name"] = sel
-                store["sel_nb"] = ""
                 _reset_editor(store)
         except Exception:
             pass
@@ -208,11 +216,6 @@ def _on_nb_change(fsm: ViewMgmtFSM, store: StoreProxy):
     """笔记本选择器变化：驱动 FSM + 重置编辑器。"""
     sel = st.session_state["vm_sel_nb"]
     prev = store.get("prev_nb", "")
-    if not sel:
-        store["sel_nb"] = ""
-        if fsm.state != "idle":
-            fsm.deselect_notebook()
-        return
     if sel != prev:
         store["prev_nb"] = sel
         store["sel_nb"] = sel
@@ -227,7 +230,7 @@ def _on_nb_change(fsm: ViewMgmtFSM, store: StoreProxy):
 
 def _render_top_bar(api, store: StoreProxy):
     """渲染预设选择 + 视图名称输入（所有状态共享）。"""
-    preset_opts = ["(自定义)", "full_view", "no_view"] + store["saved_view_names"]
+    preset_opts = ["full_view", "no_view"] + sorted(store["saved_view_names"])
     presets_deduped = list(dict.fromkeys(preset_opts))
 
     col1, col2 = st.columns(2)
@@ -256,15 +259,15 @@ def _render_nb_selector(api, store: StoreProxy, fsm: ViewMgmtFSM):
 
     st.selectbox(
         "📒 选择笔记本",
-        options=[""] + notebooks,
+        options=notebooks,
+        index=0,
         key="vm_sel_nb",
-        format_func=lambda x: x if x else "— 请选择 —",
         on_change=_on_nb_change, args=(fsm, store),
     )
 
 
 def _render_spec_list(sel_nb: str, specs: list, store: StoreProxy, fsm: ViewMgmtFSM):
-    """渲染当前笔记本的 TableSpec 列表 + radio 选择。"""
+    """渲染当前笔记本的 TableSpec 列表 + 上移/下移 + radio 选择。"""
     st.subheader(f"📄 `{sel_nb}` 的 TableSpec 列表 ({len(specs)} 个)")
 
     if not specs:
@@ -282,36 +285,56 @@ def _render_spec_list(sel_nb: str, specs: list, store: StoreProxy, fsm: ViewMgmt
             "筛选条件 (JSON)": flt_str[:100],
         })
 
-    st.dataframe(rows, use_container_width=True, hide_index=True)
+    # 上移/下移按钮
+    move_cols = st.columns(len(specs) + 1)
+    for i in range(len(specs)):
+        with move_cols[i]:
+            sub = st.columns(2)
+            with sub[0]:
+                if i > 0 and st.button(f"⬆", key=f"vm_up_{i}", help="上移"):
+                    _move_spec(sel_nb, i, -1, store)
+                    if fsm.state == "editing":
+                        fsm.cancel_edit()
+                    st.rerun()
+            with sub[1]:
+                if i < len(specs) - 1 and st.button(f"⬇", key=f"vm_down_{i}", help="下移"):
+                    _move_spec(sel_nb, i, 1, store)
+                    if fsm.state == "editing":
+                        fsm.cancel_edit()
+                    st.rerun()
+
+    st.dataframe(rows, width='stretch', hide_index=True)
 
     spec_options = [f"#{i}: {r['列'][:40]}" for i, r in enumerate(rows)]
-    sel_label = st.radio(
-        "选择要编辑的 TableSpec",
-        options=["(返回浏览)"] + spec_options,
-        index=0,
-        horizontal=True,
-        key="vm_spec_radio",
-    )
+    bcol1, bcol2 = st.columns([1, 4])
+    with bcol1:
+        if st.button("✖ 返回浏览", key="vm_back_to_browse", help="退出编辑模式回到浏览"):
+            if fsm.sel_spec_idx is not None:
+                _reset_editor(store)
+                if fsm.state == "editing":
+                    fsm.cancel_edit()
+                    st.rerun()
+    with bcol2:
+        sel_label = st.radio(
+            "选择要编辑的 TableSpec",
+            options=spec_options,
+            index=0,
+            horizontal=True,
+            key="vm_spec_radio",
+        )
 
-    if sel_label == "(返回浏览)":
-        if fsm.sel_spec_idx is not None:
-            _reset_editor(store)
-            if fsm.state == "editing":
-                fsm.cancel_edit()
-                st.rerun()
-    else:
-        new_idx = int(sel_label.split(":")[0].lstrip("#"))
-        if new_idx != fsm.sel_spec_idx:
-            spec = specs[new_idx]
-            fsm.sel_spec_idx = new_idx
-            store["col_sel"] = spec.get("columns", [])
-            store["filter_json"] = json.dumps(
-                spec.get("filter", {}), ensure_ascii=False, indent=2
-            )
-            store["sort"] = spec.get("sort", "")
-            if fsm.state == "browsing":
-                fsm.edit_spec()
-                st.rerun()
+    new_idx = int(sel_label.split(":")[0].lstrip("#"))
+    if new_idx != fsm.sel_spec_idx:
+        spec = specs[new_idx]
+        fsm.sel_spec_idx = new_idx
+        store["col_sel"] = spec.get("columns", [])
+        store["filter_json"] = json.dumps(
+            spec.get("filter", {}), ensure_ascii=False, indent=2
+        )
+        store["sort"] = spec.get("sort", "")
+        if fsm.state == "browsing":
+            fsm.edit_spec()
+            st.rerun()
 
 
 def _render_editor(sel_nb: str, all_cols: list, store: StoreProxy, fsm: ViewMgmtFSM, is_editing: bool):
@@ -323,23 +346,10 @@ def _render_editor(sel_nb: str, all_cols: list, store: StoreProxy, fsm: ViewMgmt
     st.multiselect(
         "选择列 (TableSpec 中显示)",
         options=all_cols,
-        default=store["col_sel"],
         key="vm_col_sel",
     )
 
-    st.text_area(
-        "筛选条件 (JSON)",
-        height=140,
-        key="vm_filter_json",
-        help=(
-            "支持三种格式:\n"
-            "1. 单个条件: {\"column\": \"month\", \"op\": \"=\", \"value\": \"2025-01\"}\n"
-            "2. 多个 AND: [[{\"column\":...}, {\"column\":...}]]\n"
-            "3. 多个 OR:  [[{\"column\":...}], [{\"column\":...}]]\n"
-            "运算符: =, !=, >, <, >=, <=, LIKE, IN, NOT IN, BETWEEN, "
-            "JSON_CONTAINS, JSON_NOT_CONTAINS, TEXT_SEARCH, TRUE, FALSE"
-        ),
-    )
+    render_filter_editor(key="vm_filter_json")
 
     st.text_input(
         "排序 (预留)",
@@ -351,25 +361,25 @@ def _render_editor(sel_nb: str, all_cols: list, store: StoreProxy, fsm: ViewMgmt
     bcol1, bcol2, bcol3 = st.columns(3)
     with bcol1:
         if is_editing:
-            if st.button("🔄 修改", type="primary", use_container_width=True, key="vm_btn_modify"):
+            if st.button("🔄 修改", type="primary", width='stretch', key="vm_btn_modify"):
                 _update_spec(sel_nb, fsm.sel_spec_idx, store)
                 fsm.save_edit()
                 st.rerun()
         else:
-            if st.button("➕ 添加", type="primary", use_container_width=True, key="vm_btn_add"):
+            if st.button("➕ 添加", type="primary", width='stretch', key="vm_btn_add"):
                 _add_spec(sel_nb, store, fsm)
                 st.rerun()
 
     with bcol2:
         if is_editing:
-            if st.button("🗑️ 删除", use_container_width=True, key="vm_btn_delete"):
+            if st.button("🗑️ 删除", width='stretch', key="vm_btn_delete"):
                 _delete_spec(sel_nb, fsm.sel_spec_idx, store)
                 fsm.save_edit()
                 st.rerun()
 
     with bcol3:
         if is_editing:
-            if st.button("✖ 取消编辑", use_container_width=True, key="vm_btn_cancel"):
+            if st.button("✖ 取消编辑", width='stretch', key="vm_btn_cancel"):
                 fsm.cancel_edit()
                 st.rerun()
 
@@ -379,15 +389,15 @@ def _render_action_buttons(api, sel_nb: str, store: StoreProxy):
     st.divider()
     bcol1, bcol2, bcol3 = st.columns(3)
     with bcol1:
-        if st.button("🔍 预览 (当前笔记本)", use_container_width=True, key="vm_btn_preview"):
+        if st.button("🔍 预览 (当前笔记本)", width='stretch', key="vm_btn_preview"):
             _do_preview(api, sel_nb, store["view_data"])
 
     with bcol2:
-        if st.button("💾 保存", type="primary", use_container_width=True, key="vm_btn_save"):
+        if st.button("💾 保存", type="primary", width='stretch', key="vm_btn_save"):
             _do_save(api, store["view_name"], store["view_data"], store)
 
     with bcol3:
-        if st.button("📋 另存为...", use_container_width=True, key="vm_btn_saveas"):
+        if st.button("📋 另存为...", width='stretch', key="vm_btn_saveas"):
             new_name = f"{store['view_name']}_copy" if store['view_name'] else "unnamed_copy"
             _do_save(api, new_name, store["view_data"], store)
 
@@ -470,6 +480,23 @@ def _render():
         store["saved_view_names"] = [v["name"] for v in saved_views]
     except Exception:
         store["saved_view_names"] = []
+
+    # 自动构建预设视图：当预设为 full_view/no_view 且 view_data 尚未构建时
+    if store["preset"] in ("full_view", "no_view") and not store["view_data"]:
+        store["view_data"] = _build_preset_view(api, store["preset"])
+
+    # 确保默认选中第一个笔记本（在状态分发之前，使空闲→浏览能立即生效）
+    try:
+        notebooks = api.list_notebooks()
+    except Exception:
+        notebooks = []
+    if notebooks and (not store["sel_nb"] or store["sel_nb"] not in notebooks):
+        store["sel_nb"] = notebooks[0]
+        store["prev_nb"] = notebooks[0]
+
+    # 空闲且已有默认笔记本 → 自动进入浏览状态
+    if fsm.state == "idle" and store["sel_nb"]:
+        fsm.select_notebook()
 
     # 延迟复位：按钮触发后，在下一轮 widget 创建之前复位编辑器
     if fsm.state == "reset_pending":
