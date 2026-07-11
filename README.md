@@ -14,6 +14,7 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 - 作为技术实验场：Python 工程化 + AI Agent + 快速原型开发
 
 **当前阶段**：准大一暑假 MVP 开发中
+**当前进度**：Python 核心引擎（xfun/）+ FastAPI 后端已完成，React 前端骨架就绪、页面填充中。
 
 ---
 
@@ -25,6 +26,12 @@ chmod +x setup.sh && ./setup.sh
 
 # 2. 激活虚拟环境
 source .venv/bin/activate
+
+# 3. （后端启动）在虚拟环境中运行
+uvicorn backend.main:app --reload
+
+# 4. （前端启动，另开终端）
+cd frontend && npm install && npm run dev
 ```
 
 ---
@@ -156,12 +163,13 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
 | 模块 | 职责 | 子模块 |
 |------|------|--------|
 | `xfun/core/` | 核心引擎 — 数据库抽象层、筛选查询 DSL、Notebook 基类、View 数据水合、Ops 操作层 | `db.py` / `filter.py` / `view.py` / `notebook.py` / `ops.py` / `errors.py` / `extras.py` |
-| `xfun/notebooks/` | 内置本子 — 5 种预置 Notebook 实现 | `plan.py` / `diary.py` / `word.py` / `accumulation.py` / `aimemory.py` |
+| `xfun/notebooks/` | 内置本子 — 现有 5 种（`plan`/`diary`/`word`/`accumulation`/`aimemory`），规划新增 `timeline` + `schedule` | `plan.py` / `diary.py` / `word.py` / `accumulation.py` / `aimemory.py` |
 | `xfun/ai/` | AI 集成层 — 安全沙箱、CRUD Tools、Agent 引擎、提示词与 Schema 校验 | `tools.py` / `agent.py` / `security.py` / `schema.py` / `prompts.py` |
 | `xfun/utils/` | 工具函数 | `time_utils.py` |
 | `cli.py` | 命令行入口（Typer, 10 个命令） | — |
 | `tests/` | 测试套件 | 18 个文件，287 测试 |
-| `backend/`、`frontend/` | 规划中的 FastAPI 后端与 Streamlit 前端 | — |
+| `backend/` | FastAPI 后端（已实现） | `main.py` / `routers/`(notebooks/ai/management) / `services/` / `schemas.py` / `deps.py` |
+| `frontend/` | Vite + React 前端（骨架开发中） | `src/pages/`(9 个页面待填充) / `src/components/`(10 个 UI 组件待填充) / `src/api/`(5 个 API 模块待填充) / `src/stores/` / `src/types/` |
 
 ### CLI `ai` 命令详解
 
@@ -187,14 +195,16 @@ AI 对话支持两种模式，`stdout` 统一输出完整消息列表 JSON：
 
 | 类别 | 选择 |
 |------|------|
-| 语言 | Python 3.10+ |
 | 数据库 | SQLite（WAL 模式，读写分离事务） |
 | CLI 框架 | Typer |
 | AI | LangChain + DeepSeek API（通过 `langchain_anthropic.ChatAnthropic` 兼容层，完整支持 thinking blocks） |
 | 数据模型 | Pydantic（JSON Schema 生成与 AI 输入校验） |
 | 测试 | pytest + pytest-cov |
-| 后端 API | FastAPI（规划中） |
-| 前端/界面 | Streamlit（规划中） |
+| 后端 API | FastAPI（已实现） |
+| 前端/界面 | React 18 + TypeScript + Tailwind CSS（骨架开发中） |
+| 前端构建 | Vite |
+| 状态管理 | Zustand |
+| 语言 | Python 3.10+ + TypeScript 5.x |
 
 ---
 
@@ -221,8 +231,10 @@ AI 对话支持两种模式，`stdout` 统一输出完整消息列表 JSON：
 按优先级分三个梯队：
 
 **🚀 第一梯队（近期）**
-- **FastAPI 后端** — `backend/main.py` 暴露 RESTful 接口
-- **Streamlit 前端** — `frontend/app.py` 可视化界面
+- **FastAPI 后端** — `backend/main.py` 暴露 RESTful 接口（✅ 已实现）
+- **React 前端** — `frontend/src/` 可视化界面（骨架就绪）
+- **`timeline` + `schedule` 本子** — 时间线与日程表，配套三种视图（日/周/月）
+- **三档 AI 模式** — 白板 / 查询 / 读写，精确控制 AI 数据访问深度
 
 **📡 第二梯队（中期）**
 - **AI 日报闭环** — `xfun/ai/daily.py` 拉取当日数据，调用 DeepSeek 生成结构化摘要，支持 LaTeX 编译
@@ -268,20 +280,26 @@ AI 对话支持两种模式，`stdout` 统一输出完整消息列表 JSON：
   - `view_to_json` / `parse_view_json` — View 的序列化与反序列化
 - [x] 在 `xfun/ai/schema.py` 中定义 `ViewModel`，通过 Pydantic 为 View JSON 格式提供双重校验
 
-#### 阶段三：FastAPI 后端（对外接口）
-- [ ] 实现 `backend/main.py`：
+#### 阶段三：FastAPI 后端（✅ 已完成）
+- [x] 实现 `backend/main.py`：
   - 路由：`/api/v1/notebooks/{name}/entries`（`GET`/`POST`/`PUT`/`DELETE`）
   - 路由：`/api/v1/views/` 视图管理路由
-  - 路由：`/api/v1/ai/daily`（日报生成）
-  - 路由：`/api/v1/ai/memory`（记忆查询与保存）
-- [ ] 依赖注入 + CORS 配置
-- [ ] Pydantic Schemas 映射（`ConditionModel` ↔ `Condition`）
-- [ ] 启动：`uvicorn backend.main:app --reload`
+  - 路由：`/api/v1/ai/chat`（AI 对话）
+  - 路由：`/api/v1/ai/permission`（AI 权限查询）
+  - 路由：`/api/v1/db/init`（数据库初始化）
+  - 路由：`/api/v1/db/backup`（数据库备份）
+  - 路由：`/api/v1/db/reset`（数据库重置）
+  - [ ] 路由：`/api/v1/ai/daily`（日报生成，待实现）
+  - [ ] 路由：`/api/v1/ai/memory`（记忆查询与保存，待实现）
+- [x] 依赖注入 + CORS 配置
+- [x] Pydantic Schemas 映射（`ConditionModel` ↔ `Condition`）
+- [x] 启动：`uvicorn backend.main:app --reload`（已验证可运行）
 
-#### 阶段四：前端可视化
-- [ ] Streamlit 界面 `frontend/app.py`：
+#### 阶段四：前端可视化（开发中）
+- [ ] React 界面 `frontend/src/`：
   - 计划列表/筛选/增删改
   - 日记时间线
+  - AI 对话界面
   - 日报查看/导出
 - [ ] 调用 FastAPI 后端（而非直接操作数据库）
 
@@ -318,30 +336,86 @@ AI 对话支持两种模式，`stdout` 统一输出完整消息列表 JSON：
 - [ ] `import/export` 命令：JSON 导入导出（已有 `add` 支持 JSON，`dump` 只需 `SELECT *` + `json.dump`）
 - [ ] 多账户支持：`--user` 参数切换数据库文件
 - [ ] 多端同步：数据库文件置于 iCloud/OneDrive/WebDAV（由用户自行配置）
-- [ ] 移动端网页：Streamlit 部署至公网（或 Tailscale 内网穿透）
+- [ ] 移动端网页：React 前端部署（或 Tailscale 内网穿透）
 
-#### 🔄 后续演进
+#### 阶段九：新本子扩展
+- [ ] `timeline` 本子 — 时间线记录，精确到分钟
+- [ ] `schedule` 本子 — 日程安排，支持周期性重复
+- [ ] 日/周/月三种网格可视化视图
 
-##### 🔄 持续学习与记忆深化
+#### 阶段十：三档 AI 模式
+- [ ] 白板模式（零工具，纯对话）
+- [ ] 查询模式（仅只读工具）
+- [ ] 读写模式（完整 CRUD）
+- [ ] 模式切换的用户界面
 
-- **导入外部数据**：支持导入 AI 对话导出（ChatGPT、Claude 等）、个人日记、Markdown 笔记、微信聊天记录等，作为原始记忆素材。
-- **自动提炼与结构化**：AI 自动扫描导入的数据，提取关键信息，生成 `ai_tags`、`ai_note`，并将重要内容提炼为结构化记忆。
-- **周期性学习任务**：通过 CLI 命令或定时任务，持续从新数据中学习，让记忆系统不断演化。
+#### 阶段十一：临时层系统
+- [ ] 对话消息暂存区（暂态存储）
+- [ ] 消息编辑/删除/复制/分支/合并
+- [ ] 版本快照与回退
+- [ ] 即兴实验（修改临时层 → 观察 AI 反应 → 丢弃或提交）
 
-##### 💬 持续性聊天与记忆融合
+#### 阶段十二：零散信息整合
+- [ ] 外部数据导入接口（JSON/Markdown/链接）
+- [ ] `accumulation` 本子按 `category` 分类管理
+- [ ] 统一检索入口
 
-- **命令行/Web 聊天界面**：提供一个持续对话入口，每次对话结束后，AI 自动将重要结论保存为记忆。
-- **上下文感知**：每次对话开始时，AI 检索相关历史记忆，实现"跨对话的连续性"。
-- **记忆沉淀闭环**：聊天 → 提取关键点 → 存入记忆 → 下次对话可检索 → 持续演化。
+#### 阶段十三：本地优先部署完善
+- [ ] 手机端一键启动脚本
+- [ ] Tailscale/ZeroTier 安全隧道指南
+- [ ] 飞行模式兼容性验证
 
-##### 🧠 记忆系统的终极形态
+### 远期蓝图：XFunNote 的终极定位
 
-当上述功能完成后，XFunNote 将成为一个：
-- **被动记录**：所有与 AI 的对话、导入的文本、日常积累，都被自动存储和索引。
-- **主动学习**：AI 定期扫描新数据，提炼标签、生成总结、更新记忆。
-- **随时可用**：你在任何对话中提及相关主题，AI 都能检索到之前的讨论和结论。
+以下描述 XFunNote 的长期设计愿景，不属于任何具体开发阶段，而是贯穿全局的演进方向。
 
-这使得 XFunNote 从一个"任务管理工具"升维为一个**"陪伴你成长的个人记忆引擎"**。
+#### 本地优先 + 手机即服务器
+
+XFunNote 以手机或电脑为服务器，运行于本地局域网。所有数据存储于设备本地 SQLite 文件中，无需公网 IP、无需域名、无需云服务订阅。
+
+- **访问方式**：同一 WiFi 下的任何设备（电脑、平板、其他手机）通过浏览器访问 `http://手机IP:端口` 即可使用。
+- **飞行模式可用**：即使无网络，手机自身仍可通过 `http://127.0.0.1` 访问服务，数据永不丢失。
+- **长期价值**：这种部署模型保证了数据的**永久可访问性**和**完全的隐私控制**，不受第三方平台政策变更或服务停用的影响。
+- **三端统一**：
+
+| 端 | 访问方式 |
+|----|----------|
+| **手机** | `http://localhost:8000` |
+| **电脑/平板** | `http://手机IP:8000`（同一局域网） |
+| **其他设备** | 通过 Tailscale/ZeroTier 安全访问 |
+
+#### AI 的"懂你"能力从何而来
+
+XFunNote 的 AI 能够产生"共情式"的个性化评论，不是因为它更聪明，而是因为它能读取的数据维度更完整：
+
+| 数据来源 | 提供的维度 | AI 能感知到 |
+|----------|-----------|------------|
+| `plan` | 意图 | 你想做什么 |
+| `timeline` + `schedule` | 行为 | 你实际做了什么 |
+| `diary` | 感受 | 你怎么看待你做的 |
+| `word` | 输入 | 你在学什么 |
+| `accumulation` | 碎片思考 | 你记住了什么 |
+| `aimemory` | 系统记忆 | AI 已经理解了什么 |
+
+当这些数据在同一个系统里沉淀足够长时间后，AI 能够自然地感知到时间跨度、感情变化、生活细节，产生"共情式"的个性化反馈。
+
+#### 临时层的终极形态
+
+**临时层（暂存区）** 是 XFunNote 最独特的核心能力——对话历史的版本控制。用户不再被"线性不可逆"的对话束缚，而是可以：
+
+| 能力 | 说明 |
+|------|------|
+| **非线性对话** | 回到任意对话节点，分支出新路径 |
+| **历史编辑** | 修改过去的消息，AI 重新生成后续回复 |
+| **分支合并** | 合并两条对话分支 |
+| **版本快照** | 保存完整状态为快照，随时回退 |
+| **即兴实验** | 编辑临时层做实验，不满意直接丢弃 |
+
+所有变更在暂存区中生效，不直接写入永久存储。这使得 AI 对话从**被动接收指令**转变为**用户主动编排历史**。
+
+#### 总结：XFunNote 是一个容器
+
+XFunNote 不是"一个管理计划的 App"，而是**一个能够容纳个人全部时间、记忆、对话、知识、零散信息的容器**。它通过本地优先的数据主权、统一的数据模型（Notebook + Entry + View）、可选的 AI 深度（三档模式）、可编辑的对话历史（临时层），以及外部信息的统一收容与检索，让用户从"被工具限制"转变为**"掌控自己的数据与对话"**。它的终极形态不是"更好的计划工具"，而是 **"你放在自己手机上的、能和你一起成长的个人数据与 AI 操作系统"**。
 
 ---
 
@@ -371,22 +445,64 @@ XFunNote/
 │   └── backups/
 │       └── .gitkeep
 ├── frontend/
-│   ├── pages/
-│   │   ├── ai_chat.py
-│   │   ├── home.py
-│   │   ├── management.py
-│   │   ├── notebook_accumulation.py
-│   │   ├── notebook_aimemory.py
-│   │   ├── notebook_diary.py
-│   │   ├── notebook_plan.py
-│   │   ├── notebook_word.py
-│   │   └── view_management.py
-│   ├── __init__.py
-│   ├── api.py
-│   ├── app.py
-│   ├── components.py
-│   ├── notebook.py
-│   └── store.py
+│   ├── src/
+│   │   ├── api/
+│   │   │   ├── ai.ts
+│   │   │   ├── client.ts
+│   │   │   ├── management.ts
+│   │   │   ├── notebooks.ts
+│   │   │   └── views.ts
+│   │   ├── components/
+│   │   │   ├── layout/
+│   │   │   │   ├── Layout.tsx
+│   │   │   │   └── Sidebar.tsx
+│   │   │   ├── notebook/
+│   │   │   │   ├── FilterPanel.tsx
+│   │   │   │   ├── NotebookCard.tsx
+│   │   │   │   ├── NotebookForm.tsx
+│   │   │   │   ├── Pagination.tsx
+│   │   │   │   └── ViewSelector.tsx
+│   │   │   └── ui/
+│   │   │       ├── badge.tsx
+│   │   │       ├── button.tsx
+│   │   │       ├── card.tsx
+│   │   │       ├── checkbox.tsx
+│   │   │       ├── collapsible.tsx
+│   │   │       ├── input.tsx
+│   │   │       ├── select.tsx
+│   │   │       ├── separator.tsx
+│   │   │       └── textarea.tsx
+│   │   ├── lib/
+│   │   │   └── utils.ts
+│   │   ├── pages/
+│   │   │   ├── AiChat.tsx
+│   │   │   ├── Home.tsx
+│   │   │   ├── Management.tsx
+│   │   │   ├── NotebookAccumulation.tsx
+│   │   │   ├── NotebookAimemory.tsx
+│   │   │   ├── NotebookDiary.tsx
+│   │   │   ├── NotebookPlan.tsx
+│   │   │   ├── NotebookWord.tsx
+│   │   │   └── ViewManagement.tsx
+│   │   ├── stores/
+│   │   │   ├── chatStore.ts
+│   │   │   └── notebookStore.ts
+│   │   ├── types/
+│   │   │   ├── api.ts
+│   │   │   ├── filter.ts
+│   │   │   ├── notebook.ts
+│   │   │   └── view.ts
+│   │   ├── App.tsx
+│   │   ├── index.css
+│   │   ├── main.tsx
+│   │   └── vite-env.d.ts
+│   ├── index.html
+│   ├── package.json
+│   ├── postcss.config.js
+│   ├── tailwind.config.ts
+│   ├── tsconfig.json
+│   ├── tsconfig.node.json
+│   └── vite.config.ts
 ├── input/
 │   └── .gitkeep
 ├── output/
@@ -498,27 +614,6 @@ graph LR
         cli(cli)
     end
     style _ fill:#ffe0e0,stroke:#333,stroke-width:1px,color:#333
-    subgraph frontend[frontend]
-        frontend___init__(__init__)
-        frontend_api(api)
-        frontend_app(app)
-        frontend_components(components)
-        frontend_notebook(notebook)
-        frontend_store(store)
-    end
-    style frontend fill:#d5f5e3,stroke:#333,stroke-width:1px,color:#333
-    subgraph frontend_pages[frontend/pages]
-        frontend_pages_ai_chat(ai_chat)
-        frontend_pages_home(home)
-        frontend_pages_management(management)
-        frontend_pages_notebook_accumulation(notebook_accumulation)
-        frontend_pages_notebook_aimemory(notebook_aimemory)
-        frontend_pages_notebook_diary(notebook_diary)
-        frontend_pages_notebook_plan(notebook_plan)
-        frontend_pages_notebook_word(notebook_word)
-        frontend_pages_view_management(view_management)
-    end
-    style frontend_pages fill:#fdebd0,stroke:#333,stroke-width:1px,color:#333
     subgraph tests[tests]
         tests___init__(__init__)
         tests_conftest(conftest)
@@ -541,12 +636,12 @@ graph LR
         tests_test_view(test_view)
         tests_test_word(test_word)
     end
-    style tests fill:#d6eaf8,stroke:#333,stroke-width:1px,color:#333
+    style tests fill:#d5f5e3,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun[xfun]
         xfun___init__(__init__)
         xfun_config(config)
     end
-    style xfun fill:#e8daef,stroke:#333,stroke-width:1px,color:#333
+    style xfun fill:#fdebd0,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun_ai[xfun/ai]
         xfun_ai___init__(__init__)
         xfun_ai_agent(agent)
@@ -555,7 +650,7 @@ graph LR
         xfun_ai_security(security)
         xfun_ai_tools(tools)
     end
-    style xfun_ai fill:#d4f0c0,stroke:#333,stroke-width:1px,color:#333
+    style xfun_ai fill:#d6eaf8,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun_core[xfun/core]
         xfun_core___init__(__init__)
         xfun_core_db(db)
@@ -566,7 +661,7 @@ graph LR
         xfun_core_ops(ops)
         xfun_core_view(view)
     end
-    style xfun_core fill:#e8f4fd,stroke:#333,stroke-width:1px,color:#333
+    style xfun_core fill:#e8daef,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun_notebooks[xfun/notebooks]
         xfun_notebooks___init__(__init__)
         xfun_notebooks_accumulation(accumulation)
@@ -575,7 +670,7 @@ graph LR
         xfun_notebooks_plan(plan)
         xfun_notebooks_word(word)
     end
-    style xfun_notebooks fill:#ffe0f0,stroke:#333,stroke-width:1px,color:#333
+    style xfun_notebooks fill:#d4f0c0,stroke:#333,stroke-width:1px,color:#333
     backend_deps --> xfun___init__
     backend_deps --> xfun_core_view
     backend_main --> backend_routers___init__
@@ -597,6 +692,7 @@ graph LR
     backend_services_ai_service --> xfun_ai_tools
     backend_services_ai_service --> xfun_core_view
     backend_services_management_service --> xfun___init__
+    backend_services_management_service --> xfun_config
     backend_services_notebook_service --> xfun___init__
     backend_services_notebook_service --> xfun_core___init__
     backend_services_notebook_service --> xfun_core_filter
@@ -609,19 +705,6 @@ graph LR
     cli --> xfun_core_filter
     cli --> xfun_core_ops
     cli --> xfun_core_view
-    frontend_app --> frontend_components
-    frontend_app --> xfun_config
-    frontend_notebook --> frontend_api
-    frontend_notebook --> frontend_store
-    frontend_pages_ai_chat --> frontend_components
-    frontend_pages_management --> frontend_components
-    frontend_pages_notebook_accumulation --> frontend_notebook
-    frontend_pages_notebook_aimemory --> frontend_notebook
-    frontend_pages_notebook_diary --> frontend_notebook
-    frontend_pages_notebook_plan --> frontend_notebook
-    frontend_pages_notebook_word --> frontend_notebook
-    frontend_pages_view_management --> frontend_api
-    frontend_pages_view_management --> frontend_store
     tests_conftest --> xfun_core_db
     tests_conftest --> xfun_core_notebook
     tests_conftest --> xfun_notebooks_accumulation
@@ -733,7 +816,26 @@ graph LR
 
 ## API 文档
 
-FastAPI 后端尚在规划中，上线后将暴露与 CLI 对等的 RESTful 接口。
+FastAPI 后端已实现，运行 `uvicorn backend.main:app --reload` 后访问 `http://localhost:8000/docs` 查看自动生成的 Swagger UI。
+
+### 路由概览
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/notebooks` | 列出本子 |
+| GET | `/api/v1/notebooks/{name}/schema` | 查看字段结构 |
+| GET | `/api/v1/notebooks/{name}/entries?view=...` | 查询条目 |
+| POST | `/api/v1/notebooks/{name}/entries` | 添加条目 |
+| PUT | `/api/v1/notebooks/{name}/entries` | 更新条目 |
+| POST | `/api/v1/notebooks/{name}/entries/preview-delete` | 删除预览 |
+| DELETE | `/api/v1/notebooks/{name}/entries` | 删除条目 |
+| POST | `/api/v1/ai/chat` | AI 对话 |
+| GET | `/api/v1/ai/permission` | 查询 AI 权限白名单 |
+| POST | `/api/v1/db/init` | 初始化数据库 |
+| POST | `/api/v1/db/backup` | 热备份数据库 |
+| POST | `/api/v1/db/reset` | 重置数据库 |
+| GET | `/api/v1/views` | 列出视图文件 |
+| GET / PUT / DELETE | `/api/v1/views/{name}` | 视图增删改查 |
 
 ---
 
