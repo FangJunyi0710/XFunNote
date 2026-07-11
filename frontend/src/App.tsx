@@ -1,0 +1,34 @@
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Layout } from '@/components/layout/Layout';
+import { Home } from '@/pages/Home';
+import { NotebookPlan } from '@/pages/NotebookPlan';
+import { NotebookDiary } from '@/pages/NotebookDiary';
+import { NotebookWord } from '@/pages/NotebookWord';
+import { NotebookAccumulation } from '@/pages/NotebookAccumulation';
+import { NotebookAimemory } from '@/pages/NotebookAimemory';
+import { AiChat } from '@/pages/AiChat';
+import { ViewManagement } from '@/pages/ViewManagement';
+import { Management } from '@/pages/Management';
+
+const App: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Layout />}>
+          <Route index element={<Home />} />
+          <Route path="notebooks/plan" element={<NotebookPlan />} />
+          <Route path="notebooks/diary" element={<NotebookDiary />} />
+          <Route path="notebooks/word" element={<NotebookWord />} />
+          <Route path="notebooks/accumulation" element={<NotebookAccumulation />} />
+          <Route path="notebooks/aimemory" element={<NotebookAimemory />} />
+          <Route path="ai" element={<AiChat />} />
+          <Route path="views" element={<ViewManagement />} />
+          <Route path="management" element={<Management />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
+};
+
+export default App;

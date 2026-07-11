@@ -1,25 +1,24 @@
-# ===================== 核心依赖 =====================
+# ===================== 核心引擎 =====================
 
 typer               # 命令行工具（cli.py）
-python-dotenv       # 管理环境变量（config.py）
-future-uuid         # uuid7 生成（plan.py）
+python-dotenv       # 环境变量管理（config.py）
+future-uuid         # uuid7 生成
 langchain           # AI Agent 框架
-langchain-anthropic # Anthropic/DeepSeek 兼容封装
+langchain-anthropic # Anthropic / DeepSeek 兼容封装
 langchain-core      # LangChain 核心抽象
+pydantic            # 数据模型与校验
 
-# ===================== 测试依赖 =====================
+# ===================== 后端 API =====================
+
+fastapi             # RESTful API（backend/）
+uvicorn[standard]   # ASGI 服务器
+
+# ===================== 测试 =====================
 
 pytest              # 测试框架
 pytest-cov          # 测试覆盖率
 
-# ===================== 后端 =====================
+# ===================== 前端（见 frontend/package.json） =====================
+# 前端使用 Vite + React 18 + TypeScript + Tailwind CSS + Zustand
+# 安装方式: cd frontend && npm install && npm run dev
 
-fastapi              # 后端 API（backend/）
-uvicorn[standard]    # ASGI 服务器
-
-# ===================== 前端 =====================
-
-streamlit          # 前端界面（frontend/）
-httpx              # HTTP 客户端（前端调用后端）
-pandas             # DataFrame 展示
-transitions        # 有限状态机（frontend/fsm.py）
