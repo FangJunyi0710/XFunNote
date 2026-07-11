@@ -15,37 +15,42 @@ from frontend.store import StoreProxy
 class NotebookFSM:
     """笔记本页面的有限状态机 — 纯状态机，零数据属性。
 
-    状态: browsing → editing
-    sel_row / sel_idx / results 全部在 StoreProxy 中。
-    sel_row 承载子状态:
-      None           → 浏览模式（显示卡片列表+查询按钮）
-      {}             → 新增模式（显示空表单）
-      {id:42, ...}  → 编辑模式（显示已填表单）
+    状态:
+      browsing_results  → 卡片列表 + 翻页 + 「筛选」/「新增」按钮
+      browsing_filter   → 筛选面板 + 排序 + 「返回浏览」/「查询」/「新增」按钮
+      editing           → 编辑器（顶部按钮 + 下方表单）
     """
 
     def __init__(self, prefix: str = ""):
         self._prefix = prefix
         self.machine = Machine(
             model=self,
-            states=["browsing", "editing"],
-            initial="browsing",
+            states=["browsing_results", "browsing_filter", "editing"],
+            initial="browsing_results",
             auto_transitions=False,
             queued=False,
         )
 
-        # Browse → Edit transitions
-        self.machine.add_transition("start_add", "browsing", "editing",
+        # Browsing_results ↔ Browsing_filter
+        self.machine.add_transition("start_filter", "browsing_results", "browsing_filter")
+        self.machine.add_transition("back_to_results", "browsing_filter", "browsing_results")
+        self.machine.add_transition("search", "browsing_filter", "browsing_results")
+
+        # Browse → Edit
+        self.machine.add_transition("start_add", ["browsing_results", "browsing_filter"], "editing",
                                      before=self._reset_adding_state)
-        self.machine.add_transition("start_edit", "browsing", "editing")
+        self.machine.add_transition("start_edit", "browsing_results", "editing")
+
         # Edit → Browse (mutations: clear selection + results)
-        self.machine.add_transition("save_add", "editing", "browsing",
+        self.machine.add_transition("save_add", "editing", "browsing_results",
                                      after=self._clear_after_mutation)
-        self.machine.add_transition("save_edit", "editing", "browsing",
+        self.machine.add_transition("save_edit", "editing", "browsing_results",
                                      after=self._clear_after_mutation)
-        self.machine.add_transition("delete_entry", "editing", "browsing",
+        self.machine.add_transition("delete_entry", "editing", "browsing_results",
                                      after=self._clear_after_mutation)
+
         # Cancel (just clears selection, keeps results)
-        self.machine.add_transition("cancel", "editing", "browsing",
+        self.machine.add_transition("cancel", "editing", "browsing_results",
                                      after=self._clear_selection)
 
     def _reset_adding_state(self):
@@ -75,6 +80,8 @@ def get_store(notebook_name: str) -> StoreProxy:
         "limit": 20,
         "offset": 0,
         "sel_idx": None,
+        "filters": [],
+        "order_by": "",
     }
     for key, value in defaults.items():
         full_key = f"{prefix}_{key}"
@@ -406,6 +413,52 @@ def _render_sort_pagination(prefix: str, all_cols: list[str], store: StoreProxy)
         return order_by
 
 
+# ==================== Quick Pagination ====================
+
+
+def _on_prev_page(prefix: str):
+    """上一页：offset 减小 limit。"""
+    limit = st.session_state[f"{prefix}_limit"]
+    offset = st.session_state[f"{prefix}_offset"]
+    st.session_state[f"{prefix}_offset"] = max(0, offset - limit)
+    st.session_state[f"{prefix}_results"] = None
+
+
+def _on_next_page(prefix: str):
+    """下一页：offset 增大 limit。"""
+    limit = st.session_state[f"{prefix}_limit"]
+    offset = st.session_state[f"{prefix}_offset"]
+    st.session_state[f"{prefix}_offset"] = offset + limit
+    st.session_state[f"{prefix}_results"] = None
+
+
+def _render_pagination_quick(prefix: str, store: StoreProxy, total_count: int):
+    """快捷翻页 — 在卡片列表顶部显示。"""
+    if total_count <= store["limit"] and store["offset"] == 0:
+        return
+
+    limit = store["limit"]
+    offset = store["offset"]
+    current_page = offset // limit + 1
+    total_pages = max(1, (total_count + limit - 1) // limit) if total_count else 1
+
+    cols = st.columns([1, 3, 1, 2])
+    with cols[0]:
+        st.button("◀ 上一页", disabled=(current_page <= 1),
+                  key=f"{prefix}_prev", on_click=_on_prev_page, args=(prefix,))
+    with cols[2]:
+        st.button("下一页 ▶", disabled=(current_page >= total_pages),
+                  key=f"{prefix}_next", on_click=_on_next_page, args=(prefix,))
+    with cols[1]:
+        st.markdown(
+            f"<div style='text-align: center;'>第 {current_page} / {total_pages} 页</div>",
+            unsafe_allow_html=True,
+        )
+    with cols[3]:
+        st.markdown(f"<div style='text-align: right;'>共 {total_count} 条</div>",
+                    unsafe_allow_html=True)
+
+
 # ==================== Query Execution ====================
 
 def _execute_query(api, notebook_name: str, effective_cols: list[str],
@@ -492,49 +545,35 @@ def _render_cards(notebook_name: str, config: dict, prefix: str,
 
 # ==================== Editor (Add / Edit) ====================
 
-def _render_editor(notebook_name: str, config: dict, prefix: str,
-                   api, columns: list[dict], auto_fields: set, store: dict):
-    """统一编辑器 — 新增或编辑条目。"""
-    fsm = store["fsm"]
-    current_sel = store.get("sel_row") or {}
 
-    if store.get("sel_row") == {}:
-        st.subheader("✏️ 新增条目")
-        editor_mode = "add"
-    else:
-        st.subheader(f"✏️ 编辑条目 (ID: {current_sel.get('id')})")
-        editor_mode = "edit"
-
-    edit_columns = [c for c in columns if c["name"] not in auto_fields]
-    field_groups = [edit_columns[i:i + 2] for i in range(0, len(edit_columns), 2)]
-
+def _read_editor_values(prefix: str, row_key: str, edit_columns: list[dict],
+                        notebook_name: str, current_sel: dict) -> dict:
+    """从 session_state 读取表单字段的值（按钮处理时使用）。"""
     entry_data = {}
-    row_key = current_sel.get("id", "new")
+    for col_def in edit_columns:
+        name = col_def["name"]
+        key = f"{prefix}_edit_{row_key}_{name}"
+        val = st.session_state.get(key, current_sel.get(name))
+        fcfg = get_field_config(notebook_name, name, col_def.get("type", "TEXT"))
+        if fcfg.get("widget") == "checkbox":
+            entry_data[name] = bool(val) if val is not None else False
+        elif val is not None and val != "":
+            entry_data[name] = val
+        else:
+            entry_data[name] = None
+    return entry_data
 
-    for group in field_groups:
-        row_cols = st.columns(len(group))
-        for j, col_def in enumerate(group):
-            name = col_def["name"]
-            fcfg = get_field_config(notebook_name, name, col_def.get("type", "TEXT"))
-            current_val = current_sel.get(name)
-            with row_cols[j]:
-                val = _render_field_widget(
-                    col_def, fcfg, f"{prefix}_edit_{row_key}",
-                    value=current_val,
-                )
-                if fcfg.get("widget") == "checkbox":
-                    entry_data[name] = val
-                elif val is not None and val != "":
-                    entry_data[name] = val
-                else:
-                    entry_data[name] = None
 
-    # ---- 操作按钮 ----
+def _render_editor_buttons(store: dict, fsm: NotebookFSM, api,
+                           notebook_name: str, prefix: str,
+                           editor_mode: str, current_sel: dict,
+                           entry_data: dict):
+    """编辑器顶部的操作按钮行。"""
     btn_cols = st.columns([2, 1, 1])
 
     with btn_cols[0]:
         if editor_mode == "add":
-            if st.button("➕ 添加", type="primary", width='stretch',
+            if st.button("➕ 添加", type="primary", use_container_width=True,
                          key=f"{prefix}_unified_add"):
                 valid = {k: v for k, v in entry_data.items()
                          if v is not None and v != ""}
@@ -549,7 +588,7 @@ def _render_editor(notebook_name: str, config: dict, prefix: str,
                     except Exception as e:
                         st.error(f"添加失败: {e}")
         else:
-            if st.button("💾 保存修改", type="primary", width='stretch',
+            if st.button("💾 保存修改", type="primary", use_container_width=True,
                          key=f"{prefix}_unified_save"):
                 changes = {k: v for k, v in entry_data.items()
                            if v is not None and v != ""}
@@ -567,7 +606,7 @@ def _render_editor(notebook_name: str, config: dict, prefix: str,
 
     with btn_cols[1]:
         if editor_mode == "edit":
-            if st.button("🗑️ 删除", type="secondary", width='stretch',
+            if st.button("🗑️ 删除", type="secondary", use_container_width=True,
                          key=f"{prefix}_unified_del"):
                 try:
                     del_filter = {"column": "id", "op": "=", "value": current_sel.get("id")}
@@ -579,16 +618,65 @@ def _render_editor(notebook_name: str, config: dict, prefix: str,
                     st.error(f"删除失败: {e}")
 
     with btn_cols[2]:
-        if st.button("✖ 取消", width='stretch',
+        if st.button("✖ 取消", use_container_width=True,
                      key=f"{prefix}_unified_cancel"):
             fsm.cancel()
             st.rerun()
 
 
+def _render_editor(notebook_name: str, config: dict, prefix: str,
+                   api, columns: list[dict], auto_fields: set, store: dict):
+    """统一编辑器 — 新增或编辑条目。"""
+    fsm = store["fsm"]
+    current_sel = store.get("sel_row") or {}
+
+    if store.get("sel_row") == {}:
+        st.subheader("✏️ 新增条目")
+        editor_mode = "add"
+    else:
+        st.subheader(f"✏️ 编辑条目 (ID: {current_sel.get('id')})")
+        editor_mode = "edit"
+
+    edit_columns = [c for c in columns if c["name"] not in auto_fields]
+    row_key = current_sel.get("id", "new")
+
+    # ⭐ 顶部操作按钮（从 session_state 读取字段值）
+    entry_data = _read_editor_values(prefix, row_key, edit_columns, notebook_name, current_sel)
+    _render_editor_buttons(store, fsm, api, notebook_name, prefix,
+                           editor_mode, current_sel, entry_data)
+
+    st.divider()
+
+    # 表单字段
+    field_groups = [edit_columns[i:i + 2] for i in range(0, len(edit_columns), 2)]
+    for group in field_groups:
+        row_cols = st.columns(len(group))
+        for j, col_def in enumerate(group):
+            name = col_def["name"]
+            fcfg = get_field_config(notebook_name, name, col_def.get("type", "TEXT"))
+            current_val = current_sel.get(name)
+            with row_cols[j]:
+                _render_field_widget(
+                    col_def, fcfg, f"{prefix}_edit_{row_key}",
+                    value=current_val,
+                )
+
+
 # ==================== Main Render ====================
 
-def render_notebook_page(notebook_name: str):
-    """配置驱动的完整笔记本页面 — FSM 驱动。"""
+def render_notebook_page(notebook_name: str, *,
+                         render_browse=None, render_editor=None):
+    """配置驱动的完整笔记本页面 — FSM 驱动。
+
+    参数:
+        notebook_name: 笔记本名称（如 'plan'、'diary'）
+        render_browse: 可选，完全托管浏览视图的回调
+            callable(notebook_name, config, prefix, store, columns,
+                     effective_cols, rows, api) → None
+        render_editor: 可选，完全托管编辑器视图的回调
+            callable(notebook_name, config, prefix, store, columns,
+                     auto_fields, api) → None
+    """
     config = NOTEBOOK_CONFIGS.get(notebook_name)
     if not config:
         st.error(f"未知笔记本: {notebook_name}")
@@ -613,7 +701,7 @@ def render_notebook_page(notebook_name: str):
     store = get_store(notebook_name)
     fsm = store["fsm"]
 
-    # ---- Sidebar: View Selector ----
+    # ---- Sidebar: View Selector（始终显示） ----
     view_columns, view_filter, view_sort = _render_view_selector(api, notebook_name, prefix)
 
     effective_cols = (
@@ -621,34 +709,65 @@ def render_notebook_page(notebook_name: str):
         else config.get("default_display", all_cols[:min(8, len(all_cols))])
     )
 
-    # ---- Filter Panel ----
-    extra_filters = _render_filter_panel(prefix)
-
-    # ---- Sort & Pagination ----
-    order_by = _render_sort_pagination(prefix, all_cols, store)
-
     # ---- Dispatch by FSM State ----
     state = fsm.state
 
-    if state == "browsing":
-        # 查询 + 新增按钮
-        qb1, qb2 = st.columns(2)
-        with qb1:
-            if st.button("🔍 查询", type="primary", width='stretch',
-                         key=f"{prefix}_query_btn"):
+    if state == "editing":
+        if render_editor:
+            render_editor(notebook_name, config, prefix, store, columns, auto_fields, api)
+        else:
+            st.divider()
+            _render_editor(notebook_name, config, prefix, api, columns, auto_fields, store)
+        return  # ← 跳过 filter / sort / cards / schema
+
+    elif state == "browsing_filter":
+        # 筛选面板 + 排序分页
+        extra_filters = _render_filter_panel(prefix)
+        order_by = _render_sort_pagination(prefix, all_cols, store)
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("🗄 返回浏览", use_container_width=True,
+                         key=f"{prefix}_back_to_results"):
+                fsm.back_to_results()
+                st.rerun()
+        with col2:
+            if st.button("🔍 查询", type="primary", use_container_width=True,
+                         key=f"{prefix}_filter_query_btn"):
+                store["filters"] = extra_filters
+                store["order_by"] = order_by
                 _execute_query(api, notebook_name, effective_cols,
                                view_filter, view_sort, extra_filters, order_by, store)
+                fsm.search()
                 st.rerun()
-        with qb2:
-            if st.button("➕ 新增条目", width='stretch',
-                         key=f"{prefix}_add_top_btn"):
+        with col3:
+            if st.button("➕ 新增条目", use_container_width=True,
+                         key=f"{prefix}_filter_add_btn"):
+                fsm.start_add()
+                st.rerun()
+
+        _show_schema(columns)
+
+    elif state == "browsing_results":
+        # 顶部操作按钮
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔍 筛选", use_container_width=True,
+                         key=f"{prefix}_show_filter_btn"):
+                fsm.start_filter()
+                st.rerun()
+        with col2:
+            if st.button("➕ 新增条目", use_container_width=True,
+                         key=f"{prefix}_add_btn"):
                 fsm.start_add()
                 st.rerun()
 
         # 自动查询（首次进入或重置后）
         if store["results"] is None:
             _execute_query(api, notebook_name, effective_cols,
-                           view_filter, view_sort, extra_filters, order_by, store)
+                           view_filter, view_sort,
+                           store.get("filters", []), store.get("order_by", ""),
+                           store)
 
         results = store["results"]
         rows = results.get("results", []) if results else []
@@ -664,7 +783,14 @@ def render_notebook_page(notebook_name: str):
             st.metric("匹配条目", total_count)
 
         if rows:
-            _render_cards(notebook_name, config, prefix, effective_cols, rows, store)
+            # 快捷翻页
+            _render_pagination_quick(prefix, store, total_count)
+            # 自定义浏览视图或默认卡片列表
+            if render_browse:
+                render_browse(notebook_name, config, prefix, store,
+                              columns, effective_cols, rows, api)
+            else:
+                _render_cards(notebook_name, config, prefix, effective_cols, rows, store)
         elif results is not None:
             st.info("没有匹配的条目。")
 
@@ -672,10 +798,3 @@ def render_notebook_page(notebook_name: str):
         if rows:
             with st.expander("📄 JSON 原始数据", expanded=False):
                 st.json(rows[:50])
-
-    elif state == "editing":
-        st.divider()
-        _render_editor(notebook_name, config, prefix, api, columns, auto_fields, store)
-
-    # ---- 字段结构（始终显示） ----
-    _show_schema(columns)
