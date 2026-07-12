@@ -10,6 +10,8 @@ from backend.schemas import (
     EntryUpdate,
 )
 from backend.services import notebook_service as svc
+from backend.deps import get_api_permission
+from backend.permissions import ApiPermission
 from xfun.ai.schema import ViewModel
 
 router = APIRouter(tags=["notebooks"])
@@ -36,9 +38,16 @@ def query_entries(
     limit: int = Query(100, ge=-1, description="最大返回条数，-1 不限"),
     offset: int = Query(0, ge=0, description="偏移量"),
     view_model: ViewModel = Depends(parse_view_param),
+    api_perm: ApiPermission = Depends(get_api_permission),
 ):
+    if not api_perm.can_query:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="当前 API Key 无权执行查询操作",
+        )
     validated_view = view_model.to_view()
-    results = svc.query_entries(name, validated_view, order_by, limit, offset)
+    results = svc.query_entries(name, validated_view, order_by, limit, offset,
+                                 permission=api_perm.permission)
     return EntryBatchResponse(count=len(results), results=results)
 
 
@@ -46,18 +55,46 @@ def query_entries(
     "/notebooks/{name}/entries",
     status_code=status.HTTP_201_CREATED,
 )
-def add_entries(name: str, body: EntryCreate):
-    results = svc.add_entries(name, body.entries)
+def add_entries(
+    name: str,
+    body: EntryCreate,
+    api_perm: ApiPermission = Depends(get_api_permission),
+):
+    if not api_perm.can_add:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="当前 API Key 无权执行添加操作",
+        )
+    results = svc.add_entries(name, body.entries, permission=api_perm.permission)
     return EntryBatchResponse(count=len(results), results=results)
 
 
 @router.put("/notebooks/{name}/entries")
-def update_entries(name: str, body: EntryUpdate):
-    results = svc.update_entries(name, body.filter, body.values)
+def update_entries(
+    name: str,
+    body: EntryUpdate,
+    api_perm: ApiPermission = Depends(get_api_permission),
+):
+    if not api_perm.can_update:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="当前 API Key 无权执行更新操作",
+        )
+    results = svc.update_entries(name, body.filter, body.values,
+                                  permission=api_perm.permission)
     return EntryBatchResponse(count=len(results), results=results)
 
 
 @router.delete("/notebooks/{name}/entries")
-def delete_entries(name: str, body: EntryDelete):
-    results = svc.delete_entries(name, body.filter)
+def delete_entries(
+    name: str,
+    body: EntryDelete,
+    api_perm: ApiPermission = Depends(get_api_permission),
+):
+    if not api_perm.can_delete:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="当前 API Key 无权执行删除操作",
+        )
+    results = svc.delete_entries(name, body.filter, permission=api_perm.permission)
     return EntryBatchResponse(count=len(results), results=results)

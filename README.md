@@ -436,15 +436,19 @@ XFunNote/
 │   │   ├── __init__.py
 │   │   ├── ai_service.py
 │   │   ├── management_service.py
-│   │   └── notebook_service.py
+│   │   ├── notebook_service.py
+│   │   └── token_service.py
 │   ├── __init__.py
 │   ├── deps.py
 │   ├── main.py
+│   ├── permissions.py
 │   └── schemas.py
 ├── data/
 │   └── backups/
 │       └── .gitkeep
 ├── frontend/
+│   ├── public/
+│   │   └── vite.svg
 │   ├── src/
 │   │   ├── api/
 │   │   │   ├── ai.ts
@@ -460,14 +464,12 @@ XFunNote/
 │   │   │   │   ├── FilterPanel.tsx
 │   │   │   │   ├── NotebookCard.tsx
 │   │   │   │   ├── NotebookForm.tsx
-│   │   │   │   ├── Pagination.tsx
-│   │   │   │   └── ViewSelector.tsx
+│   │   │   │   └── Pagination.tsx
 │   │   │   └── ui/
 │   │   │       ├── badge.tsx
 │   │   │       ├── button.tsx
 │   │   │       ├── card.tsx
 │   │   │       ├── checkbox.tsx
-│   │   │       ├── collapsible.tsx
 │   │   │       ├── input.tsx
 │   │   │       ├── select.tsx
 │   │   │       ├── separator.tsx
@@ -497,6 +499,7 @@ XFunNote/
 │   │   ├── main.tsx
 │   │   └── vite-env.d.ts
 │   ├── index.html
+│   ├── package-lock.json
 │   ├── package.json
 │   ├── postcss.config.js
 │   ├── tailwind.config.ts
@@ -593,6 +596,7 @@ graph LR
         backend___init__(__init__)
         backend_deps(deps)
         backend_main(main)
+        backend_permissions(permissions)
         backend_schemas(schemas)
     end
     style backend fill:#ffe0f0,stroke:#333,stroke-width:1px,color:#333
@@ -608,6 +612,7 @@ graph LR
         backend_services_ai_service(ai_service)
         backend_services_management_service(management_service)
         backend_services_notebook_service(notebook_service)
+        backend_services_token_service(token_service)
     end
     style backend_services fill:#fff3cd,stroke:#333,stroke-width:1px,color:#333
     subgraph _[.]
@@ -671,17 +676,29 @@ graph LR
         xfun_notebooks_word(word)
     end
     style xfun_notebooks fill:#d4f0c0,stroke:#333,stroke-width:1px,color:#333
+    backend_deps --> backend_permissions
     backend_deps --> xfun___init__
-    backend_deps --> xfun_core_view
+    backend_deps --> xfun_config
+    backend_deps --> xfun_utils_time_utils
     backend_main --> backend_routers___init__
     backend_main --> backend_routers_ai
     backend_main --> backend_routers_management
     backend_main --> backend_routers_notebooks
     backend_main --> xfun_config
+    backend_main --> xfun_core_errors
+    backend_permissions --> xfun___init__
+    backend_permissions --> xfun_core_view
+    backend_routers_ai --> backend_deps
+    backend_routers_ai --> backend_permissions
     backend_routers_ai --> backend_services___init__
     backend_routers_ai --> backend_services_ai_service
+    backend_routers_management --> backend_deps
+    backend_routers_management --> backend_permissions
     backend_routers_management --> backend_services___init__
     backend_routers_management --> backend_services_management_service
+    backend_routers_management --> backend_services_token_service
+    backend_routers_notebooks --> backend_deps
+    backend_routers_notebooks --> backend_permissions
     backend_routers_notebooks --> backend_schemas
     backend_routers_notebooks --> backend_services___init__
     backend_routers_notebooks --> backend_services_notebook_service
@@ -692,12 +709,14 @@ graph LR
     backend_services_ai_service --> xfun_ai_tools
     backend_services_ai_service --> xfun_core_view
     backend_services_management_service --> xfun___init__
-    backend_services_management_service --> xfun_config
+    backend_services_management_service --> xfun_utils_time_utils
     backend_services_notebook_service --> xfun___init__
     backend_services_notebook_service --> xfun_core___init__
     backend_services_notebook_service --> xfun_core_filter
     backend_services_notebook_service --> xfun_core_ops
     backend_services_notebook_service --> xfun_core_view
+    backend_services_token_service --> xfun___init__
+    backend_services_token_service --> xfun_utils_time_utils
     cli --> xfun___init__
     cli --> xfun_ai_agent
     cli --> xfun_ai_prompts
@@ -753,13 +772,16 @@ graph LR
     tests_test_view --> xfun_core_filter
     tests_test_view --> xfun_core_view
     tests_test_word --> xfun_core_filter
+    xfun___init__ --> xfun_ai_security
     xfun___init__ --> xfun_core_db
     xfun___init__ --> xfun_core_notebook
+    xfun___init__ --> xfun_core_view
     xfun___init__ --> xfun_notebooks_accumulation
     xfun___init__ --> xfun_notebooks_aimemory
     xfun___init__ --> xfun_notebooks_diary
     xfun___init__ --> xfun_notebooks_plan
     xfun___init__ --> xfun_notebooks_word
+    xfun___init__ --> xfun_utils_time_utils
     xfun_ai_agent --> xfun_config
     xfun_ai_agent --> xfun_core_errors
     xfun_ai_prompts --> xfun___init__

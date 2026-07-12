@@ -2,10 +2,12 @@
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.services import ai_service as svc
+from backend.deps import get_api_permission
+from backend.permissions import ApiPermission
 
 router = APIRouter(tags=["ai"])
 
@@ -36,7 +38,15 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/ai/chat")
-def ai_chat(body: ChatRequest):
+def ai_chat(
+    body: ChatRequest,
+    api_perm: ApiPermission = Depends(get_api_permission),
+):
+    if not api_perm.can_ai_chat:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="当前 API Key 无权使用 AI 对话",
+        )
     try:
         new_messages = svc.chat(
             messages=body.messages,

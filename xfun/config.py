@@ -28,3 +28,7 @@ DB_PATH = str(PROJECT_ROOT / "data" / f"{XFUN_USER}.db")
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL")
 LLM_MODEL = os.environ.get("LLM_MODEL")
+
+
+# ---- API 鉴权（Bootstrap） ----
+ADMIN_API_KEY = os.environ.get("ADMIN_API_KEY", "")

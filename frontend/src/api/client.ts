@@ -46,6 +46,13 @@ async function request<T>(
     method,
     headers: { 'Content-Type': 'application/json' },
   };
+
+  // 如果配置了 VITE_API_KEY，则添加鉴权头
+  const apiKey = import.meta.env.VITE_API_KEY;
+  if (apiKey) {
+    options.headers = { ...options.headers, 'X-API-Key': apiKey };
+  }
+
   if (body !== undefined) {
     options.body = JSON.stringify(body);
   }
