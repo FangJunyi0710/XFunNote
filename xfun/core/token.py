@@ -20,6 +20,17 @@ def list_tokens() -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def get_token_by_value(token_value: str) -> dict | None:
+    """按 token 值查询 Token 信息（含 permission, is_active, expires_at）。"""
+    with db.read_transaction() as conn:
+        row = conn.execute(
+            "SELECT id, name, permission, is_active, expires_at, created_at, updated_at "
+            "FROM _tokens WHERE token = ?",
+            (token_value,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
 def get_token(token_id: str) -> dict | None:
     """获取单个 Token 信息。"""
     with db.read_transaction() as conn:

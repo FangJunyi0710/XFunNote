@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, fields
 
-from xfun import db
+from xfun.core.permission import get_permission as _get_permission
 from xfun.core.view import Permission, parse_view_json
 
 
@@ -36,12 +36,8 @@ class ApiPermission:
 
 
 def get_api_permission_from_db(permission_id: str) -> ApiPermission | None:
-    """从 _permissions 表查询权限定义。"""
-    with db.read_transaction() as conn:
-        row = conn.execute(
-            "SELECT * FROM _permissions WHERE id = ?",
-            (permission_id,),
-        ).fetchone()
+    """从 _permissions 表查询权限定义（委托 domain 层）。"""
+    row = _get_permission(permission_id)
     if row is None:
         return None
     return ApiPermission.from_row(row)

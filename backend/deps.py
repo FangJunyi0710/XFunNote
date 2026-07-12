@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from fastapi import Header, HTTPException, status
 
-from xfun import db
 from xfun.config import ADMIN_API_KEY
+from xfun.core.token import get_token_by_value
 from xfun.utils.time_utils import now_str
 
 from backend.permissions import ApiPermission, get_api_permission_from_db
@@ -60,11 +60,7 @@ async def get_api_permission(
         return _lookup_permission("root")
 
     # 查询 _tokens 表
-    with db.read_transaction() as conn:
-        row = conn.execute(
-            "SELECT permission, is_active, expires_at FROM _tokens WHERE token = ?",
-            (x_api_key,),
-        ).fetchone()
+    row = get_token_by_value(x_api_key)
 
     if row is None:
         raise HTTPException(
