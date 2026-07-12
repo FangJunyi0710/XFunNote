@@ -193,6 +193,14 @@ class TestAITools:
         assert "results" in del_result
         assert del_result["results"] == []
 
+    def test_make_tools_unknown_name(self):
+        """make_tools 传入非法工具名 → ToolError。"""
+        perm = root_permission(xfun.ai.tools.db)
+        import pytest
+        from xfun.core.errors import ToolError
+        with pytest.raises(ToolError, match="未知工具"):
+            make_tools(["query_entries", "nonexistent_tool"], perm)
+
     def test_get_ai_permission(self):
         """get_ai_permission 返回包含 read/write 权限的字典。"""
         result = self.get_ai_permission.invoke({})

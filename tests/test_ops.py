@@ -97,3 +97,27 @@ class TestOps:
                              Condition("id", "nonexistent", "="),
                              {"content": "whatever"})
         assert results == []
+
+    def test_update_with_restricted_write_view(self, registry, db):
+        """写视图不允许更新列时 → cleaned_values 为空 → continue (l.44)。"""
+        from xfun.core.view import View, full_view
+
+        rview = full_view(db)  # 读权限需包含 plan
+        # 写视图允许空列 — _clean_entry 会返回 {}，触发 continue
+        wview: View = {"plan": [([], Condition("_", None, "TRUE"))]}
+        perm = (rview, wview)
+
+        with db.transaction() as conn:
+            # 先插入一条记录准备更新
+            full_perm = root_permission(db)
+            from xfun.core.ops import add as ops_add
+            results = ops_add(conn, full_perm, "plan",
+                              [{"content": "test", "month": "2606"}])
+            entry_id = results[0]["id"]
+
+        with db.transaction() as conn:
+            # 用受限写视图更新 — 写列集为空，cleaned_values == {} → continue
+            updated = update(conn, perm, "plan",
+                             Condition("id", [entry_id], "IN"),
+                             {"content": "should be cleaned"})
+        assert updated == []

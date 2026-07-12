@@ -189,13 +189,13 @@ def make_tools(tool_names: list[str], permission: DB_Permission) -> list[BaseToo
         绑定了权限的 BaseTool 列表。
 
     Raises:
-        ValueError: 包含未知工具名时。
+        ToolError: 包含未知工具名时。
     """
     tools: list[BaseTool] = []
     for name in tool_names:
         factory = _TOOL_REGISTRY.get(name)
         if factory is None:
-            raise ValueError(f"未知工具: {name!r}，可用: {list(_TOOL_REGISTRY.keys())}")
+            raise ToolError(f"未知工具: {name!r}，可用: {list(_TOOL_REGISTRY.keys())}")
         tools.append(factory(permission))
     return tools
 
