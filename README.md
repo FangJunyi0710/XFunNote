@@ -31,6 +31,7 @@ source .venv/bin/activate
 uvicorn backend.main:app --reload
 
 # 4. （前端启动，另开终端）
+# 注意：前端需要 Node.js 18+
 cd frontend && npm install && npm run dev
 ```
 
@@ -47,7 +48,7 @@ cd frontend && npm install && npm run dev
 | `XFUN_USER` | 数据库用户名，拼接为 `data/{用户名}.db`。若未设置，默认回退为 `data/default.db` |
 | `ROOT_TOKEN` | 管理员启动密钥（bootstrap），用于前期引导和数据库管理操作（`/db/*` 路由）。后续建议通过 `/api/v1/tokens` API 管理普通 Token |
 | `LLM_API_KEY` | DeepSeek API Key，用于 AI 功能 |
-| `LLM_BASE_URL` | DeepSeek API 端点，若不设置则为 None（ChatAnthropic 使用默认端点） |
+| `LLM_BASE_URL` | DeepSeek API 端点，若不设置则为 None（ChatAnthropic 使用默认端点）（.env.example 中已预填 DeepSeek 兼容端点） |
 | `LLM_MODEL` | 默认模型，若不设置则由 LangChain 默认决定（当前建议 `deepseek-v4-flash`） |
 
 **小贴士**：你也可以用以下命令在终端手动生成 API Token（格式 `sk-xxx`），适合设置 `ROOT_TOKEN` 或作为 `_tokens` 的 token 值：
@@ -71,8 +72,8 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
 | **Notebook** | 数据容器基类，子类定义 `_extra_columns` 即可获得完整 CRUD + 筛选能力 |
 | **Condition** | 单个筛选条件（`column op value`），支持通过 `Condition.register_op()` 注册自定义运算符（`JSON_CONTAINS`、`JSON_NOT_CONTAINS`、`TEXT_SEARCH`、`TRUE`、`FALSE` 等） |
 | **Filter** | 递归结构：外层 `OR`，内层 `AND`，支持无限嵌套与整体取反，最终由 `to_sql()` 展开为 SQL WHERE |
-| **View** | `dict[表名, list[(列名列表, 行筛选条件)]]` — 跨本子的数据子集描述。支持 `view_or`（并集）/ `view_and`（交集）/ `view_to_sql`（UNION ALL + 主键去重），通过 `view_to_json` / `parse_view_json` 序列化为 JSON。**用户可创建多份视图，快速切换不同的数据视角**（如"今日概览"、"本周回顾"、"待复习单词"） |
-| **Permission** | `(read_view: View, write_view: View)` 元组，解耦"谁能看什么"和"谁能改什么"。系统内置 `root_permission()`（全权限，用于 CLI/管理接口）、`ai_permission()`（AI 安全沙箱）、`no_permission()`（零权限，默认拒绝）。**用户可自由组合新的 `(read_view, write_view)` 元组来创建不同访问身份** |
+| **View** | `dict[表名, list[(列名列表, 行筛选条件)]]` — 跨本子的数据子集描述。支持 `view_or`（并集）/ `view_and`（交集）/ `view_to_sql`（UNION ALL + 主键去重），通过 `view_to_json` / `parse_view_json` 序列化为 JSON。**用户可创建多份视图，快速切换不同的数据视角**（如"今日概览"、"本周回顾"、"待复习单词"）。**View 辅助函数**：`full_view(db)` 返回全部表×全部列的全权限视图，`no_view(db)` 返回零权限视图，用于 `root_permission` / `no_permission` 的构造 |
+| **Permission** | `(read_view: View, write_view: View)` 元组，解耦"谁能看什么"和"谁能改什么"。权限定义持久化在 `_permissions` 表，由运行时从数据库动态加载。用户可通过 API 创建自定义身份（如 `root` / `ai` / `no`），系统不预设种子数据。**用户可自由组合新的 `(read_view, write_view)` 元组来创建不同访问身份** |
 | **Ops** | 4 个高维操作函数 `query` / `add` / `update` / `delete`，接收 `Permission` + Notebook 类型 + 筛选条件，内部自动完成：`Permission → view_and 合并权限 → view_clean_* 清洗输入 → Notebook 底层 CRUD → 返回完整结果`。**View、Permission、Notebook 三者各司其职，Ops 担任编排角色** |
 
 ### 系统表
@@ -81,20 +82,20 @@ XFunNote 使用 3 张系统级数据库表来支撑 API 访问控制与视图管
 
 | 系统表 | 说明 | 管理路由 |
 |--------|------|---------|
-| `_tokens` | API 鉴权 Token 表。每条记录包含 `token`（密钥值）、`permission`（绑定的权限标识）、`is_active`（启用/停用）、`expires_at`（过期时间） | `/api/v1/tokens` |
+| `_tokens` | API 鉴权 Token 表。每条记录包含 `token`（密钥值）、`permission`（绑定的权限标识）、`is_active`（启用/停用）、`expires_at`（过期时间）、`id`（自动生成主键）、`name`（可读名称）、`created_at`/`updated_at`（时间戳） | `/api/v1/tokens` |
 | `_permissions` | 权限定义表。每条记录包含 `id`（权限标识）、`name`/`description`、`read_view`/`write_view`（读写 View JSON） | `/api/v1/permissions` |
-| `_views` | 视图持久化表。每条记录包含 `name`（视图名）、`data`（View JSON 内容） | `/api/v1/views` |
+| `_views` | 视图持久化表。每条记录包含 `name`（视图名）、`data`（View JSON 内容）、`id`（自动生成主键）、`created_at`/`updated_at`（时间戳） | `/api/v1/views` |
 
-通过 `ROOT_TOKEN` 初始化后，使用 `/api/v1/tokens` 创建普通 API Key，每个 Key 绑定一个 `_permissions` 表中的权限定义。AI Chat 接口在运行时自动计算 **API Key 权限 ∩ AI 配置权限** 的交集，确保最小权限原则。
+通过 `ROOT_TOKEN` 初始化后，使用 `/api/v1/permissions` 创建权限定义，再通过 `/api/v1/tokens` 创建普通 API Key，每个 Key 绑定一个权限 id。AI Chat 接口在运行时自动计算 **API Key 权限 ∩ AI 配置权限** 的交集，从 `_permissions` 表动态加载权限定义，确保最小权限原则。
 
 ### AI 集成
 
 | 概念 | 说明 |
 |------|------|
-| **权限体系** | `Permission = (read_view, write_view)` 身份系统，内置 root / ai / no 三种身份。AI 所有操作自动应用 `view_and` 交集约束，支持多角色切换 |
-| **AI Tools** | `query_entries`、`add_entries`、`update_entries`、`delete_entries`、`get_ai_permission` 共 **5 个**工具（4 个 CRUD + 权限查询）。不同 AI 模式可绑定不同工具子集，实现能力分级 |
-| **Agent** | `xfun/ai/agent.py` 工具调用循环引擎：支持多轮迭代（最多 10 轮）、自动错误恢复、System Prompt + 对话历史管理。<br><br>**流式输出体系**：支持三级流式粒度控制 `StreamLevel`（`TOKEN` / `MSG` / `SYNC`），通过 `accumulate_messages()` + `_chunk_to_message()` 自动将连续 `AIMessageChunk` 合并为完整 `AIMessage`。<br><br>**思考内容解析**：`extract_content_parts()` 解析 Anthropic 风格的 thinking blocks，将块内容按 type 分组为 `{"thinking": "...", "text": "..."}` 字典，在 CLI 中以灰色输出到 stderr。<br><br>**消息序列化**：`messages_to_json()` / `parse_messages_json()` 支持完整的 BaseMessage ↔ JSON 双向转换，对话历史可持久化到文件。<br><br>**SystemMessage 管理**：`ensure_system_message()` 自动在消息列表开头插入/替换 SystemMessage，支持多次对话复用同一提示词 |
-| **多模式扩展** | 当前 AI 默认使用 `ai_permission()` + 5 个工具。未来可新增 `analyst`（只读）、`editor`（读写）、`manager`（全工具）等模式，各自绑定不同的 Permission + 工具集，通过 `agent_invoke(messages, permission=..., tools=...)` 参数化调用 |
+| **权限体系** | `Permission = (read_view, write_view)` 身份系统，定义在 `view.py` 中的 `DB_Permission` 类型。权限定义持久化在 `_permissions` 表，由 `backend/permissions.py` 在运行时加载。用户可通过 API 创建新权限（如 `root` / `ai` / `no`）。AI 所有操作自动应用 `view_and` 交集约束 |
+| **AI Tools 工厂** | `xfun/ai/tools.py` 中的 `_TOOL_REGISTRY` 注册 5 个工具工厂函数（`query_entries`、`add_entries`、`update_entries`、`delete_entries`、`get_ai_permission`），通过 `make_tools(names, permission)` 构建绑定了指定权限的工具列表。不同 AI 模式可绑定不同工具子集 + 不同权限 |
+| **Agent 引擎** | `xfun/ai/agent.py` 生成器式工具调用循环：`agent_invoke()` 为生成器，支持三级流式粒度 `StreamLevel`（`TOKEN`/`MSG`/`SYNC`），配合 `accumulate_messages()` 将连续 `AIMessageChunk` 合并为完整 `AIMessage`。<br><br>**思考内容解析**：`extract_content_parts()` 解析 Anthropic 风格的 thinking blocks，将块内容按 type 分组为 `{"thinking": "...", "text": "..."}` 字典。<br><br>**消息序列化**：`messages_to_json()` / `parse_messages_json()` 支持完整的 BaseMessage ↔ JSON 双向转换（使用 `model_validate` / `model_dump` 保留所有扩展字段）。<br><br>**SystemMessage 管理**：`ensure_system_message()` 自动在消息列表开头插入/替换 SystemMessage |
+| **多模式扩展** | 当前 AI 默认使用 `"ai"` 权限（从 `_permissions` 表加载） + 5 个工具。可通过 `--permission-name` 和 `--tool-names` 参数动态切换。未来可新增新权限记录 + 工具子集实现 `analyst` / `editor` / `manager` 等模式 |
 
 ### 记忆系统
 
@@ -112,7 +113,7 @@ XFunNote 使用 3 张系统级数据库表来支撑 API 访问控制与视图管
 
 - **数据优先**：所有信息以条目（Entry）为单位存储，统一抽象为 `Notebook`，扩展列按需定义。
 - **筛选驱动**：`Condition` + 递归 `Filter` 构成完整的查询 DSL，支持 AND/OR 嵌套、自定义运算符（`JSON_CONTAINS`、`LIKE` 等），全部下推 SQLite。
-- **AI 原生**：AI 通过 Function Calling 调用 `query_entries`/`update_entries` 等安全工具，自动应用 `AI_READ_VIEW` 与 `AI_WRITE_VIEW` 行级/列级权限沙箱，杜绝越权操作。
+- **AI 原生**：AI 通过 Function Calling 调用 `query_entries`/`update_entries` 等安全工具，自动应用数据库 `_permissions` 表定义的行级/列级权限沙箱，杜绝越权操作。
 - **权限即身份**：Permission 包含读/写两套独立的 View，天然支持多角色切换。系统内置 root / ai / no 三种身份，用户可自由组合新的 `(read_view, write_view)` 元组来创建"访客"、"协作者"、"管理员"等身份。每套 AI 模式可绑定不同的 Permission + 工具集，实现细粒度的能力分级。
 - **记忆即数据**：用户偏好、AI 规则、分类体系均存储为 `accumulation` 和 `aimemory` 本子中的条目，通过 `ai_tags`/`ai_note` 分散索引。
 - **本地优先**：单文件 SQLite + WAL 模式，零配置同步（iCloud/OneDrive/WebDAV 即可）。
@@ -129,33 +130,33 @@ XFunNote 使用 3 张系统级数据库表来支撑 API 访问控制与视图管
 
 #### 2. Permission + AI 安全沙箱：身份即权限
 
-- **Permission 的设计定位**：`(read_view, write_view)` 不是"一个权限值"，而是"一个身份"。系统内置三个身份：
+- **Permission 的设计定位**：`(read_view, write_view)` 不是"一个权限值"，而是"一个身份"。身份定义存储在 `_permissions` 表中，表结构由 `init_db()` 创建。系统预设三种身份（需用户通过 API 或 CLI 手动插入）：
 
   | 身份 | 读权限 | 写权限 | 适用场景 |
   |------|--------|--------|---------|
-  | `root_permission` | 全部表 × 全部列 × 无条件 | 同读权限 | CLI 命令、FastAPI 管理接口 |
-  | `ai_permission` | 通用列 + 各本子专用列子集，排除含"私密"标签条目 | 仅 `content/ai_tags/ai_note` + 专用列子集 | AI 默认模式 |
-  | `no_permission` | 零访问 | 零访问 | 默认拒绝兜底 |
+  | `"root"` | 全部表 × 全部列 × 无条件 | 同读权限 | CLI 命令、FastAPI 管理接口（`/db/*` 路由） |
+  | `"ai"` | 通用列 + 各本子专用列子集，排除含"私密"标签条目 | 仅 `content/ai_tags/ai_note` + 专用列子集 | AI 默认模式 |
+  | `"no"` | 零访问 | 零访问 | 默认拒绝兜底 |
 
-- **写权限是读权限的子集**：`_AI_WRITE_FILTER` 定义为 `[[_AI_READ_FILTER, TRUE_CONDITION]]`，AI 可写行必须同时满足可读过滤条件（排除含"私密"标签的条目），杜绝越权修改。
+- **写权限是读权限的子集**：AI 可写行必须同时满足可读过滤条件（排除含"私密"标签的条目），杜绝越权修改。
 
-- **用户可自由创建新身份**：只需构造新的 View 元组并调用 `ops.query(conn, (my_read_view, my_write_view), ...)` 即可。例如：
-  - `guest_permission` — 限制为 `content` 和 `tags` 两列的只读权限
-  - `shared_permission` — 限定 `plan` 本子中 `done=0` 的条目可见
+- **用户可自由创建新身份**：只需通过 `/api/v1/permissions` API 创建新的 `(read_view, write_view)` 元组即可。例如：
+  - `guest` — 限制为 `content` 和 `tags` 两列的只读权限
+  - `shared` — 限定 `plan` 本子中 `done=0` 的条目可见
 
 - **AI 多模式扩展**：不同 AI 模式绑定不同 Permission + 工具集：
   | 模式 | 权限 | 工具集 | 用途 |
   |------|------|--------|------|
-  | `analyst` | `(只读, no_permission)` | 仅 `query_entries` | 数据分析 |
-  | `editor` | `(ai_read, ai_write)` | 全部 5 个工具 | 内容管理 |
-  | `manager` | `(ai_read, ai_write)` | 全部 5 个工具 | 全功能 |
+  | `analyst` | `(只读, no)` | 仅 `query_entries` | 数据分析 |
+  | `editor` | `(ai, ai)` | 全部 5 个工具 | 内容管理 |
+  | `manager` | `(ai, ai)` | 全部 5 个工具 | 全功能 |
   - 此扩展无需修改 Ops 层、View 层或 Notebook 层
 
 - **列级清洗**：通过 `view_clean_columns` 自动清洗非授权列（`id`、`created_at`、`seq` 等系统列受保护）。
 - **安全删除**：删除操作必须经过"预览 → 确认"流程，禁止无条件删除。
 
 #### 3. 记忆系统：显式记忆库（aimemory）+ 分散痕迹的统一检索
-- 显式记忆存储在 `aimemory` 本子（专用于 AI 记忆沉淀，字段：title/content/source/note）。
+- 显式记忆存储在 `aimemory` 本子（专用于 AI 记忆沉淀，字段：title（标题）、source（来源））。
 - `accumulation` 本子用于用户的通用知识积累。
 - 分散痕迹存储在各类条目的 `ai_tags` 和 `ai_note` 中，通过 `JSON_CONTAINS` / `TEXT_SEARCH` 运算符检索。
 - **三级记忆分层**：`aimemory` 本子的 `title` 以 `[事实]`（客观属性）、`[历史]`（操作记录）或 `[策略]`（处理规则）为前缀。AI 执行任务前自动检索 `[策略]` 记忆作为默认配置，冲突时以用户当次指令为最高优先级。
@@ -185,13 +186,13 @@ XFunNote 使用 3 张系统级数据库表来支撑 API 访问控制与视图管
 |------|------|--------|
 | `xfun/core/` | 核心引擎 — 数据库抽象层、筛选查询 DSL、Notebook 基类、View 数据水合、Ops 操作层 | `db.py` / `filter.py` / `view.py` / `notebook.py` / `ops.py` / `errors.py` / `extras.py` |
 | `xfun/notebooks/` | 内置本子 — 现有 5 种（`plan`/`diary`/`word`/`accumulation`/`aimemory`），规划新增 `timeline` + `schedule` | `plan.py` / `diary.py` / `word.py` / `accumulation.py` / `aimemory.py` |
-| `xfun/ai/` | AI 集成层 — 安全沙箱、CRUD Tools、Agent 引擎、提示词与 Schema 校验 | `tools.py` / `agent.py` / `security.py` / `schema.py` / `prompts.py` |
-| `xfun/utils/` | 工具函数 | `time_utils.py` |
-| `xfun/` (根) | 集中配置管理 + Token/权限/视图服务 | `config.py` / `permission_service.py` / `token_service.py` / `view_service.py` |
+| `xfun/ai/` | AI 集成层 — CRUD 工具工厂、Agent 引擎（生成器 + 三级流式）、Pydantic Schema 与提示词管理 | `agent.py` / `prompts.py` / `schema.py` / `tools.py` / `__init__.py` |
+| `xfun/utils/` | 工具函数 | `time_utils.py` / `token_utils.py` |
+| `xfun/` (根) | 注册中心 + 数据库初始化 + 系统表定义 + 配置管理 | `__init__.py` / `config.py` |
 | `cli.py` | 命令行入口（Typer, 10 个命令） | — |
-| `tests/` | 测试套件 | 19 个文件 |
+| `tests/` | 测试套件 | 17 个文件 |
 | `backend/` | FastAPI 后端（已实现） | `main.py` / `routers/`(notebooks/ai/manage_db/manage_views/manage_tokens/manage_permissions) / `services/` / `schemas.py` / `deps.py` / `permissions.py` |
-| `frontend/` | Vite + React 前端（骨架开发中） | `src/pages/`(9 个页面待填充) / `src/components/`(10 个 UI 组件待填充) / `src/api/`(5 个 API 模块待填充) / `src/stores/` / `src/types/` |
+| `frontend/` | Vite + React 前端（骨架开发中） | `src/pages/`(9 个页面待填充) / `src/components/`(14 个 UI 组件待填充) / `src/api/`(5 个 API 模块待填充) / `src/stores/` / `src/types/` |
 
 ### CLI `ai` 命令详解
 
@@ -206,12 +207,14 @@ AI 对话支持两种模式，`stdout` 统一输出完整消息列表 JSON：
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
-| `--messages, -m` | `None` | 消息历史 JSON 数组（仅 sync 模式必需） |
+| `--messages, -m` | `None` | 消息历史 JSON 数组 |
 | `--max-iterations, -n` | `10` | Agent 工具调用最大迭代轮次 |
 | `--system-prompt, --sp` | 默认提示词 | 自定义系统提示词 |
-| `--llm-kwargs` | `{"thinking": {"type": "disabled"}}` | LLM 额外参数 JSON 字典 |
+| `--tool-names, -t` | 全部 5 个工具 | 工具名称列表 JSON 数组，如 `'["query_entries","add_entries"]'` |
+| `--permission-name, -p` | `"ai"` | 权限名称，对应 `_permissions` 表记录 |
+| `--llm-kwargs` | `{"thinking": {"type": "disabled"}, "timeout": 30.0, "max_retries": 2}` | LLM 额外参数 JSON 字典 |
 
-> **💡 开发调试**：`cli.py` 中的 `_AI_TOOLS` 变量管理着 AI 绑定的工具集，当前包含全部 5 个工具（4 个 CRUD + `get_ai_permission` 权限查询）。可按需增删工具来定制不同 AI 模式的能力。
+> **💡 开发调试**：`xfun/ai/tools.py` 中的 `_TOOL_REGISTRY` 和 `DEFAULT_TOOL_NAMES` 管理着 AI 可用的工具集。权限定义存储在 `_permissions` 表中，通过 `backend/permissions.py` 的 `get_api_permission_from_db()` 加载，`cli.py` 中的 `_lookup_permission()` 等效于后端的权限查询。
 
 ### 技术栈
 
@@ -242,11 +245,11 @@ AI 对话支持两种模式，`stdout` 统一输出完整消息列表 JSON：
 | **Notebook 体系** | 抽象基类封装通用 CRUD + 自动建表 + 批量操作，子类只需定义扩展列和自动填充逻辑 |
 | **内置本子** | 基于基类扩展的 5 种预置实现 — 计划（字母编号/月分组）、日记（日期维）、单词（复习跟踪/去重）、积累（分类积累）、AI 记忆（标题/来源/备注）。各子类仅需定义扩展列和自动填充逻辑即可获得完整 CRUD + 批量操作 + 筛选查询，通过 dict 注册可插拔扩展 |
 | **注册中心** | 通过 `dict` 管理所有 Notebook 实例，支持注册/查找/注销/迭代 |
-| **AI Tools 层（核心）** | `xfun/ai/tools.py` 5 个 Function Calling 工具（`query_entries`、`add_entries`、`update_entries`、`delete_entries`、`get_ai_permission`）+ `xfun/ai/security.py` 行级/列级安全沙箱（`AI_READ_VIEW`、`AI_WRITE_VIEW`）+ `xfun/ai/schema.py` Pydantic JSON Schema 双重校验 + `xfun/ai/prompts.py` 系统提示词 |
+| **AI Tools 层（核心）** | `xfun/ai/tools.py` 5 个 Function Calling 工具（`query_entries`、`add_entries`、`update_entries`、`delete_entries`、`get_ai_permission`）+ `xfun/ai/schema.py` Pydantic JSON Schema 双重校验 + `xfun/ai/prompts.py` 系统提示词 |
 | **Agent 对话引擎** | `xfun/ai/agent.py` 工具调用循环（Tool Calling Loop），支持多轮工具调用、自动错误恢复、最大迭代控制（10 轮） |
 | **Ops 操作层** | `xfun/core/ops.py` 4 个高维 CRUD 函数（`query`/`add`/`update`/`delete`），封装 View + Notebook 的组合语义 |
-| **视图层** | `xfun/core/view.py` 6 个核心函数：`view_to_sql`（跨本子 UNION ALL + 主键去重）、`view_or`/`view_and`（并集/交集）、`view_clean_columns`/`view_clean_filter`/`view_clean_update`（AI 安全沙箱列/行清洗）、`view_to_json`/`parse_view_json`（序列化/反序列化） |
-| **测试覆盖** | 全面覆盖核心引擎及 AI 集成层正常路径、边界条件、错误路径及事务回滚，287 个单元测试，18 个测试文件（含 `test_ai_agent.py`、`test_ai_prompts.py`、`test_ai_schema.py`、`test_ai_security.py`、`test_ai_tools.py`），覆盖率 100% |
+| **视图层** | `xfun/core/view.py` 8 个核心函数：`view_to_sql`（跨本子 UNION ALL + 主键去重）、`view_or`/`view_and`（并集/交集）、`view_clean_columns`/`view_clean_filter`/`view_clean_update`（AI 安全沙箱列/行清洗）、`view_to_json`/`parse_view_json`（序列化/反序列化） |
+| **测试覆盖** | 全面覆盖核心引擎及 AI 集成层正常路径、边界条件、错误路径及事务回滚，285 个单元测试，17 个测试文件（含 `test_ai_agent.py`、`test_ai_prompts.py`、`test_ai_schema.py`、`test_ai_tools.py`），覆盖率 100% |
 
 #### 🗺️ 规划中
 
@@ -277,7 +280,7 @@ AI 对话支持两种模式，`stdout` 统一输出完整消息列表 JSON：
 - [x] `Filter` 递归 `to_sql()`，支持无限嵌套 OR/AND + `negate`
 - [x] `Notebook` 基类抽象 + 5 个本子（`plan`、`word`、`diary`、`accumulation`、`aimemory`）
 - [x] SQLite 数据库引擎（Column / Condition / Filter / DB / View）
-- [x] 单元测试 287 个，覆盖率 100%
+- [x] 单元测试 285 个，覆盖率 100%
 
 #### 阶段一：AI Tools 层（已完成）
 - [x] 在 `xfun/ai/tools.py` 中实现 5 个工具：
@@ -286,16 +289,13 @@ AI 对话支持两种模式，`stdout` 统一输出完整消息列表 JSON：
   - `add_entries`（自动注入 `is_ai_gen=1`）
   - `delete_entries`（强制安全条件 + 预览拦截）
   - `get_ai_permission`（返回当前 AI 可读/可写字段的完整权限白名单）
-- [x] 在 `xfun/ai/security.py` 中定义：
-  - `AI_READ_VIEW`（行级读权限 View 白名单）
-  - `AI_WRITE_VIEW`（行级写权限 View 白名单）
 - [x] 在 `xfun/ai/schema.py` 中实现 Pydantic 模型（`ConditionModel`、`FilterModel`、`TableSpecModel`、`ViewModel`），为 AI 提供 JSON Schema 格式校验 + 运算符枚举校验
 - [x] 在 `xfun/ai/prompts.py` 中定义 AI 系统提示词
 - [x] `agent.py` 工具调用循环实现（LLM 绑定 5 个 Tools，多轮循环 + 自动错误恢复 + 最大迭代控制）
 - [x] `cli.py` 命令行入口（Typer），完整实现 10 个命令（list / schema / query / add / update / delete / ai / init / backup / reset），已接入 Agent 对话引擎
 
 #### 阶段二：View 层（已完成）
-- [x] 实现 `xfun/core/view.py`，6 个核心函数：
+- [x] 实现 `xfun/core/view.py`，8 个核心函数：
   - `view_to_sql` — 跨本子 UNION ALL + GROUP BY 主键去重，全部下推 SQLite
   - `view_or` / `view_and` — View 的并集/交集操作（安全沙箱通过交集自动约束 AI 权限范围）
   - `view_clean_columns` / `view_clean_filter` / `view_clean_update` — AI 安全沙箱的列/行清洗工具（自动应用列白名单 + 行筛选）
@@ -591,7 +591,8 @@ XFunNote/
 │   │   └── word.py
 │   ├── utils/
 │   │   ├── __init__.py
-│   │   └── time_utils.py
+│   │   ├── time_utils.py
+│   │   └── token_utils.py
 │   ├── __init__.py
 │   └── config.py
 ├── .env.example
@@ -618,6 +619,7 @@ graph LR
     subgraph xfun_utils[xfun/utils]
         xfun_utils___init__(__init__)
         xfun_utils_time_utils(time_utils)
+        xfun_utils_token_utils(token_utils)
     end
     style xfun_utils fill:#e8f4fd,stroke:#333,stroke-width:1px,color:#333
     subgraph backend[backend]
@@ -832,6 +834,7 @@ graph LR
     xfun___init__ --> xfun_notebooks_diary
     xfun___init__ --> xfun_notebooks_plan
     xfun___init__ --> xfun_notebooks_word
+    xfun___init__ --> xfun_utils_token_utils
     xfun_ai_agent --> xfun_config
     xfun_ai_agent --> xfun_core_errors
     xfun_ai_prompts --> xfun___init__
