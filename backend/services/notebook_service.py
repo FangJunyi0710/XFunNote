@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 
 from xfun import db, registry
 from xfun.core import ops
-from xfun.core.view import Permission, root_permission
+from xfun.core.view import DB_Permission, root_permission
 from xfun.core.filter import TRUE_CONDITION, parse_filter_json
 
 
@@ -26,7 +26,7 @@ def query_entries(
     order_by: str = "",
     limit: int = 100,
     offset: int = 0,
-    permission: Permission | None = None,
+    permission: DB_Permission | None = None,
 ) -> list[dict]:
     """查询条目。
 
@@ -51,7 +51,7 @@ def query_entries(
 def add_entries(
     notetype: str,
     entries: list[dict],
-    permission: Permission | None = None,
+    permission: DB_Permission | None = None,
 ) -> list[dict]:
     _validate_notetype(notetype)
     perm = permission or root_permission(db)
@@ -63,7 +63,7 @@ def update_entries(
     notetype: str,
     filter_obj: Any,
     values: dict,
-    permission: Permission | None = None,
+    permission: DB_Permission | None = None,
 ) -> list[dict]:
     _validate_notetype(notetype)
     perm = permission or root_permission(db)
@@ -75,7 +75,7 @@ def update_entries(
 def delete_entries(
     notetype: str,
     filter_obj: Any,
-    permission: Permission | None = None,
+    permission: DB_Permission | None = None,
 ) -> list[dict]:
     _validate_notetype(notetype)
     perm = permission or root_permission(db)

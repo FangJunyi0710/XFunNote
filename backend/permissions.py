@@ -6,13 +6,13 @@ import json
 from dataclasses import dataclass, fields
 
 from xfun.core.permission import get_permission as _get_permission
-from xfun.core.view import Permission, parse_view_json
+from xfun.core.view import DB_Permission, parse_view_json
 
 
 @dataclass
 class ApiPermission:
     """一个 API 权限。"""
-    permission: Permission  # (read_view, write_view) 数据读写权限
+    permission: DB_Permission  # (read_view, write_view) 数据读写权限
     can_query: bool = False
     can_add: bool = False
     can_update: bool = False

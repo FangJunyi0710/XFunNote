@@ -6,7 +6,7 @@ AI 安全沙箱。
 
 from xfun import registry
 from xfun.core.filter import Condition, Filter, TRUE_CONDITION
-from xfun.core.view import Permission, View, view_or
+from xfun.core.view import DB_Permission, View, view_or
 
 _AI_READ_FILTER: Filter = [[
     Condition(column="tags", value="私密", op="JSON_NOT_CONTAINS")
@@ -56,5 +56,5 @@ def _ai_comm_write_view() -> View:
 def _ai_write_view() -> View:
     return view_or(_AI_SPEC_WRITE_VIEW, _ai_comm_write_view())
 
-def ai_permission() -> Permission:
+def ai_permission() -> DB_Permission:
     return (_ai_read_view(), _ai_write_view())

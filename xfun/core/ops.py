@@ -4,7 +4,7 @@ from .. import registry
 from .db import Column
 from .filter import Filter, Condition
 from .view import (
-    Permission,
+    DB_Permission,
     View,
     view_and,
     view_clean_columns,
@@ -13,7 +13,7 @@ from .view import (
     view_to_sql,
 )
 
-def query(conn, permission: Permission, table: str, query_view: View, order_by: str = "", limit: int = -1, offset: int = 0) -> list[dict[str, Any]]:
+def query(conn, permission: DB_Permission, table: str, query_view: View, order_by: str = "", limit: int = -1, offset: int = 0) -> list[dict[str, Any]]:
     rview, wview = permission
     sql, params = view_to_sql(view_and(query_view, rview), conn.db, table)
     if not sql:
@@ -25,10 +25,10 @@ def query(conn, permission: Permission, table: str, query_view: View, order_by: 
     rows = conn.execute(sql, params).fetchall()
     return [dict(r) for r in rows]
 
-def _query_by_ids(conn, permission: Permission, table: str, ids: list[str]) -> list[dict[str, Any]]:
+def _query_by_ids(conn, permission: DB_Permission, table: str, ids: list[str]) -> list[dict[str, Any]]:
     return query(conn, permission, table, {table: [([col.name for col in conn.db.table_infos[table]], Condition("id", ids, "IN"))]})
 
-def add(conn, permission: Permission, notetype: str, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def add(conn, permission: DB_Permission, notetype: str, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     rview, wview = permission
     nb = registry[notetype]
     cleaned = view_clean_columns(wview, nb.name, entries)
@@ -36,7 +36,7 @@ def add(conn, permission: Permission, notetype: str, entries: list[dict[str, Any
     return _query_by_ids(conn, permission, notetype, ids)
 
 
-def update(conn, permission: Permission, notetype: str, filter: Filter, values: dict[str, Any]) -> list[dict[str, Any]]:
+def update(conn, permission: DB_Permission, notetype: str, filter: Filter, values: dict[str, Any]) -> list[dict[str, Any]]:
     rview, wview = permission
     nb = registry[notetype]
     update_pairs = view_clean_update(wview, nb.name, filter, values)
@@ -52,7 +52,7 @@ def update(conn, permission: Permission, notetype: str, filter: Filter, values: 
     return _query_by_ids(conn, permission, notetype, all_ids)
 
 
-def delete(conn, permission: Permission, notetype: str, filter: Filter) -> list[dict[str, Any]]:
+def delete(conn, permission: DB_Permission, notetype: str, filter: Filter) -> list[dict[str, Any]]:
     rview, wview = permission
     nb = registry[notetype]
     combined_filter = view_clean_filter(wview, nb.name, filter)

@@ -142,12 +142,12 @@ def no_view(db: DB) -> View:
     return no_view
 
 # 读权限, 写权限
-Permission = tuple[View, View]
+DB_Permission = tuple[View, View]
 
-def root_permission(db: DB) -> Permission:
+def root_permission(db: DB) -> DB_Permission:
     return (full_view(db), full_view(db))
 
-def no_permission(db: DB) -> Permission:
+def no_permission(db: DB) -> DB_Permission:
     return (no_view(db), no_view(db))
 
 
