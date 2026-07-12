@@ -18,23 +18,24 @@ registry: dict[str, Notebook] = {
 # ---- 系统表定义 ----
 _SYSTEM_TABLES: dict[str, list[Column]] = {
     "_tokens": [
-        Column("id", "TEXT", primary_key=True, nullable=False),
+        Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
         Column("token", "TEXT", nullable=False),
         Column("name", "TEXT", nullable=False),
         Column("permission", "TEXT", nullable=False),
         Column("is_active", "INTEGER", nullable=False),
         Column("expires_at", "TEXT", nullable=True),
-        Column("created_at", "TEXT", nullable=False),
-        Column("updated_at", "TEXT", nullable=False),
+        Column("created_at", "TEXT", nullable=False, auto=True),
+        Column("updated_at", "TEXT", nullable=False, auto=True),
     ],
     "_views": [
-        Column("name", "TEXT", primary_key=True, nullable=False),
+        Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
+        Column("name", "TEXT", nullable=False, index=True),
         Column("data", "TEXT", nullable=False),
-        Column("created_at", "TEXT", nullable=False),
-        Column("updated_at", "TEXT", nullable=False),
+        Column("created_at", "TEXT", nullable=False, auto=True),
+        Column("updated_at", "TEXT", nullable=False, auto=True),
     ],
     "_permissions": [
-        Column("id", "TEXT", primary_key=True, nullable=False),
+        Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
         Column("name", "TEXT", nullable=False),
         Column("description", "TEXT", nullable=True),
         Column("read_view", "TEXT", nullable=False),
@@ -47,8 +48,8 @@ _SYSTEM_TABLES: dict[str, list[Column]] = {
         Column("can_manage_db", "INTEGER", nullable=False),
         Column("can_manage_views", "INTEGER", nullable=False),
         Column("can_manage_tokens", "INTEGER", nullable=False),
-        Column("created_at", "TEXT", nullable=False),
-        Column("updated_at", "TEXT", nullable=False),
+        Column("created_at", "TEXT", nullable=False, auto=True),
+        Column("updated_at", "TEXT", nullable=False, auto=True),
     ],
 }
 

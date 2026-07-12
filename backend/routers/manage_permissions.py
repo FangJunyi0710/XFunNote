@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.deps import require_perm
 from backend.permissions import ApiPermission
-from xfun.core import permission
+from xfun import db as _db
+from xfun.core import ops as _ops
+from xfun.core.view import root_permission, full_view
+from xfun.core.filter import Condition
+
+_ROOT_PERM = root_permission(_db)
 
 router = APIRouter(tags=["management-permissions"])
 
@@ -47,7 +54,8 @@ class PermissionUpdateRequest(BaseModel):
 def list_permissions(
     api_perm: ApiPermission = Depends(require_perm("can_manage_tokens", "当前 API Key 无权管理权限")),
 ):
-    return permission.list_permissions()
+    with _db.read_transaction() as conn:
+        return _ops.query(conn, _ROOT_PERM, "_permissions", full_view(_db), order_by="id ASC")
 
 
 @router.get("/permissions/{permission_id}")
@@ -55,13 +63,15 @@ def get_permission_route(
     permission_id: str,
     api_perm: ApiPermission = Depends(require_perm("can_manage_tokens", "当前 API Key 无权管理权限")),
 ):
-    perm = permission.get_permission(permission_id)
-    if perm is None:
+    with _db.read_transaction() as conn:
+        results = _ops.query(conn, _ROOT_PERM, "_permissions", full_view(_db),
+                             Condition("id", permission_id, "="), limit=1)
+    if not results:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"权限 {permission_id!r} 不存在",
         )
-    return perm
+    return results[0]
 
 
 @router.post("/permissions", status_code=status.HTTP_201_CREATED)
@@ -70,34 +80,31 @@ def create_permission_route(
     api_perm: ApiPermission = Depends(require_perm("can_manage_tokens", "当前 API Key 无权管理权限")),
 ):
     # 检查 id 是否已存在
-    existing = permission.get_permission(body.id)
-    if existing is not None:
+    with _db.read_transaction() as conn:
+        existing = _ops.query(conn, _ROOT_PERM, "_permissions", full_view(_db),
+                              Condition("id", body.id, "="), limit=1)
+    if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"权限标识 {body.id!r} 已存在",
         )
-    try:
-        result = permission.create_permission(
-            permission_id=body.id,
-            name=body.name,
-            description=body.description,
-            read_view=body.read_view,
-            write_view=body.write_view,
-            can_query=body.can_query,
-            can_add=body.can_add,
-            can_update=body.can_update,
-            can_delete=body.can_delete,
-            can_ai_chat=body.can_ai_chat,
-            can_manage_db=body.can_manage_db,
-            can_manage_views=body.can_manage_views,
-            can_manage_tokens=body.can_manage_tokens,
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
-    return result
+    with _db.transaction() as conn:
+        result = _ops.add(conn, _ROOT_PERM, "_permissions", [{
+            "id": body.id,
+            "name": body.name,
+            "description": body.description,
+            "read_view": json.dumps(body.read_view, ensure_ascii=False),
+            "write_view": json.dumps(body.write_view, ensure_ascii=False),
+            "can_query": 1 if body.can_query else 0,
+            "can_add": 1 if body.can_add else 0,
+            "can_update": 1 if body.can_update else 0,
+            "can_delete": 1 if body.can_delete else 0,
+            "can_ai_chat": 1 if body.can_ai_chat else 0,
+            "can_manage_db": 1 if body.can_manage_db else 0,
+            "can_manage_views": 1 if body.can_manage_views else 0,
+            "can_manage_tokens": 1 if body.can_manage_tokens else 0,
+        }])
+    return result[0]
 
 
 @router.put("/permissions/{permission_id}")
@@ -106,27 +113,35 @@ def update_permission_route(
     body: PermissionUpdateRequest,
     api_perm: ApiPermission = Depends(require_perm("can_manage_tokens", "当前 API Key 无权管理权限")),
 ):
-    result = permission.update_permission(
-        permission_id=permission_id,
-        name=body.name,
-        description=body.description,
-        read_view=body.read_view,
-        write_view=body.write_view,
-        can_query=body.can_query,
-        can_add=body.can_add,
-        can_update=body.can_update,
-        can_delete=body.can_delete,
-        can_ai_chat=body.can_ai_chat,
-        can_manage_db=body.can_manage_db,
-        can_manage_views=body.can_manage_views,
-        can_manage_tokens=body.can_manage_tokens,
-    )
-    if result is None:
+    updates: dict = {}
+
+    if body.name is not None:
+        updates["name"] = body.name
+    if body.description is not None:
+        updates["description"] = body.description
+    if body.read_view is not None:
+        updates["read_view"] = json.dumps(body.read_view, ensure_ascii=False)
+    if body.write_view is not None:
+        updates["write_view"] = json.dumps(body.write_view, ensure_ascii=False)
+    for field in ("can_query", "can_add", "can_update", "can_delete",
+                  "can_ai_chat", "can_manage_db", "can_manage_views", "can_manage_tokens"):
+        val = getattr(body, field, None)
+        if val is not None:
+            updates[field] = 1 if val else 0
+
+    with _db.transaction() as conn:
+        if updates:
+            result = _ops.update(conn, _ROOT_PERM, "_permissions",
+                                 Condition("id", permission_id, "="), updates)
+        else:
+            result = _ops.query(conn, _ROOT_PERM, "_permissions", full_view(_db),
+                                Condition("id", permission_id, "="), limit=1)
+    if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"权限 {permission_id!r} 不存在",
         )
-    return result
+    return result[0]
 
 
 @router.delete("/permissions/{permission_id}")
@@ -134,8 +149,10 @@ def delete_permission_route(
     permission_id: str,
     api_perm: ApiPermission = Depends(require_perm("can_manage_tokens", "当前 API Key 无权管理权限")),
 ):
-    ok = permission.delete_permission(permission_id)
-    if not ok:
+    with _db.transaction() as conn:
+        result = _ops.delete(conn, _ROOT_PERM, "_permissions",
+                             Condition("id", permission_id, "="))
+    if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"权限 {permission_id!r} 不存在",

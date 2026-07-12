@@ -1,11 +1,10 @@
 from typing import Any
 
 from .db import Column, DB
-from .filter import TRUE_CONDITION, FALSE_CONDITION, Filter, filter_to_json, filter_to_sql, parse_filter_json
+from .filter import TRUE_CONDITION, FALSE_CONDITION, Condition, Filter, filter_to_json, filter_to_sql, parse_filter_json
 import json
 
 from .. import db as _db
-from ..utils.time_utils import now_str as _now_str
 
 TableSpec = tuple[list[str], Filter]
 # dict[表名, list[(列名列表, 行筛选条件)]]
@@ -149,57 +148,3 @@ def root_permission(db: DB) -> DB_Permission:
 
 def no_permission(db: DB) -> DB_Permission:
     return (no_view(db), no_view(db))
-
-
-# ---- 持久化 CRUD（基于数据库 _views 表） ----
-
-def list_views() -> list[dict]:
-    """列出所有保存的视图。"""
-    with _db.read_transaction() as conn:
-        rows = conn.execute(
-            "SELECT name, created_at, updated_at FROM _views ORDER BY name ASC"
-        ).fetchall()
-    return [dict(r) for r in rows]
-
-
-def get_view(name: str) -> dict | None:
-    """读取指定视图。"""
-    with _db.read_transaction() as conn:
-        row = conn.execute(
-            "SELECT data FROM _views WHERE name = ?", (name,)
-        ).fetchone()
-    if row is None:
-        return None
-    return json.loads(row["data"])
-
-
-def save_view(name: str, data: dict) -> None:
-    """保存/覆盖视图。"""
-    now = _now_str()
-    json_data = json.dumps(data, ensure_ascii=False)
-    with _db.transaction() as conn:
-        row = conn.execute(
-            "SELECT 1 FROM _views WHERE name = ?", (name,)
-        ).fetchone()
-        if row is not None:
-            conn.execute(
-                "UPDATE _views SET data = ?, updated_at = ? WHERE name = ?",
-                (json_data, now, name),
-            )
-        else:
-            conn.execute(
-                _db.insert_sql("_views"),
-                {
-                    "name": name,
-                    "data": json_data,
-                    "created_at": now,
-                    "updated_at": now,
-                },
-            )
-
-
-def delete_view(name: str) -> bool:
-    """删除视图。"""
-    with _db.transaction() as conn:
-        cursor = conn.execute("DELETE FROM _views WHERE name = ?", (name,))
-    return cursor.rowcount > 0

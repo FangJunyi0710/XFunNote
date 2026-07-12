@@ -356,13 +356,20 @@ class DB:
                     )
 
     def _autofill_entry(self, table_name: str, entry: dict) -> None:
-        """基础自动填充：id、时间戳、tags、可空列补 None。"""
-        entry["id"] = f"{table_name}-{str(uuid7())}"
-        entry["created_at"] = now_str()
-        entry["updated_at"] = now_str()
-        entry.setdefault("tags", "[]")
-        entry.setdefault("ai_tags", "[]")
-        entry.setdefault("is_ai_gen", 0)
+        """基础自动填充：按表实际列填充 id、时间戳、tags、可空列补 None。"""
+        cols = {c.name for c in self.table_infos[table_name]}
+
+        if "id" in cols and "id" not in entry:
+            entry["id"] = f"{table_name}-{str(uuid7())}"
+        if "created_at" in cols:
+            entry.setdefault("created_at", now_str())
+        if "updated_at" in cols:
+            entry["updated_at"] = now_str()
+
+        for field, default in (("tags", "[]"), ("ai_tags", "[]"), ("is_ai_gen", 0)):
+            if field in cols and field not in entry:
+                entry[field] = default
+
         for col in self.table_infos[table_name]:
             if col.nullable and col.name not in entry:
                 entry[col.name] = None

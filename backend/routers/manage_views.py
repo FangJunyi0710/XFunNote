@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from backend.deps import require_perm
 from backend.permissions import ApiPermission
-from xfun.core import view
+from xfun import db as _db
+from xfun.core import ops as _ops
+from xfun.core.view import root_permission, full_view
+from xfun.core.filter import Condition
+
+_ROOT_PERM = root_permission(_db)
 
 router = APIRouter(tags=["management-views"])
 
@@ -15,7 +22,8 @@ router = APIRouter(tags=["management-views"])
 def list_views(
     api_perm: ApiPermission = Depends(require_perm("can_manage_views", "当前 API Key 无权管理视图")),
 ):
-    return view.list_views()
+    with _db.read_transaction() as conn:
+        return _ops.query(conn, _ROOT_PERM, "_views", full_view(_db), order_by="name ASC")
 
 
 @router.get("/views/{name}")
@@ -23,13 +31,15 @@ def get_view_route(
     name: str,
     api_perm: ApiPermission = Depends(require_perm("can_manage_views", "当前 API Key 无权管理视图")),
 ):
-    v = view.get_view(name)
-    if v is None:
+    with _db.read_transaction() as conn:
+        results = _ops.query(conn, _ROOT_PERM, "_views", full_view(_db),
+                             Condition("name", name, "="), limit=1)
+    if not results:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"视图 {name!r} 不存在",
         )
-    return v
+    return json.loads(results[0]["data"])
 
 
 @router.put("/views/{name}")
@@ -38,7 +48,16 @@ def save_view_route(
     body: dict,
     api_perm: ApiPermission = Depends(require_perm("can_manage_views", "当前 API Key 无权管理视图")),
 ):
-    view.save_view(name, body)
+    json_data = json.dumps(body, ensure_ascii=False)
+    with _db.transaction() as conn:
+        existing = _ops.query(conn, _ROOT_PERM, "_views", full_view(_db),
+                              Condition("name", name, "="), limit=1)
+        if existing:
+            _ops.update(conn, _ROOT_PERM, "_views",
+                        Condition("name", name, "="), {"data": json_data})
+        else:
+            _ops.add(conn, _ROOT_PERM, "_views",
+                     [{"name": name, "data": json_data}])
     return {"message": f"视图 {name!r} 已保存"}
 
 
@@ -47,8 +66,10 @@ def delete_view_route(
     name: str,
     api_perm: ApiPermission = Depends(require_perm("can_manage_views", "当前 API Key 无权管理视图")),
 ):
-    ok = view.delete_view(name)
-    if not ok:
+    with _db.transaction() as conn:
+        result = _ops.delete(conn, _ROOT_PERM, "_views",
+                             Condition("name", name, "="))
+    if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"视图 {name!r} 不存在",

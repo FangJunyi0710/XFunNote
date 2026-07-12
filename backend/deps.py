@@ -5,10 +5,15 @@ from __future__ import annotations
 from fastapi import Header, HTTPException, status
 
 from xfun.config import ADMIN_API_KEY
-from xfun.core.token import get_token_by_value
 from xfun.utils.time_utils import now_str
+from xfun import db as _db
+from xfun.core import ops as _ops
+from xfun.core.view import root_permission, full_view
+from xfun.core.filter import Condition
 
 from backend.permissions import ApiPermission, get_api_permission_from_db
+
+_ROOT_PERM = root_permission(_db)
 
 # ── 工厂依赖（可复用权限校验） ──────────────────────────────────────────────
 
@@ -60,7 +65,10 @@ async def get_api_permission(
         return _lookup_permission("root")
 
     # 查询 _tokens 表
-    row = get_token_by_value(x_api_key)
+    with _db.read_transaction() as conn:
+        results = _ops.query(conn, _ROOT_PERM, "_tokens", full_view(_db),
+                             Condition("token", x_api_key, "="), limit=1)
+    row = results[0] if results else None
 
     if row is None:
         raise HTTPException(
@@ -92,4 +100,3 @@ def _lookup_permission(permission_id: str) -> ApiPermission:
             detail=f"未知的权限标识: {permission_id!r}",
         )
     return perm
-
