@@ -7,16 +7,20 @@ XFunNote CLI — 命令行接口
 
 命令列表::
 
-    xfun list                              → 列出笔记本名称
-    xfun schema    NOTE_TYPE                → 查看字段结构
-    xfun query     NOTE_TYPE VIEW_JSON      → 通用查询
-    xfun add       NOTE_TYPE ENTRIES_JSON   → 通用添加
-    xfun update    NOTE_TYPE FILTER_JSON VALUES_JSON  → 通用更新
-    xfun delete    NOTE_TYPE FILTER_JSON    → 通用删除
-    xfun ai        --messages JSON          → AI 对话（同步，输出新消息 JSON）
+    xfun list                    [--all]    → 列出笔记本名称（--all 含系统表）
+    xfun schema    TABLE                    → 查看字段结构（系统表亦可）
+    xfun query     TABLE VIEW_JSON          → 通用查询（系统表亦可）
+    xfun add       TABLE ENTRIES_JSON       → 通用添加（系统表亦可）
+    xfun update    TABLE FILTER_JSON V_JSON → 通用更新（系统表亦可）
+    xfun delete    TABLE FILTER_JSON        → 通用删除（系统表亦可）
+    xfun ai sync   --messages JSON [--tool-names] [--permission-name]
+    xfun ai chat                          [--tool-names] [--permission-name]
     xfun init                               → 初始化数据库
     xfun backup                             → 在线热备份数据库
     xfun reset               [--no-backup]  → 重置数据库
+
+系统表 (可通过 list --all 查看): _tokens, _permissions, _views
+Token/Permission/View 管理直接复用 query / add / update / delete 命令
 """
 
 from __future__ import annotations
@@ -40,15 +44,14 @@ from xfun.ai.agent import (
     parse_messages_json,
 )
 from xfun.ai.prompts import SYSTEM_PROMPT
-from langchain_core.messages import AIMessageChunk, BaseMessage, HumanMessage, SystemMessage, ToolMessage
-from xfun.ai.tools import make_tools
-from xfun.core.view import root_permission as _root_permission
-from xfun.core.filter import parse_filter_json
+from langchain_core.messages import AIMessageChunk, BaseMessage, HumanMessage, ToolMessage
+from xfun.ai.tools import DEFAULT_TOOL_NAMES, make_tools
+from xfun.core.filter import Condition, parse_filter_json
 from xfun.core.ops import add as ops_add
 from xfun.core.ops import delete as ops_delete
 from xfun.core.ops import query as ops_query
 from xfun.core.ops import update as ops_update
-from xfun.core.view import parse_view_json, root_permission
+from xfun.core.view import full_view, parse_view_json, root_permission
 
 app = typer.Typer(no_args_is_help=True)
 ai_app = typer.Typer(no_args_is_help=True)
@@ -59,16 +62,20 @@ ai_app = typer.Typer(no_args_is_help=True)
 # ════════════════════════════════════════════════════════════
 
 
+_SYSTEM_TABLES = {"_tokens", "_permissions", "_views"}
+
+
 def _error(msg: str) -> str:
     return json.dumps({"error": msg}, ensure_ascii=False)
 
 
-def _validate_notetype(notetype: str) -> None:
-    """校验笔记本类型是否存在，不存在则输出 JSON 错误并退出。"""
-    if notetype not in registry:
-        names = list(registry.keys())
-        typer.echo(_error(f"未知笔记本类型: {notetype}, 可用: {names}"))
-        raise typer.Exit(code=1)
+def _validate_table(table: str) -> None:
+    """校验表名是否存在。"""
+    if table in registry or table in _SYSTEM_TABLES:
+        return
+    names = list(registry.keys()) + sorted(_SYSTEM_TABLES)
+    typer.echo(_error(f"未知表: {table}, 可用: {names}"))
+    raise typer.Exit(code=1)
 
 
 @contextmanager
@@ -87,16 +94,15 @@ def _cli_handle():
 # ════════════════════════════════════════════════════════════
 
 
-_AI_TOOLS = make_tools(
-    ["query_entries", "add_entries", "update_entries", "delete_entries", "get_ai_permission"],
-    _root_permission(db),
-)
-
-
 @app.command("list")
-def list_():
-    """列出所有笔记本名称（list[str]）。"""
-    typer.echo(json.dumps(list(registry.keys()), ensure_ascii=False))
+def list_(
+    show_all: bool = Option(False, "--all", "-a", help="包含系统表"),
+):
+    """列出所有笔记本名称（list[str]），--all 包含系统表。"""
+    names = list(registry.keys())
+    if show_all:
+        names += sorted(_SYSTEM_TABLES)
+    typer.echo(json.dumps(names, ensure_ascii=False))
 
 
 # ════════════════════════════════════════════════════════════
@@ -105,10 +111,13 @@ def list_():
 
 
 @app.command()
-def schema(notetype: str = Argument(help="笔记本类型")):
-    """查看笔记本的字段结构。"""
-    _validate_notetype(notetype)
-    cols = [asdict(c) for c in registry[notetype].columns]
+def schema(table: str = Argument(help="表名")):
+    """查看表字段结构。"""
+    _validate_table(table)
+    if table in registry:
+        cols = [asdict(c) for c in registry[table].columns]
+    else:
+        cols = [asdict(c) for c in db.table_infos[table]]
     typer.echo(json.dumps(cols, ensure_ascii=False, indent=2))
 
 
@@ -119,20 +128,20 @@ def schema(notetype: str = Argument(help="笔记本类型")):
 
 @app.command()
 def query(
-    notetype: str = Argument(help="笔记本类型"),
+    table: str = Argument(help="表名"),
     view_json: str = Argument(help="查询视图 JSON"),
     order_by: str = Option("", "--order-by", help="排序字段（如 created_at DESC）"),
     limit: int = Option(-1, "--limit", "-l", help="最大返回条数"),
     offset: int = Option(0, "--offset", "-o", help="偏移量"),
 ):
     """通用查询。返回匹配的条目列表。"""
-    _validate_notetype(notetype)
+    _validate_table(table)
     with _cli_handle():
         view = parse_view_json(json.loads(view_json))
         perm = root_permission(db)
         with db.read_transaction() as conn:
             results = ops_query(
-                conn, perm, notetype, view,
+                conn, perm, table, view,
                 order_by=order_by, limit=limit, offset=offset,
             )
         typer.echo(json.dumps(results, ensure_ascii=False, default=str))
@@ -145,16 +154,16 @@ def query(
 
 @app.command()
 def add(
-    notetype: str = Argument(help="笔记本类型"),
+    table: str = Argument(help="表名"),
     entries_json: str = Argument(help="条目列表 JSON"),
 ):
     """通用添加。返回新增条目的完整信息。"""
-    _validate_notetype(notetype)
+    _validate_table(table)
     with _cli_handle():
         entries = json.loads(entries_json)
         perm = root_permission(db)
         with db.transaction() as conn:
-            results = ops_add(conn, perm, notetype, entries)
+            results = ops_add(conn, perm, table, entries)
         typer.echo(json.dumps(results, ensure_ascii=False, default=str))
 
 
@@ -165,18 +174,18 @@ def add(
 
 @app.command()
 def update(
-    notetype: str = Argument(help="笔记本类型"),
+    table: str = Argument(help="表名"),
     filter_json: str = Argument(help="筛选条件 JSON"),
     values_json: str = Argument(help="更新值 JSON"),
 ):
     """通用更新。返回更新后条目的完整信息。"""
-    _validate_notetype(notetype)
+    _validate_table(table)
     with _cli_handle():
         flt = parse_filter_json(json.loads(filter_json))
         values = json.loads(values_json)
         perm = root_permission(db)
         with db.transaction() as conn:
-            results = ops_update(conn, perm, notetype, flt, values)
+            results = ops_update(conn, perm, table, flt, values)
         typer.echo(json.dumps(results, ensure_ascii=False, default=str))
 
 
@@ -187,17 +196,36 @@ def update(
 
 @app.command()
 def delete(
-    notetype: str = Argument(help="笔记本类型"),
+    table: str = Argument(help="表名"),
     filter_json: str = Argument(help="筛选条件 JSON"),
 ):
     """通用删除。返回被删除条目的完整信息。"""
-    _validate_notetype(notetype)
+    _validate_table(table)
     with _cli_handle():
         flt = parse_filter_json(json.loads(filter_json))
         perm = root_permission(db)
         with db.transaction() as conn:
-            results = ops_delete(conn, perm, notetype, flt)
+            results = ops_delete(conn, perm, table, flt)
         typer.echo(json.dumps(results, ensure_ascii=False, default=str))
+
+
+# ════════════════════════════════════════════════════════════
+#  内部辅助：_lookup_permission — 查询权限定义
+# ════════════════════════════════════════════════════════════
+
+
+def _lookup_permission(permission_name: str):
+    """从 _permissions 表查询权限定义，返回 DB_Permission。"""
+    with db.read_transaction() as conn:
+        results = ops_query(conn, root_permission(db), "_permissions", full_view(db),
+                            Condition("id", permission_name, "="), limit=1)
+    if not results:
+        typer.echo(_error(f"未知权限: {permission_name!r}"))
+        raise typer.Exit(code=1)
+    row = results[0]
+    read_view = parse_view_json(json.loads(row["read_view"]))
+    write_view = parse_view_json(json.loads(row["write_view"]))
+    return (read_view, write_view)
 
 
 # ════════════════════════════════════════════════════════════
@@ -212,6 +240,15 @@ class AIConfig:
     max_iterations: int = 10
     system_prompt: str | None = None
     llm_kwargs_json: str | None = None
+    tool_names_json: str | None = None
+    permission_name: str = "ai"
+
+    def make_tools(self):
+        """根据 tool_names_json 和 permission_name 动态构建工具列表。"""
+        return make_tools(
+            json.loads(self.tool_names_json) if self.tool_names_json else DEFAULT_TOOL_NAMES,
+            _lookup_permission(self.permission_name),
+        )
 
 
 def _load_system_prompt(custom: str | None) -> str:
@@ -231,13 +268,18 @@ def _build_llm_kwargs(cfg: AIConfig) -> dict:
 
 def _echo_token(chunk: AIMessageChunk) -> None:
     """
-    流式输出单个 AIMessageChunk，将 thinking 内容以灰色输出到 stderr。
+    流式输出单个 AIMessageChunk，将 thinking 及其他非 text 字段以灰色输出到 stderr。
     """
     parts = extract_content_parts(chunk)
-    if "thinking" in parts.keys():
+    if "thinking" in parts:
         typer.echo(f"\033[2m{parts['thinking']}\033[0m", err=True, nl=False)
-    if "text" in parts.keys():
+    if "text" in parts:
         typer.echo(parts["text"], nl=False, err=True)
+    # 其余字段统一在末尾用灰色输出
+    other = {k: v for k, v in parts.items() if k not in ("thinking", "text")}
+    if other:
+        typer.echo(f"\033[2m{json.dumps(other, ensure_ascii=False)}\033[0m", err=True, nl=False)
+    
 
 def _read_multiline_input() -> str:
     """读取用户输入，支持 \\ 续行。如果某行不以 \\ 结尾，表示输入结束。"""
@@ -257,6 +299,8 @@ def ai(
     max_iterations: int = Option(10, "--max-iterations", "-n", help="最大迭代轮次"),
     system_prompt: str | None = Option(None, "--system-prompt", "--sp", help="自定义系统提示词，留空使用默认"),
     llm_kwargs_json: str | None = Option(json.dumps(_DEFAULT_LLM_KWARGS, ensure_ascii=False), "--llm-kwargs", help="LLM 参数 JSON 字典。"),
+    tool_names_json: str | None = Option(None, "--tool-names", "-t", help="工具名称列表 JSON 数组，如 '[\"query_entries\",\"add_entries\"]'，默认全部"),
+    permission_name: str = Option("ai", "--permission-name", "-p", help="权限名称，对应 _permissions 表记录"),
 ):
     """AI 对话系列命令。所有子命令最终 stdout 输出完整消息列表 JSON。"""
     ctx.obj = AIConfig(
@@ -264,6 +308,8 @@ def ai(
         max_iterations=max_iterations,
         system_prompt=system_prompt,
         llm_kwargs_json=llm_kwargs_json,
+        tool_names_json=tool_names_json,
+        permission_name=permission_name,
     )
 
 
@@ -278,8 +324,9 @@ def ai_sync(ctx: typer.Context):
         system_prompt_text = _load_system_prompt(cfg.system_prompt)
         messages = parse_messages_json(json.loads(cfg.messages_json))
         ensure_system_message(messages, system_prompt_text)
+        tools = cfg.make_tools()
         gen = agent_invoke(
-            messages, tools=_AI_TOOLS,
+            messages, tools=tools,
             stream_level=StreamLevel.SYNC,
             max_iterations=cfg.max_iterations,
             **_build_llm_kwargs(cfg),
@@ -300,6 +347,7 @@ def ai_chat(ctx: typer.Context):
         if cfg.messages_json:
             messages = parse_messages_json(json.loads(cfg.messages_json))
         ensure_system_message(messages, system_prompt_text)
+        tools = cfg.make_tools()
 
         try:
             while True:
@@ -308,7 +356,7 @@ def ai_chat(ctx: typer.Context):
                 except (EOFError, KeyboardInterrupt, Abort):
                     break
                 gen = agent_invoke(
-                    messages, tools=_AI_TOOLS,
+                    messages, tools=tools,
                     stream_level=StreamLevel.TOKEN,
                     max_iterations=cfg.max_iterations,
                     **_build_llm_kwargs(cfg),
