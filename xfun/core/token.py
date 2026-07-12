@@ -96,36 +96,30 @@ def update_token(
     expires_at: str | None = None,
 ) -> dict | None:
     """更新 Token 属性。返回更新后的 Token 信息，不存在返回 None。"""
+    updates: dict = {}
     now = now_str()
-    updates: list[str] = []
-    params: list = []
 
     if name is not None:
-        updates.append("name = ?")
-        params.append(name)
+        updates["name"] = name
     if permission is not None:
         if not _permission_exists(permission):
             raise ValueError(f"不存在的权限标识: {permission!r}")
-        updates.append("permission = ?")
-        params.append(permission)
+        updates["permission"] = permission
     if is_active is not None:
-        updates.append("is_active = ?")
-        params.append(1 if is_active else 0)
+        updates["is_active"] = 1 if is_active else 0
     if expires_at is not None:
-        updates.append("expires_at = ?")
-        params.append(expires_at)
+        updates["expires_at"] = expires_at
 
     if not updates:
         return get_token(token_id)
 
-    updates.append("updated_at = ?")
-    params.append(now)
-    params.append(token_id)
+    updates["updated_at"] = now
+    updates["id"] = token_id
 
     with db.transaction() as conn:
         conn.execute(
-            f"UPDATE _tokens SET {', '.join(updates)} WHERE id = ?",
-            params,
+            db.update_sql("_tokens", updates) + " WHERE id = :id",
+            updates,
         )
 
     return get_token(token_id)

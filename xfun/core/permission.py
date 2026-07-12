@@ -80,40 +80,33 @@ def update_permission(permission_id: str,
                       can_manage_views: bool | None = None,
                       can_manage_tokens: bool | None = None) -> dict | None:
     """更新权限定义。"""
+    updates: dict = {}
     now = now_str()
-    updates: list[str] = []
-    params: list = []
 
     if name is not None:
-        updates.append("name = ?")
-        params.append(name)
+        updates["name"] = name
     if description is not None:
-        updates.append("description = ?")
-        params.append(description)
+        updates["description"] = description
     if read_view is not None:
-        updates.append("read_view = ?")
-        params.append(json.dumps(read_view, ensure_ascii=False))
+        updates["read_view"] = json.dumps(read_view, ensure_ascii=False)
     if write_view is not None:
-        updates.append("write_view = ?")
-        params.append(json.dumps(write_view, ensure_ascii=False))
+        updates["write_view"] = json.dumps(write_view, ensure_ascii=False)
     for field in ("can_query", "can_add", "can_update", "can_delete",
                   "can_ai_chat", "can_manage_db", "can_manage_views", "can_manage_tokens"):
         val = locals()[field]
         if val is not None:
-            updates.append(f"{field} = ?")
-            params.append(1 if val else 0)
+            updates[field] = 1 if val else 0
 
     if not updates:
         return get_permission(permission_id)
 
-    updates.append("updated_at = ?")
-    params.append(now)
-    params.append(permission_id)
+    updates["updated_at"] = now
+    updates["id"] = permission_id
 
     with db.transaction() as conn:
         conn.execute(
-            f"UPDATE _permissions SET {', '.join(updates)} WHERE id = ?",
-            params,
+            db.update_sql("_permissions", updates) + " WHERE id = :id",
+            updates,
         )
     return get_permission(permission_id)
 

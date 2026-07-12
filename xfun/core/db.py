@@ -264,6 +264,31 @@ class DB:
         vals = ", ".join(f":{n}" for n in col_names)
         return f"INSERT INTO {table_name} ({cols}) VALUES ({vals})"
 
+    # ---- UPDATE 语句 ----
+
+    def update_sql(self, table_name: str, entry: dict) -> str:
+        """根据表名和字段 dict 生成 UPDATE 语句，占位符 ``:xxx`` 直接使用 entry 作为参数。
+
+        Parameters
+        ----------
+        table_name : str
+            表名，须在 table_infos 中。
+        entry : dict
+            {列名: 值} 映射，值已经过预处理（如 bool→int, dict→JSON）。
+            WHERE 字段也放入 entry 中，由调用方自行拼接 ``WHERE`` 子句。
+
+        Returns
+        -------
+        str
+            UPDATE 语句，例如
+            ``"UPDATE _permissions SET name = :name, updated_at = :updated_at"``。
+        """
+        Column.check(table_name)
+        for col in entry:
+            Column.check(col)
+        set_clauses = [f"{col} = :{col}" for col in entry]
+        return f"UPDATE {table_name} SET {', '.join(set_clauses)}"
+
     # ---- SELECT 语句 ----
 
     def select_sql(self, table_name: str, cols: list[str]) -> str:
