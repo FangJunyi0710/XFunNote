@@ -31,14 +31,13 @@ class PlanNotebook(Notebook):
         Column("status",  "TEXT", nullable=True),
     ]
 
-    # ---- CRUD ----
+    # ---- 钩子 ----
 
-    def add(self, conn, entries: list[dict[str, Any]]) -> list[str]:
+    def _pre_add(self, conn, entries: list[dict[str, Any]]) -> None:
         """
         批量添加条目，为同一月份内的条目自动分配递增序号 seq。
         seq 从 MAX(seq) + 1 开始，同批次内连续递增。
         """
-        # 先计算 seq，再交给 super().add() 处理校验 / 自动填充 / 批量插入
         month_counter: dict[str, int] = defaultdict(int)
         for entry in entries:
             month = entry["month"]
@@ -50,12 +49,7 @@ class PlanNotebook(Notebook):
             month_counter[month] += 1
             entry["seq"] = month_counter[month]
 
-        return super().add(conn, entries)
-
-    # ---- 校验 & 自动填充 ----
-
     def _autofill(self, entry: dict[str, Any]) -> None:
-        """自动填充 done / created_at（seq 在 add 中分配）。"""
-        super()._autofill(entry)
+        """自动填充 plan 特有字段：no、done。"""
         entry["no"] = f"{entry['month']}{_seq_to_letter(entry['seq'])}"
         entry.setdefault("done", 0)

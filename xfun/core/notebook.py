@@ -1,13 +1,11 @@
 """
-Notebook 基类 — 子类只需定义 name 与 _extra_columns，基类自动提供完整 CRUD + 筛选查询。
+Notebook 基类 — 子类只需定义 name 与 _extra_columns，基类自动提供 schema 定义。
+CRUD 由 DB 类统一管理，子类通过 _pre_add / _validate / _autofill 钩子定制行为。
 """
 
 from typing import Any
-from future_uuid import uuid7
 
 from .db import Column
-from .filter import Filter, filter_to_sql
-from ..utils.time_utils import now_str
 
 
 # ---------------------------------------------------------------------------
@@ -28,14 +26,18 @@ BASE_COLUMNS = [
 
 class Notebook:
     """
-    Notebook 基类 —— 定义本子的 schema 与 CRUD 契约。
+    Notebook 基类 —— 定义本子的 schema 与行为契约。
 
     子类只需：
     1. 设置 name 属性（本子名称）
     2. 定义 _extra_columns 类属性（本子特有列，不含基类通用列）
-    可选：重写 _validate / _autofill 以定制校验与自动填充逻辑。
+
+    可选：重写钩子方法以定制行为：
+    - ``_pre_add(conn, entries)`` — 添加前批量修改（如分配序号）
+    - ``_validate(entry)`` — 本子特有字段校验
+    - ``_autofill(entry)`` — 本子特有字段自动填充
+
     columns 属性由 BASE_COLUMNS + _extra_columns 自动合并。
-    CRUD 方法（add / delete / update / list_ids）由基类自动提供。
     """
 
     # ---- 子类必须设定 ----
@@ -50,149 +52,19 @@ class Notebook:
         """合并基类通用列 + 子类特有列"""
         return BASE_COLUMNS + self._extra_columns
 
-    # ---- 通用查询方法 ----
+    # ---- 钩子方法（子类可重写） ----
 
-    def get_by_ids(self, conn, entry_ids: list[str]) -> list[dict[str, Any]]:
-        """根据 ID 列表批量查询，返回结果保持传入顺序，不存在的 ID 被跳过。"""
-        if not entry_ids:
-            return []
-        placeholders = ", ".join(f":id_{i}" for i in range(len(entry_ids)))
-        params = {f"id_{i}": eid for i, eid in enumerate(entry_ids)}
-        rows = conn.execute(
-            f"SELECT * FROM {self.name} WHERE id IN ({placeholders})",
-            params,
-        ).fetchall()
-        result = {r["id"]: dict(r) for r in rows}
-        return [result[eid] for eid in entry_ids if eid in result]
-
-    # ---- 校验 & 自动填充（通用） ----
+    def _pre_add(self, conn, entries: list[dict]) -> None:
+        """预添加钩子：在 validate/autofill 前批量修改条目。"""
+        pass
 
     def _validate(self, entry: dict[str, Any]) -> None:
-        """校验用户提供的必填字段（排除自动填充字段）。"""
-        for col in self.columns:
-            if not col.nullable and not col.auto:
-                if col.name not in entry:
-                    from .errors import EntryInvalidError
-                    raise EntryInvalidError(
-                        self.name, f"缺少必填字段 '{col.name}'"
-                    )
+        """校验钩子：本子特有的校验逻辑。"""
+        pass
 
     def _autofill(self, entry: dict[str, Any]) -> None:
-        """自动填充通用字段：时间戳、可空列补 None。子类可重写以补充自有逻辑。"""
-        entry["id"] = f"{self.name}-{str(uuid7())}"
-        entry["created_at"] = now_str()
-        entry["updated_at"] = now_str()
-        entry.setdefault("tags","[]")
-        entry.setdefault("ai_tags","[]")
-        entry.setdefault("is_ai_gen", 0)
-        for col in self.columns:
-            if col.nullable and col.name not in entry:
-                entry[col.name] = None
-
-    # ---- CRUD ----
-
-    def add(self, conn, entries: list[dict[str, Any]]) -> list[str]:
-        """
-        批量添加条目。
-
-        Parameters
-        ----------
-        conn : sqlite3.Connection
-            事务连接，由上层通过 db.transaction() 提供。
-        entries : list[dict]
-            条目列表，每个 dict 为字段 → 值的映射。
-
-        Returns
-        -------
-        list[str]
-            新条目的 ID 列表。
-        """
-        for entry in entries:
-            self._validate(entry)
-            self._autofill(entry)
-        conn.executemany(conn.db.insert_sql(self.name), entries)
-        return [entry["id"] for entry in entries]
-
-    def list_ids(self, conn, filter: Filter, *,
-             order_by: str = "",
-             limit: int = -1,
-             offset: int = 0) -> list[str]:
-        """
-        按筛选条件列出条目。
-
-        Parameters
-        ----------
-        conn : sqlite3.Connection
-            事务连接，由上层通过 db.transaction() 提供。
-        filter : Filter
-            筛选条件列表。
-        order_by : str, optional
-            排序列名，默认无排序。
-        limit : int
-            最大返回条数，默认 -1（不限制）。
-        offset : int
-            偏移量，默认 0。
-
-        Returns
-        -------
-        list[str]
-            ID 列表。
-        """
-        where_sql, params = filter_to_sql(filter)
-        sql = f"SELECT id FROM {self.name}"
-        if where_sql:
-            sql += f" WHERE {where_sql}"
-        if order_by:
-            Column.check_order_by(order_by)
-            sql += f" ORDER BY {order_by}"
-        sql += f" LIMIT {limit} OFFSET {offset}"
-        rows = conn.execute(sql, params).fetchall()
-        return [row["id"] for row in rows]
-
-    def delete(self, conn, entry_ids: list[str]) -> None:
-        """
-        批量删除条目。使用 executemany 逐条执行 DELETE。
-
-        Parameters
-        ----------
-        conn : sqlite3.Connection
-            事务连接，由上层通过 db.transaction() 提供。
-        entry_ids : list[str]
-            要删除的条目 ID 列表。
-        """
-        if not entry_ids:
-            return
-        conn.executemany(
-            f"DELETE FROM {self.name} WHERE id = :id",
-            [{"id": eid} for eid in entry_ids]
-        )
-
-    def update(self, conn, entry_ids: list[str], entry: dict[str, Any]) -> None:
-        """
-        批量更新条目。
-
-        Parameters
-        ----------
-        conn : sqlite3.Connection
-            事务连接，由上层通过 db.transaction() 提供。
-        entry_ids : list[str]
-            要更新的条目 ID 列表。
-        entry : dict
-            要更新的字段映射，只包含需要修改的列。
-        """
-        if not entry_ids:
-            return
-        for k in entry:
-            Column.check(k)
-        set_clause = ", ".join(f"{k} = :{k}" for k in entry)
-        entry["updated_at"] = now_str()
-        set_clause += ", updated_at = :updated_at"
-
-        params = [{**entry, "id": eid} for eid in entry_ids]
-        conn.executemany(
-            f"UPDATE {self.name} SET {set_clause} WHERE id = :id",
-            params
-        )
+        """自动填充钩子：填充本子特有字段（基类通用字段由 DB 统一填充）。"""
+        pass
 
     # ---- 内置 ----
 

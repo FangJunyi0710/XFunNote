@@ -55,6 +55,10 @@ _SYSTEM_TABLES: dict[str, list[Column]] = {
 
 def init_db(conn):
     """初始化数据库（用户表 + 系统表 + 种子数据）。"""
+    # 注册本子钩子到 DB（CRUD 由 DB 统一管理）
+    for name, nb in registry.items():
+        db.register_hooks(name, pre_add=nb._pre_add, validate=nb._validate, autofill=nb._autofill)
+
     db.init(conn, {name: nb.columns for name, nb in registry.items()})
     db.init(conn, _SYSTEM_TABLES)
     # 为 _tokens.token 建唯一索引

@@ -25,8 +25,6 @@ class WordNotebook(Notebook):
     # ---- 校验 & 自动填充 ----
 
     def _autofill(self, entry: dict[str, Any]) -> None:
-        """自动填充 review_count / performance。
-        """
-        super()._autofill(entry)
+        """自动填充 word 特有字段：review_count、performance。"""
         entry.setdefault("review_count", 0)
         entry.setdefault("performance", 0.0)

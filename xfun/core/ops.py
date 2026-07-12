@@ -1,6 +1,5 @@
 from typing import Any
 
-from .. import registry
 from .db import Column
 from .filter import Filter, Condition
 from .view import (
@@ -12,6 +11,7 @@ from .view import (
     view_clean_update,
     view_to_sql,
 )
+
 
 def query(conn, permission: DB_Permission, table: str, query_view: View, order_by: str = "", limit: int = -1, offset: int = 0) -> list[dict[str, Any]]:
     rview, wview = permission
@@ -28,35 +28,32 @@ def query(conn, permission: DB_Permission, table: str, query_view: View, order_b
 def _query_by_ids(conn, permission: DB_Permission, table: str, ids: list[str]) -> list[dict[str, Any]]:
     return query(conn, permission, table, {table: [([col.name for col in conn.db.table_infos[table]], Condition("id", ids, "IN"))]})
 
-def add(conn, permission: DB_Permission, notetype: str, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def add(conn, permission: DB_Permission, table: str, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     rview, wview = permission
-    nb = registry[notetype]
-    cleaned = view_clean_columns(wview, nb.name, entries)
-    ids = nb.add(conn, cleaned)
-    return _query_by_ids(conn, permission, notetype, ids)
+    cleaned = view_clean_columns(wview, table, entries)
+    ids = conn.db.add_entries(conn, table, cleaned)
+    return _query_by_ids(conn, permission, table, ids)
 
 
-def update(conn, permission: DB_Permission, notetype: str, filter: Filter, values: dict[str, Any]) -> list[dict[str, Any]]:
+def update(conn, permission: DB_Permission, table: str, filter: Filter, values: dict[str, Any]) -> list[dict[str, Any]]:
     rview, wview = permission
-    nb = registry[notetype]
-    update_pairs = view_clean_update(wview, nb.name, filter, values)
+    update_pairs = view_clean_update(wview, table, filter, values)
     all_ids: list[str] = []
     for combined_filter, cleaned_values in update_pairs:
         if not cleaned_values:
             continue
-        ids = nb.list_ids(conn, combined_filter)
+        ids = conn.db.list_ids(conn, table, combined_filter)
         if not ids:
             continue
         all_ids.extend(ids)
-        nb.update(conn, ids, cleaned_values)
-    return _query_by_ids(conn, permission, notetype, all_ids)
+        conn.db.update_entries(conn, table, ids, cleaned_values)
+    return _query_by_ids(conn, permission, table, all_ids)
 
 
-def delete(conn, permission: DB_Permission, notetype: str, filter: Filter) -> list[dict[str, Any]]:
+def delete(conn, permission: DB_Permission, table: str, filter: Filter) -> list[dict[str, Any]]:
     rview, wview = permission
-    nb = registry[notetype]
-    combined_filter = view_clean_filter(wview, nb.name, filter)
-    ids = nb.list_ids(conn, combined_filter)
-    entries = _query_by_ids(conn, permission, notetype, ids)
-    nb.delete(conn, ids)
+    combined_filter = view_clean_filter(wview, table, filter)
+    ids = conn.db.list_ids(conn, table, combined_filter)
+    entries = _query_by_ids(conn, permission, table, ids)
+    conn.db.delete_entries(conn, table, ids)
     return entries

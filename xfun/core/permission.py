@@ -35,11 +35,7 @@ def get_permission(permission_id: str) -> dict | None:
     return dict(row) if row else None
 
 
-def create_permission(permission_id: str, name: str, description: str | None,
-                      read_view: dict, write_view: dict,
-                      can_query: bool, can_add: bool, can_update: bool,
-                      can_delete: bool, can_ai_chat: bool, can_manage_db: bool,
-                      can_manage_views: bool, can_manage_tokens: bool) -> dict:
+def create_permission(permission_id: str, name: str, description: str | None, read_view: dict, write_view: dict, can_query: bool, can_add: bool, can_update: bool, can_delete: bool, can_ai_chat: bool, can_manage_db: bool, can_manage_views: bool, can_manage_tokens: bool) -> dict:
     """创建新的权限定义。"""
     now = now_str()
     with db.transaction() as conn:
@@ -66,19 +62,7 @@ def create_permission(permission_id: str, name: str, description: str | None,
     return get_permission(permission_id)
 
 
-def update_permission(permission_id: str,
-                      name: str | None = None,
-                      description: str | None = None,
-                      read_view: dict | None = None,
-                      write_view: dict | None = None,
-                      can_query: bool | None = None,
-                      can_add: bool | None = None,
-                      can_update: bool | None = None,
-                      can_delete: bool | None = None,
-                      can_ai_chat: bool | None = None,
-                      can_manage_db: bool | None = None,
-                      can_manage_views: bool | None = None,
-                      can_manage_tokens: bool | None = None) -> dict | None:
+def update_permission(permission_id: str, name: str | None = None, description: str | None = None, read_view: dict | None = None, write_view: dict | None = None, can_query: bool | None = None, can_add: bool | None = None, can_update: bool | None = None, can_delete: bool | None = None, can_ai_chat: bool | None = None, can_manage_db: bool | None = None, can_manage_views: bool | None = None, can_manage_tokens: bool | None = None) -> dict | None:
     """更新权限定义。"""
     updates: dict = {}
     now = now_str()

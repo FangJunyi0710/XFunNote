@@ -4,10 +4,13 @@ from pathlib import Path
 import re
 import sqlite3
 from dataclasses import dataclass
+from typing import Any
+
+from future_uuid import uuid7
 
 from .. import config
-from ..utils.time_utils import timestamp_str
-from .errors import InvalidSQLError
+from ..utils.time_utils import now_str, timestamp_str
+from .errors import EntryInvalidError, InvalidSQLError
 
 
 # ---------------------------------------------------------------------------
@@ -137,6 +140,28 @@ class DB:
     def __init__(self, db_path: str = ""):
         self.db_path = db_path or config.DB_PATH
         self.table_infos: dict[str, list[Column]] = {}
+        # {table_name: {"pre_add": callable, "validate": callable, "autofill": callable}}
+        self.hooks: dict[str, dict[str, Any]] = {}
+
+    def register_hooks(self, table_name: str, *, pre_add=None, validate=None, autofill=None) -> None:
+        """注册本子钩子函数。
+
+        Parameters
+        ----------
+        table_name : str
+            表名。
+        pre_add : callable, optional
+            添加前钩子，签名 ``(conn, entries: list[dict]) -> None``，用于批量修改条目。
+        validate : callable, optional
+            校验钩子，签名 ``(entry: dict) -> None``，用于本子特有校验。
+        autofill : callable, optional
+            自动填充钩子，签名 ``(entry: dict) -> None``，用于填充本子特有字段。
+        """
+        self.hooks[table_name] = {
+            "pre_add": pre_add,
+            "validate": validate,
+            "autofill": autofill,
+        }
 
     def _connect(self) -> sqlite3.Connection:
         """建立新连接，统一设置 row_factory 并启用 WAL 模式。"""
@@ -179,9 +204,7 @@ class DB:
         conn.execute(f"CREATE TABLE {table_name} ({cols_sql})")
     
     @staticmethod
-    def _sync_existing_table(
-        conn: _ConnWrapper, table_name: str, desired_cols: list[Column]
-    ) -> None:
+    def _sync_existing_table(conn: _ConnWrapper, table_name: str, desired_cols: list[Column]) -> None:
         """补齐缺失列并检查已有列的一致性。"""
         # 只会被 init 调用，其已检查表名
         existing_cols = {
@@ -321,6 +344,104 @@ class DB:
                 pieces.append(f"NULL AS {col}")
         return f"SELECT {', '.join(pieces)} FROM {table_name}"
     
+    # ---- 钩子驱动的 CRUD ----
+
+    def _validate_entry(self, table_name: str, entry: dict) -> None:
+        """基础校验：检查非空非自动字段是否存在。"""
+        for col in self.table_infos[table_name]:
+            if not col.nullable and not col.auto:
+                if col.name not in entry:
+                    raise EntryInvalidError(
+                        table_name, f"缺少必填字段 '{col.name}'"
+                    )
+
+    def _autofill_entry(self, table_name: str, entry: dict) -> None:
+        """基础自动填充：id、时间戳、tags、可空列补 None。"""
+        entry["id"] = f"{table_name}-{str(uuid7())}"
+        entry["created_at"] = now_str()
+        entry["updated_at"] = now_str()
+        entry.setdefault("tags", "[]")
+        entry.setdefault("ai_tags", "[]")
+        entry.setdefault("is_ai_gen", 0)
+        for col in self.table_infos[table_name]:
+            if col.nullable and col.name not in entry:
+                entry[col.name] = None
+
+    def add_entries(self, conn, table_name: str, entries: list[dict]) -> list[str]:
+        """批量添加条目（钩子驱动）。
+
+        流程：pre_add(conn, entries) → 基础校验 → 本子校验 → 基础自动填充 → 本子自动填充 → INSERT。
+        """
+        hooks = self.hooks.get(table_name, {})
+        pre_add = hooks.get("pre_add")
+        validate = hooks.get("validate")
+        autofill = hooks.get("autofill")
+
+        if pre_add:
+            pre_add(conn, entries)
+
+        for entry in entries:
+            self._validate_entry(table_name, entry)
+            if validate:
+                validate(entry)
+            self._autofill_entry(table_name, entry)
+            if autofill:
+                autofill(entry)
+
+        conn.executemany(self.insert_sql(table_name), entries)
+        return [entry["id"] for entry in entries]
+
+    def list_ids(self, conn, table_name: str, filter, *, order_by: str = "", limit: int = -1, offset: int = 0) -> list[str]:
+        """按筛选条件列出 ID。"""
+        from .filter import filter_to_sql
+
+        where_sql, params = filter_to_sql(filter)
+        sql = f"SELECT id FROM {table_name}"
+        if where_sql:
+            sql += f" WHERE {where_sql}"
+        if order_by:
+            Column.check_order_by(order_by)
+            sql += f" ORDER BY {order_by}"
+        sql += f" LIMIT {limit} OFFSET {offset}"
+        rows = conn.execute(sql, params).fetchall()
+        return [row["id"] for row in rows]
+
+    def update_entries(self, conn, table_name: str, entry_ids: list[str], entry: dict) -> None:
+        """批量更新条目。"""
+        if not entry_ids:
+            return
+        for k in entry:
+            Column.check(k)
+        entry["updated_at"] = now_str()
+        set_clause = ", ".join(f"{k} = :{k}" for k in entry)
+        params = [{**entry, "id": eid} for eid in entry_ids]
+        conn.executemany(
+            f"UPDATE {table_name} SET {set_clause} WHERE id = :id", params
+        )
+
+    def delete_entries(self, conn, table_name: str, entry_ids: list[str]) -> None:
+        """批量删除条目。"""
+        if not entry_ids:
+            return
+        conn.executemany(
+            f"DELETE FROM {table_name} WHERE id = :id",
+            [{"id": eid} for eid in entry_ids],
+        )
+
+    def get_by_ids(self, conn, table_name: str, entry_ids: list[str]) -> list[dict]:
+        """根据 ID 列表批量查询，返回结果保持传入顺序，不存在的 ID 被跳过。"""
+        if not entry_ids:
+            return []
+        placeholders = ", ".join(f":id_{i}" for i in range(len(entry_ids)))
+        params = {f"id_{i}": eid for i, eid in enumerate(entry_ids)}
+        rows = conn.execute(
+            f"SELECT * FROM {table_name} WHERE id IN ({placeholders})",
+            params,
+        ).fetchall()
+        result = {r["id"]: dict(r) for r in rows}
+        return [result[eid] for eid in entry_ids if eid in result]
+
+
 class _ConnWrapper:
     """轻量包装，使 conn.db 可在所有 Python 版本下工作。"""
     __slots__ = ('_conn', 'db')
