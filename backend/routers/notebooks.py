@@ -10,7 +10,7 @@ from backend.schemas import (
     EntryUpdate,
 )
 from backend.services import notebook_service as svc
-from backend.deps import require_perm
+from backend.deps import get_api_permission
 from backend.permissions import ApiPermission
 from xfun.ai.schema import ViewModel
 
@@ -38,7 +38,7 @@ def query_entries(
     limit: int = Query(100, ge=-1, description="最大返回条数，-1 不限"),
     offset: int = Query(0, ge=0, description="偏移量"),
     view_model: ViewModel = Depends(parse_view_param),
-    api_perm: ApiPermission = Depends(require_perm("can_query", "当前 API Key 无权执行查询操作")),
+    api_perm: ApiPermission = Depends(get_api_permission),
 ):
     validated_view = view_model.to_view()
     results = svc.query_entries(name, validated_view, order_by, limit, offset,
@@ -53,7 +53,7 @@ def query_entries(
 def add_entries(
     name: str,
     body: EntryCreate,
-    api_perm: ApiPermission = Depends(require_perm("can_add", "当前 API Key 无权执行添加操作")),
+    api_perm: ApiPermission = Depends(get_api_permission),
 ):
     results = svc.add_entries(name, body.entries, permission=api_perm.permission)
     return EntryBatchResponse(count=len(results), results=results)
@@ -63,7 +63,7 @@ def add_entries(
 def update_entries(
     name: str,
     body: EntryUpdate,
-    api_perm: ApiPermission = Depends(require_perm("can_update", "当前 API Key 无权执行更新操作")),
+    api_perm: ApiPermission = Depends(get_api_permission),
 ):
     results = svc.update_entries(name, body.filter, body.values,
                                   permission=api_perm.permission)
@@ -74,7 +74,7 @@ def update_entries(
 def delete_entries(
     name: str,
     body: EntryDelete,
-    api_perm: ApiPermission = Depends(require_perm("can_delete", "当前 API Key 无权执行删除操作")),
+    api_perm: ApiPermission = Depends(get_api_permission),
 ):
     results = svc.delete_entries(name, body.filter, permission=api_perm.permission)
     return EntryBatchResponse(count=len(results), results=results)

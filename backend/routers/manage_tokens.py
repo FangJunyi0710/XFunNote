@@ -8,14 +8,12 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from backend.deps import require_perm
+from backend.deps import get_api_permission
 from backend.permissions import ApiPermission
 from xfun import db as _db
 from xfun.core import ops as _ops
-from xfun.core.view import root_permission, full_view
+from xfun.core.view import full_view
 from xfun.core.filter import Condition
-
-_ROOT_PERM = root_permission(_db)
 
 router = APIRouter(tags=["management-tokens"])
 
@@ -32,30 +30,30 @@ class TokenUpdateRequest(BaseModel):
     expires_at: str | None = Field(default=None, description="过期时间，ISO 格式字符串或 null")
 
 
-def _permission_exists(permission_id: str) -> bool:
+def _permission_exists(perm, permission_id: str) -> bool:
     """检查 _permissions 表中是否存在指定 id。"""
     with _db.read_transaction() as conn:
-        results = _ops.query(conn, _ROOT_PERM, "_permissions", full_view(_db),
+        results = _ops.query(conn, perm, "_permissions", full_view(_db),
                              Condition("id", permission_id, "="), limit=1)
     return len(results) > 0
 
 
 @router.get("/tokens")
 def list_tokens(
-    api_perm: ApiPermission = Depends(require_perm("can_manage_tokens", "当前 API Key 无权管理 Token")),
+    api_perm: ApiPermission = Depends(get_api_permission),
 ):
     with _db.read_transaction() as conn:
-        return _ops.query(conn, _ROOT_PERM, "_tokens", full_view(_db),
+        return _ops.query(conn, api_perm.permission, "_tokens", full_view(_db),
                           order_by="created_at DESC")
 
 
 @router.get("/tokens/{token_id}")
 def get_token_route(
     token_id: str,
-    api_perm: ApiPermission = Depends(require_perm("can_manage_tokens", "当前 API Key 无权管理 Token")),
+    api_perm: ApiPermission = Depends(get_api_permission),
 ):
     with _db.read_transaction() as conn:
-        results = _ops.query(conn, _ROOT_PERM, "_tokens", full_view(_db),
+        results = _ops.query(conn, api_perm.permission, "_tokens", full_view(_db),
                              Condition("id", token_id, "="), limit=1)
     if not results:
         raise HTTPException(
@@ -68,9 +66,9 @@ def get_token_route(
 @router.post("/tokens", status_code=status.HTTP_201_CREATED)
 def create_token_route(
     body: TokenCreateRequest,
-    api_perm: ApiPermission = Depends(require_perm("can_manage_tokens", "当前 API Key 无权管理 Token")),
+    api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    if not _permission_exists(body.permission):
+    if not _permission_exists(api_perm.permission, body.permission):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"不存在的权限标识: {body.permission!r}",
@@ -80,7 +78,7 @@ def create_token_route(
     token_id = str(uuid.uuid4())
 
     with _db.transaction() as conn:
-        _ops.add(conn, _ROOT_PERM, "_tokens", [{
+        _ops.add(conn, api_perm.permission, "_tokens", [{
             "id": token_id,
             "token": token_value,
             "name": body.name,
@@ -102,14 +100,14 @@ def create_token_route(
 def update_token_route(
     token_id: str,
     body: TokenUpdateRequest,
-    api_perm: ApiPermission = Depends(require_perm("can_manage_tokens", "当前 API Key 无权管理 Token")),
+    api_perm: ApiPermission = Depends(get_api_permission),
 ):
     updates: dict = {}
 
     if body.name is not None:
         updates["name"] = body.name
     if body.permission is not None:
-        if not _permission_exists(body.permission):
+        if not _permission_exists(api_perm.permission, body.permission):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"不存在的权限标识: {body.permission!r}",
@@ -122,10 +120,10 @@ def update_token_route(
 
     with _db.transaction() as conn:
         if updates:
-            result = _ops.update(conn, _ROOT_PERM, "_tokens",
+            result = _ops.update(conn, api_perm.permission, "_tokens",
                                  Condition("id", token_id, "="), updates)
         else:
-            result = _ops.query(conn, _ROOT_PERM, "_tokens", full_view(_db),
+            result = _ops.query(conn, api_perm.permission, "_tokens", full_view(_db),
                                 Condition("id", token_id, "="), limit=1)
     if not result:
         raise HTTPException(
@@ -138,10 +136,10 @@ def update_token_route(
 @router.delete("/tokens/{token_id}")
 def delete_token_route(
     token_id: str,
-    api_perm: ApiPermission = Depends(require_perm("can_manage_tokens", "当前 API Key 无权管理 Token")),
+    api_perm: ApiPermission = Depends(get_api_permission),
 ):
     with _db.transaction() as conn:
-        result = _ops.delete(conn, _ROOT_PERM, "_tokens",
+        result = _ops.delete(conn, api_perm.permission, "_tokens",
                              Condition("id", token_id, "="))
     if not result:
         raise HTTPException(

@@ -31,4 +31,4 @@ LLM_MODEL = os.environ.get("LLM_MODEL")
 
 
 # ---- API 鉴权（Bootstrap） ----
-ADMIN_API_KEY = os.environ.get("ADMIN_API_KEY", "")
+ROOT_TOKEN = os.environ.get("ROOT_TOKEN", "")

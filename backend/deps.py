@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import Header, HTTPException, status
 
-from xfun.config import ADMIN_API_KEY
+from xfun.config import ROOT_TOKEN
 from xfun.utils.time_utils import now_str
 from xfun import db as _db
 from xfun.core import ops as _ops
@@ -18,27 +18,6 @@ _ROOT_PERM = root_permission(_db)
 # ── 工厂依赖（可复用权限校验） ──────────────────────────────────────────────
 
 
-def require_perm(attr: str, detail: str):
-    """返回 FastAPI 依赖，校验 api_perm.{attr} 是否为 True。
-
-    用法: Depends(require_perm("can_manage_db", "无权管理数据库"))
-
-    返回 ApiPermission 实例，供后续业务逻辑使用。
-    """
-
-    async def _require(
-        api_perm: ApiPermission = Depends(get_api_permission),
-    ) -> ApiPermission:
-        if not getattr(api_perm, attr):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=detail,
-            )
-        return api_perm
-
-    return _require
-
-
 async def get_api_permission(
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
 ) -> ApiPermission:
@@ -46,7 +25,7 @@ async def get_api_permission(
 
     鉴权流程：
     1. 未提供 token → 401
-    2. 匹配 ADMIN_API_KEY（env 配置）→ root 权限
+    2. 匹配 ROOT_TOKEN（env 配置）→ root 权限
     3. 查询 _tokens 表
        3a. token 不存在 → 401
        3b. is_active=0 → 401
@@ -61,7 +40,7 @@ async def get_api_permission(
         )
 
     # 管理员启动密钥：绕过 _tokens 表，直接返回 root 权限
-    if ADMIN_API_KEY and x_api_key == ADMIN_API_KEY:
+    if ROOT_TOKEN and x_api_key == ROOT_TOKEN:
         return _lookup_permission("root")
 
     # 查询 _tokens 表
