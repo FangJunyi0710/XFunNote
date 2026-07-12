@@ -26,11 +26,7 @@ def get_schema(name: str):
 
 
 def parse_view_param(view: str = Query(..., description="View JSON 字符串")) -> ViewModel:
-    """解析并校验 view 查询参数，校验失败时抛出 422。"""
-    try:
-        return ViewModel.model_validate_json(view)
-    except ValidationError as e:
-        raise HTTPException(status_code=422, detail=e.errors())
+    return ViewModel.model_validate_json(view)
 
 
 @router.get("/notebooks/{name}/entries")

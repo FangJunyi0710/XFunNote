@@ -25,6 +25,24 @@ export async function getSchema(type: NotebookType): Promise<NotebookSchema> {
   return api.get<NotebookSchema>(`/notebooks/${NOTEBOOK_MAP[type]}/schema`);
 }
 
+/**
+ * 构建默认的 View JSON（显示所有列，无筛选条件）。
+ * 后端要求 view 参数必填，格式为 `{表名: [{columns, filter}]}`。
+ */
+function buildDefaultView(type: NotebookType, filter?: string): string {
+  const tableName = NOTEBOOK_MAP[type];
+  let filterJson: string;
+  if (filter) {
+    filterJson = filter;
+  } else {
+    // 无筛选：使用 op=TRUE 作为永真条件
+    filterJson = JSON.stringify({ column: '_', value: '_', op: 'TRUE' });
+  }
+  return JSON.stringify({
+    [tableName]: [{ columns: ['*'], filter: JSON.parse(filterJson) }],
+  });
+}
+
 export async function queryEntries(
   type: NotebookType,
   params?: {
@@ -36,12 +54,32 @@ export async function queryEntries(
   },
 ): Promise<QueryResponse> {
   const queryParams: Record<string, string> = {};
-  if (params?.filter) queryParams.filter = params.filter;
-  if (params?.page !== undefined) queryParams.page = String(params.page);
-  if (params?.page_size !== undefined) queryParams.page_size = String(params.page_size);
-  if (params?.order_by) queryParams.order_by = params.order_by;
-  if (params?.order_dir) queryParams.order_dir = params.order_dir;
-  return api.get<QueryResponse>(`/notebooks/${NOTEBOOK_MAP[type]}/entries`, queryParams);
+
+  // 参数映射：前端 page/page_size → 后端 offset/limit
+  const page = params?.page ?? 1;
+  const pageSize = params?.page_size ?? 20;
+  queryParams.offset = String((page - 1) * pageSize);
+  queryParams.limit = String(pageSize);
+
+  // 参数映射：前端 order_by + order_dir → 后端 order_by
+  if (params?.order_by) {
+    queryParams.order_by = `${params.order_by} ${(params.order_dir || 'asc').toUpperCase()}`.trim();
+  }
+
+  // view 是后端必填参数，自动生成默认视图
+  queryParams.view = buildDefaultView(type, params?.filter);
+
+  // 响应映射：后端 { count, results } → 前端 { total, entries, page, page_size }
+  const res = await api.get<{ count: number; results: Record<string, any>[] }>(
+    `/notebooks/${NOTEBOOK_MAP[type]}/entries`,
+    queryParams,
+  );
+  return {
+    total: res.count,
+    entries: res.results,
+    page,
+    page_size: pageSize,
+  };
 }
 
 export async function addEntries(

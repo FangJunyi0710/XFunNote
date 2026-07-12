@@ -82,8 +82,8 @@ export type NotebookType = 'plan' | 'diary' | 'word' | 'accumulation' | 'aimemor
 export interface QueryResponse {
   entries: Record<string, any>[];
   total: number;
-  page: number;
-  page_size: number;
+  page?: number;
+  page_size?: number;
 }
 
 // 批量操作
