@@ -7,7 +7,8 @@ from pydantic import BaseModel, Field
 
 from backend.services import ai_service as svc
 from backend.deps import get_api_permission
-from backend.permissions import ApiPermission
+from backend.permissions import ApiPermission, get_api_permission_from_db
+from xfun.core.view import view_and
 
 router = APIRouter(tags=["ai"])
 
@@ -51,15 +52,29 @@ def ai_chat(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
     try:
+        # 1. 查询 AI 配置权限
+        ai_perm_obj = get_api_permission_from_db(body.permission_name)
+        if ai_perm_obj is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"未知权限名称: {body.permission_name!r}",
+            )
+        # 2. 取交集：有效权限 = API Key 权限 ∩ AI 配置权限
+        api_read, api_write = api_perm.permission
+        ai_read, ai_write = ai_perm_obj.permission
+        effective_perm = (view_and(api_read, ai_read), view_and(api_write, ai_write))
+
         new_messages = svc.chat(
             messages=body.messages,
             system_prompt=body.system_prompt,
             max_iterations=body.max_iterations,
             llm_kwargs=body.llm_kwargs,
-            permission_name=body.permission_name,
+            permission=effective_perm,
             tool_names=body.tool_names,
         )
         return ChatResponse(messages=new_messages)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -14,9 +14,8 @@ from xfun.ai.agent import (
     parse_messages_json,
 )
 from xfun.ai.prompts import SYSTEM_PROMPT
-from backend.permissions import get_api_permission_from_db
 from xfun.ai.tools import DEFAULT_TOOL_NAMES, make_tools
-from xfun.core.view import view_to_json
+from xfun.core.view import DB_Permission, view_to_json
 
 
 def chat(
@@ -24,7 +23,7 @@ def chat(
     system_prompt: str | None = None,
     max_iterations: int = 10,
     llm_kwargs: dict[str, Any] | None = None,
-    permission_name: str = "ai",
+    permission: DB_Permission,
     tool_names: list[str] | None = None,
 ) -> list[dict]:
     """AI 对话（同步非流式）。输入输出均为序列化消息列表。
@@ -39,8 +38,8 @@ def chat(
         最大工具调用轮次。
     llm_kwargs : dict | None
         传递给 ChatAnthropic 的额外参数（如 temperature）。
-    permission_name : str
-        权限名称，对应 _permissions 表中的记录，默认为 "ai"。
+    permission : DB_Permission
+        注入的最终权限（已由调用方取交集）。
     tool_names : list[str] | None
         工具名称列表，默认包含全部工具。
 
@@ -53,10 +52,7 @@ def chat(
     msgs = parse_messages_json(messages)
     ensure_system_message(msgs, prompt_text)
 
-    perm_obj = get_api_permission_from_db(permission_name)
-    if perm_obj is None:
-        raise ValueError(f"未知权限名称: {permission_name!r}")
-    tools = make_tools(tool_names or DEFAULT_TOOL_NAMES, perm_obj.permission)
+    tools = make_tools(tool_names or DEFAULT_TOOL_NAMES, permission)
 
     gen = agent_invoke(
         msgs,
