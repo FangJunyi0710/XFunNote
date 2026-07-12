@@ -6,9 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.services import management_service as svc
-from backend.services import token_service
 from backend.deps import get_api_permission
 from backend.permissions import ApiPermission
+from xfun import token_service
+from xfun import view_service
+from xfun import permission_service
 
 router = APIRouter(tags=["management"])
 
@@ -73,7 +75,7 @@ def list_views(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前 API Key 无权管理视图",
         )
-    return svc.list_views()
+    return view_service.list_views()
 
 
 @router.get("/views/{name}")
@@ -86,7 +88,7 @@ def get_view(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前 API Key 无权管理视图",
         )
-    view = svc.get_view(name)
+    view = view_service.get_view(name)
     if view is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -106,7 +108,7 @@ def save_view(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前 API Key 无权管理视图",
         )
-    svc.save_view(name, body)
+    view_service.save_view(name, body)
     return {"message": f"视图 {name!r} 已保存"}
 
 
@@ -120,7 +122,7 @@ def delete_view(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前 API Key 无权管理视图",
         )
-    ok = svc.delete_view(name)
+    ok = view_service.delete_view(name)
     if not ok:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -287,7 +289,7 @@ def list_permissions(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前 API Key 无权管理权限",
         )
-    return svc.list_permissions()
+    return permission_service.list_permissions()
 
 
 @router.get("/permissions/{permission_id}")
@@ -300,7 +302,7 @@ def get_permission(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前 API Key 无权管理权限",
         )
-    perm = svc.get_permission(permission_id)
+    perm = permission_service.get_permission(permission_id)
     if perm is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -320,14 +322,14 @@ def create_permission(
             detail="当前 API Key 无权管理权限",
         )
     # 检查 id 是否已存在
-    existing = svc.get_permission(body.id)
+    existing = permission_service.get_permission(body.id)
     if existing is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"权限标识 {body.id!r} 已存在",
         )
     try:
-        result = svc.create_permission(
+        result = permission_service.create_permission(
             permission_id=body.id,
             name=body.name,
             description=body.description,
@@ -361,7 +363,7 @@ def update_permission(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前 API Key 无权管理权限",
         )
-    result = svc.update_permission(
+    result = permission_service.update_permission(
         permission_id=permission_id,
         name=body.name,
         description=body.description,
@@ -394,7 +396,7 @@ def delete_permission(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前 API Key 无权管理权限",
         )
-    ok = svc.delete_permission(permission_id)
+    ok = permission_service.delete_permission(permission_id)
     if not ok:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

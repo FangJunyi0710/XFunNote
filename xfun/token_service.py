@@ -6,15 +6,8 @@ import secrets
 import uuid
 
 from xfun import db
+from xfun.permission_service import _permission_exists
 from xfun.utils.time_utils import now_str
-
-
-def _permission_exists(permission_id: str) -> bool:
-    """检查 _permissions 表中是否存在指定 id。"""
-    with db.read_transaction() as conn:
-        return conn.execute(
-            "SELECT 1 FROM _permissions WHERE id = ?", (permission_id,)
-        ).fetchone() is not None
 
 
 def list_tokens() -> list[dict]:
@@ -91,8 +84,9 @@ def update_token(
     if name is not None:
         updates.append("name = ?")
         params.append(name)
-    if permission is not None and not _permission_exists(permission):
-        raise ValueError(f"不存在的权限标识: {permission!r}")
+    if permission is not None:
+        if not _permission_exists(permission):
+            raise ValueError(f"不存在的权限标识: {permission!r}")
         updates.append("permission = ?")
         params.append(permission)
     if is_active is not None:

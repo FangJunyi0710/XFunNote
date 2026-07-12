@@ -436,8 +436,7 @@ XFunNote/
 │   │   ├── __init__.py
 │   │   ├── ai_service.py
 │   │   ├── management_service.py
-│   │   ├── notebook_service.py
-│   │   └── token_service.py
+│   │   └── notebook_service.py
 │   ├── __init__.py
 │   ├── deps.py
 │   ├── main.py
@@ -565,7 +564,10 @@ XFunNote/
 │   │   ├── __init__.py
 │   │   └── time_utils.py
 │   ├── __init__.py
-│   └── config.py
+│   ├── config.py
+│   ├── permission_service.py
+│   ├── token_service.py
+│   └── view_service.py
 ├── .env.example
 ├── .gitattributes
 ├── .gitignore
@@ -612,7 +614,6 @@ graph LR
         backend_services_ai_service(ai_service)
         backend_services_management_service(management_service)
         backend_services_notebook_service(notebook_service)
-        backend_services_token_service(token_service)
     end
     style backend_services fill:#fff3cd,stroke:#333,stroke-width:1px,color:#333
     subgraph _[.]
@@ -645,6 +646,9 @@ graph LR
     subgraph xfun[xfun]
         xfun___init__(__init__)
         xfun_config(config)
+        xfun_permission_service(permission_service)
+        xfun_token_service(token_service)
+        xfun_view_service(view_service)
     end
     style xfun fill:#fdebd0,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun_ai[xfun/ai]
@@ -696,7 +700,10 @@ graph LR
     backend_routers_management --> backend_permissions
     backend_routers_management --> backend_services___init__
     backend_routers_management --> backend_services_management_service
-    backend_routers_management --> backend_services_token_service
+    backend_routers_management --> xfun___init__
+    backend_routers_management --> xfun_permission_service
+    backend_routers_management --> xfun_token_service
+    backend_routers_management --> xfun_view_service
     backend_routers_notebooks --> backend_deps
     backend_routers_notebooks --> backend_permissions
     backend_routers_notebooks --> backend_schemas
@@ -709,14 +716,11 @@ graph LR
     backend_services_ai_service --> xfun_ai_tools
     backend_services_ai_service --> xfun_core_view
     backend_services_management_service --> xfun___init__
-    backend_services_management_service --> xfun_utils_time_utils
     backend_services_notebook_service --> xfun___init__
     backend_services_notebook_service --> xfun_core___init__
     backend_services_notebook_service --> xfun_core_filter
     backend_services_notebook_service --> xfun_core_ops
     backend_services_notebook_service --> xfun_core_view
-    backend_services_token_service --> xfun___init__
-    backend_services_token_service --> xfun_utils_time_utils
     cli --> xfun___init__
     cli --> xfun_ai_agent
     cli --> xfun_ai_prompts
@@ -831,6 +835,13 @@ graph LR
     xfun_notebooks_plan --> xfun_core_notebook
     xfun_notebooks_word --> xfun_core_db
     xfun_notebooks_word --> xfun_core_notebook
+    xfun_permission_service --> xfun___init__
+    xfun_permission_service --> xfun_utils_time_utils
+    xfun_token_service --> xfun___init__
+    xfun_token_service --> xfun_permission_service
+    xfun_token_service --> xfun_utils_time_utils
+    xfun_view_service --> xfun___init__
+    xfun_view_service --> xfun_utils_time_utils
 ```
 <!-- end dependence graph -->
 
