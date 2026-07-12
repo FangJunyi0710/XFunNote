@@ -38,10 +38,6 @@ class EntryUpdate(BaseModel):
 class EntryDelete(BaseModel):
     """删除条目请求体。"""
     filter: Any = Field(description="筛选条件，Filter JSON 格式")
-    confirm: bool = Field(
-        default=False,
-        description="是否确认删除，预览后需设为 true",
-    )
 
 
 class EntryBatchResponse(BaseModel):

@@ -84,26 +84,6 @@ def delete_entries(
         return ops.delete(conn, perm, notetype, flt)
 
 
-def delete_preview(
-    notetype: str,
-    filter_obj: Any,
-    permission: Permission | None = None,
-) -> list[dict]:
-    """删除前预览：只查不删，返回匹配的条目。"""
-    _validate_notetype(notetype)
-    perm = permission or root_permission(db)
-    flt = parse_filter_json(filter_obj)
-    nb = registry[notetype]
-
-    # 用写权限视图的 filter 清洗，返回和实际删除一致的条目
-    from xfun.core.view import view_clean_filter
-    combined = view_clean_filter(perm[1], nb.name, flt)
-    preview_view = {notetype: [([c.name for c in nb.columns], combined)]}
-
-    with db.read_transaction() as conn:
-        return ops.query(conn, perm, notetype, preview_view)
-
-
 def _validate_notetype(notetype: str) -> None:
     if notetype not in registry:
         raise HTTPException(

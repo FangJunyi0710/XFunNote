@@ -57,19 +57,7 @@ def update_entries(name: str, body: EntryUpdate):
     return EntryBatchResponse(count=len(results), results=results)
 
 
-@router.post("/notebooks/{name}/entries/preview-delete")
-def preview_delete(name: str, body: EntryDelete):
-    """删除预览：返回将被删除的条目，实际不删除。"""
-    results = svc.delete_preview(name, body.filter)
-    return EntryBatchResponse(count=len(results), results=results)
-
-
 @router.delete("/notebooks/{name}/entries")
 def delete_entries(name: str, body: EntryDelete):
-    if not body.confirm:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="删除操作需要确认，请先调用 POST preview-delete 预览，确认后将 confirm 设为 true",
-        )
     results = svc.delete_entries(name, body.filter)
     return EntryBatchResponse(count=len(results), results=results)
