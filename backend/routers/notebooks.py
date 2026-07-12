@@ -41,8 +41,8 @@ def query_entries(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
     validated_view = view_model.to_view()
-    results = svc.query_entries(name, validated_view, order_by, limit, offset,
-                                 permission=api_perm.permission)
+    results = svc.query_entries(name, api_perm.permission, validated_view,
+                                 order_by, limit, offset)
     return EntryBatchResponse(count=len(results), results=results)
 
 

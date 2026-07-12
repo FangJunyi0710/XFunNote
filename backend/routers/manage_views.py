@@ -30,8 +30,10 @@ def get_view_route(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
     with _db.read_transaction() as conn:
-        results = _ops.query(conn, api_perm.permission, "_views", full_view(_db),
-                             Condition("name", name, "="), limit=1)
+        cols = _db.cols("_views")
+        results = _ops.query(conn, api_perm.permission, "_views",
+                             {"_views": [(cols, Condition("name", name, "="))]},
+                             limit=1)
     if not results:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -48,8 +50,10 @@ def save_view_route(
 ):
     json_data = json.dumps(body, ensure_ascii=False)
     with _db.transaction() as conn:
-        existing = _ops.query(conn, api_perm.permission, "_views", full_view(_db),
-                              Condition("name", name, "="), limit=1)
+        cols = _db.cols("_views")
+        existing = _ops.query(conn, api_perm.permission, "_views",
+                              {"_views": [(cols, Condition("name", name, "="))]},
+                              limit=1)
         if existing:
             _ops.update(conn, api_perm.permission, "_views",
                         Condition("name", name, "="), {"data": json_data})

@@ -163,6 +163,10 @@ class DB:
             "autofill": autofill,
         }
 
+    def cols(self, table: str) -> list[str]:
+        """返回指定表的所有列名。"""
+        return [c.name for c in self.table_infos[table]]
+
     def _connect(self) -> sqlite3.Connection:
         """建立新连接，统一设置 row_factory 并启用 WAL 模式。"""
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)

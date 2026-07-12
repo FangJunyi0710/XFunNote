@@ -46,8 +46,10 @@ def get_permission_route(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
     with _db.read_transaction() as conn:
-        results = _ops.query(conn, api_perm.permission, "_permissions", full_view(_db),
-                             Condition("id", permission_id, "="), limit=1)
+        cols = _db.cols("_permissions")
+        results = _ops.query(conn, api_perm.permission, "_permissions",
+                             {"_permissions": [(cols, Condition("id", permission_id, "="))]},
+                             limit=1)
     if not results:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -63,8 +65,10 @@ def create_permission_route(
 ):
     # 检查 id 是否已存在
     with _db.read_transaction() as conn:
-        existing = _ops.query(conn, api_perm.permission, "_permissions", full_view(_db),
-                              Condition("id", body.id, "="), limit=1)
+        cols = _db.cols("_permissions")
+        existing = _ops.query(conn, api_perm.permission, "_permissions",
+                              {"_permissions": [(cols, Condition("id", body.id, "="))]},
+                              limit=1)
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -103,8 +107,10 @@ def update_permission_route(
             result = _ops.update(conn, api_perm.permission, "_permissions",
                                  Condition("id", permission_id, "="), updates)
         else:
-            result = _ops.query(conn, api_perm.permission, "_permissions", full_view(_db),
-                                Condition("id", permission_id, "="), limit=1)
+            cols = _db.cols("_permissions")
+            result = _ops.query(conn, api_perm.permission, "_permissions",
+                                {"_permissions": [(cols, Condition("id", permission_id, "="))]},
+                                limit=1)
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

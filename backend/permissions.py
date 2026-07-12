@@ -29,8 +29,8 @@ class ApiPermission:
 def get_api_permission_from_db(permission_id: str) -> ApiPermission | None:
     """从 _permissions 表查询权限定义。"""
     with _db.read_transaction() as conn:
-        results = _ops.query(conn, _ROOT_PERM, "_permissions", full_view(_db),
-                             Condition("id", permission_id, "="), limit=1)
+        results = _ops.query(conn, _ROOT_PERM, "_permissions", {"_permissions": [(_db.cols("_permissions"), Condition("id", permission_id, "="))]}, limit=1)
+
     if not results:
         return None
     return ApiPermission.from_row(results[0])

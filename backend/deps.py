@@ -45,8 +45,7 @@ async def get_api_permission(
 
     # 查询 _tokens 表
     with _db.read_transaction() as conn:
-        results = _ops.query(conn, _ROOT_PERM, "_tokens", full_view(_db),
-                             Condition("token", x_api_key, "="), limit=1)
+        results = _ops.query(conn, _ROOT_PERM, "_tokens", {"_tokens": [(["permission","is_active","expires_at"],Condition("token", x_api_key, "="))]}, limit=1)
     row = results[0] if results else None
 
     if row is None:

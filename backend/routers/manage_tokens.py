@@ -30,8 +30,10 @@ class TokenUpdateRequest(BaseModel):
 def _permission_exists(perm, permission_id: str) -> bool:
     """检查 _permissions 表中是否存在指定 id。"""
     with _db.read_transaction() as conn:
-        results = _ops.query(conn, perm, "_permissions", full_view(_db),
-                             Condition("id", permission_id, "="), limit=1)
+        cols = _db.cols("_permissions")
+        results = _ops.query(conn, perm, "_permissions",
+                             {"_permissions": [(cols, Condition("id", permission_id, "="))]},
+                             limit=1)
     return len(results) > 0
 
 
@@ -50,8 +52,10 @@ def get_token_route(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
     with _db.read_transaction() as conn:
-        results = _ops.query(conn, api_perm.permission, "_tokens", full_view(_db),
-                             Condition("id", token_id, "="), limit=1)
+        cols = _db.cols("_tokens")
+        results = _ops.query(conn, api_perm.permission, "_tokens",
+                             {"_tokens": [(cols, Condition("id", token_id, "="))]},
+                             limit=1)
     if not results:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -107,8 +111,10 @@ def update_token_route(
             result = _ops.update(conn, api_perm.permission, "_tokens",
                                  Condition("id", token_id, "="), updates)
         else:
-            result = _ops.query(conn, api_perm.permission, "_tokens", full_view(_db),
-                                Condition("id", token_id, "="), limit=1)
+            cols = _db.cols("_tokens")
+            result = _ops.query(conn, api_perm.permission, "_tokens",
+                                {"_tokens": [(cols, Condition("id", token_id, "="))]},
+                                limit=1)
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

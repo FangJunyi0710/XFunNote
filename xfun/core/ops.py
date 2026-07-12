@@ -26,7 +26,7 @@ def query(conn, permission: DB_Permission, table: str, query_view: View, order_b
     return [dict(r) for r in rows]
 
 def _query_by_ids(conn, permission: DB_Permission, table: str, ids: list[str]) -> list[dict[str, Any]]:
-    return query(conn, permission, table, {table: [([col.name for col in conn.db.table_infos[table]], Condition("id", ids, "IN"))]})
+    return query(conn, permission, table, {table: [(conn.db.cols(table), Condition("id", ids, "IN"))]})
 
 def add(conn, permission: DB_Permission, table: str, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     rview, wview = permission
