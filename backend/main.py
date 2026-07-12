@@ -20,7 +20,14 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from backend.routers import notebooks, ai, management
+from backend.routers import (
+    notebooks,
+    ai,
+    manage_db,
+    manage_views,
+    manage_tokens,
+    manage_permissions,
+)
 
 
 @asynccontextmanager
@@ -97,4 +104,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 app.include_router(notebooks.router, prefix="/api/v1")
 app.include_router(ai.router, prefix="/api/v1")
-app.include_router(management.router, prefix="/api/v1")
+app.include_router(manage_db.router, prefix="/api/v1")
+app.include_router(manage_views.router, prefix="/api/v1")
+app.include_router(manage_tokens.router, prefix="/api/v1")
+app.include_router(manage_permissions.router, prefix="/api/v1")
