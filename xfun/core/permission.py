@@ -44,23 +44,24 @@ def create_permission(permission_id: str, name: str, description: str | None,
     now = now_str()
     with db.transaction() as conn:
         conn.execute(
-            "INSERT INTO _permissions "
-            "(id, name, description, read_view, write_view, "
-            "can_query, can_add, can_update, can_delete, can_ai_chat, "
-            "can_manage_db, can_manage_views, can_manage_tokens, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (permission_id, name, description,
-             json.dumps(read_view, ensure_ascii=False),
-             json.dumps(write_view, ensure_ascii=False),
-             1 if can_query else 0,
-             1 if can_add else 0,
-             1 if can_update else 0,
-             1 if can_delete else 0,
-             1 if can_ai_chat else 0,
-             1 if can_manage_db else 0,
-             1 if can_manage_views else 0,
-             1 if can_manage_tokens else 0,
-             now, now),
+            db.insert_sql("_permissions"),
+            {
+                "id": permission_id,
+                "name": name,
+                "description": description,
+                "read_view": json.dumps(read_view, ensure_ascii=False),
+                "write_view": json.dumps(write_view, ensure_ascii=False),
+                "can_query": 1 if can_query else 0,
+                "can_add": 1 if can_add else 0,
+                "can_update": 1 if can_update else 0,
+                "can_delete": 1 if can_delete else 0,
+                "can_ai_chat": 1 if can_ai_chat else 0,
+                "can_manage_db": 1 if can_manage_db else 0,
+                "can_manage_views": 1 if can_manage_views else 0,
+                "can_manage_tokens": 1 if can_manage_tokens else 0,
+                "created_at": now,
+                "updated_at": now,
+            },
         )
     return get_permission(permission_id)
 

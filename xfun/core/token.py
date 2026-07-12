@@ -66,9 +66,17 @@ def create_token(name: str, permission: str) -> dict:
 
     with db.transaction() as conn:
         conn.execute(
-            "INSERT INTO _tokens (id, token, name, permission, is_active, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, 1, ?, ?)",
-            (token_id, token_value, name, permission, now, now),
+            db.insert_sql("_tokens"),
+            {
+                "id": token_id,
+                "token": token_value,
+                "name": name,
+                "permission": permission,
+                "is_active": 1,
+                "expires_at": None,
+                "created_at": now,
+                "updated_at": now,
+            },
         )
 
     return {

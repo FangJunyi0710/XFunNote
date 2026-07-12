@@ -176,12 +176,26 @@ def get_view(name: str) -> dict | None:
 def save_view(name: str, data: dict) -> None:
     """保存/覆盖视图。"""
     now = _now_str()
+    json_data = json.dumps(data, ensure_ascii=False)
     with _db.transaction() as conn:
-        conn.execute(
-            "INSERT INTO _views (name, data, created_at, updated_at) VALUES (?, ?, ?, ?) "
-            "ON CONFLICT(name) DO UPDATE SET data = ?, updated_at = ?",
-            (name, json.dumps(data, ensure_ascii=False), now, now, json.dumps(data, ensure_ascii=False), now),
-        )
+        row = conn.execute(
+            "SELECT 1 FROM _views WHERE name = ?", (name,)
+        ).fetchone()
+        if row is not None:
+            conn.execute(
+                "UPDATE _views SET data = ?, updated_at = ? WHERE name = ?",
+                (json_data, now, name),
+            )
+        else:
+            conn.execute(
+                _db.insert_sql("_views"),
+                {
+                    "name": name,
+                    "data": json_data,
+                    "created_at": now,
+                    "updated_at": now,
+                },
+            )
 
 
 def delete_view(name: str) -> bool:
