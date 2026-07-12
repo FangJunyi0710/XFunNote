@@ -5,6 +5,7 @@ from .notebooks.diary        import DiaryNotebook
 from .notebooks.word         import WordNotebook
 from .notebooks.accumulation import AccumulationNotebook
 from .notebooks.aimemory     import AIMemoryNotebook
+from .utils.token_utils import generate_token
 
 db: DB = DB()
 registry: dict[str, Notebook] = {
@@ -19,10 +20,10 @@ registry: dict[str, Notebook] = {
 _SYSTEM_TABLES: dict[str, list[Column]] = {
     "_tokens": [
         Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
-        Column("token", "TEXT", nullable=False),
+        Column("token", "TEXT", nullable=False, auto=True),
         Column("name", "TEXT", nullable=False),
         Column("permission", "TEXT", nullable=False),
-        Column("is_active", "INTEGER", nullable=False),
+        Column("is_active", "INTEGER", nullable=False, auto=True),
         Column("expires_at", "TEXT", nullable=True),
         Column("created_at", "TEXT", nullable=False, auto=True),
         Column("updated_at", "TEXT", nullable=False, auto=True),
@@ -46,11 +47,20 @@ _SYSTEM_TABLES: dict[str, list[Column]] = {
 }
 
 
+def _autofill_token(entry: dict) -> None:
+    """_tokens 自动填充钩子：缺失 token 时自动生成。"""
+    entry.setdefault("token", generate_token())
+    entry.setdefault("is_active", 1)
+
+
 def init_db(conn):
     """初始化数据库（用户表 + 系统表 + 种子数据）。"""
     # 注册本子钩子到 DB（CRUD 由 DB 统一管理）
     for name, nb in registry.items():
         db.register_hooks(name, pre_add=nb._pre_add, validate=nb._validate, autofill=nb._autofill)
+
+    # 注册系统表钩子
+    db.register_hooks("_tokens", autofill=_autofill_token)
 
     db.init(conn, {name: nb.columns for name, nb in registry.items()})
     db.init(conn, _SYSTEM_TABLES)

@@ -50,6 +50,11 @@ cd frontend && npm install && npm run dev
 | `LLM_BASE_URL` | DeepSeek API 端点，若不设置则为 None（ChatAnthropic 使用默认端点） |
 | `LLM_MODEL` | 默认模型，若不设置则由 LangChain 默认决定（当前建议 `deepseek-v4-flash`） |
 
+**小贴士**：你也可以用以下命令在终端手动生成 API Token（格式 `sk-xxx`），适合设置 `ROOT_TOKEN` 或作为 `_tokens` 的 token 值：
+```bash
+echo "sk-$(openssl rand -base64 24 | tr '+/' '-_' | tr -d '=')"
+```
+
 ### 2. 数据库路径
 
 数据库默认路径为 `data/{用户名}.db`，通过 `XFUN_USER` 自动拼接。  

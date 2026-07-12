@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import secrets
-import uuid
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
@@ -74,26 +71,14 @@ def create_token_route(
             detail=f"不存在的权限标识: {body.permission!r}",
         )
 
-    token_value = "sk-" + secrets.token_urlsafe(32)
-    token_id = str(uuid.uuid4())
-
     with _db.transaction() as conn:
-        _ops.add(conn, api_perm.permission, "_tokens", [{
-            "id": token_id,
-            "token": token_value,
+        ids = _ops.add(conn, api_perm.permission, "_tokens", [{
             "name": body.name,
             "permission": body.permission,
-            "is_active": 1,
-            "expires_at": None,
         }])
+        results = _db.get_by_ids(conn, "_tokens", ids)
 
-    return {
-        "id": token_id,
-        "token": token_value,
-        "name": body.name,
-        "permission": body.permission,
-        "is_active": True,
-    }
+    return results[0]
 
 
 @router.put("/tokens/{token_id}")
