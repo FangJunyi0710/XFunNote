@@ -19,13 +19,9 @@ export interface ViewData {
 }
 
 export interface ViewFile {
+  id: string;
   name: string;
-  path: string;
-  size: number;
+  data: string;
+  created_at: string;
   updated_at: string;
-}
-
-export interface ViewListResponse {
-  views: ViewFile[];
-  directory: string;
 }

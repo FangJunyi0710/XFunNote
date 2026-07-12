@@ -102,7 +102,6 @@ export interface DeletePreview {
 }
 
 export interface DeleteResponse {
-  message: string;
   count: number;
-  deleted_ids: string[];
+  results: Record<string, any>[];
 }

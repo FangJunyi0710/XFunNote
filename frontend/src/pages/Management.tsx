@@ -32,7 +32,7 @@ export const Management: React.FC = () => {
     setLoading('backup');
     try {
       const res = await managementApi.backupDb();
-      addLog(`备份成功: ${res.path}`, 'success');
+      addLog(`备份成功: ${res.message}`, 'success');
     } catch (e: any) {
       addLog(`备份失败: ${e.message}`, 'error');
     } finally {

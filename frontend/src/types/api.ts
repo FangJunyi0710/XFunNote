@@ -13,8 +13,12 @@ export interface ApiResponse<T = any> {
 
 // AI 对话
 export interface ChatRequest {
-  message: string;
-  stream?: boolean;
+  messages: { role: string; content: string }[];
+  system_prompt?: string;
+  max_iterations?: number;
+  permission_name?: string;
+  tool_names?: string[];
+  llm_kwargs?: Record<string, any>;
 }
 
 export interface ChatMessage {
@@ -24,19 +28,16 @@ export interface ChatMessage {
 }
 
 export interface ChatResponse {
-  reply: string;
-  thinking?: string;
+  messages: { role: string; content: string }[];
 }
 
 // 管理接口
 export interface InitDbResponse {
   message: string;
-  tables: string[];
 }
 
 export interface BackupDbResponse {
   message: string;
-  path: string;
 }
 
 export interface ResetDbResponse {

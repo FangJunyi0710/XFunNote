@@ -16,7 +16,7 @@ export const ViewManagement: React.FC = () => {
   const loadViews = useCallback(async () => {
     try {
       const res = await viewsApi.listViews();
-      setViewFiles(res.views || []);
+      setViewFiles(res || []);
     } catch (e: any) {
       setMessage(`加载失败: ${e.message}`);
     }

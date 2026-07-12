@@ -1,8 +1,8 @@
 import { api } from './client';
-import type { ViewFile, ViewData, ViewListResponse } from '@/types/view';
+import type { ViewFile, ViewData } from '@/types/view';
 
-export async function listViews(): Promise<ViewListResponse> {
-  return api.get<ViewListResponse>('/views');
+export async function listViews(): Promise<ViewFile[]> {
+  return api.get<ViewFile[]>('/views');
 }
 
 export async function getView(name: string): Promise<ViewData> {
@@ -10,7 +10,7 @@ export async function getView(name: string): Promise<ViewData> {
 }
 
 export async function saveView(name: string, data: ViewData): Promise<{ message: string }> {
-  return api.post<{ message: string }>(`/views/${name}`, data);
+  return api.put<{ message: string }>(`/views/${name}`, data);
 }
 
 export async function deleteView(name: string): Promise<{ message: string }> {

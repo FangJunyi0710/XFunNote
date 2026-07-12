@@ -2,11 +2,10 @@ import { api } from './client';
 import type {
   NotebookSchema,
   QueryResponse,
-  AddRequest,
   UpdateRequest,
-  DeletePreview,
   DeleteResponse,
   NotebookType,
+  ColumnDef,
 } from '@/types/notebook';
 
 const NOTEBOOK_MAP: Record<NotebookType, string> = {
@@ -17,12 +16,31 @@ const NOTEBOOK_MAP: Record<NotebookType, string> = {
   aimemory: 'aimemory',
 };
 
+/** 静态笔记本元信息（后端不返回 label / description） */
+const NOTEBOOK_INFO: Record<string, { label: string; description: string }> = {
+  plan: { label: '计划', description: '管理月度计划与任务' },
+  diary: { label: '日记', description: '记录每日生活与感悟' },
+  word: { label: '单词', description: '单词学习与复习' },
+  accumulation: { label: '积累', description: '知识碎片整理与沉淀' },
+  aimemory: { label: 'AI 记忆', description: 'AI 自动记录的关键信息' },
+};
+
+/** 获取笔记本列表（后端返回名称列表，前端组装为 NotebookSchema[]） */
 export async function listNotebooks(): Promise<NotebookSchema[]> {
-  return api.get<NotebookSchema[]>('/notebooks');
+  const names = await api.get<string[]>('/notebooks');
+  return Promise.all(names.map((name) => getSchema(name as NotebookType)));
 }
 
+/** 获取笔记本 Schema（后端返回列定义，前端组装为完整 NotebookSchema） */
 export async function getSchema(type: NotebookType): Promise<NotebookSchema> {
-  return api.get<NotebookSchema>(`/notebooks/${NOTEBOOK_MAP[type]}/schema`);
+  const columns = await api.get<ColumnDef[]>(`/notebooks/${NOTEBOOK_MAP[type]}/schema`);
+  const info = NOTEBOOK_INFO[type] || { label: type, description: '' };
+  return {
+    table_name: type,
+    ...info,
+    columns,
+    display_order: columns.map((c) => c.name),
+  };
 }
 
 /**
@@ -84,34 +102,29 @@ export async function queryEntries(
 
 export async function addEntries(
   type: NotebookType,
-  data: AddRequest,
-): Promise<{ message: string; ids: string[] }> {
+  data: { entries: Record<string, any>[] },
+): Promise<{ count: number; results: Record<string, any>[] }> {
   return api.post(`/notebooks/${NOTEBOOK_MAP[type]}/entries`, data);
 }
 
 export async function updateEntry(
   type: NotebookType,
   data: UpdateRequest,
-): Promise<{ message: string }> {
-  return api.put(`/notebooks/${NOTEBOOK_MAP[type]}/entries`, data);
-}
-
-export async function previewDelete(
-  type: NotebookType,
-  ids: string[],
-): Promise<DeletePreview[]> {
-  return api.post<DeletePreview[]>(
-    `/notebooks/${NOTEBOOK_MAP[type]}/entries/delete-preview`,
-    { ids },
-  );
+): Promise<{ count: number; results: Record<string, any>[] }> {
+  // 前端格式 { id, updates } → 后端格式 { filter: {column, op, value}, values }
+  return api.put(`/notebooks/${NOTEBOOK_MAP[type]}/entries`, {
+    filter: { column: 'id', op: '=', value: data.id },
+    values: data.updates,
+  });
 }
 
 export async function deleteEntries(
   type: NotebookType,
   ids: string[],
 ): Promise<DeleteResponse> {
+  // 前端 ids 列表 → 后端 filter: {column, op, value}
   return api.delete<DeleteResponse>(
     `/notebooks/${NOTEBOOK_MAP[type]}/entries`,
-    { ids },
+    { filter: { column: 'id', op: 'in', value: ids } },
   );
 }
