@@ -10,6 +10,29 @@ from xfun.utils.time_utils import now_str
 
 from backend.permissions import ApiPermission, get_api_permission_from_db
 
+# ── 工厂依赖（可复用权限校验） ──────────────────────────────────────────────
+
+
+def require_perm(attr: str, detail: str):
+    """返回 FastAPI 依赖，校验 api_perm.{attr} 是否为 True。
+
+    用法: Depends(require_perm("can_manage_db", "无权管理数据库"))
+
+    返回 ApiPermission 实例，供后续业务逻辑使用。
+    """
+
+    async def _require(
+        api_perm: ApiPermission = Depends(get_api_permission),
+    ) -> ApiPermission:
+        if not getattr(api_perm, attr):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=detail,
+            )
+        return api_perm
+
+    return _require
+
 
 async def get_api_permission(
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),

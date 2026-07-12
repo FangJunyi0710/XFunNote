@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from backend.services import management_service as svc
-from backend.deps import get_api_permission
+from backend.deps import require_perm
 from backend.permissions import ApiPermission
 
 router = APIRouter(tags=["management-db"])
@@ -21,26 +21,16 @@ class ResetRequest(BaseModel):
 
 @router.post("/db/init")
 def init_db(
-    api_perm: ApiPermission = Depends(get_api_permission),
+    api_perm: ApiPermission = Depends(require_perm("can_manage_db", "当前 API Key 无权管理数据库")),
 ):
-    if not api_perm.can_manage_db:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="当前 API Key 无权管理数据库",
-        )
     msg = svc.init_database()
     return {"message": msg}
 
 
 @router.post("/db/backup")
 def backup_db(
-    api_perm: ApiPermission = Depends(get_api_permission),
+    api_perm: ApiPermission = Depends(require_perm("can_manage_db", "当前 API Key 无权管理数据库")),
 ):
-    if not api_perm.can_manage_db:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="当前 API Key 无权管理数据库",
-        )
     msg = svc.backup_database()
     return {"message": msg}
 
@@ -48,12 +38,7 @@ def backup_db(
 @router.post("/db/reset")
 def reset_db(
     body: ResetRequest = ResetRequest(),
-    api_perm: ApiPermission = Depends(get_api_permission),
+    api_perm: ApiPermission = Depends(require_perm("can_manage_db", "当前 API Key 无权管理数据库")),
 ):
-    if not api_perm.can_manage_db:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="当前 API Key 无权管理数据库",
-        )
     msg = svc.reset_database(backup_first=body.backup_first)
     return {"message": msg}

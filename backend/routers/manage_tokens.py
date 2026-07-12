@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from backend.deps import get_api_permission
+from backend.deps import require_perm
 from backend.permissions import ApiPermission
 from xfun.core import token
 
@@ -26,26 +26,16 @@ class TokenUpdateRequest(BaseModel):
 
 @router.get("/tokens")
 def list_tokens(
-    api_perm: ApiPermission = Depends(get_api_permission),
+    api_perm: ApiPermission = Depends(require_perm("can_manage_tokens", "当前 API Key 无权管理 Token")),
 ):
-    if not api_perm.can_manage_tokens:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="当前 API Key 无权管理 Token",
-        )
     return token.list_tokens()
 
 
 @router.get("/tokens/{token_id}")
 def get_token_route(
     token_id: str,
-    api_perm: ApiPermission = Depends(get_api_permission),
+    api_perm: ApiPermission = Depends(require_perm("can_manage_tokens", "当前 API Key 无权管理 Token")),
 ):
-    if not api_perm.can_manage_tokens:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="当前 API Key 无权管理 Token",
-        )
     t = token.get_token(token_id)
     if t is None:
         raise HTTPException(
@@ -58,13 +48,8 @@ def get_token_route(
 @router.post("/tokens", status_code=status.HTTP_201_CREATED)
 def create_token_route(
     body: TokenCreateRequest,
-    api_perm: ApiPermission = Depends(get_api_permission),
+    api_perm: ApiPermission = Depends(require_perm("can_manage_tokens", "当前 API Key 无权管理 Token")),
 ):
-    if not api_perm.can_manage_tokens:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="当前 API Key 无权管理 Token",
-        )
     try:
         result = token.create_token(name=body.name, permission=body.permission)
     except ValueError as e:
@@ -79,13 +64,8 @@ def create_token_route(
 def update_token_route(
     token_id: str,
     body: TokenUpdateRequest,
-    api_perm: ApiPermission = Depends(get_api_permission),
+    api_perm: ApiPermission = Depends(require_perm("can_manage_tokens", "当前 API Key 无权管理 Token")),
 ):
-    if not api_perm.can_manage_tokens:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="当前 API Key 无权管理 Token",
-        )
     try:
         result = token.update_token(
             token_id=token_id,
@@ -110,13 +90,8 @@ def update_token_route(
 @router.delete("/tokens/{token_id}")
 def delete_token_route(
     token_id: str,
-    api_perm: ApiPermission = Depends(get_api_permission),
+    api_perm: ApiPermission = Depends(require_perm("can_manage_tokens", "当前 API Key 无权管理 Token")),
 ):
-    if not api_perm.can_manage_tokens:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="当前 API Key 无权管理 Token",
-        )
     ok = token.delete_token(token_id)
     if not ok:
         raise HTTPException(
