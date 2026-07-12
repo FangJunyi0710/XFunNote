@@ -95,8 +95,6 @@ export const ViewManagement: React.FC = () => {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <h1 className="text-xl font-bold">👁️ 视图管理</h1>
-
       {message && (
         <div className="text-sm px-3 py-2 rounded bg-secondary text-secondary-foreground">
           {message}

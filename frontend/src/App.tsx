@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Home } from '@/pages/Home';
 import { NotebookPlan } from '@/pages/NotebookPlan';
@@ -8,7 +8,6 @@ import { NotebookWord } from '@/pages/NotebookWord';
 import { NotebookAccumulation } from '@/pages/NotebookAccumulation';
 import { NotebookAimemory } from '@/pages/NotebookAimemory';
 import { AiChat } from '@/pages/AiChat';
-import { ViewManagement } from '@/pages/ViewManagement';
 import { Management } from '@/pages/Management';
 
 const App: React.FC = () => {
@@ -23,7 +22,8 @@ const App: React.FC = () => {
           <Route path="notebooks/accumulation" element={<NotebookAccumulation />} />
           <Route path="notebooks/aimemory" element={<NotebookAimemory />} />
           <Route path="ai" element={<AiChat />} />
-          <Route path="views" element={<ViewManagement />} />
+          {/* 视图管理已合并到 /management 的 视图 Tab */}
+          <Route path="views" element={<Navigate to="/management" replace />} />
           <Route path="management" element={<Management />} />
         </Route>
       </Routes>

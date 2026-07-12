@@ -16,7 +16,6 @@ const mainNav: NavItem[] = [
   { label: '积累', path: '/notebooks/accumulation', icon: '📚' },
   { label: 'AI 记忆', path: '/notebooks/aimemory', icon: '🧠' },
   { label: 'AI 对话', path: '/ai', icon: '🤖' },
-  { label: '视图', path: '/views', icon: '👁️' },
   { label: '管理', path: '/management', icon: '⚙️' },
 ];
 
