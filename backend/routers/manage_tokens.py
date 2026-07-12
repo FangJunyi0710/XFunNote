@@ -72,11 +72,10 @@ def create_token_route(
         )
 
     with _db.transaction() as conn:
-        ids = _ops.add(conn, api_perm.permission, "_tokens", [{
+        results = _ops.add(conn, api_perm.permission, "_tokens", [{
             "name": body.name,
             "permission": body.permission,
         }])
-        results = _db.get_by_ids(conn, "_tokens", ids)
 
     return results[0]
 

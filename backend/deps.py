@@ -30,7 +30,7 @@ async def get_api_permission(
        3a. token 不存在 → 401
        3b. is_active=0 → 401
        3c. expires_at 已过期 → 401
-       3d. permission id 在 _permissions 表中不存在 → 500
+       3d. permission id 在 _permissions 表中不存在 → 401
     4. 正常 → 返回 ApiPermission
     """
     if not x_api_key:
@@ -41,7 +41,7 @@ async def get_api_permission(
 
     # 管理员启动密钥：绕过 _tokens 表，直接返回 root 权限
     if ROOT_TOKEN and x_api_key == ROOT_TOKEN:
-        return _lookup_permission("root")
+        return ApiPermission(_ROOT_PERM)
 
     # 查询 _tokens 表
     with _db.read_transaction() as conn:

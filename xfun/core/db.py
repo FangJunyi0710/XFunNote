@@ -410,18 +410,6 @@ class DB:
             [{"id": eid} for eid in entry_ids],
         )
 
-    def get_by_ids(self, conn, table_name: str, entry_ids: list[str]) -> list[dict]:
-        """根据 ID 列表批量查询，返回结果保持传入顺序，不存在的 ID 被跳过。"""
-        if not entry_ids:
-            return []
-        placeholders = ", ".join(f":id_{i}" for i in range(len(entry_ids)))
-        params = {f"id_{i}": eid for i, eid in enumerate(entry_ids)}
-        rows = conn.execute(
-            f"SELECT * FROM {table_name} WHERE id IN ({placeholders})",
-            params,
-        ).fetchall()
-        result = {r["id"]: dict(r) for r in rows}
-        return [result[eid] for eid in entry_ids if eid in result]
 
 
 class _ConnWrapper:

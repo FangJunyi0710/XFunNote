@@ -51,7 +51,7 @@ from xfun.core.ops import add as ops_add
 from xfun.core.ops import delete as ops_delete
 from xfun.core.ops import query as ops_query
 from xfun.core.ops import update as ops_update
-from xfun.core.view import full_view, parse_view_json, root_permission
+from xfun.core.view import full_view, no_view, parse_view_json, root_permission, view_to_json
 
 app = typer.Typer(no_args_is_help=True)
 ai_app = typer.Typer(no_args_is_help=True)
@@ -118,7 +118,7 @@ def schema(table: str = Argument(help="表名")):
         cols = [asdict(c) for c in registry[table].columns]
     else:
         cols = [asdict(c) for c in db.table_infos[table]]
-    typer.echo(json.dumps(cols, ensure_ascii=False, indent=2))
+    typer.echo(json.dumps(cols, ensure_ascii=False))
 
 
 # ════════════════════════════════════════════════════════════
@@ -383,6 +383,31 @@ def ai_chat(ctx: typer.Context):
 
 
 app.add_typer(ai_app, name="ai")
+
+# ════════════════════════════════════════════════════════════
+#  命令：view — 输出视图定义
+# ════════════════════════════════════════════════════════════
+
+view_app = typer.Typer(no_args_is_help=True)
+
+
+@view_app.command("full")
+def view_full():
+    """输出 full_view 定义（所有表全部列 + TRUE_CONDITION）"""
+    with _cli_handle():
+        result = view_to_json(full_view(db))
+        typer.echo(json.dumps(result, ensure_ascii=False))
+
+
+@view_app.command("no")
+def view_no():
+    """输出 no_view 定义（所有表空列 + FALSE_CONDITION）"""
+    with _cli_handle():
+        result = view_to_json(no_view(db))
+        typer.echo(json.dumps(result, ensure_ascii=False))
+
+
+app.add_typer(view_app, name="view")
 
 # ════════════════════════════════════════════════════════════
 #  命令：init — 初始化数据库

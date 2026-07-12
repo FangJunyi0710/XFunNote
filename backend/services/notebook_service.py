@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 
 from xfun import db, registry
 from xfun.core import ops
-from xfun.core.view import DB_Permission, root_permission
+from xfun.core.view import DB_Permission
 from xfun.core.filter import TRUE_CONDITION, parse_filter_json
 
 
@@ -22,11 +22,11 @@ def get_schema(notetype: str) -> list[dict]:
 
 def query_entries(
     notetype: str,
+    permission: DB_Permission,
     view: dict | None,
     order_by: str = "",
     limit: int = 100,
     offset: int = 0,
-    permission: DB_Permission | None = None,
 ) -> list[dict]:
     """查询条目。
 
@@ -37,51 +37,47 @@ def query_entries(
         若为 None，默认查询所有列、无筛选。
     """
     _validate_notetype(notetype)
-    perm = permission or root_permission(db)
 
     if view is None:
         nb = registry[notetype]
         view = {notetype: [([c.name for c in nb.columns], TRUE_CONDITION)]}
 
     with db.read_transaction() as conn:
-        return ops.query(conn, perm, notetype, view,
+        return ops.query(conn, permission, notetype, view,
                          order_by=order_by, limit=limit, offset=offset)
 
 
 def add_entries(
     notetype: str,
     entries: list[dict],
-    permission: DB_Permission | None = None,
+    permission: DB_Permission,
 ) -> list[dict]:
     _validate_notetype(notetype)
-    perm = permission or root_permission(db)
     with db.transaction() as conn:
-        return ops.add(conn, perm, notetype, entries)
+        return ops.add(conn, permission, notetype, entries)
 
 
 def update_entries(
     notetype: str,
     filter_obj: Any,
     values: dict,
-    permission: DB_Permission | None = None,
+    permission: DB_Permission,
 ) -> list[dict]:
     _validate_notetype(notetype)
-    perm = permission or root_permission(db)
     flt = parse_filter_json(filter_obj)
     with db.transaction() as conn:
-        return ops.update(conn, perm, notetype, flt, values)
+        return ops.update(conn, permission, notetype, flt, values)
 
 
 def delete_entries(
     notetype: str,
     filter_obj: Any,
-    permission: DB_Permission | None = None,
+    permission: DB_Permission,
 ) -> list[dict]:
     _validate_notetype(notetype)
-    perm = permission or root_permission(db)
     flt = parse_filter_json(filter_obj)
     with db.transaction() as conn:
-        return ops.delete(conn, perm, notetype, flt)
+        return ops.delete(conn, permission, notetype, flt)
 
 
 def _validate_notetype(notetype: str) -> None:
