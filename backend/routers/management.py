@@ -8,9 +8,9 @@ from pydantic import BaseModel, Field
 from backend.services import management_service as svc
 from backend.deps import get_api_permission
 from backend.permissions import ApiPermission
-from xfun import token_service
-from xfun import view_service
-from xfun import permission_service
+from xfun.core import token
+from xfun.core import view
+from xfun.core import permission
 
 router = APIRouter(tags=["management"])
 
@@ -75,11 +75,11 @@ def list_views(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前 API Key 无权管理视图",
         )
-    return view_service.list_views()
+    return view.list_views()
 
 
 @router.get("/views/{name}")
-def get_view(
+def get_view_route(
     name: str,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
@@ -88,17 +88,17 @@ def get_view(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前 API Key 无权管理视图",
         )
-    view = view_service.get_view(name)
-    if view is None:
+    v = view.get_view(name)
+    if v is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"视图 {name!r} 不存在",
         )
-    return view
+    return v
 
 
 @router.put("/views/{name}")
-def save_view(
+def save_view_route(
     name: str,
     body: dict,
     api_perm: ApiPermission = Depends(get_api_permission),
@@ -108,12 +108,12 @@ def save_view(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前 API Key 无权管理视图",
         )
-    view_service.save_view(name, body)
+    view.save_view(name, body)
     return {"message": f"视图 {name!r} 已保存"}
 
 
 @router.delete("/views/{name}")
-def delete_view(
+def delete_view_route(
     name: str,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
@@ -122,7 +122,7 @@ def delete_view(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前 API Key 无权管理视图",
         )
-    ok = view_service.delete_view(name)
+    ok = view.delete_view(name)
     if not ok:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -154,11 +154,11 @@ def list_tokens(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前 API Key 无权管理 Token",
         )
-    return token_service.list_tokens()
+    return token.list_tokens()
 
 
 @router.get("/tokens/{token_id}")
-def get_token(
+def get_token_route(
     token_id: str,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
@@ -167,17 +167,17 @@ def get_token(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前 API Key 无权管理 Token",
         )
-    token = token_service.get_token(token_id)
-    if token is None:
+    t = token.get_token(token_id)
+    if t is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Token {token_id!r} 不存在",
         )
-    return token
+    return t
 
 
 @router.post("/tokens", status_code=status.HTTP_201_CREATED)
-def create_token(
+def create_token_route(
     body: TokenCreateRequest,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
@@ -187,7 +187,7 @@ def create_token(
             detail="当前 API Key 无权管理 Token",
         )
     try:
-        result = token_service.create_token(name=body.name, permission=body.permission)
+        result = token.create_token(name=body.name, permission=body.permission)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -197,7 +197,7 @@ def create_token(
 
 
 @router.put("/tokens/{token_id}")
-def update_token(
+def update_token_route(
     token_id: str,
     body: TokenUpdateRequest,
     api_perm: ApiPermission = Depends(get_api_permission),
@@ -208,7 +208,7 @@ def update_token(
             detail="当前 API Key 无权管理 Token",
         )
     try:
-        result = token_service.update_token(
+        result = token.update_token(
             token_id=token_id,
             name=body.name,
             permission=body.permission,
@@ -229,7 +229,7 @@ def update_token(
 
 
 @router.delete("/tokens/{token_id}")
-def delete_token(
+def delete_token_route(
     token_id: str,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
@@ -238,7 +238,7 @@ def delete_token(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前 API Key 无权管理 Token",
         )
-    ok = token_service.delete_token(token_id)
+    ok = token.delete_token(token_id)
     if not ok:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -289,11 +289,11 @@ def list_permissions(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前 API Key 无权管理权限",
         )
-    return permission_service.list_permissions()
+    return permission.list_permissions()
 
 
 @router.get("/permissions/{permission_id}")
-def get_permission(
+def get_permission_route(
     permission_id: str,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
@@ -302,7 +302,7 @@ def get_permission(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前 API Key 无权管理权限",
         )
-    perm = permission_service.get_permission(permission_id)
+    perm = permission.get_permission(permission_id)
     if perm is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -312,7 +312,7 @@ def get_permission(
 
 
 @router.post("/permissions", status_code=status.HTTP_201_CREATED)
-def create_permission(
+def create_permission_route(
     body: PermissionCreateRequest,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
@@ -322,14 +322,14 @@ def create_permission(
             detail="当前 API Key 无权管理权限",
         )
     # 检查 id 是否已存在
-    existing = permission_service.get_permission(body.id)
+    existing = permission.get_permission(body.id)
     if existing is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"权限标识 {body.id!r} 已存在",
         )
     try:
-        result = permission_service.create_permission(
+        result = permission.create_permission(
             permission_id=body.id,
             name=body.name,
             description=body.description,
@@ -353,7 +353,7 @@ def create_permission(
 
 
 @router.put("/permissions/{permission_id}")
-def update_permission(
+def update_permission_route(
     permission_id: str,
     body: PermissionUpdateRequest,
     api_perm: ApiPermission = Depends(get_api_permission),
@@ -363,7 +363,7 @@ def update_permission(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前 API Key 无权管理权限",
         )
-    result = permission_service.update_permission(
+    result = permission.update_permission(
         permission_id=permission_id,
         name=body.name,
         description=body.description,
@@ -387,7 +387,7 @@ def update_permission(
 
 
 @router.delete("/permissions/{permission_id}")
-def delete_permission(
+def delete_permission_route(
     permission_id: str,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
@@ -396,7 +396,7 @@ def delete_permission(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="当前 API Key 无权管理权限",
         )
-    ok = permission_service.delete_permission(permission_id)
+    ok = permission.delete_permission(permission_id)
     if not ok:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

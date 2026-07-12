@@ -2,8 +2,8 @@
 
 import json
 
-from xfun import db
-from xfun.utils.time_utils import now_str
+from .. import db
+from ..utils.time_utils import now_str
 
 
 def _permission_exists(permission_id: str) -> bool:

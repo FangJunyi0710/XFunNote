@@ -5,9 +5,9 @@ from __future__ import annotations
 import secrets
 import uuid
 
-from xfun import db
-from xfun.permission_service import _permission_exists
-from xfun.utils.time_utils import now_str
+from .. import db
+from .permission import _permission_exists
+from ..utils.time_utils import now_str
 
 
 def list_tokens() -> list[dict]:
