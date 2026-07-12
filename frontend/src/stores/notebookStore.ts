@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { NotebookType, AnyEntry, NotebookSchema, QueryResponse } from '@/types/notebook';
+import type { NotebookType, NotebookSchema, QueryResponse } from '@/types/notebook';
 import * as notebookApi from '@/api/notebooks';
 
 interface NotebookState {
@@ -132,7 +132,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
     if (!currentType) return;
     try {
       set({ error: null });
-      await notebookApi.deleteEntriesWithBody(currentType, ids);
+      await notebookApi.deleteEntries(currentType, ids);
       await get().fetchEntries();
     } catch (e: any) {
       set({ error: e.message || '删除失败' });

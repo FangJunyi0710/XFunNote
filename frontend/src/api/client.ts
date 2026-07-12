@@ -62,5 +62,5 @@ export const api = {
 
   put: <T>(path: string, body?: any) => request<T>('PUT', path, body),
 
-  delete: <T>(path: string) => request<T>('DELETE', path),
+  delete: <T>(path: string, body?: any) => request<T>('DELETE', path, body),
 };

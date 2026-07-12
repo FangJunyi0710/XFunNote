@@ -18,17 +18,6 @@ interface FilterPanelProps {
   onApply: (filterJson: string | null) => void;
 }
 
-const OPS: { value: FilterOp; label: string }[] = [
-  { value: 'eq', label: '=' },
-  { value: 'neq', label: '!=' },
-  { value: 'gt', label: '>' },
-  { value: 'ge', label: '>=' },
-  { value: 'lt', label: '<' },
-  { value: 'le', value: '<=' },
-  { value: 'like', label: '包含' },
-];
-
-// 修正：ge 对应的 label 重复了，重写
 const FILTER_OPS: { value: FilterOp; label: string }[] = [
   { value: 'eq', label: '=' },
   { value: 'neq', label: '!=' },

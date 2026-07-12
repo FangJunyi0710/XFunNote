@@ -112,26 +112,6 @@ export async function deleteEntries(
 ): Promise<DeleteResponse> {
   return api.delete<DeleteResponse>(
     `/notebooks/${NOTEBOOK_MAP[type]}/entries`,
-    { ids: ids.join(',') } as any,
+    { ids },
   );
-}
-
-// Hack: need to send body in DELETE
-export async function deleteEntriesWithBody(
-  type: NotebookType,
-  ids: string[],
-): Promise<DeleteResponse> {
-  const res = await fetch(
-    `${window.location.origin}/api/v1/notebooks/${NOTEBOOK_MAP[type]}/entries`,
-    {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids }),
-    },
-  );
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail || `HTTP ${res.status}`);
-  }
-  return res.json();
 }
