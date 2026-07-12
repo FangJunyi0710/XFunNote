@@ -41,13 +41,8 @@ from xfun.ai.agent import (
 )
 from xfun.ai.prompts import SYSTEM_PROMPT
 from langchain_core.messages import AIMessageChunk, BaseMessage, HumanMessage, SystemMessage, ToolMessage
-from xfun.ai.tools import (
-    add_entries,
-    delete_entries,
-    get_ai_permission,
-    query_entries,
-    update_entries,
-)
+from xfun.ai.tools import make_tools
+from xfun.core.view import root_permission as _root_permission
 from xfun.core.filter import parse_filter_json
 from xfun.core.ops import add as ops_add
 from xfun.core.ops import delete as ops_delete
@@ -92,13 +87,10 @@ def _cli_handle():
 # ════════════════════════════════════════════════════════════
 
 
-_AI_TOOLS = [
-    query_entries, 
-    add_entries, 
-    update_entries, 
-    delete_entries, 
-    get_ai_permission
-]
+_AI_TOOLS = make_tools(
+    ["query_entries", "add_entries", "update_entries", "delete_entries", "get_ai_permission"],
+    _root_permission(db),
+)
 
 
 @app.command("list")

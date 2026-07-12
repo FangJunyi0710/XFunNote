@@ -12,10 +12,6 @@ from xfun import registry
 from xfun.core.db import Column
 from xfun.core.notebook import BASE_COLUMNS
 from xfun.core.errors import PromptError
-from xfun.ai.security import ai_permission
-from xfun.core.view import view_to_json
-
-_ai_read_view, _ai_write_view = ai_permission()
 
 # 字段说明：{笔记本名: {字段名: FieldDesc}}
 # 空字符串 "" 表示所有本子通用的字段

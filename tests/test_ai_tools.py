@@ -1,18 +1,17 @@
 """测试 AI Tools — query_entries / add_entries / update_entries / delete_entries。
 
-注意：@tool 装饰器生成 StructuredTool 对象，需用 .invoke() 调用。
-这些工具使用 xfun.db 模块级 DB，测试时需 monkeypatch 替换。
+@tool 装饰器生成 StructuredTool 对象，需用 .invoke() 调用。
+通过 make_tools() 构造工具，通过 root_permission() 获得测试用权限。
 """
 
 import pytest
 
 import xfun
-import xfun.ai.tools
 from xfun.core import ops
 from xfun.core.db import DB
 from xfun.core.filter import Condition
 from xfun.core.view import root_permission
-from xfun.ai.tools import get_ai_permission, query_entries, add_entries, update_entries, delete_entries
+from xfun.ai.tools import make_tools
 from xfun.ai.schema import ViewModel, FilterModel
 
 
@@ -47,18 +46,36 @@ def _patch_db(_shared_ai_db, monkeypatch):
     monkeypatch.setattr(xfun, "db", test_db)
     monkeypatch.setattr(xfun.ai.tools, "db", test_db)
 
+    # 使用 root_permission 构造测试工具（不依赖 _permissions 表）
+    perm = root_permission(test_db)
+    monkeypatch.setattr(
+        "xfun.ai.tools.db", test_db
+    )
+    return make_tools(
+        ["query_entries", "add_entries", "update_entries", "delete_entries", "get_ai_permission"],
+        perm,
+    )
+
 
 # ----------------------------------------------------------------
 # 测试
 # ----------------------------------------------------------------
 
 class TestAITools:
+    @pytest.fixture(autouse=True)
+    def _setup_tools(self, _patch_db):
+        self.query_entries = _patch_db[0]
+        self.add_entries = _patch_db[1]
+        self.update_entries = _patch_db[2]
+        self.delete_entries = _patch_db[3]
+        self.get_ai_permission = _patch_db[4]
+
     def _query(self, view_data: dict, notetype: str, **kwargs):
         view = ViewModel.model_validate(view_data)
-        return query_entries.invoke({"view": view, "notetype": notetype, **kwargs})
+        return self.query_entries.invoke({"view": view, "notetype": notetype, **kwargs})
 
     def _add(self, notetype: str, entries: list):
-        return add_entries.invoke({"notetype": notetype, "entries": entries})
+        return self.add_entries.invoke({"notetype": notetype, "entries": entries})
 
     def test_query_empty(self):
         result = self._query(
@@ -90,25 +107,23 @@ class TestAITools:
         assert entry["created_at"] is not None
 
     def test_update_entries_via_tool(self):
-        """通过 update_entries.invoke 覆盖 _update (l.25) + update_entries (l.99-104)。"""
         add_result = self._add("plan", [{"content": "original", "month": "2606"}])
         entry_id = add_result["results"][0]["id"]
 
         filter_m = FilterModel.model_validate(
             [[{"column": "id", "value": [entry_id], "op": "IN"}]])
-        upd_result = update_entries.invoke(
+        upd_result = self.update_entries.invoke(
             {"notetype": "plan", "filter": filter_m, "values": {"content": "updated"}})
         assert "results" in upd_result
         assert upd_result["results"][0]["content"] == "updated"
 
     def test_delete_entries_via_tool(self):
-        """通过 delete_entries.invoke 覆盖 _delete (l.28) + delete_entries (l.120-125)。"""
         add_result = self._add("plan", [{"content": "delete me", "month": "2606"}])
         entry_id = add_result["results"][0]["id"]
 
         filter_m = FilterModel.model_validate(
             [[{"column": "id", "value": [entry_id], "op": "IN"}]])
-        del_result = delete_entries.invoke(
+        del_result = self.delete_entries.invoke(
             {"notetype": "plan", "filter": filter_m})
         assert "results" in del_result
         assert len(del_result["results"]) == 1
@@ -135,7 +150,7 @@ class TestAITools:
         view = ViewModel.model_validate({
             "plan": [{"columns": ["content"], "filter": {"column": "_", "value": None, "op": "TRUE"}}]
         })
-        result = query_entries.invoke({
+        result = self.query_entries.invoke({
             "view": view, "notetype": "plan", "order_by": "123invalid",
         })
         assert "error" in result
@@ -144,7 +159,7 @@ class TestAITools:
         """update_entries 中 XFunError → error 字典。"""
         filter_m = FilterModel.model_validate(
             [[{"column": "123invalid", "value": 1, "op": "="}]])
-        result = update_entries.invoke(
+        result = self.update_entries.invoke(
             {"notetype": "plan", "filter": filter_m, "values": {"content": "x"}})
         assert "error" in result
 
@@ -152,7 +167,7 @@ class TestAITools:
         """delete_entries 中 XFunError → error 字典。"""
         filter_m = FilterModel.model_validate(
             [[{"column": "123invalid", "value": 1, "op": "="}]])
-        result = delete_entries.invoke(
+        result = self.delete_entries.invoke(
             {"notetype": "plan", "filter": filter_m})
         assert "error" in result
 
@@ -160,7 +175,7 @@ class TestAITools:
         """update_entries 匹配 0 条 → 空 results。"""
         filter_m = FilterModel.model_validate(
             [[{"column": "id", "value": ["nonexistent"], "op": "IN"}]])
-        upd_result = update_entries.invoke(
+        upd_result = self.update_entries.invoke(
             {"notetype": "plan", "filter": filter_m, "values": {"content": "x"}})
         assert "results" in upd_result
         assert upd_result["results"] == []
@@ -169,21 +184,20 @@ class TestAITools:
         """delete_entries 匹配 0 条 → 空 results。"""
         filter_m = FilterModel.model_validate(
             [[{"column": "id", "value": ["nonexistent"], "op": "IN"}]])
-        del_result = delete_entries.invoke(
+        del_result = self.delete_entries.invoke(
             {"notetype": "plan", "filter": filter_m})
         assert "results" in del_result
         assert del_result["results"] == []
 
     def test_get_ai_permission(self):
         """get_ai_permission 返回包含 read/write 权限的字典。"""
-        result = get_ai_permission.invoke({})
+        result = self.get_ai_permission.invoke({})
         assert "read" in result
         assert "write" in result
-        # 验证包含已知本子的权限信息
+        # root_permission 包含所有本子
         assert "plan" in result["read"]
         assert "diary" in result["read"]
         assert "word" in result["read"]
         assert "accumulation" in result["read"]
         assert "aimemory" in result["read"]
-        # 可写视图应包含至少一个本子
         assert len(result["write"]) > 0

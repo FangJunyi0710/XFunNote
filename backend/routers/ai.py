@@ -31,6 +31,14 @@ class ChatRequest(BaseModel):
         default=None,
         description="LLM 额外参数（如 temperature）",
     )
+    permission_name: str = Field(
+        default="ai",
+        description="权限名称，对应 _permissions 表中的记录",
+    )
+    tool_names: list[str] | None = Field(
+        default=None,
+        description="工具名称列表，如 [\"query_entries\", \"add_entries\"]，默认全部",
+    )
 
 
 class ChatResponse(BaseModel):
@@ -48,6 +56,8 @@ def ai_chat(
             system_prompt=body.system_prompt,
             max_iterations=body.max_iterations,
             llm_kwargs=body.llm_kwargs,
+            permission_name=body.permission_name,
+            tool_names=body.tool_names,
         )
         return ChatResponse(messages=new_messages)
     except Exception as e:
