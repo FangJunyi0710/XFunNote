@@ -45,10 +45,10 @@ cd frontend && npm install && npm run dev
 | 变量 | 说明 |
 |------|------|
 | `XFUN_USER` | 数据库用户名，拼接为 `data/{用户名}.db`。若未设置，默认回退为 `data/default.db` |
+| `ROOT_TOKEN` | 管理员启动密钥（bootstrap），用于前期引导和数据库管理操作（`/db/*` 路由）。后续建议通过 `/api/v1/tokens` API 管理普通 Token |
 | `LLM_API_KEY` | DeepSeek API Key，用于 AI 功能 |
 | `LLM_BASE_URL` | DeepSeek API 端点，若不设置则为 None（ChatAnthropic 使用默认端点） |
-| `LLM_MODEL` | 默认模型，若不设置则为 None，建议设为 `deepseek-v4-flash` |
-| `QQ_BOT_HTTP_URL` | QQ 机器人 HTTP API 地址（推送日报用） |
+| `LLM_MODEL` | 默认模型，若不设置则由 LangChain 默认决定（当前建议 `deepseek-v4-flash`） |
 
 ### 2. 数据库路径
 
@@ -66,9 +66,21 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
 | **Notebook** | 数据容器基类，子类定义 `_extra_columns` 即可获得完整 CRUD + 筛选能力 |
 | **Condition** | 单个筛选条件（`column op value`），支持通过 `Condition.register_op()` 注册自定义运算符（`JSON_CONTAINS`、`JSON_NOT_CONTAINS`、`TEXT_SEARCH`、`TRUE`、`FALSE` 等） |
 | **Filter** | 递归结构：外层 `OR`，内层 `AND`，支持无限嵌套与整体取反，最终由 `to_sql()` 展开为 SQL WHERE |
-| **View** | `dict[表名, list[(列名列表, 行筛选条件)]]` — 跨本子的数据子集描述。支持 `view_or`（并集）/ `view_and`（交集）/ `view_to_sql`（UNION ALL + 主键去重），通过 `view_to_json` / `parse_view_json` 序列化为 JSON 文件。**用户可保存多份视图 JSON 文件，快速切换不同的数据视角**（如"今日概览"、"本周回顾"、"待复习单词"） |
+| **View** | `dict[表名, list[(列名列表, 行筛选条件)]]` — 跨本子的数据子集描述。支持 `view_or`（并集）/ `view_and`（交集）/ `view_to_sql`（UNION ALL + 主键去重），通过 `view_to_json` / `parse_view_json` 序列化为 JSON。**用户可创建多份视图，快速切换不同的数据视角**（如"今日概览"、"本周回顾"、"待复习单词"） |
 | **Permission** | `(read_view: View, write_view: View)` 元组，解耦"谁能看什么"和"谁能改什么"。系统内置 `root_permission()`（全权限，用于 CLI/管理接口）、`ai_permission()`（AI 安全沙箱）、`no_permission()`（零权限，默认拒绝）。**用户可自由组合新的 `(read_view, write_view)` 元组来创建不同访问身份** |
 | **Ops** | 4 个高维操作函数 `query` / `add` / `update` / `delete`，接收 `Permission` + Notebook 类型 + 筛选条件，内部自动完成：`Permission → view_and 合并权限 → view_clean_* 清洗输入 → Notebook 底层 CRUD → 返回完整结果`。**View、Permission、Notebook 三者各司其职，Ops 担任编排角色** |
+
+### 系统表
+
+XFunNote 使用 3 张系统级数据库表来支撑 API 访问控制与视图管理：
+
+| 系统表 | 说明 | 管理路由 |
+|--------|------|---------|
+| `_tokens` | API 鉴权 Token 表。每条记录包含 `token`（密钥值）、`permission`（绑定的权限标识）、`is_active`（启用/停用）、`expires_at`（过期时间） | `/api/v1/tokens` |
+| `_permissions` | 权限定义表。每条记录包含 `id`（权限标识）、`name`/`description`、`read_view`/`write_view`（读写 View JSON） | `/api/v1/permissions` |
+| `_views` | 视图持久化表。每条记录包含 `name`（视图名）、`data`（View JSON 内容） | `/api/v1/views` |
+
+通过 `ROOT_TOKEN` 初始化后，使用 `/api/v1/tokens` 创建普通 API Key，每个 Key 绑定一个 `_permissions` 表中的权限定义。AI Chat 接口在运行时自动计算 **API Key 权限 ∩ AI 配置权限** 的交集，确保最小权限原则。
 
 ### AI 集成
 
@@ -148,15 +160,19 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
 - 用户通过 QQ 反馈 → AI 调用 `save_memory` 固化偏好 → 次日日报自动适配。
 - `cron` 定时触发 CLI，通过 QQ 机器人推送 PDF。
 
-#### 5. 多视图：数据视角的文件化
+#### 5. 多视图：数据视角的持久化
 
-- View 是可序列化的 JSON 结构，通过 `view_to_json()` / `parse_view_json()` 可存为文件。
-- 用户可在 `input/` 目录中保存多份视图文件，如：
-  - `view_daily.json` — "今日概览"（plan 本子当月 + diary 本子当天）
-  - `view_weekly.json` — "本周回顾"（plan 本子当月 `done=1` + diary 本周）
-  - `view_word_review.json` — "待复习单词"（word 本子 `next_review <= 今天`）
+- View 是可序列化的 JSON 结构，通过 `view_to_json()` / `parse_view_json()` 可在系统内部传递。
+- 视图存储在数据库 `_views` 表中，通过 RESTful API 管理（`/api/v1/views`）：
+  - `GET /views` — 列出所有视图
+  - `GET /views/{name}` — 获取单个视图
+  - `PUT /views/{name}` — 创建/更新视图
+  - `DELETE /views/{name}` — 删除视图
+- 用户可创建多份视图，例如：
+  - `view_daily` — "今日概览"（plan 本子当月 + diary 本子当天）
+  - `view_weekly` — "本周回顾"（plan 本子当月 `done=1` + diary 本周）
+  - `view_word_review` — "待复习单词"（word 本子 `next_review <= 今天`）
 - `view_or` / `view_and` 支持对已有视图做布尔组合，构建更复杂的跨本子数据子集。
-- 未来 FastAPI 后端可增加 `/api/v1/views/` 路由，让用户通过 RESTful API 管理自己的视图集。
 
 ### 模块详解
 
@@ -166,9 +182,10 @@ SQLite 以 **WAL 模式**运行，支持并发读写不阻塞。
 | `xfun/notebooks/` | 内置本子 — 现有 5 种（`plan`/`diary`/`word`/`accumulation`/`aimemory`），规划新增 `timeline` + `schedule` | `plan.py` / `diary.py` / `word.py` / `accumulation.py` / `aimemory.py` |
 | `xfun/ai/` | AI 集成层 — 安全沙箱、CRUD Tools、Agent 引擎、提示词与 Schema 校验 | `tools.py` / `agent.py` / `security.py` / `schema.py` / `prompts.py` |
 | `xfun/utils/` | 工具函数 | `time_utils.py` |
+| `xfun/` (根) | 集中配置管理 + Token/权限/视图服务 | `config.py` / `permission_service.py` / `token_service.py` / `view_service.py` |
 | `cli.py` | 命令行入口（Typer, 10 个命令） | — |
-| `tests/` | 测试套件 | 18 个文件，287 测试 |
-| `backend/` | FastAPI 后端（已实现） | `main.py` / `routers/`(notebooks/ai/management) / `services/` / `schemas.py` / `deps.py` |
+| `tests/` | 测试套件 | 19 个文件 |
+| `backend/` | FastAPI 后端（已实现） | `main.py` / `routers/`(notebooks/ai/manage_db/manage_views/manage_tokens/manage_permissions) / `services/` / `schemas.py` / `deps.py` / `permissions.py` |
 | `frontend/` | Vite + React 前端（骨架开发中） | `src/pages/`(9 个页面待填充) / `src/components/`(10 个 UI 组件待填充) / `src/api/`(5 个 API 模块待填充) / `src/stores/` / `src/types/` |
 
 ### CLI `ai` 命令详解
@@ -282,18 +299,24 @@ AI 对话支持两种模式，`stdout` 统一输出完整消息列表 JSON：
 
 #### 阶段三：FastAPI 后端（✅ 已完成）
 - [x] 实现 `backend/main.py`：
-  - 路由：`/api/v1/notebooks/{name}/entries`（`GET`/`POST`/`PUT`/`DELETE`）
-  - 路由：`/api/v1/views/` 视图管理路由
-  - 路由：`/api/v1/ai/chat`（AI 对话）
-  - 路由：`/api/v1/ai/permission`（AI 权限查询）
-  - 路由：`/api/v1/db/init`（数据库初始化）
-  - 路由：`/api/v1/db/backup`（数据库备份）
-  - 路由：`/api/v1/db/reset`（数据库重置）
-  - [ ] 路由：`/api/v1/ai/daily`（日报生成，待实现）
-  - [ ] 路由：`/api/v1/ai/memory`（记忆查询与保存，待实现）
+  - [x] 路由：`/api/v1/notebooks/{name}/entries`（`GET`/`POST`/`PUT`/`DELETE`）
+  - [x] 路由：`/api/v1/ai/chat`（AI 对话，支持 `permission_name`/`tool_names`/`llm_kwargs`）
+  - [x] 路由：`/api/v1/ai/permission`（AI 权限查询）
+  - [x] 路由：`/api/v1/views/` 视图管理（CRUD，基于 `_views` 表）
+  - [x] 路由：`/api/v1/tokens/` Token 管理（CRUD）
+  - [x] 路由：`/api/v1/permissions/` 权限管理（CRUD）
+  - [x] 路由：`/api/v1/db/init` / `backup` / `reset`（需 `ROOT_TOKEN`）
+  - [x] Pydantic Schemas 映射（`ConditionModel` ↔ `Condition`）
+- [x] API Key 鉴权体系（`deps.py`）：
+  - [x] `X-API-Key` Header 鉴权
+  - [x] `ROOT_TOKEN` bootstrap 机制（环境变量配置）
+  - [x] `_tokens` 表查询 + 有效性校验（active / expired）
+  - [x] 权限交集：`API Key 权限 ∩ AI 配置权限`
 - [x] 依赖注入 + CORS 配置
-- [x] Pydantic Schemas 映射（`ConditionModel` ↔ `Condition`）
+- [x] 全局异常处理器（HTTPException / XFunError / RequestValidationError / 兜底 500）
 - [x] 启动：`uvicorn backend.main:app --reload`（已验证可运行）
+- [ ] 路由：`/api/v1/ai/daily`（日报生成，待实现）
+- [ ] 路由：`/api/v1/ai/memory`（记忆查询与保存，待实现）
 
 #### 阶段四：前端可视化（开发中）
 - [ ] React 界面 `frontend/src/`：
@@ -430,7 +453,10 @@ XFunNote/
 │   ├── routers/
 │   │   ├── __init__.py
 │   │   ├── ai.py
-│   │   ├── management.py
+│   │   ├── manage_db.py
+│   │   ├── manage_permissions.py
+│   │   ├── manage_tokens.py
+│   │   ├── manage_views.py
 │   │   └── notebooks.py
 │   ├── services/
 │   │   ├── __init__.py
@@ -520,7 +546,6 @@ XFunNote/
 │   ├── test_ai_agent.py
 │   ├── test_ai_prompts.py
 │   ├── test_ai_schema.py
-│   ├── test_ai_security.py
 │   ├── test_ai_tools.py
 │   ├── test_aimemory.py
 │   ├── test_db.py
@@ -542,7 +567,6 @@ XFunNote/
 │   │   ├── agent.py
 │   │   ├── prompts.py
 │   │   ├── schema.py
-│   │   ├── security.py
 │   │   └── tools.py
 │   ├── core/
 │   │   ├── __init__.py
@@ -564,10 +588,7 @@ XFunNote/
 │   │   ├── __init__.py
 │   │   └── time_utils.py
 │   ├── __init__.py
-│   ├── config.py
-│   ├── permission_service.py
-│   ├── token_service.py
-│   └── view_service.py
+│   └── config.py
 ├── .env.example
 ├── .gitattributes
 ├── .gitignore
@@ -605,7 +626,10 @@ graph LR
     subgraph backend_routers[backend/routers]
         backend_routers___init__(__init__)
         backend_routers_ai(ai)
-        backend_routers_management(management)
+        backend_routers_manage_db(manage_db)
+        backend_routers_manage_permissions(manage_permissions)
+        backend_routers_manage_tokens(manage_tokens)
+        backend_routers_manage_views(manage_views)
         backend_routers_notebooks(notebooks)
     end
     style backend_routers fill:#f0e6ff,stroke:#333,stroke-width:1px,color:#333
@@ -627,7 +651,6 @@ graph LR
         tests_test_ai_agent(test_ai_agent)
         tests_test_ai_prompts(test_ai_prompts)
         tests_test_ai_schema(test_ai_schema)
-        tests_test_ai_security(test_ai_security)
         tests_test_ai_tools(test_ai_tools)
         tests_test_aimemory(test_aimemory)
         tests_test_db(test_db)
@@ -646,9 +669,6 @@ graph LR
     subgraph xfun[xfun]
         xfun___init__(__init__)
         xfun_config(config)
-        xfun_permission_service(permission_service)
-        xfun_token_service(token_service)
-        xfun_view_service(view_service)
     end
     style xfun fill:#fdebd0,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun_ai[xfun/ai]
@@ -656,7 +676,6 @@ graph LR
         xfun_ai_agent(agent)
         xfun_ai_prompts(prompts)
         xfun_ai_schema(schema)
-        xfun_ai_security(security)
         xfun_ai_tools(tools)
     end
     style xfun_ai fill:#d6eaf8,stroke:#333,stroke-width:1px,color:#333
@@ -683,36 +702,63 @@ graph LR
     backend_deps --> backend_permissions
     backend_deps --> xfun___init__
     backend_deps --> xfun_config
+    backend_deps --> xfun_core___init__
+    backend_deps --> xfun_core_filter
+    backend_deps --> xfun_core_ops
+    backend_deps --> xfun_core_view
     backend_deps --> xfun_utils_time_utils
     backend_main --> backend_routers___init__
     backend_main --> backend_routers_ai
-    backend_main --> backend_routers_management
+    backend_main --> backend_routers_manage_db
+    backend_main --> backend_routers_manage_permissions
+    backend_main --> backend_routers_manage_tokens
+    backend_main --> backend_routers_manage_views
     backend_main --> backend_routers_notebooks
     backend_main --> xfun_config
     backend_main --> xfun_core_errors
     backend_permissions --> xfun___init__
+    backend_permissions --> xfun_core___init__
+    backend_permissions --> xfun_core_filter
+    backend_permissions --> xfun_core_ops
     backend_permissions --> xfun_core_view
     backend_routers_ai --> backend_deps
     backend_routers_ai --> backend_permissions
     backend_routers_ai --> backend_services___init__
     backend_routers_ai --> backend_services_ai_service
-    backend_routers_management --> backend_deps
-    backend_routers_management --> backend_permissions
-    backend_routers_management --> backend_services___init__
-    backend_routers_management --> backend_services_management_service
-    backend_routers_management --> xfun___init__
-    backend_routers_management --> xfun_permission_service
-    backend_routers_management --> xfun_token_service
-    backend_routers_management --> xfun_view_service
+    backend_routers_ai --> xfun_core_view
+    backend_routers_manage_db --> backend_services___init__
+    backend_routers_manage_db --> backend_services_management_service
+    backend_routers_manage_db --> xfun_config
+    backend_routers_manage_permissions --> backend_deps
+    backend_routers_manage_permissions --> backend_permissions
+    backend_routers_manage_permissions --> xfun___init__
+    backend_routers_manage_permissions --> xfun_core___init__
+    backend_routers_manage_permissions --> xfun_core_filter
+    backend_routers_manage_permissions --> xfun_core_ops
+    backend_routers_manage_permissions --> xfun_core_view
+    backend_routers_manage_tokens --> backend_deps
+    backend_routers_manage_tokens --> backend_permissions
+    backend_routers_manage_tokens --> xfun___init__
+    backend_routers_manage_tokens --> xfun_core___init__
+    backend_routers_manage_tokens --> xfun_core_filter
+    backend_routers_manage_tokens --> xfun_core_ops
+    backend_routers_manage_tokens --> xfun_core_view
+    backend_routers_manage_views --> backend_deps
+    backend_routers_manage_views --> backend_permissions
+    backend_routers_manage_views --> xfun___init__
+    backend_routers_manage_views --> xfun_core___init__
+    backend_routers_manage_views --> xfun_core_filter
+    backend_routers_manage_views --> xfun_core_ops
+    backend_routers_manage_views --> xfun_core_view
     backend_routers_notebooks --> backend_deps
     backend_routers_notebooks --> backend_permissions
     backend_routers_notebooks --> backend_schemas
     backend_routers_notebooks --> backend_services___init__
     backend_routers_notebooks --> backend_services_notebook_service
     backend_routers_notebooks --> xfun_ai_schema
+    backend_services_ai_service --> backend_permissions
     backend_services_ai_service --> xfun_ai_agent
     backend_services_ai_service --> xfun_ai_prompts
-    backend_services_ai_service --> xfun_ai_security
     backend_services_ai_service --> xfun_ai_tools
     backend_services_ai_service --> xfun_core_view
     backend_services_management_service --> xfun___init__
@@ -742,14 +788,12 @@ graph LR
     tests_test_ai_prompts --> xfun_core_errors
     tests_test_ai_schema --> xfun_ai_schema
     tests_test_ai_schema --> xfun_core_errors
-    tests_test_ai_security --> xfun_ai_security
-    tests_test_ai_security --> xfun_core_filter
-    tests_test_ai_security --> xfun_core_view
     tests_test_ai_tools --> xfun___init__
     tests_test_ai_tools --> xfun_ai_schema
     tests_test_ai_tools --> xfun_ai_tools
     tests_test_ai_tools --> xfun_core___init__
     tests_test_ai_tools --> xfun_core_db
+    tests_test_ai_tools --> xfun_core_errors
     tests_test_ai_tools --> xfun_core_filter
     tests_test_ai_tools --> xfun_core_ops
     tests_test_ai_tools --> xfun_core_view
@@ -776,32 +820,23 @@ graph LR
     tests_test_view --> xfun_core_filter
     tests_test_view --> xfun_core_view
     tests_test_word --> xfun_core_filter
-    xfun___init__ --> xfun_ai_security
     xfun___init__ --> xfun_core_db
     xfun___init__ --> xfun_core_notebook
-    xfun___init__ --> xfun_core_view
     xfun___init__ --> xfun_notebooks_accumulation
     xfun___init__ --> xfun_notebooks_aimemory
     xfun___init__ --> xfun_notebooks_diary
     xfun___init__ --> xfun_notebooks_plan
     xfun___init__ --> xfun_notebooks_word
-    xfun___init__ --> xfun_utils_time_utils
     xfun_ai_agent --> xfun_config
     xfun_ai_agent --> xfun_core_errors
     xfun_ai_prompts --> xfun___init__
-    xfun_ai_prompts --> xfun_ai_security
     xfun_ai_prompts --> xfun_core_db
     xfun_ai_prompts --> xfun_core_errors
     xfun_ai_prompts --> xfun_core_notebook
-    xfun_ai_prompts --> xfun_core_view
     xfun_ai_schema --> xfun_core_errors
     xfun_ai_schema --> xfun_core_filter
-    xfun_ai_security --> xfun___init__
-    xfun_ai_security --> xfun_core_filter
-    xfun_ai_security --> xfun_core_view
     xfun_ai_tools --> xfun___init__
     xfun_ai_tools --> xfun_ai_schema
-    xfun_ai_tools --> xfun_ai_security
     xfun_ai_tools --> xfun_core___init__
     xfun_ai_tools --> xfun_core_errors
     xfun_ai_tools --> xfun_core_filter
@@ -809,6 +844,7 @@ graph LR
     xfun_ai_tools --> xfun_core_view
     xfun_core_db --> xfun_config
     xfun_core_db --> xfun_core_errors
+    xfun_core_db --> xfun_core_filter
     xfun_core_db --> xfun_utils_time_utils
     xfun_core_errors --> xfun_core_filter
     xfun_core_extras --> xfun_core_filter
@@ -816,13 +852,10 @@ graph LR
     xfun_core_filter --> xfun_core_errors
     xfun_core_filter --> xfun_core_extras
     xfun_core_notebook --> xfun_core_db
-    xfun_core_notebook --> xfun_core_errors
-    xfun_core_notebook --> xfun_core_filter
-    xfun_core_notebook --> xfun_utils_time_utils
-    xfun_core_ops --> xfun___init__
     xfun_core_ops --> xfun_core_db
     xfun_core_ops --> xfun_core_filter
     xfun_core_ops --> xfun_core_view
+    xfun_core_view --> xfun___init__
     xfun_core_view --> xfun_core_db
     xfun_core_view --> xfun_core_filter
     xfun_notebooks_accumulation --> xfun_core_db
@@ -835,13 +868,6 @@ graph LR
     xfun_notebooks_plan --> xfun_core_notebook
     xfun_notebooks_word --> xfun_core_db
     xfun_notebooks_word --> xfun_core_notebook
-    xfun_permission_service --> xfun___init__
-    xfun_permission_service --> xfun_utils_time_utils
-    xfun_token_service --> xfun___init__
-    xfun_token_service --> xfun_permission_service
-    xfun_token_service --> xfun_utils_time_utils
-    xfun_view_service --> xfun___init__
-    xfun_view_service --> xfun_utils_time_utils
 ```
 <!-- end dependence graph -->
 
@@ -860,15 +886,28 @@ FastAPI 后端已实现，运行 `uvicorn backend.main:app --reload` 后访问 `
 | GET | `/api/v1/notebooks/{name}/entries?view=...` | 查询条目 |
 | POST | `/api/v1/notebooks/{name}/entries` | 添加条目 |
 | PUT | `/api/v1/notebooks/{name}/entries` | 更新条目 |
-| POST | `/api/v1/notebooks/{name}/entries/preview-delete` | 删除预览 |
 | DELETE | `/api/v1/notebooks/{name}/entries` | 删除条目 |
-| POST | `/api/v1/ai/chat` | AI 对话 |
+| POST | `/api/v1/ai/chat` | AI 对话（支持 `permission_name`、`tool_names`、`llm_kwargs`） |
 | GET | `/api/v1/ai/permission` | 查询 AI 权限白名单 |
-| POST | `/api/v1/db/init` | 初始化数据库 |
-| POST | `/api/v1/db/backup` | 热备份数据库 |
-| POST | `/api/v1/db/reset` | 重置数据库 |
-| GET | `/api/v1/views` | 列出视图文件 |
-| GET / PUT / DELETE | `/api/v1/views/{name}` | 视图增删改查 |
+| GET | `/api/v1/tokens` | 列出所有 API Token |
+| GET | `/api/v1/tokens/{id}` | 查询单个 Token |
+| POST | `/api/v1/tokens` | 创建 Token（返回密钥值） |
+| PUT | `/api/v1/tokens/{id}` | 更新 Token（名称/权限/启用状态/过期时间） |
+| DELETE | `/api/v1/tokens/{id}` | 删除 Token |
+| GET | `/api/v1/permissions` | 列出所有权限定义 |
+| GET | `/api/v1/permissions/{id}` | 查询单个权限 |
+| POST | `/api/v1/permissions` | 创建自定义权限 |
+| PUT | `/api/v1/permissions/{id}` | 更新权限 |
+| DELETE | `/api/v1/permissions/{id}` | 删除权限 |
+| GET | `/api/v1/views` | 列出所有视图 |
+| GET | `/api/v1/views/{name}` | 获取视图内容 |
+| PUT | `/api/v1/views/{name}` | 创建/更新视图 |
+| DELETE | `/api/v1/views/{name}` | 删除视图 |
+| POST | `/api/v1/db/init` | ⚠️ 初始化数据库（需 `ROOT_TOKEN`） |
+| POST | `/api/v1/db/backup` | ⚠️ 热备份数据库（需 `ROOT_TOKEN`） |
+| POST | `/api/v1/db/reset` | ⚠️ 重置数据库（需 `ROOT_TOKEN`） |
+
+> **鉴权说明**：所有路由（除 AI 权限查询外）均需在 `X-API-Key` Header 中传入有效 API Key。普通数据/管理路由使用 `_tokens` 表中的 Token 鉴权；`/db/*` 管理路由必须使用 `ROOT_TOKEN`（环境变量配置）。每次请求自动计算 **API Key 权限 ∩ 业务权限** 的交集。
 
 ---
 
