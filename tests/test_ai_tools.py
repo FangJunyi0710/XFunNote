@@ -27,6 +27,10 @@ def _shared_ai_db(registry):
     tmpf.close()
     test_db = DB(tmpf.name)
     with test_db.transaction() as conn:
+        for name, nb in registry.items():
+            test_db.register_hooks(
+                name, pre_add=nb._pre_add, validate=nb._validate, autofill=nb._autofill,
+            )
         test_db.init(conn, {name: nb.columns for name, nb in registry.items()})
     yield test_db, tmpf.name
     os.unlink(tmpf.name)

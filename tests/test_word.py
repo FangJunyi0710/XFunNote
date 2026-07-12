@@ -9,7 +9,7 @@ class TestWordNotebook:
     def test_add_word(self, registry, db):
         nb = registry["word"]
         with db.transaction() as conn:
-            ids = nb.add(conn, [{
+            ids = conn.db.add_entries(conn, "word", [{
                 "content": "apple",
                 "word": "apple",
                 "part_of_speech": "noun",
@@ -21,43 +21,43 @@ class TestWordNotebook:
     def test_review_count_defaults_to_zero(self, registry, db):
         nb = registry["word"]
         with db.transaction() as conn:
-            ids = nb.add(conn, [{"content": "run", "word": "run"}])
+            ids = conn.db.add_entries(conn, "word", [{"content": "run", "word": "run"}])
         with db.transaction() as conn:
-            row = nb.get_by_ids(conn, ids)[0]
+            row = conn.db.get_by_ids(conn, "word", ids)[0]
         assert row["review_count"] == 0
 
     def test_performance_defaults_to_zero(self, registry, db):
         nb = registry["word"]
         with db.transaction() as conn:
-            ids = nb.add(conn, [{"content": "book", "word": "book"}])
+            ids = conn.db.add_entries(conn, "word", [{"content": "book", "word": "book"}])
         with db.transaction() as conn:
-            row = nb.get_by_ids(conn, ids)[0]
+            row = conn.db.get_by_ids(conn, "word", ids)[0]
         assert row["performance"] == 0.0
 
     def test_query_by_word(self, registry, db):
         nb = registry["word"]
         with db.transaction() as conn:
-            nb.add(conn, [
+            conn.db.add_entries(conn, "word", [
                 {"content": "apple", "word": "apple"},
                 {"content": "banana", "word": "banana"},
             ])
         with db.transaction() as conn:
-            ids = nb.list_ids(conn, [[Condition("word", "apple", "=")]])
+            ids = conn.db.list_ids(conn, "word", [[Condition("word", "apple", "=")]])
         assert len(ids) == 1
 
     def test_missing_word_raises(self, registry, db):
         nb = registry["word"]
         with db.transaction() as conn:
             with pytest.raises(Exception):
-                nb.add(conn, [{"content": "missing word field"}])
+                conn.db.add_entries(conn, "word", [{"content": "missing word field"}])
 
     def test_update_review_count(self, registry, db):
         nb = registry["word"]
         with db.transaction() as conn:
-            ids = nb.add(conn, [{"content": "test", "word": "test"}])
+            ids = conn.db.add_entries(conn, "word", [{"content": "test", "word": "test"}])
         with db.transaction() as conn:
-            nb.update(conn, ids, {"review_count": 1, "performance": 0.5})
+            conn.db.update_entries(conn, "word", ids, {"review_count": 1, "performance": 0.5})
         with db.transaction() as conn:
-            row = nb.get_by_ids(conn, ids)[0]
+            row = conn.db.get_by_ids(conn, "word", ids)[0]
         assert row["review_count"] == 1
         assert row["performance"] == 0.5

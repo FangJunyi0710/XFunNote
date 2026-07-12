@@ -62,12 +62,12 @@ class TestNotebookCRUD:
     def _add_test_entries(self, nb, db, entries):
         """辅助：在单独事务中添加条目并返回 ID。"""
         with db.transaction() as conn:
-            return nb.add(conn, entries)
+            return conn.db.add_entries(conn, nb.name, entries)
 
     def _get_by_ids(self, nb, db, ids):
         """辅助：在单独事务中查询。"""
         with db.transaction() as conn:
-            return nb.get_by_ids(conn, ids)
+            return conn.db.get_by_ids(conn, nb.name, ids)
 
     def test_add(self, nb, db):
         ids = self._add_test_entries(nb, db, [{"content": "hello", "category": "greeting"}])
@@ -93,7 +93,7 @@ class TestNotebookCRUD:
     def test_add_missing_required_field(self, nb, db):
         with db.transaction() as conn:
             with pytest.raises(EntryInvalidError):
-                nb.add(conn, [{"content": "missing category"}])
+                conn.db.add_entries(conn, nb.name, [{"content": "missing category"}])
 
     def test_get_by_ids(self, nb, db):
         ids = self._add_test_entries(nb, db, [
@@ -109,18 +109,18 @@ class TestNotebookCRUD:
 
     def test_get_by_ids_empty(self, nb, db):
         with db.transaction() as conn:
-            rows = nb.get_by_ids(conn, [])
+            rows = conn.db.get_by_ids(conn, nb.name, [])
         assert rows == []
 
     def test_get_by_ids_nonexistent(self, nb, db):
         with db.transaction() as conn:
-            rows = nb.get_by_ids(conn, ["nonexistent"])
+            rows = conn.db.get_by_ids(conn, nb.name, ["nonexistent"])
         assert rows == []
 
     def test_get_by_ids_partial(self, nb, db):
         ids = self._add_test_entries(nb, db, [{"content": "a", "category": "c1"}])
         with db.transaction() as conn:
-            rows = nb.get_by_ids(conn, ids + ["nonexistent"])
+            rows = conn.db.get_by_ids(conn, nb.name, ids + ["nonexistent"])
         assert len(rows) == 1
 
     def test_list_ids_with_filter(self, nb, db):
@@ -130,7 +130,7 @@ class TestNotebookCRUD:
             {"content": "c", "category": "urgent"},
         ])
         with db.transaction() as conn:
-            ids = nb.list_ids(conn, [[Condition("category", "urgent", "=")]])
+            ids = conn.db.list_ids(conn, nb.name, [[Condition("category", "urgent", "=")]])
         assert len(ids) == 2
 
     def test_list_ids_empty_filter(self, nb, db):
@@ -139,7 +139,7 @@ class TestNotebookCRUD:
             {"content": "b", "category": "c2"},
         ])
         with db.transaction() as conn:
-            ids = nb.list_ids(conn, [[]])
+            ids = conn.db.list_ids(conn, nb.name, [[]])
         assert len(ids) == 2
 
     def test_list_ids_with_order_by(self, nb, db):
@@ -149,8 +149,8 @@ class TestNotebookCRUD:
         ])
         # 用单次事务包装查询
         with db.transaction() as conn:
-            ids = nb.list_ids(conn, [[]], order_by="content ASC")
-            rows = nb.get_by_ids(conn, ids)
+            ids = conn.db.list_ids(conn, nb.name, [[]], order_by="content ASC")
+            rows = conn.db.get_by_ids(conn, nb.name, ids)
         assert rows[0]["content"] == "a"
 
     def test_list_ids_with_limit(self, nb, db):
@@ -159,7 +159,7 @@ class TestNotebookCRUD:
             for i in range(10)
         ])
         with db.transaction() as conn:
-            limited = nb.list_ids(conn, [[]], limit=3)
+            limited = conn.db.list_ids(conn, nb.name, [[]], limit=3)
         assert len(limited) == 3
 
     def test_list_ids_with_offset(self, nb, db):
@@ -168,26 +168,26 @@ class TestNotebookCRUD:
             for i in range(10)
         ])
         with db.transaction() as conn:
-            all_ids = nb.list_ids(conn, [[]])
-            offset_ids = nb.list_ids(conn, [[]], offset=5)
+            all_ids = conn.db.list_ids(conn, nb.name, [[]])
+            offset_ids = conn.db.list_ids(conn, nb.name, [[]], offset=5)
         assert len(offset_ids) == 5
         assert offset_ids == all_ids[5:]
 
     def test_delete(self, nb, db):
         ids = self._add_test_entries(nb, db, [{"content": "delete me", "category": "cat"}])
         with db.transaction() as conn:
-            nb.delete(conn, ids)
+            conn.db.delete_entries(conn, nb.name, ids)
         rows = self._get_by_ids(nb, db, ids)
         assert rows == []
 
     def test_delete_empty(self, nb, db):
         with db.transaction() as conn:
-            nb.delete(conn, [])
+            conn.db.delete_entries(conn, nb.name, [])
 
     def test_update(self, nb, db):
         ids = self._add_test_entries(nb, db, [{"content": "old", "category": "cat"}])
         with db.transaction() as conn:
-            nb.update(conn, ids, {"content": "new"})
+            conn.db.update_entries(conn, nb.name, ids, {"content": "new"})
         row = self._get_by_ids(nb, db, ids)[0]
         assert row["content"] == "new"
 
@@ -197,21 +197,21 @@ class TestNotebookCRUD:
             {"content": "b", "category": "c2"},
         ])
         with db.transaction() as conn:
-            nb.update(conn, ids, {"category": "common"})
+            conn.db.update_entries(conn, nb.name, ids, {"category": "common"})
         rows = self._get_by_ids(nb, db, ids)
         assert rows[0]["category"] == "common"
         assert rows[1]["category"] == "common"
 
     def test_update_empty(self, nb, db):
         with db.transaction() as conn:
-            nb.update(conn, [], {"content": "new"})
+            conn.db.update_entries(conn, nb.name, [], {"content": "new"})
 
     def test_update_autofills_updated_at(self, nb, db):
         ids = self._add_test_entries(nb, db, [{"content": "old", "category": "cat"}])
         with db.transaction() as conn:
-            row = nb.get_by_ids(conn, ids)[0]
+            row = conn.db.get_by_ids(conn, nb.name, ids)[0]
             old_updated = row["updated_at"]
         with db.transaction() as conn:
-            nb.update(conn, ids, {"content": "new"})
+            conn.db.update_entries(conn, nb.name, ids, {"content": "new"})
         row = self._get_by_ids(nb, db, ids)[0]
         assert row["updated_at"] != old_updated

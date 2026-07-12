@@ -57,6 +57,10 @@ def _shared_db(registry):
     tmpf.close()
     _db = DB(tmpf.name)
     with _db.transaction() as conn:
+        for name, nb in registry.items():
+            _db.register_hooks(
+                name, pre_add=nb._pre_add, validate=nb._validate, autofill=nb._autofill,
+            )
         _db.init(conn, {name: nb.columns for name, nb in registry.items()})
     yield _db
     os.unlink(tmpf.name)
@@ -126,6 +130,5 @@ def populated_db(db, registry, demo_entries):
     ids: dict[str, list[str]] = {}
     with db.transaction() as conn:
         for nb_name, entries in demo_entries.items():
-            nb = registry[nb_name]
-            ids[nb_name] = nb.add(conn, entries)
+            ids[nb_name] = conn.db.add_entries(conn, nb_name, entries)
     return db, ids

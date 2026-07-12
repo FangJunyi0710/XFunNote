@@ -9,7 +9,7 @@ class TestAccumulationNotebook:
     def test_add_accumulation(self, registry, db):
         nb = registry["accumulation"]
         with db.transaction() as conn:
-            ids = nb.add(conn, [{
+            ids = conn.db.add_entries(conn, "accumulation", [{
                 "content": "Python 列表推导式",
                 "category": "Python",
                 "source": "官方文档",
@@ -22,25 +22,25 @@ class TestAccumulationNotebook:
         nb = registry["accumulation"]
         with db.transaction() as conn:
             with pytest.raises(Exception):
-                nb.add(conn, [{"content": "no category"}])
+                conn.db.add_entries(conn, "accumulation", [{"content": "no category"}])
 
     def test_query_by_category(self, registry, db):
         nb = registry["accumulation"]
         with db.transaction() as conn:
-            nb.add(conn, [
+            conn.db.add_entries(conn, "accumulation", [
                 {"content": "Python tip", "category": "Python"},
                 {"content": "JS tip", "category": "JavaScript"},
                 {"content": "Python OOP", "category": "Python"},
             ])
         with db.transaction() as conn:
-            ids = nb.list_ids(conn, [[Condition("category", "Python", "=")]])
+            ids = conn.db.list_ids(conn, "accumulation", [[Condition("category", "Python", "=")]])
         assert len(ids) == 2
 
     def test_source_and_note_optional(self, registry, db):
         nb = registry["accumulation"]
         with db.transaction() as conn:
-            ids = nb.add(conn, [{"content": "just a note", "category": "misc"}])
+            ids = conn.db.add_entries(conn, "accumulation", [{"content": "just a note", "category": "misc"}])
         with db.transaction() as conn:
-            row = nb.get_by_ids(conn, ids)[0]
+            row = conn.db.get_by_ids(conn, "accumulation", ids)[0]
         assert row["source"] is None
         assert row["note"] is None

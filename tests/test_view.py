@@ -43,7 +43,7 @@ class TestViewToSQL:
     def test_entries_appear_in_view(self, registry, db):
         nb = registry["plan"]
         with db.transaction() as conn:
-            ids = nb.add(conn, [{"content": "my plan", "month": "2606"}])
+            ids = conn.db.add_entries(conn, "plan", [{"content": "my plan", "month": "2606"}])
         view: View = {"plan": [(["content", "month"], TRUE_CONDITION)]}
         sql, params = view_to_sql(view, db, "plan")
         with db.transaction() as conn:
@@ -63,7 +63,7 @@ class TestViewToSQL:
         """插入多条数据后，通过 view 查询应返回正确条数。"""
         nb = registry["plan"]
         with db.transaction() as conn:
-            nb.add(conn, [
+            conn.db.add_entries(conn, "plan", [
                 {"content": "a", "month": "2606"},
                 {"content": "b", "month": "2606"},
                 {"content": "c", "month": "2607"},
@@ -187,7 +187,7 @@ class TestNoPermission:
     def test_no_permission_query_returns_nothing(self, registry, db):
         nb = registry["plan"]
         with db.transaction() as conn:
-            nb.add(conn, [{"content": "secret", "month": "2606"}])
+            conn.db.add_entries(conn, "plan", [{"content": "secret", "month": "2606"}])
         rv, _ = no_permission(db)
         sql, params = view_to_sql(rv, db, "plan")
         with db.transaction() as conn:
