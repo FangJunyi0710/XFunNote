@@ -381,3 +381,35 @@ class TestDBBackupReset:
                 )
             }
         assert existing == {"test_nb"}, f"reset 后表集合不匹配: {existing}"
+
+    def test_restore_from_backup(self, db, tmp_path):
+        """restore() 应从备份文件恢复数据库。"""
+        import os
+        # 写入数据并备份
+        with db.transaction() as conn:
+            conn.execute(
+                "INSERT INTO plan (id, content, month, seq, no, done, created_at, updated_at, tags, ai_tags, is_ai_gen) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                ("restore-1", "恢复测试", "2606", 1, "2606A", 0, "2026-01-01", "2026-01-01", "[]", "[]", 0),
+            )
+        backup_path = db.backup()
+        assert os.path.exists(backup_path)
+
+        # 修改原数据，确认与备份不同
+        with db.transaction() as conn:
+            conn.execute("DELETE FROM plan")
+
+        # 恢复
+        result = db.restore(backup_path)
+        assert result == backup_path
+
+        # 验证数据已恢复
+        with db.read_transaction() as conn:
+            row = conn.execute("SELECT id FROM plan WHERE id = 'restore-1'").fetchone()
+        assert row is not None
+
+    def test_restore_raises_on_missing_file(self, db):
+        """restore() 备份文件不存在应抛出 FileNotFoundError。"""
+        import pytest
+        with pytest.raises(FileNotFoundError, match="备份文件不存在"):
+            db.restore("/nonexistent/path/backup.db")

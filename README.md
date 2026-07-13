@@ -32,7 +32,8 @@ uvicorn backend.main:app --reload
 
 # 4. （前端启动，另开终端）
 # 注意：前端需要 Node.js 18+
-cd frontend && npm install && npm run dev
+cd frontend
+npm install && npm run dev
 ```
 
 ---
@@ -190,7 +191,7 @@ XFunNote 使用 3 张系统级数据库表来支撑 API 访问控制与视图管
 | `xfun/utils/` | 工具函数 | `time_utils.py` / `token_utils.py` |
 | `xfun/` (根) | 注册中心 + 数据库初始化 + 系统表定义 + 配置管理 | `__init__.py` / `config.py` |
 | `cli.py` | 命令行入口（Typer, 10 个命令） | — |
-| `tests/` | 测试套件 | 17 个文件 |
+| `tests/` | 测试套件 | 多个文件 |
 | `backend/` | FastAPI 后端（已实现） | `main.py` / `routers/`(notebooks/ai/manage_db/manage_view/manage_token/manage_permission) / `services/` / `schemas.py` / `deps.py` / `permissions.py` |
 | `frontend/` | Vite + React 前端（骨架开发中） | `src/pages/`(9 个页面待填充) / `src/components/`(14 个 UI 组件待填充) / `src/api/`(5 个 API 模块待填充) / `src/stores/` / `src/types/` |
 
@@ -249,7 +250,7 @@ AI 对话支持两种模式，`stdout` 统一输出完整消息列表 JSON：
 | **Agent 对话引擎** | `xfun/ai/agent.py` 工具调用循环（Tool Calling Loop），支持多轮工具调用、自动错误恢复、最大迭代控制（10 轮） |
 | **Ops 操作层** | `xfun/core/ops.py` 4 个高维 CRUD 函数（`query`/`add`/`update`/`delete`），封装 View + Notebook 的组合语义 |
 | **视图层** | `xfun/core/view.py` 8 个核心函数：`view_to_sql`（跨本子 UNION ALL + 主键去重）、`view_or`/`view_and`（并集/交集）、`view_clean_columns`/`view_clean_filter`/`view_clean_update`（AI 安全沙箱列/行清洗）、`view_to_json`/`parse_view_json`（序列化/反序列化） |
-| **测试覆盖** | 全面覆盖核心引擎及 AI 集成层正常路径、边界条件、错误路径及事务回滚，285 个单元测试，17 个测试文件（含 `test_ai_agent.py`、`test_ai_prompts.py`、`test_ai_schema.py`、`test_ai_tools.py`），覆盖率 100% |
+| **测试覆盖** | 全面覆盖核心引擎及 AI 集成层正常路径、边界条件、错误路径及事务回滚，300 个单元测试，多个测试文件（含 `test_ai_agent.py`、`test_ai_prompts.py`、`test_ai_schema.py`、`test_ai_tools.py`），覆盖率 100% |
 
 #### 🗺️ 规划中
 
@@ -280,7 +281,6 @@ AI 对话支持两种模式，`stdout` 统一输出完整消息列表 JSON：
 - [x] `Filter` 递归 `to_sql()`，支持无限嵌套 OR/AND + `negate`
 - [x] `Notebook` 基类抽象 + 5 个本子（`plan`、`word`、`diary`、`accumulation`、`aimemory`）
 - [x] SQLite 数据库引擎（Column / Condition / Filter / DB / View）
-- [x] 单元测试 285 个，覆盖率 100%
 
 #### 阶段一：AI Tools 层（已完成）
 - [x] 在 `xfun/ai/tools.py` 中实现 5 个工具：
@@ -485,6 +485,8 @@ XFunNote/
 │   │   │   ├── client.ts
 │   │   │   ├── management.ts
 │   │   │   ├── notebooks.ts
+│   │   │   ├── permissions.ts
+│   │   │   ├── tokens.ts
 │   │   │   └── views.ts
 │   │   ├── components/
 │   │   │   ├── layout/
@@ -500,14 +502,19 @@ XFunNote/
 │   │   │       ├── button.tsx
 │   │   │       ├── card.tsx
 │   │   │       ├── checkbox.tsx
+│   │   │       ├── dialog.tsx
 │   │   │       ├── input.tsx
+│   │   │       ├── label.tsx
 │   │   │       ├── select.tsx
 │   │   │       ├── separator.tsx
+│   │   │       ├── switch.tsx
+│   │   │       ├── tabs.tsx
 │   │   │       └── textarea.tsx
 │   │   ├── lib/
 │   │   │   └── utils.ts
 │   │   ├── pages/
 │   │   │   ├── AiChat.tsx
+│   │   │   ├── DatabaseManagement.tsx
 │   │   │   ├── Home.tsx
 │   │   │   ├── Management.tsx
 │   │   │   ├── NotebookAccumulation.tsx
@@ -515,14 +522,19 @@ XFunNote/
 │   │   │   ├── NotebookDiary.tsx
 │   │   │   ├── NotebookPlan.tsx
 │   │   │   ├── NotebookWord.tsx
+│   │   │   ├── PermissionManagement.tsx
+│   │   │   ├── TokenManagement.tsx
 │   │   │   └── ViewManagement.tsx
 │   │   ├── stores/
 │   │   │   ├── chatStore.ts
-│   │   │   └── notebookStore.ts
+│   │   │   ├── notebookStore.ts
+│   │   │   └── themeStore.ts
 │   │   ├── types/
 │   │   │   ├── api.ts
 │   │   │   ├── filter.ts
 │   │   │   ├── notebook.ts
+│   │   │   ├── permission.ts
+│   │   │   ├── token.ts
 │   │   │   └── view.ts
 │   │   ├── App.tsx
 │   │   ├── index.css
@@ -562,10 +574,9 @@ XFunNote/
 │   ├── test_plan.py
 │   ├── test_registry.py
 │   ├── test_time_utils.py
+│   ├── test_token.py
 │   ├── test_view.py
 │   └── test_word.py
-├── views/
-│   └── .gitkeep
 ├── xfun/
 │   ├── ai/
 │   │   ├── __init__.py
@@ -626,7 +637,7 @@ graph LR
         backend___init__(__init__)
         backend_deps(deps)
         backend_main(main)
-        backend_permission(permissions)
+        backend_permissions(permissions)
         backend_schemas(schemas)
     end
     style backend fill:#ffe0f0,stroke:#333,stroke-width:1px,color:#333
@@ -669,6 +680,7 @@ graph LR
         tests_test_plan(test_plan)
         tests_test_registry(test_registry)
         tests_test_time_utils(test_time_utils)
+        tests_test_token(test_token)
         tests_test_view(test_view)
         tests_test_word(test_word)
     end
@@ -706,7 +718,7 @@ graph LR
         xfun_notebooks_word(word)
     end
     style xfun_notebooks fill:#d4f0c0,stroke:#333,stroke-width:1px,color:#333
-    backend_deps --> backend_permission
+    backend_deps --> backend_permissions
     backend_deps --> xfun___init__
     backend_deps --> xfun_config
     backend_deps --> xfun_core___init__
@@ -723,47 +735,48 @@ graph LR
     backend_main --> backend_routers_notebooks
     backend_main --> xfun_config
     backend_main --> xfun_core_errors
-    backend_permission --> xfun___init__
-    backend_permission --> xfun_core___init__
-    backend_permission --> xfun_core_filter
-    backend_permission --> xfun_core_ops
-    backend_permission --> xfun_core_view
+    backend_permissions --> xfun___init__
+    backend_permissions --> xfun_core___init__
+    backend_permissions --> xfun_core_filter
+    backend_permissions --> xfun_core_ops
+    backend_permissions --> xfun_core_view
     backend_routers_ai --> backend_deps
-    backend_routers_ai --> backend_permission
+    backend_routers_ai --> backend_permissions
     backend_routers_ai --> backend_services___init__
     backend_routers_ai --> backend_services_ai_service
     backend_routers_ai --> xfun_core_view
     backend_routers_manage_db --> backend_services___init__
     backend_routers_manage_db --> backend_services_management_service
+    backend_routers_manage_db --> xfun___init__
     backend_routers_manage_db --> xfun_config
     backend_routers_manage_permission --> backend_deps
-    backend_routers_manage_permission --> backend_permission
+    backend_routers_manage_permission --> backend_permissions
     backend_routers_manage_permission --> xfun___init__
     backend_routers_manage_permission --> xfun_core___init__
     backend_routers_manage_permission --> xfun_core_filter
     backend_routers_manage_permission --> xfun_core_ops
     backend_routers_manage_permission --> xfun_core_view
     backend_routers_manage_token --> backend_deps
-    backend_routers_manage_token --> backend_permission
+    backend_routers_manage_token --> backend_permissions
     backend_routers_manage_token --> xfun___init__
     backend_routers_manage_token --> xfun_core___init__
     backend_routers_manage_token --> xfun_core_filter
     backend_routers_manage_token --> xfun_core_ops
     backend_routers_manage_token --> xfun_core_view
     backend_routers_manage_view --> backend_deps
-    backend_routers_manage_view --> backend_permission
+    backend_routers_manage_view --> backend_permissions
     backend_routers_manage_view --> xfun___init__
     backend_routers_manage_view --> xfun_core___init__
     backend_routers_manage_view --> xfun_core_filter
     backend_routers_manage_view --> xfun_core_ops
     backend_routers_manage_view --> xfun_core_view
     backend_routers_notebooks --> backend_deps
-    backend_routers_notebooks --> backend_permission
+    backend_routers_notebooks --> backend_permissions
     backend_routers_notebooks --> backend_schemas
     backend_routers_notebooks --> backend_services___init__
     backend_routers_notebooks --> backend_services_notebook_service
     backend_routers_notebooks --> xfun_ai_schema
-    backend_services_ai_service --> backend_permission
+    backend_services_ai_service --> backend_permissions
     backend_services_ai_service --> xfun_ai_agent
     backend_services_ai_service --> xfun_ai_prompts
     backend_services_ai_service --> xfun_ai_tools
@@ -824,6 +837,8 @@ graph LR
     tests_test_registry --> xfun_config
     tests_test_registry --> xfun_utils_time_utils
     tests_test_time_utils --> xfun_utils_time_utils
+    tests_test_token --> xfun___init__
+    tests_test_token --> xfun_utils_token_utils
     tests_test_view --> xfun_core_filter
     tests_test_view --> xfun_core_view
     tests_test_word --> xfun_core_filter

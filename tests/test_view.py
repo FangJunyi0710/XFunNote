@@ -134,6 +134,33 @@ class TestViewClean:
         assert "content" in cleaned_values
         assert "secret" not in cleaned_values
 
+    def test_clean_entry_skips_id(self):
+        """_clean_entry 应跳过 id 列 (l.117)。"""
+        view: View = {"plan": [(["content", "id"], TRUE_CONDITION)]}
+        entries = [{"id": "should-be-skipped", "content": "valid"}]
+        cleaned = view_clean_add(view, "plan", entries)
+        assert "id" not in cleaned[0]
+        assert cleaned[0]["content"] == "valid"
+
+    def test_clean_add_unknown_table(self):
+        """view_clean_add 未知表应返回空列表 (l.124-125)。"""
+        view: View = {"plan": [(["content"], TRUE_CONDITION)]}
+        result = view_clean_add(view, "nonexistent", [{"content": "x"}])
+        assert result == []
+
+    def test_clean_delete_unknown_table(self):
+        """view_clean_delete 未知表应返回 FALSE_CONDITION (l.130-131)。"""
+        view: View = {"plan": [(["id"], TRUE_CONDITION)]}
+        from xfun.core.filter import FALSE_CONDITION
+        result = view_clean_delete(view, "nonexistent", TRUE_CONDITION)
+        assert result == FALSE_CONDITION
+
+    def test_clean_update_unknown_table(self):
+        """view_clean_update 未知表应返回空列表 (l.135-136)。"""
+        view: View = {"plan": [(["content"], TRUE_CONDITION)]}
+        result = view_clean_update(view, "nonexistent", TRUE_CONDITION, {"content": "x"})
+        assert result == []
+
 
 class TestRootPermission:
     def test_root_permission_covers_all_tables(self, db):

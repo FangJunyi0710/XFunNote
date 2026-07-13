@@ -325,6 +325,38 @@ class TestFilterEdgeCases:
         assert "(a = ?)" in sql
         assert params == [1]
 
+    def test_empty_list_filter_returns_1_0(self):
+        """空列表作为 filter → 返回 "1=0" (l.157)。"""
+        sql, params = filter_to_sql([])
+        assert sql == "1=0"
+        assert params == []
+
+    def test_custom_op_returns_empty_clause_in_tuple(self):
+        """自定义运算符返回空 clause → tuple 分支使用 "1=0" (l.136-137)。"""
+        from xfun.core.filter import Condition
+
+        @Condition.register_op("EMPTY_TUPLE")
+        def _empty_tuple(column, value, op):
+            return "", []
+
+        flt: Filter = (Condition("x", None, "EMPTY_TUPLE"), False)
+        sql, params = filter_to_sql(flt)
+        assert sql == "1=0"
+        assert params == []
+
+    def test_custom_op_returns_empty_clause_in_and_group(self):
+        """自定义运算符返回空 clause → and 组使用 "1=0" (l.148-149)。"""
+        from xfun.core.filter import Condition
+
+        @Condition.register_op("EMPTY_AND")
+        def _empty_and(column, value, op):
+            return "", []
+
+        flt: Filter = [[Condition("x", None, "EMPTY_AND")]]
+        sql, params = filter_to_sql(flt)
+        assert sql == "((1=0))"
+        assert params == []
+
 
 class TestConvertFilterEdge:
     """覆盖 parse_filter_json 中的 tuple+bool 分支 (l.168)。"""
