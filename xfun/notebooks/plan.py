@@ -51,5 +51,6 @@ class PlanNotebook(Notebook):
 
     def _autofill(self, entry: dict[str, Any]) -> None:
         """自动填充 plan 特有字段：no、done。"""
+        super()._autofill(entry)
         entry["no"] = f"{entry['month']}{_seq_to_letter(entry['seq'])}"
         entry.setdefault("done", 0)

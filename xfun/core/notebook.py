@@ -17,11 +17,15 @@ BASE_COLUMNS = [
     Column("content",    "TEXT",    nullable=False),
     Column("created_at", "TEXT",    nullable=False, auto=True),
     Column("updated_at", "TEXT",    nullable=False, auto=True),
-    Column("tags",       "TEXT",    nullable=False, auto=True), # json 数组：list[str]
+    Column("tags",       "TEXT",    nullable=True),
     Column("is_ai_gen",  "INTEGER", nullable=False, auto=True),
-    Column("ai_tags",    "TEXT",    nullable=False, auto=True),
+    Column("ai_tags",    "TEXT",    nullable=True),
     Column("ai_note",    "TEXT",    nullable=True),
 ]
+
+_AUTOFILL_DEFAULTS = {
+    "is_ai_gen": 0,
+}
 
 
 class Notebook:
@@ -64,7 +68,10 @@ class Notebook:
 
     def _autofill(self, entry: dict[str, Any]) -> None:
         """自动填充钩子：填充本子特有字段（基类通用字段由 DB 统一填充）。"""
-        pass
+        cols = {c.name for c in self.columns}
+        for field, default in _AUTOFILL_DEFAULTS.items():
+            if field in cols and field not in entry:
+                entry[field] = default
 
     # ---- 内置 ----
 
