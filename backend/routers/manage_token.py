@@ -5,11 +5,13 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from datetime import datetime, timedelta
+
 from backend.deps import get_api_permission
 from backend.permissions import ApiPermission
 from xfun import db as _db
 from xfun.core import ops as _ops
-from xfun.core.view import full_view
+from xfun.core.view import full_view, root_permission
 from xfun.core.filter import Condition
 
 router = APIRouter(tags=["management-tokens"])
@@ -18,6 +20,8 @@ router = APIRouter(tags=["management-tokens"])
 class TokenCreateRequest(BaseModel):
     name: str = Field(description="Token 可读名称")
     permission: str = Field(description="权限标识，对应 _permission 表中的 id")
+    shortcut: str | None = Field(default=None, description="可选的自定义快捷配对码", max_length=64)
+    shortcut_ttl: int = Field(default=120, ge=10, le=86400, description="Shortcut 有效期（秒），默认 120 秒")
 
 
 class TokenUpdateRequest(BaseModel):
@@ -75,11 +79,17 @@ def create_token_route(
             detail=f"不存在的权限标识: {body.permission!r}",
         )
 
+    entry = {
+        "name": body.name,
+        "permission": body.permission,
+    }
+
+    if body.shortcut is not None:
+        entry["shortcut"] = body.shortcut
+        entry["shortcut_expire_at"] = (datetime.now() + timedelta(seconds=body.shortcut_ttl)).isoformat()
+
     with _db.transaction() as conn:
-        results = _ops.add(conn, api_perm.permission, "_token", [{
-            "name": body.name,
-            "permission": body.permission,
-        }])
+        results = _ops.add(conn, api_perm.permission, "_token", [entry])
 
     return results[0]
 
@@ -121,6 +131,57 @@ def update_token_route(
             detail=f"Token {token_id!r} 不存在",
         )
     return result[0]
+
+
+class ShortcutExchangeRequest(BaseModel):
+    shortcut: str = Field(description="快捷配对码")
+
+
+@router.post("/tokens/exchange")
+def exchange_token_by_shortcut(
+    body: ShortcutExchangeRequest,
+):
+    """
+    通过 Shortcut 兑换完整 Token（无需鉴权）。
+
+    原子操作：检查有效性 -> 返回完整 token 明文 -> 立即清空 shortcut（一次性）。
+    """
+    from xfun.utils.time_utils import now_str
+
+    perm = root_permission(_db)
+
+    with _db.transaction() as conn:
+        cols = _db.cols("_token")
+        results = _ops.query(conn, perm, "_token",
+                             {"_token": [(cols, Condition("shortcut", body.shortcut, "="))]},
+                             limit=1)
+        if not results:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Shortcut 不存在或已被兑换",
+            )
+
+        row = results[0]
+
+        # 检查是否过期
+        expire_at = row.get("shortcut_expire_at")
+        if expire_at and expire_at < now_str():
+            # 过期：清空 shortcut 使其不再可兑
+            _ops.update(conn, perm, "_token",
+                        Condition("id", row["id"], "="),
+                        {"shortcut": None, "shortcut_expire_at": None})
+            raise HTTPException(
+                status_code=status.HTTP_410_GONE,
+                detail="Shortcut 已过期",
+            )
+
+        # 兑换成功：返回完整 token 并清空 shortcut
+        token_value = row["token"]
+        _ops.update(conn, perm, "_token",
+                    Condition("id", row["id"], "="),
+                    {"shortcut": None, "shortcut_expire_at": None})
+
+    return {"token": token_value}
 
 
 @router.delete("/tokens/{token_id}")

@@ -41,6 +41,7 @@ class Column:
     col_type: str
     nullable: bool = True
     primary_key: bool = False
+    unique: bool = False
     index: bool = False
     auto: bool = False
 
@@ -78,6 +79,8 @@ class Column:
         parts = [self.name, self.col_type]
         if self.primary_key:
             parts.append("PRIMARY KEY")
+        if self.unique:
+            parts.append("UNIQUE")
         if not self.nullable:
             parts.append("NOT NULL")
 
@@ -105,6 +108,10 @@ def _check_addition_column(col: Column):
         raise InvalidSQLError(
             f"新增列 {col.name} 为主键：ALTER TABLE ADD COLUMN 不支持添加主键列"
         )
+    if col.unique:
+        raise InvalidSQLError(
+            f"新增列 {col.name} 为 UNIQUE：ALTER TABLE ADD COLUMN 不支持添加 UNIQUE 约束列"
+        )
 
 
 def _check_existing_column(col: Column, existing: sqlite3.Row, table_name: str) -> None:
@@ -128,6 +135,7 @@ def _check_existing_column(col: Column, existing: sqlite3.Row, table_name: str) 
             f"代码定义 primary_key={col.primary_key}，数据库中 "
             f"{'是主键' if existing['pk'] else '非主键'}"
         )
+    # UNIQUE 约束无法通过 PRAGMA table_info 获取，不做兼容性检查
 
 
 # ---------------------------------------------------------------------------
@@ -229,6 +237,9 @@ class DB:
         # 只会被 init 调用，其已检查表名
         for col in cols:
             if not col.index:
+                continue
+            # UNIQUE 约束会自动创建索引，无需重复创建
+            if col.unique:
                 continue
             conn.execute(
                 f"CREATE INDEX IF NOT EXISTS idx_{table_name}_{col.name} "
@@ -384,10 +395,10 @@ class DB:
         """基础自动填充：按表实际列填充 id、时间戳、可空列补 None。"""
         cols = {c.name for c in self.table_infos[table_name]}
 
-        if "id" in cols and "id" not in entry:
+        if "id" in cols:
             entry["id"] = f"{table_name}-{str(uuid7())}"
         if "created_at" in cols:
-            entry.setdefault("created_at", now_str())
+            entry["created_at"] = now_str()
         if "updated_at" in cols:
             entry["updated_at"] = now_str()
 

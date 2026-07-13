@@ -24,7 +24,7 @@ def _seq_to_letter(seq: int) -> str:
 class PlanNotebook(Notebook):
     name = "plan"
     _extra_columns = [
-        Column("no",    "TEXT", nullable=False, auto=True),
+        Column("no",    "TEXT", nullable=False, auto=True, unique=True),
         Column("seq",    "INTEGER", nullable=False, auto=True),
         Column("month", "TEXT",    nullable=False, index=True),
         Column("done",  "INTEGER", nullable=False, auto=True),

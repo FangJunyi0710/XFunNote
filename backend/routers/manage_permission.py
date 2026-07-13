@@ -63,17 +63,6 @@ def create_permission_route(
     body: PermissionCreateRequest,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    # 检查 id 是否已存在
-    with _db.read_transaction() as conn:
-        cols = _db.cols("_permission")
-        existing = _ops.query(conn, api_perm.permission, "_permission",
-                              {"_permission": [(cols, Condition("id", body.id, "="))]},
-                              limit=1)
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"权限标识 {body.id!r} 已存在",
-        )
     with _db.transaction() as conn:
         result = _ops.add(conn, api_perm.permission, "_permission", [{
             "id": body.id,

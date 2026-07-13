@@ -11,7 +11,7 @@ from ..core.notebook import Notebook
 class WordNotebook(Notebook):
     name = "word"
     _extra_columns = [
-        Column("word",           "TEXT",    nullable=False),
+        Column("word",           "TEXT",    nullable=False, unique=True),
         Column("part_of_speech", "TEXT",    nullable=True),
         Column("phonetic",       "TEXT",    nullable=True),
         Column("example",        "TEXT",    nullable=True),

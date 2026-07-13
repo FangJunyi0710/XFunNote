@@ -13,6 +13,7 @@ from xfun.config import PROJECT_ROOT
 assert PROJECT_ROOT == _PROJECT_ROOT
 
 import http
+import sqlite3
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request, status
@@ -64,6 +65,25 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     )
 
 
+@app.exception_handler(sqlite3.IntegrityError)
+async def integrity_error_handler(request: Request, exc: sqlite3.IntegrityError):
+    """SQLite IntegrityError 处理器：UNIQUE 冲突 → 409，NOT NULL 冲突 → 422。"""
+    error_msg = str(exc)
+    if "UNIQUE constraint failed" in error_msg:
+        status_code = status.HTTP_409_CONFLICT
+        detail = f"数据已存在: {error_msg}"
+    elif "NOT NULL constraint failed" in error_msg:
+        status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        detail = f"缺少必填字段: {error_msg}"
+    else:
+        status_code = status.HTTP_400_BAD_REQUEST
+        detail = f"数据完整性错误: {error_msg}"
+    return JSONResponse(
+        status_code=status_code,
+        content={"error": http.HTTPStatus(status_code).phrase, "detail": detail},
+    )
+
+
 @app.exception_handler(XFunError)
 async def xfun_error_handler(request: Request, exc: XFunError):
     """XFunError 处理器：将领域异常转为 422，保留错误消息。"""
@@ -108,4 +128,3 @@ app.include_router(manage_db.router, prefix="/api/v1")
 app.include_router(manage_view.router, prefix="/api/v1")
 app.include_router(manage_token.router, prefix="/api/v1")
 app.include_router(manage_permission.router, prefix="/api/v1")
-# TODO TOKEN授予与shortcut机制
