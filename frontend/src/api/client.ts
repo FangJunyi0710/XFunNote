@@ -48,8 +48,8 @@ async function request<T>(
   };
 
   // 从浏览器本地存储的 token 列表中获取当前使用的 token
-  const { getActiveTokenKey } = await import('@/stores/tokenStore');
-  const apiKey = getActiveTokenKey();
+  const { useTokenStore } = await import('@/stores/tokenStore');
+  const apiKey = useTokenStore.getState().getActiveTokenKey();
   if (apiKey) {
     options.headers = { ...options.headers, 'X-API-Key': apiKey };
   }

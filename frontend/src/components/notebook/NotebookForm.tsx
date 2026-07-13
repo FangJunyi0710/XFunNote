@@ -24,13 +24,16 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [submitting, setSubmitting] = useState(false);
 
+  // 自动填充/内部字段，不应展示给用户
+  const AUTO_FIELDS = ['id', 'created_at', 'updated_at', 'is_ai_gen', 'no', 'seq', 'review_count', 'performance'];
+
   useEffect(() => {
     if (initialData) {
       setFormData({ ...initialData });
     } else {
       const defaults: Record<string, any> = {};
       schema.columns.forEach((col) => {
-        if (col.name === 'id' || col.name === 'created_at' || col.name === 'updated_at') return;
+        if (AUTO_FIELDS.includes(col.name)) return;
         defaults[col.name] = col.default !== undefined ? col.default : '';
       });
       setFormData(defaults);
@@ -52,7 +55,7 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
   };
 
   const renderField = (col: { name: string; type: string; required: boolean }) => {
-    if (col.name === 'id' || col.name === 'created_at' || col.name === 'updated_at') {
+    if (AUTO_FIELDS.includes(col.name)) {
       return null;
     }
 
@@ -115,7 +118,7 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
   };
 
   const editableColumns = schema.columns.filter(
-    (c) => c.name !== 'id' && c.name !== 'created_at' && c.name !== 'updated_at',
+    (c) => !AUTO_FIELDS.includes(c.name),
   );
 
   return (

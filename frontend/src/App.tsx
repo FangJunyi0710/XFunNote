@@ -7,6 +7,8 @@ import { NotebookDiary } from '@/pages/NotebookDiary';
 import { NotebookWord } from '@/pages/NotebookWord';
 import { NotebookAccumulation } from '@/pages/NotebookAccumulation';
 import { NotebookAimemory } from '@/pages/NotebookAimemory';
+import { NotebookTimeline } from '@/pages/NotebookTimeline';
+import { NotebookSchedule } from '@/pages/NotebookSchedule';
 import { AiChat } from '@/pages/AiChat';
 import { Management } from '@/pages/Management';
 import { TokenInputPanel } from '@/pages/TokenInputPanel';
@@ -23,6 +25,8 @@ const App: React.FC = () => {
           <Route path="notebooks/word" element={<NotebookWord />} />
           <Route path="notebooks/accumulation" element={<NotebookAccumulation />} />
           <Route path="notebooks/aimemory" element={<NotebookAimemory />} />
+          <Route path="notebooks/timeline" element={<NotebookTimeline />} />
+          <Route path="notebooks/schedule" element={<NotebookSchedule />} />
           <Route path="ai" element={<AiChat />} />
           <Route path="management" element={<Management />} />
           <Route path="token-input" element={<TokenInputPanel />} />

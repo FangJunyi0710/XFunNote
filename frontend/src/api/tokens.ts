@@ -1,12 +1,27 @@
 import { api } from './client';
 import type { Token, TokenCreateRequest, TokenUpdateRequest, ShortcutExchangeRequest, ShortcutExchangeResponse } from '@/types/token';
 
+export interface TokenInfo {
+  name: string;
+  shortcut: string | null;
+  shortcut_expire_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+  read_view: string;
+  write_view: string;
+}
+
 export async function listTokens(): Promise<Token[]> {
   return api.get<Token[]>('/tokens');
 }
 
 export async function getToken(id: string): Promise<Token> {
   return api.get<Token>(`/tokens/${id}`);
+}
+
+export async function getTokenInfo(): Promise<TokenInfo> {
+  return api.get<TokenInfo>('/tokens/info');
 }
 
 export async function createToken(data: TokenCreateRequest): Promise<Token> {

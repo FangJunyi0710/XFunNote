@@ -43,20 +43,22 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
         return (
           <div className="space-y-1">
             <div className="flex items-center gap-2">
+              {entry.no && <span className="text-xs font-mono text-muted-foreground">{entry.no}</span>}
               <span className="text-xs text-muted-foreground">{entry.month}</span>
-              <span className="font-medium">{entry.title || '(无标题)'}</span>
+              <span className="font-medium">{entry.content?.split('\n')[0] || '(无标题)'}</span>
               {entry.done ? (
-                <Badge variant="success" className="text-[10px]">
-                  已完成
-                </Badge>
+                <Badge variant="success" className="text-[10px]">已完成</Badge>
               ) : (
-                <Badge variant="secondary" className="text-[10px]">
-                  进行中
-                </Badge>
+                <Badge variant="secondary" className="text-[10px]">进行中</Badge>
+              )}
+              {entry.status && (
+                <Badge variant="outline" className="text-[10px]">{entry.status}</Badge>
               )}
             </div>
-            {entry.note && (
-              <p className="text-sm text-muted-foreground line-clamp-2">{entry.note}</p>
+            {entry.content && (
+              <p className="text-sm text-muted-foreground line-clamp-2">
+                {entry.content.split('\n').slice(1).join('\n') || entry.content}
+              </p>
             )}
           </div>
         );
@@ -65,6 +67,13 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
         return (
           <div className="space-y-1">
             <div className="text-xs text-muted-foreground">{entry.date}</div>
+            {(entry.mood || entry.weather) && (
+              <div className="text-xs text-muted-foreground">
+                {entry.mood && `心情: ${entry.mood}`}
+                {entry.mood && entry.weather && ' · '}
+                {entry.weather && `天气: ${entry.weather}`}
+              </div>
+            )}
             <p className="text-sm line-clamp-3">{entry.content || '(空)'}</p>
           </div>
         );
@@ -74,15 +83,23 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="font-mono font-bold text-base">{entry.word}</span>
-              <span className="text-sm text-muted-foreground">{entry.translation}</span>
+              {entry.phonetic && (
+                <span className="text-sm text-muted-foreground">/{entry.phonetic}/</span>
+              )}
+              {entry.part_of_speech && (
+                <span className="text-xs text-muted-foreground">({entry.part_of_speech})</span>
+              )}
             </div>
-            {entry.context && (
-              <p className="text-xs text-muted-foreground line-clamp-1">{entry.context}</p>
+            {entry.example && (
+              <p className="text-xs text-muted-foreground line-clamp-1 italic">"{entry.example}"</p>
             )}
-            {entry.review_status && (
-              <Badge variant="default" className="text-[10px]">
-                {entry.review_status}
-              </Badge>
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+              <span>复习 {entry.review_count ?? 0} 次</span>
+              <span>掌握度 {((entry.performance ?? 0) * 100).toFixed(0)}%</span>
+              {entry.next_review && <span>下次: {entry.next_review}</span>}
+            </div>
+            {entry.related_words && (
+              <p className="text-xs text-muted-foreground">关联: {entry.related_words}</p>
             )}
           </div>
         );
@@ -90,17 +107,12 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
       case 'accumulation':
         return (
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="font-medium">{entry.title || '(无标题)'}</span>
-              {entry.category && (
-                <Badge variant="secondary" className="text-[10px]">
-                  {entry.category}
-                </Badge>
-              )}
-            </div>
             <p className="text-sm text-muted-foreground line-clamp-2">{entry.content}</p>
             {entry.source && (
               <p className="text-xs text-muted-foreground">来源: {entry.source}</p>
+            )}
+            {entry.note && (
+              <p className="text-xs text-muted-foreground">备注: {entry.note}</p>
             )}
           </div>
         );

@@ -1,20 +1,18 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { NotebookCard } from '@/components/notebook/NotebookCard';
 import { NotebookForm } from '@/components/notebook/NotebookForm';
 import { FilterPanel } from '@/components/notebook/FilterPanel';
 import { Pagination } from '@/components/notebook/Pagination';
 import { useNotebookStore } from '@/stores/notebookStore';
 
-export const NotebookAccumulation: React.FC = () => {
+export const NotebookTimeline: React.FC = () => {
   const store = useNotebookStore();
   const [showForm, setShowForm] = useState(false);
   const [editEntry, setEditEntry] = useState<Record<string, any> | null>(null);
-  const [sourceFilter, setSourceFilter] = useState('');
 
   useEffect(() => {
-    store.setCurrentType('accumulation');
+    store.setCurrentType('timeline');
   }, []);
 
   const handleSubmit = useCallback(
@@ -37,7 +35,7 @@ export const NotebookAccumulation: React.FC = () => {
 
   const handleDelete = useCallback(
     async (id: string) => {
-      if (confirm('确定删除该条目？')) {
+      if (confirm('确定删除该时间线？')) {
         await store.deleteEntries([id]);
       }
     },
@@ -49,33 +47,9 @@ export const NotebookAccumulation: React.FC = () => {
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">📚 积累</h1>
+        <h1 className="text-xl font-bold">📅 时间线</h1>
         <Button onClick={() => { setEditEntry(null); setShowForm(true); }}>
-          + 新建
-        </Button>
-      </div>
-
-      {/* 来源快捷筛选 */}
-      <div className="flex items-center gap-2">
-        <Input
-          placeholder="按来源筛选"
-          value={sourceFilter}
-          onChange={(e) => setSourceFilter(e.target.value)}
-          className="w-48"
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => store.setFilter(sourceFilter ? JSON.stringify({ cond: { column: 'source', op: 'like', value: sourceFilter } }) : null)}
-        >
-          筛选
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => { setSourceFilter(''); store.setFilter(null); }}
-        >
-          全部
+          + 添加事件
         </Button>
       </div>
 
@@ -87,7 +61,7 @@ export const NotebookAccumulation: React.FC = () => {
           initialData={editEntry || undefined}
           onSubmit={handleSubmit}
           onCancel={() => { setShowForm(false); setEditEntry(null); }}
-          title={editEntry ? '编辑积累' : '新建积累'}
+          title={editEntry ? '编辑事件' : '添加事件'}
         />
       )}
 
@@ -102,13 +76,13 @@ export const NotebookAccumulation: React.FC = () => {
       <div className="space-y-3">
         {!store.loading && store.entries.length === 0 && (
           <div className="text-center py-8 text-muted-foreground text-sm">
-            暂无积累，点击"新建"添加知识
+            暂无时间线事件
           </div>
         )}
         {store.entries.map((entry) => (
           <NotebookCard
             key={entry.id}
-            type="accumulation"
+            type="timeline"
             entry={entry}
             onEdit={handleEdit}
             onDelete={handleDelete}

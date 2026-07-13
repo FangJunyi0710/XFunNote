@@ -18,7 +18,7 @@ const EMPTY_FORM = {
   expires_at: '',
   enable_shortcut: false,
   shortcut: '',
-  shortcut_expire_at: '',
+  shortcut_ttl: 120,
 };
 
 export const TokenManagement: React.FC = () => {
@@ -62,7 +62,7 @@ export const TokenManagement: React.FC = () => {
         expires_at: t.expires_at ? t.expires_at.slice(0, 16) : '',
         enable_shortcut: !!t.shortcut,
         shortcut: t.shortcut || '',
-        shortcut_expire_at: t.shortcut_expire_at ? t.shortcut_expire_at.slice(0, 16) : '',
+        shortcut_ttl: 120,
       });
       setMessage('');
     } catch (e: any) {
@@ -83,7 +83,7 @@ export const TokenManagement: React.FC = () => {
       expires_at: '',
       enable_shortcut: false,
       shortcut: '',
-      shortcut_expire_at: '',
+      shortcut_ttl: 120,
     });
     setMessage('');
   };
@@ -104,7 +104,7 @@ export const TokenManagement: React.FC = () => {
           name: form.name.trim(),
           permission: form.permission,
           shortcut: form.enable_shortcut ? form.shortcut || undefined : undefined,
-          shortcut_expire_at: form.enable_shortcut && form.shortcut_expire_at ? form.shortcut_expire_at : null,
+          shortcut_ttl: form.enable_shortcut ? form.shortcut_ttl : undefined,
         });
         setCreatedTokenValue(created.token);
         setMessage('Token 创建成功！请复制并安全保存 token 值。');
@@ -116,8 +116,6 @@ export const TokenManagement: React.FC = () => {
           permission: form.permission,
           is_active: form.is_active,
           expires_at: form.expires_at || null,
-          shortcut: form.enable_shortcut ? (form.shortcut || null) : null,
-          shortcut_expire_at: form.enable_shortcut && form.shortcut_expire_at ? form.shortcut_expire_at : null,
         });
         setMessage('保存成功');
       }
@@ -326,14 +324,16 @@ export const TokenManagement: React.FC = () => {
                         <p className="text-xs text-muted-foreground">留空由系统自动生成唯一短码</p>
                       </div>
                       <div className="space-y-1.5">
-                        <Label htmlFor="tshortcut_exp">短码过期时间</Label>
+                        <Label htmlFor="tshortcut_ttl">短码有效期（秒）</Label>
                         <Input
-                          id="tshortcut_exp"
-                          type="datetime-local"
-                          value={form.shortcut_expire_at}
-                          onChange={(e) => setForm({ ...form, shortcut_expire_at: e.target.value })}
+                          id="tshortcut_ttl"
+                          type="number"
+                          min={10}
+                          max={86400}
+                          value={form.shortcut_ttl}
+                          onChange={(e) => setForm({ ...form, shortcut_ttl: parseInt(e.target.value) || 120 })}
                         />
-                        <p className="text-xs text-muted-foreground">留空表示与 Token 一致</p>
+                        <p className="text-xs text-muted-foreground">范围 10~86400 秒，默认 120 秒</p>
                       </div>
                     </div>
                   )}

@@ -16,59 +16,67 @@ export interface NotebookSchema {
   display_order: string[];
 }
 
-// 通用条目核心字段（所有本子共有的字段）
+// 通用条目核心字段（对应后端 BASE_COLUMNS）
 export interface EntryBase {
   id: string;
+  content: string;
+  tags: string | null;
+  is_ai_gen: number;
+  ai_tags: string | null;
+  ai_note: string | null;
   created_at: string;
   updated_at: string;
   user_id: string;
 }
 
 // ------------------------------------------------
-// Plan 笔记本扩展字段
+// Plan 笔记本扩展字段（对应 plan.py _extra_columns）
 // ------------------------------------------------
 export interface PlanEntry extends EntryBase {
+  no: string;
+  seq: number;
   month: string;
-  title: string;
   done: boolean | number;
-  note: string;
+  status: string | null;
 }
 
 // ------------------------------------------------
-// Diary 笔记本扩展字段
+// Diary 笔记本扩展字段（对应 diary.py _extra_columns）
 // ------------------------------------------------
 export interface DiaryEntry extends EntryBase {
   date: string;
-  content: string;
+  mood: string | null;
+  weather: string | null;
 }
 
 // ------------------------------------------------
-// Word 笔记本扩展字段
+// Word 笔记本扩展字段（对应 word.py _extra_columns）
 // ------------------------------------------------
 export interface WordEntry extends EntryBase {
   word: string;
-  translation: string;
-  review_status: string;
-  context: string;
+  part_of_speech: string | null;
+  phonetic: string | null;
+  example: string | null;
+  review_count: number;
+  performance: number;
+  next_review: string | null;
+  last_review: string | null;
+  related_words: string | null;
 }
 
 // ------------------------------------------------
-// Accumulation 笔记本扩展字段
+// Accumulation 笔记本扩展字段（对应 accumulation.py _extra_columns）
 // ------------------------------------------------
 export interface AccumulationEntry extends EntryBase {
-  title: string;
-  category: string;
-  content: string;
   source: string;
-  tags: string;
+  note: string | null;
 }
 
 // ------------------------------------------------
-// AI Memory 笔记本扩展字段
+// AI Memory 笔记本扩展字段（对应 aimemory.py _extra_columns）
 // ------------------------------------------------
 export interface AimemoryEntry extends EntryBase {
   title: string;
-  content: string;
   source: string;
 }
 

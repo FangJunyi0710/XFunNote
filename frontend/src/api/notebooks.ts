@@ -14,6 +14,8 @@ const NOTEBOOK_MAP: Record<NotebookType, string> = {
   word: 'word',
   accumulation: 'accumulation',
   aimemory: 'aimemory',
+  timeline: 'timeline',
+  schedule: 'schedule',
 };
 
 /** 静态笔记本元信息（后端不返回 label / description） */
@@ -23,6 +25,8 @@ const NOTEBOOK_INFO: Record<string, { label: string; description: string }> = {
   word: { label: '单词', description: '单词学习与复习' },
   accumulation: { label: '积累', description: '知识碎片整理与沉淀' },
   aimemory: { label: 'AI 记忆', description: 'AI 自动记录的关键信息' },
+  timeline: { label: '时间线', description: '记录实际时间花费' },
+  schedule: { label: '日程', description: '规划未来日程' },
 };
 
 /** 获取笔记本列表（后端返回名称列表，前端组装为 NotebookSchema[]） */
