@@ -15,8 +15,8 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
           {
             'bg-primary/10 text-primary': variant === 'default',
             'bg-secondary text-secondary-foreground': variant === 'secondary',
-            'bg-green-100 text-green-700': variant === 'success',
-            'bg-yellow-100 text-yellow-700': variant === 'warning',
+            'bg-success/10 text-success': variant === 'success',
+            'bg-warning/10 text-warning': variant === 'warning',
             'bg-destructive/10 text-destructive': variant === 'destructive',
           },
           className,

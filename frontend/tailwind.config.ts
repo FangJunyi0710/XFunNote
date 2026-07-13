@@ -35,6 +35,21 @@ const config: Config = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        notebook: {
+          plan: 'hsl(var(--notebook-plan))',
+          diary: 'hsl(var(--notebook-diary))',
+          word: 'hsl(var(--notebook-word))',
+          accumulation: 'hsl(var(--notebook-accumulation))',
+          aimemory: 'hsl(var(--notebook-aimemory))',
+        },
+        success: {
+          DEFAULT: 'hsl(var(--success))',
+          foreground: 'hsl(var(--success-foreground))',
+        },
+        warning: {
+          DEFAULT: 'hsl(var(--warning))',
+          foreground: 'hsl(var(--warning-foreground))',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

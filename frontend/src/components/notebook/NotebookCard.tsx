@@ -14,11 +14,11 @@ interface NotebookCardProps {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  plan: 'border-l-blue-500',
-  diary: 'border-l-green-500',
-  word: 'border-l-purple-500',
-  accumulation: 'border-l-orange-500',
-  aimemory: 'border-l-rose-500',
+  plan: 'border-l-notebook-plan',
+  diary: 'border-l-notebook-diary',
+  word: 'border-l-notebook-word',
+  accumulation: 'border-l-notebook-accumulation',
+  aimemory: 'border-l-notebook-aimemory',
 };
 
 const TYPE_LABELS: Record<NotebookType, string> = {

@@ -155,7 +155,7 @@ export const TokenManagement: React.FC = () => {
     <div className="space-y-4 animate-fade-in">
       {message && (
         <div className={`text-sm px-3 py-2 rounded flex items-center justify-between ${
-          createdTokenValue ? 'bg-yellow-100 text-yellow-800' : 'bg-secondary text-secondary-foreground'
+          createdTokenValue ? 'bg-warning/10 text-warning border border-warning/30' : 'bg-secondary text-secondary-foreground'
         }`}>
           <span>{message}</span>
           <button onClick={() => setMessage('')} className="ml-2 underline">关闭</button>
@@ -164,13 +164,13 @@ export const TokenManagement: React.FC = () => {
 
       {/* 创建成功时显示 token 值 */}
       {createdTokenValue && (
-        <Card className="border-yellow-300 bg-yellow-50">
+        <Card className="border-warning/30 bg-warning/5">
           <CardContent className="p-4 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold">Token 值（仅显示一次）</span>
               <Button size="sm" variant="outline" onClick={copyToken}>复制</Button>
             </div>
-            <code className="block text-xs p-2 rounded bg-yellow-100 break-all select-all">
+            <code className="block text-xs p-2 rounded bg-warning/10 text-warning break-all select-all">
               {createdTokenValue}
             </code>
           </CardContent>

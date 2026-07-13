@@ -22,8 +22,6 @@ const App: React.FC = () => {
           <Route path="notebooks/accumulation" element={<NotebookAccumulation />} />
           <Route path="notebooks/aimemory" element={<NotebookAimemory />} />
           <Route path="ai" element={<AiChat />} />
-          {/* 视图管理已合并到 /management 的 视图 Tab */}
-          <Route path="views" element={<Navigate to="/management" replace />} />
           <Route path="management" element={<Management />} />
         </Route>
       </Routes>

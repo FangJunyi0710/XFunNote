@@ -130,7 +130,7 @@ export const DatabaseManagement: React.FC = () => {
                 entry.type === 'error'
                   ? 'text-destructive'
                   : entry.type === 'success'
-                  ? 'text-green-600'
+                  ? 'text-success'
                   : 'text-muted-foreground'
               }`}
             >

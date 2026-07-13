@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useThemeStore } from '@/stores/themeStore';
 
 interface NavItem {
   label: string;
@@ -20,11 +21,23 @@ const mainNav: NavItem[] = [
 ];
 
 export const Sidebar: React.FC = () => {
+  const { mode, resolved, setMode, toggle } = useThemeStore();
+
   return (
     <aside className="w-56 h-screen border-r bg-card flex flex-col shrink-0">
       {/* 标题 */}
       <div className="h-14 flex items-center px-5 border-b">
-        <span className="text-lg font-bold tracking-tight">XFunNote</span>
+        <button
+          onClick={() => {
+            const modes: Array<'light' | 'dark' | 'system'> = ['light', 'dark', 'system'];
+            const idx = modes.indexOf(mode);
+            setMode(modes[(idx + 1) % 3]);
+          }}
+          className="text-lg font-bold tracking-tight hover:text-primary transition-colors"
+          title={`当前: ${mode === 'system' ? '跟随系统' : mode === 'light' ? '浅色' : '深色'}，点击切换`}
+        >
+          XFunNote
+        </button>
       </div>
 
       {/* 导航 */}
@@ -48,9 +61,16 @@ export const Sidebar: React.FC = () => {
         ))}
       </nav>
 
-      {/* 底部版本 */}
-      <div className="px-5 py-3 border-t text-xs text-muted-foreground">
-        v0.1.0
+      {/* 底部版本 + 主题切换 */}
+      <div className="px-5 py-3 border-t flex items-center justify-between">
+        <span className="text-xs text-muted-foreground">v0.1.0</span>
+        <button
+          onClick={toggle}
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          title={`切换主题（当前: ${resolved === 'dark' ? '深色' : '浅色'}）`}
+        >
+          {resolved === 'dark' ? '☀️ 浅色' : '🌙 深色'}
+        </button>
       </div>
     </aside>
   );
