@@ -5,6 +5,8 @@ export interface Token {
   permission: string;
   is_active: number;
   expires_at: string | null;
+  shortcut: string | null;
+  shortcut_expire_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -12,6 +14,8 @@ export interface Token {
 export interface TokenCreateRequest {
   name: string;
   permission: string;
+  shortcut?: string;
+  shortcut_expire_at?: string | null;
 }
 
 export interface TokenUpdateRequest {
@@ -19,4 +23,14 @@ export interface TokenUpdateRequest {
   permission?: string;
   is_active?: boolean;
   expires_at?: string | null;
+  shortcut?: string | null;
+  shortcut_expire_at?: string | null;
+}
+
+export interface ShortcutExchangeRequest {
+  shortcut: string;
+}
+
+export interface ShortcutExchangeResponse {
+  token: string;
 }

@@ -47,8 +47,9 @@ async function request<T>(
     headers: { 'Content-Type': 'application/json' },
   };
 
-  // 如果配置了 VITE_API_KEY，则添加鉴权头
-  const apiKey = import.meta.env.VITE_API_KEY;
+  // 从浏览器本地存储的 token 列表中获取当前使用的 token
+  const { getActiveTokenKey } = await import('@/stores/tokenStore');
+  const apiKey = getActiveTokenKey();
   if (apiKey) {
     options.headers = { ...options.headers, 'X-API-Key': apiKey };
   }

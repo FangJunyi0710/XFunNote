@@ -18,6 +18,7 @@ const mainNav: NavItem[] = [
   { label: 'AI 记忆', path: '/notebooks/aimemory', icon: '🧠' },
   { label: 'AI 对话', path: '/ai', icon: '🤖' },
   { label: '管理', path: '/management', icon: '⚙️' },
+  { label: 'Token 管理', path: '/token-input', icon: '🔑' },
 ];
 
 export const Sidebar: React.FC = () => {

@@ -9,11 +9,13 @@ import { NotebookAccumulation } from '@/pages/NotebookAccumulation';
 import { NotebookAimemory } from '@/pages/NotebookAimemory';
 import { AiChat } from '@/pages/AiChat';
 import { Management } from '@/pages/Management';
+import { TokenInputPanel } from '@/pages/TokenInputPanel';
 
 const App: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
+        {/* 需要鉴权的应用路由 */}
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="notebooks/plan" element={<NotebookPlan />} />
@@ -23,6 +25,7 @@ const App: React.FC = () => {
           <Route path="notebooks/aimemory" element={<NotebookAimemory />} />
           <Route path="ai" element={<AiChat />} />
           <Route path="management" element={<Management />} />
+          <Route path="token-input" element={<TokenInputPanel />} />
         </Route>
       </Routes>
     </BrowserRouter>

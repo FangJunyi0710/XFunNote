@@ -16,6 +16,9 @@ const EMPTY_FORM = {
   permission: '',
   is_active: true,
   expires_at: '',
+  enable_shortcut: false,
+  shortcut: '',
+  shortcut_expire_at: '',
 };
 
 export const TokenManagement: React.FC = () => {
@@ -57,6 +60,9 @@ export const TokenManagement: React.FC = () => {
         permission: t.permission,
         is_active: t.is_active === 1,
         expires_at: t.expires_at ? t.expires_at.slice(0, 16) : '',
+        enable_shortcut: !!t.shortcut,
+        shortcut: t.shortcut || '',
+        shortcut_expire_at: t.shortcut_expire_at ? t.shortcut_expire_at.slice(0, 16) : '',
       });
       setMessage('');
     } catch (e: any) {
@@ -75,6 +81,9 @@ export const TokenManagement: React.FC = () => {
       permission: permissions.length > 0 ? permissions[0].id : '',
       is_active: true,
       expires_at: '',
+      enable_shortcut: false,
+      shortcut: '',
+      shortcut_expire_at: '',
     });
     setMessage('');
   };
@@ -94,6 +103,8 @@ export const TokenManagement: React.FC = () => {
         const created = await tokensApi.createToken({
           name: form.name.trim(),
           permission: form.permission,
+          shortcut: form.enable_shortcut ? form.shortcut || undefined : undefined,
+          shortcut_expire_at: form.enable_shortcut && form.shortcut_expire_at ? form.shortcut_expire_at : null,
         });
         setCreatedTokenValue(created.token);
         setMessage('Token 创建成功！请复制并安全保存 token 值。');
@@ -105,6 +116,8 @@ export const TokenManagement: React.FC = () => {
           permission: form.permission,
           is_active: form.is_active,
           expires_at: form.expires_at || null,
+          shortcut: form.enable_shortcut ? (form.shortcut || null) : null,
+          shortcut_expire_at: form.enable_shortcut && form.shortcut_expire_at ? form.shortcut_expire_at : null,
         });
         setMessage('保存成功');
       }
@@ -203,10 +216,16 @@ export const TokenManagement: React.FC = () => {
                       <Badge variant={t.is_active ? 'success' : 'secondary'} className="shrink-0">
                         {t.is_active ? '启用' : '禁用'}
                       </Badge>
+                      {t.shortcut && (
+                        <Badge variant="outline" className="shrink-0 text-[10px]">
+                          Shortcut
+                        </Badge>
+                      )}
                     </div>
                     <div className="text-xs text-muted-foreground truncate">
                       {t.permission}
                       {t.expires_at && ` | 过期: ${new Date(t.expires_at).toLocaleDateString()}`}
+                      {t.shortcut && ` | 短码: ${t.shortcut}`}
                     </div>
                   </div>
                   <button
@@ -285,30 +304,96 @@ export const TokenManagement: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Shortcut 兑换码配置 */}
+                <div className="space-y-3 border-t pt-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="font-medium">Shortcut 兑换码</Label>
+                    <Switch
+                      checked={form.enable_shortcut}
+                      onCheckedChange={(v) => setForm({ ...form, enable_shortcut: v })}
+                    />
+                  </div>
+                  {form.enable_shortcut && (
+                    <div className="grid grid-cols-2 gap-4 pl-2 border-l-2 border-primary/30">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="tshortcut">自定义短码</Label>
+                        <Input
+                          id="tshortcut"
+                          value={form.shortcut}
+                          onChange={(e) => setForm({ ...form, shortcut: e.target.value })}
+                          placeholder="留空则自动生成"
+                        />
+                        <p className="text-xs text-muted-foreground">留空由系统自动生成唯一短码</p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="tshortcut_exp">短码过期时间</Label>
+                        <Input
+                          id="tshortcut_exp"
+                          type="datetime-local"
+                          value={form.shortcut_expire_at}
+                          onChange={(e) => setForm({ ...form, shortcut_expire_at: e.target.value })}
+                        />
+                        <p className="text-xs text-muted-foreground">留空表示与 Token 一致</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {!isCreating && selectedId && (() => {
                   const t = tokens.find((tk) => tk.id === selectedId);
                   return t ? (
-                    <div className="space-y-1.5">
-                      <Label>Token 值（只读）</Label>
-                      <div className="flex gap-2">
-                        <code className="flex-1 text-xs p-2 rounded bg-muted break-all select-all">
-                          {t.token}
-                        </code>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={async () => {
-                            try {
-                              await navigator.clipboard.writeText(t.token);
-                              setMessage('Token 已复制到剪贴板');
-                            } catch {
-                              setMessage('复制失败');
-                            }
-                          }}
-                        >
-                          复制
-                        </Button>
+                    <div className="space-y-2">
+                      <div className="space-y-1.5">
+                        <Label>Token 值（只读）</Label>
+                        <div className="flex gap-2">
+                          <code className="flex-1 text-xs p-2 rounded bg-muted break-all select-all">
+                            {t.token}
+                          </code>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(t.token);
+                                setMessage('Token 已复制到剪贴板');
+                              } catch {
+                                setMessage('复制失败');
+                              }
+                            }}
+                          >
+                            复制
+                          </Button>
+                        </div>
                       </div>
+                      {t.shortcut && (
+                        <div className="space-y-1">
+                          <Label>Shortcut 兑换码</Label>
+                          <div className="flex items-center gap-2">
+                            <code className="text-xs p-2 rounded bg-muted font-mono">
+                              {t.shortcut}
+                            </code>
+                            {t.shortcut_expire_at && (
+                              <span className="text-xs text-muted-foreground">
+                                过期: {new Date(t.shortcut_expire_at).toLocaleString()}
+                              </span>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(t.shortcut!);
+                                  setMessage('Shortcut 已复制到剪贴板');
+                                } catch {
+                                  setMessage('复制失败');
+                                }
+                              }}
+                            >
+                              复制短码
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : null;
                 })()}

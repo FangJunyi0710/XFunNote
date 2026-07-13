@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { Token, TokenCreateRequest, TokenUpdateRequest } from '@/types/token';
+import type { Token, TokenCreateRequest, TokenUpdateRequest, ShortcutExchangeRequest, ShortcutExchangeResponse } from '@/types/token';
 
 export async function listTokens(): Promise<Token[]> {
   return api.get<Token[]>('/tokens');
@@ -19,4 +19,8 @@ export async function updateToken(id: string, data: TokenUpdateRequest): Promise
 
 export async function deleteToken(id: string): Promise<void> {
   return api.delete<void>(`/tokens/${id}`);
+}
+
+export async function exchangeTokenByShortcut(data: ShortcutExchangeRequest): Promise<ShortcutExchangeResponse> {
+  return api.post<ShortcutExchangeResponse>('/tokens/exchange', data);
 }
