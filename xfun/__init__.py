@@ -18,9 +18,9 @@ registry: dict[str, Notebook] = {
 
 # ---- 系统表定义 ----
 _SYSTEM_TABLES: dict[str, list[Column]] = {
-    "_tokens": [
+    "_token": [
         Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
-        Column("token", "TEXT", nullable=False, auto=True),
+        Column("token", "TEXT", nullable=False, auto=True, index=True),
         Column("name", "TEXT", nullable=False),
         Column("permission", "TEXT", nullable=False),
         Column("is_active", "INTEGER", nullable=False, auto=True),
@@ -28,14 +28,14 @@ _SYSTEM_TABLES: dict[str, list[Column]] = {
         Column("created_at", "TEXT", nullable=False, auto=True),
         Column("updated_at", "TEXT", nullable=False, auto=True),
     ],
-    "_views": [
+    "_view": [
         Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
         Column("name", "TEXT", nullable=False, index=True),
         Column("data", "TEXT", nullable=False),
         Column("created_at", "TEXT", nullable=False, auto=True),
         Column("updated_at", "TEXT", nullable=False, auto=True),
     ],
-    "_permissions": [
+    "_permission": [
         Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
         Column("name", "TEXT", nullable=False),
         Column("description", "TEXT", nullable=True),
@@ -48,7 +48,7 @@ _SYSTEM_TABLES: dict[str, list[Column]] = {
 
 
 def _autofill_token(entry: dict) -> None:
-    """_tokens 自动填充钩子：缺失 token 时自动生成。"""
+    """_token 自动填充钩子：缺失 token 时自动生成。"""
     entry.setdefault("token", generate_token())
     entry.setdefault("is_active", 1)
 
@@ -60,12 +60,10 @@ def init_db(conn):
         db.register_hooks(name, pre_add=nb._pre_add, validate=nb._validate, autofill=nb._autofill)
 
     # 注册系统表钩子
-    db.register_hooks("_tokens", autofill=_autofill_token)
+    db.register_hooks("_token", autofill=_autofill_token)
 
     db.init(conn, {name: nb.columns for name, nb in registry.items()})
     db.init(conn, _SYSTEM_TABLES)
-    # 为 _tokens.token 建唯一索引
-    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS _tokens_token_idx ON _tokens(token)")
 
 
 with db.transaction() as conn:

@@ -1,4 +1,4 @@
-"""权限管理路由（基于数据库 _permissions 表）。"""
+"""权限管理路由（基于数据库 _permission 表）。"""
 
 from __future__ import annotations
 
@@ -33,11 +33,11 @@ class PermissionUpdateRequest(BaseModel):
 
 
 @router.get("/permissions")
-def list_permissions(
+def list_permission(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
     with _db.read_transaction() as conn:
-        return _ops.query(conn, api_perm.permission, "_permissions", full_view(_db), order_by="id ASC")
+        return _ops.query(conn, api_perm.permission, "_permission", full_view(_db), order_by="id ASC")
 
 
 @router.get("/permissions/{permission_id}")
@@ -46,9 +46,9 @@ def get_permission_route(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
     with _db.read_transaction() as conn:
-        cols = _db.cols("_permissions")
-        results = _ops.query(conn, api_perm.permission, "_permissions",
-                             {"_permissions": [(cols, Condition("id", permission_id, "="))]},
+        cols = _db.cols("_permission")
+        results = _ops.query(conn, api_perm.permission, "_permission",
+                             {"_permission": [(cols, Condition("id", permission_id, "="))]},
                              limit=1)
     if not results:
         raise HTTPException(
@@ -65,9 +65,9 @@ def create_permission_route(
 ):
     # 检查 id 是否已存在
     with _db.read_transaction() as conn:
-        cols = _db.cols("_permissions")
-        existing = _ops.query(conn, api_perm.permission, "_permissions",
-                              {"_permissions": [(cols, Condition("id", body.id, "="))]},
+        cols = _db.cols("_permission")
+        existing = _ops.query(conn, api_perm.permission, "_permission",
+                              {"_permission": [(cols, Condition("id", body.id, "="))]},
                               limit=1)
     if existing:
         raise HTTPException(
@@ -75,7 +75,7 @@ def create_permission_route(
             detail=f"权限标识 {body.id!r} 已存在",
         )
     with _db.transaction() as conn:
-        result = _ops.add(conn, api_perm.permission, "_permissions", [{
+        result = _ops.add(conn, api_perm.permission, "_permission", [{
             "id": body.id,
             "name": body.name,
             "description": body.description,
@@ -104,12 +104,12 @@ def update_permission_route(
 
     with _db.transaction() as conn:
         if updates:
-            result = _ops.update(conn, api_perm.permission, "_permissions",
+            result = _ops.update(conn, api_perm.permission, "_permission",
                                  Condition("id", permission_id, "="), updates)
         else:
-            cols = _db.cols("_permissions")
-            result = _ops.query(conn, api_perm.permission, "_permissions",
-                                {"_permissions": [(cols, Condition("id", permission_id, "="))]},
+            cols = _db.cols("_permission")
+            result = _ops.query(conn, api_perm.permission, "_permission",
+                                {"_permission": [(cols, Condition("id", permission_id, "="))]},
                                 limit=1)
     if not result:
         raise HTTPException(
@@ -125,7 +125,7 @@ def delete_permission_route(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
     with _db.transaction() as conn:
-        result = _ops.delete(conn, api_perm.permission, "_permissions",
+        result = _ops.delete(conn, api_perm.permission, "_permission",
                              Condition("id", permission_id, "="))
     if not result:
         raise HTTPException(

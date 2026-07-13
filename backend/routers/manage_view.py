@@ -1,4 +1,4 @@
-"""视图管理路由（基于数据库 _views 表）。"""
+"""视图管理路由（基于数据库 _view 表）。"""
 
 from __future__ import annotations
 
@@ -17,11 +17,11 @@ router = APIRouter(tags=["management-views"])
 
 
 @router.get("/views")
-def list_views(
+def list_view(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
     with _db.read_transaction() as conn:
-        return _ops.query(conn, api_perm.permission, "_views", full_view(_db), order_by="name ASC")
+        return _ops.query(conn, api_perm.permission, "_view", full_view(_db), order_by="name ASC")
 
 
 @router.get("/views/{name}")
@@ -30,9 +30,9 @@ def get_view_route(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
     with _db.read_transaction() as conn:
-        cols = _db.cols("_views")
-        results = _ops.query(conn, api_perm.permission, "_views",
-                             {"_views": [(cols, Condition("name", name, "="))]},
+        cols = _db.cols("_view")
+        results = _ops.query(conn, api_perm.permission, "_view",
+                             {"_view": [(cols, Condition("name", name, "="))]},
                              limit=1)
     if not results:
         raise HTTPException(
@@ -50,15 +50,15 @@ def save_view_route(
 ):
     json_data = json.dumps(body, ensure_ascii=False)
     with _db.transaction() as conn:
-        cols = _db.cols("_views")
-        existing = _ops.query(conn, api_perm.permission, "_views",
-                              {"_views": [(cols, Condition("name", name, "="))]},
+        cols = _db.cols("_view")
+        existing = _ops.query(conn, api_perm.permission, "_view",
+                              {"_view": [(cols, Condition("name", name, "="))]},
                               limit=1)
         if existing:
-            _ops.update(conn, api_perm.permission, "_views",
+            _ops.update(conn, api_perm.permission, "_view",
                         Condition("name", name, "="), {"data": json_data})
         else:
-            _ops.add(conn, api_perm.permission, "_views",
+            _ops.add(conn, api_perm.permission, "_view",
                      [{"name": name, "data": json_data}])
     return {"message": f"视图 {name!r} 已保存"}
 
@@ -69,7 +69,7 @@ def delete_view_route(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
     with _db.transaction() as conn:
-        result = _ops.delete(conn, api_perm.permission, "_views",
+        result = _ops.delete(conn, api_perm.permission, "_view",
                              Condition("name", name, "="))
     if not result:
         raise HTTPException(

@@ -261,18 +261,64 @@ class DB:
 
     # ---- 备份与重置 ----
 
-    def backup(self, conn) -> str:
+    def backup(self) -> str:
         """
         在线热备份数据库到 ``data/backups/{basename}.backup.{timestamp}``。
-        注意：conn 必须使用只读事务避免死锁。
+        内部使用无事务连接，调用方无需传连接。
         """
         dst = Path(self.db_path).parent / "backups" / f"{Path(self.db_path).stem}.backup.{timestamp_str()}"
+        src_conn = self._connect()
         dest_conn = DB(str(dst))._connect()
         try:
-            conn.backup(dest_conn)
+            src_conn.backup(dest_conn)
         finally:
+            src_conn.close()
             dest_conn.close()
         return str(dst)
+
+    def restore(self, backup_path: str) -> str:
+        """
+        使用 SQLite 在线备份 API 从物理备份文件恢复数据库。
+        对称于 :meth:`backup`，内部使用无事务连接。
+
+        恢复前自动清理 ``-wal`` / ``-shm`` 残留文件。
+
+        Parameters
+        ----------
+        backup_path : str
+            备份文件路径。
+
+        Returns
+        -------
+        str
+            恢复来源的备份文件路径。
+
+        Raises
+        ------
+        FileNotFoundError
+            备份文件不存在。
+        """
+        src = Path(backup_path)
+        if not src.exists():
+            raise FileNotFoundError(f"备份文件不存在: {backup_path}")
+
+        # 清理 -wal / -shm 残留，避免新旧页混用
+        name = Path(self.db_path).name
+        parent = Path(self.db_path).parent
+        for ext in ('-wal', '-shm'):
+            f = parent / f"{name}{ext}"
+            f.unlink(missing_ok=True)
+
+        # 反向备份 API：备份文件 → 当前数据库
+        dest_conn = self._connect()
+        src_conn = DB(str(src))._connect()
+        try:
+            src_conn.backup(dest_conn)
+        finally:
+            src_conn.close()
+            dest_conn.close()
+
+        return str(src)
 
     def reset(self, conn) -> None:
         """

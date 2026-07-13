@@ -34,7 +34,7 @@ class ChatRequest(BaseModel):
     )
     permission_name: str = Field(
         default="ai",
-        description="权限名称，对应 _permissions 表中的记录",
+        description="权限名称，对应 _permission 表中的记录",
     )
     tool_names: list[str] | None = Field(
         default=None,

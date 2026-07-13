@@ -308,8 +308,7 @@ class TestDBBackupReset:
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 ("backup-1", "备份测试", "2606", 1, "2606A", 0, "2026-01-01", "2026-01-01", "[]", "[]", 0),
             )
-        with db.read_transaction() as conn:
-            path = db.backup(conn)
+        path = db.backup()
         assert os.path.exists(path), f"备份文件未创建: {path}"
         assert ".backup." in path, f"备份路径缺少 .backup. 标记: {path}"
         # 验证备份文件是合法 SQLite 库
@@ -329,8 +328,7 @@ class TestDBBackupReset:
         os.makedirs(Path(new_path).parent, exist_ok=True)
         with new_db.transaction() as conn:
             new_db.init(conn, new_db.table_infos)
-        with new_db.read_transaction() as conn:
-            path = new_db.backup(conn)
+        path = new_db.backup()
         assert os.path.isdir(Path(new_path).parent / "backups")
 
     def test_reset_clears_and_reinits(self, db):

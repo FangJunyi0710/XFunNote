@@ -44,6 +44,14 @@ export interface ResetDbResponse {
   message: string;
 }
 
+export interface RestoreDbResponse {
+  message: string;
+}
+
+export interface ListBackupsResponse {
+  backups: string[];
+}
+
 // AI Permission
 export interface AIPermissionReadRequest {
   view: any;

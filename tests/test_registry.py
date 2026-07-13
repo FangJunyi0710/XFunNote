@@ -11,7 +11,7 @@ class TestRegistryInit:
         conn = db._connect()
         init_db(conn)
         conn.close()
-        assert set(db.table_infos.keys()) == {"plan", "diary", "word", "accumulation", "aimemory", "_tokens", "_views", "_permissions"}
+        assert set(db.table_infos.keys()) == {"plan", "diary", "word", "accumulation", "aimemory", "_token", "_view", "_permission"}
 
     def test_registry_has_all_notebooks(self):
         from xfun import registry

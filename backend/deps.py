@@ -26,11 +26,11 @@ async def get_api_permission(
     鉴权流程：
     1. 未提供 token → 401
     2. 匹配 ROOT_TOKEN（env 配置）→ root 权限
-    3. 查询 _tokens 表
+    3. 查询 _token 表
        3a. token 不存在 → 401
        3b. is_active=0 → 401
        3c. expires_at 已过期 → 401
-       3d. permission id 在 _permissions 表中不存在 → 401
+       3d. permission id 在 _permission 表中不存在 → 401
     4. 正常 → 返回 ApiPermission
     """
     if not x_api_key:
@@ -39,13 +39,13 @@ async def get_api_permission(
             detail="缺少 API Key，请在请求头中提供 X-API-Key",
         )
 
-    # 管理员启动密钥：绕过 _tokens 表，直接返回 root 权限
+    # 管理员启动密钥：绕过 _token 表，直接返回 root 权限
     if ROOT_TOKEN and x_api_key == ROOT_TOKEN:
         return ApiPermission(_ROOT_PERM)
 
-    # 查询 _tokens 表
+    # 查询 _token 表
     with _db.read_transaction() as conn:
-        results = _ops.query(conn, _ROOT_PERM, "_tokens", {"_tokens": [(["permission","is_active","expires_at"],Condition("token", x_api_key, "="))]}, limit=1)
+        results = _ops.query(conn, _ROOT_PERM, "_token", {"_token": [(["permission","is_active","expires_at"],Condition("token", x_api_key, "="))]}, limit=1)
     row = results[0] if results else None
 
     if row is None:
@@ -70,7 +70,7 @@ async def get_api_permission(
 
 
 def _lookup_permission(permission_id: str) -> ApiPermission:
-    """按 _permissions.id 查询权限定义，查不到则抛 401。"""
+    """按 _permission.id 查询权限定义，查不到则抛 401。"""
     perm = get_api_permission_from_db(permission_id)
     if perm is None:
         raise HTTPException(

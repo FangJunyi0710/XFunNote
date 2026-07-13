@@ -170,7 +170,7 @@ class TestNoView:
 
 
 class TestNoPermission:
-    def test_no_permission_returns_two_views(self, db):
+    def test_no_permission_returns_two_view(self, db):
         rv, wv = no_permission(db)
         for table in db.table_infos:
             assert table in rv

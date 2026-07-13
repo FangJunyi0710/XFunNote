@@ -50,7 +50,7 @@ def _patch_db(_shared_ai_db, monkeypatch):
     monkeypatch.setattr(xfun, "db", test_db)
     monkeypatch.setattr(xfun.ai.tools, "db", test_db)
 
-    # 使用 root_permission 构造测试工具（不依赖 _permissions 表）
+    # 使用 root_permission 构造测试工具（不依赖 _permission 表）
     perm = root_permission(test_db)
     monkeypatch.setattr(
         "xfun.ai.tools.db", test_db

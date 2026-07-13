@@ -259,7 +259,7 @@ class TestAgentInvokeMsg:
 class TestAgentInvokeToken:
     """StreamLevel.TOKEN — 逐 chunk yield + yield ToolMessage。"""
 
-    def test_stream_tokens(self, monkeypatch):
+    def test_stream_token(self, monkeypatch):
         chunk_a = AIMessageChunk(content="Hel", tool_call_chunks=[])
         chunk_b = AIMessageChunk(content="lo", tool_call_chunks=[])
         _patch_llm(monkeypatch, MockStreamLLM([[chunk_a, chunk_b]]))
@@ -275,7 +275,7 @@ class TestAgentInvokeToken:
         assert len(new_msgs) == 1
         assert new_msgs[0].content == "Hello"
 
-    def test_stream_tokens_with_reasoning(self, monkeypatch):
+    def test_stream_token_with_reasoning(self, monkeypatch):
         """TOKEN 模式含 reasoning_content，覆盖 line 89 分支。"""
         chunk = AIMessageChunk(
             content="最终答案",

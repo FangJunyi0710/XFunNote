@@ -12,16 +12,21 @@ def init_database() -> str:
 
 def backup_database() -> str:
     """在线热备份数据库。"""
-    with db.read_transaction() as conn:
-        path = db.backup(conn)
+    path = db.backup()
     return f"备份完成: {path}"
 
 
 def reset_database(backup_first: bool = True) -> str:
     """重置数据库：清空所有表并重新初始化。"""
-    with db.read_transaction() as conn:
-        if backup_first:
-            db.backup(conn)
+    if backup_first:
+        db.backup()
     with db.transaction() as conn:
         db.reset(conn)
     return "数据库已重置"
+
+
+def restore_database(backup_path: str) -> str:
+    """从备份文件恢复数据库（恢复前自动备份当前数据库做安全网）。"""
+    pre_path = db.backup()
+    path = db.restore(backup_path)
+    return f"已从备份恢复: {path}（恢复前自动备份: {pre_path}）"

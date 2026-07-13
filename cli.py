@@ -17,9 +17,10 @@ XFunNote CLI — 命令行接口
     xfun ai chat                          [--tool-names] [--permission-name]
     xfun init                               → 初始化数据库
     xfun backup                             → 在线热备份数据库
+    xfun restore  BACKUP_PATH [--list] [--no-backup]  → 从备份恢复数据库
     xfun reset               [--no-backup]  → 重置数据库
 
-系统表 (可通过 list --all 查看): _tokens, _permissions, _views
+系统表 (可通过 list --all 查看): _token, _permission, _view
 Token/Permission/View 管理直接复用 query / add / update / delete 命令
 """
 
@@ -28,6 +29,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 import json
+from pathlib import Path
 import traceback
 
 import typer
@@ -62,7 +64,7 @@ ai_app = typer.Typer(no_args_is_help=True)
 # ════════════════════════════════════════════════════════════
 
 
-_SYSTEM_TABLES = {"_tokens", "_permissions", "_views"}
+_SYSTEM_TABLES = {"_token", "_permission", "_view"}
 
 
 def _error(msg: str) -> str:
@@ -215,9 +217,9 @@ def delete(
 
 
 def _lookup_permission(permission_name: str):
-    """从 _permissions 表查询权限定义，返回 DB_Permission。"""
+    """从 _permission 表查询权限定义，返回 DB_Permission。"""
     with db.read_transaction() as conn:
-        results = ops_query(conn, root_permission(db), "_permissions", full_view(db),
+        results = ops_query(conn, root_permission(db), "_permission", full_view(db),
                             Condition("id", permission_name, "="), limit=1)
     if not results:
         typer.echo(_error(f"未知权限: {permission_name!r}"))
@@ -300,7 +302,7 @@ def ai(
     system_prompt: str | None = Option(None, "--system-prompt", "--sp", help="自定义系统提示词，留空使用默认"),
     llm_kwargs_json: str | None = Option(json.dumps(_DEFAULT_LLM_KWARGS, ensure_ascii=False), "--llm-kwargs", help="LLM 参数 JSON 字典。"),
     tool_names_json: str | None = Option(None, "--tool-names", "-t", help="工具名称列表 JSON 数组，如 '[\"query_entries\",\"add_entries\"]'，默认全部"),
-    permission_name: str = Option("ai", "--permission-name", "-p", help="权限名称，对应 _permissions 表记录"),
+    permission_name: str = Option("ai", "--permission-name", "-p", help="权限名称，对应 _permission 表记录"),
 ):
     """AI 对话系列命令。所有子命令最终 stdout 输出完整消息列表 JSON。"""
     ctx.obj = AIConfig(
@@ -432,9 +434,43 @@ def init():
 def backup():
     """在线热备份数据库。"""
     with _cli_handle():
-        with db.read_transaction() as conn:
-            path = db.backup(conn)
-            typer.echo(json.dumps({"message": f"备份完成: {path}"}, ensure_ascii=False))
+        path = db.backup()
+        typer.echo(json.dumps({"message": f"备份完成: {path}"}, ensure_ascii=False))
+
+
+# ════════════════════════════════════════════════════════════
+#  命令：restore — 恢复数据库
+# ════════════════════════════════════════════════════════════
+
+
+@app.command()
+def restore(
+    backup_path: str = Argument(None, help="备份文件路径（省略时结合 --list 使用）"),
+    list_backups: bool = Option(False, "--list", "-l", help="列出所有可用备份"),
+    no_backup: bool = Option(False, "--no-backup", help="恢复前不备份当前数据库"),
+):
+    """从备份文件恢复数据库。恢复前默认先备份当前数据库。"""
+    with _cli_handle():
+        if list_backups:
+            backup_dir = Path(db.db_path).parent / "backups"
+            if not backup_dir.exists():
+                typer.echo(json.dumps([], ensure_ascii=False))
+                return
+            files = sorted([str(f) for f in backup_dir.iterdir() if f.is_file()])
+            typer.echo(json.dumps(files, ensure_ascii=False))
+            return
+
+        if not backup_path:
+            typer.echo(_error("请提供备份文件路径，或使用 --list 查看可用备份"))
+            raise typer.Exit(code=1)
+
+        # 恢复前先备份当前数据库（安全网）
+        if not no_backup:
+            pre_path = db.backup()
+            typer.echo(json.dumps({"pre_restore_backup": pre_path}, ensure_ascii=False))
+
+        path = db.restore(backup_path)
+        typer.echo(json.dumps({"message": f"已从备份恢复: {path}"}, ensure_ascii=False))
 
 
 # ════════════════════════════════════════════════════════════
@@ -448,10 +484,10 @@ def reset(
 ):
     """重置数据库（清空所有表并重新初始化）。"""
     with _cli_handle():
-        with db.read_transaction() as conn:
-            if not no_backup:
-                path = db.backup(conn)
-                typer.echo(json.dumps({"backup": path}, ensure_ascii=False))
+        if not no_backup:
+            path = db.backup()
+            typer.echo(json.dumps({"backup": path}, ensure_ascii=False))
+        with db.transaction() as conn:
             db.reset(conn)
             typer.echo(json.dumps({"message": "数据库已重置"}, ensure_ascii=False))
 
