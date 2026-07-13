@@ -72,11 +72,29 @@ export interface AimemoryEntry extends EntryBase {
   source: string;
 }
 
+// ------------------------------------------------
+// Timeline 笔记本扩展字段
+// ------------------------------------------------
+export interface TimelineEntry extends EntryBase {
+  start_time: string;
+  end_time?: string;
+  location?: string;
+}
+
+// ------------------------------------------------
+// Schedule 笔记本扩展字段
+// ------------------------------------------------
+export interface ScheduleEntry extends EntryBase {
+  start_time: string;
+  end_time?: string;
+  location?: string;
+}
+
 // 条目联合类型
-export type AnyEntry = PlanEntry | DiaryEntry | WordEntry | AccumulationEntry | AimemoryEntry;
+export type AnyEntry = PlanEntry | DiaryEntry | WordEntry | AccumulationEntry | AimemoryEntry | TimelineEntry | ScheduleEntry;
 
 // 笔记本类型标识
-export type NotebookType = 'plan' | 'diary' | 'word' | 'accumulation' | 'aimemory';
+export type NotebookType = 'plan' | 'diary' | 'word' | 'accumulation' | 'aimemory' | 'timeline' | 'schedule';
 
 // API 响应
 export interface QueryResponse {

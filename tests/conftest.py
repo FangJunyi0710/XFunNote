@@ -21,6 +21,8 @@ from xfun.notebooks.diary import DiaryNotebook
 from xfun.notebooks.word import WordNotebook
 from xfun.notebooks.accumulation import AccumulationNotebook
 from xfun.notebooks.aimemory import AIMemoryNotebook
+from xfun.notebooks.timeline import TimelineNotebook
+from xfun.notebooks.schedule import ScheduleNotebook
 
 # ---------------------------------------------------------------------------
 # 夹具
@@ -34,6 +36,8 @@ def notebook_classes() -> dict[str, type[Notebook]]:
         "word":         WordNotebook,
         "accumulation": AccumulationNotebook,
         "aimemory":     AIMemoryNotebook,
+        "timeline":     TimelineNotebook,
+        "schedule":     ScheduleNotebook,
     }
 
 
@@ -45,6 +49,8 @@ def registry() -> dict[str, Notebook]:
         "word":         WordNotebook(),
         "accumulation": AccumulationNotebook(),
         "aimemory":     AIMemoryNotebook(),
+        "timeline":     TimelineNotebook(),
+        "schedule":     ScheduleNotebook(),
     }
 
 
@@ -120,6 +126,14 @@ def demo_entries(registry) -> dict[str, list[dict[str, Any]]]:
         "aimemory": [
             {"content": "用户叫小方", "title": "[事实]姓名"},
             {"content": "喜欢简洁风格", "title": "[策略]UI偏好"},
+        ],
+        "timeline": [
+            {"content": "写代码", "start_time": "2026-07-13 09:00:00+08:00", "end_time": "2026-07-13 12:00:00+08:00", "location": "办公室"},
+            {"content": "午饭", "start_time": "2026-07-13 12:00:00+08:00", "end_time": "2026-07-13 13:00:00+08:00", "location": "食堂"},
+        ],
+        "schedule": [
+            {"content": "开会", "start_time": "2026-07-14 10:00:00+08:00", "end_time": "2026-07-14 11:00:00+08:00", "location": "会议室A"},
+            {"content": "健身", "start_time": "2026-07-14 18:00:00+08:00", "end_time": "2026-07-14 19:00:00+08:00", "location": "健身房"},
         ],
     }
 

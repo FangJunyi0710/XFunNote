@@ -18,28 +18,22 @@ class TestAccumulationNotebook:
         assert len(ids) == 1
         assert ids[0].startswith("accumulation-")
 
-    def test_missing_category_raises(self, registry, db):
-        nb = registry["accumulation"]
-        with db.transaction() as conn:
-            with pytest.raises(Exception):
-                conn.db.add_entries(conn, "accumulation", [{"content": "no category"}])
-
-    def test_query_by_category(self, registry, db):
+    def test_query_by_source(self, registry, db):
         nb = registry["accumulation"]
         with db.transaction() as conn:
             conn.db.add_entries(conn, "accumulation", [
-                {"content": "Python tip", "category": "Python"},
-                {"content": "JS tip", "category": "JavaScript"},
-                {"content": "Python OOP", "category": "Python"},
+                {"content": "Python tip", "source": "博客"},
+                {"content": "JS tip", "source": "书籍"},
+                {"content": "Python OOP", "source": "博客"},
             ])
         with db.transaction() as conn:
-            ids = conn.db.list_ids(conn, "accumulation", [[Condition("category", "Python", "=")]])
+            ids = conn.db.list_ids(conn, "accumulation", [[Condition("source", "博客", "=")]])
         assert len(ids) == 2
 
     def test_source_and_note_optional(self, registry, db):
         nb = registry["accumulation"]
         with db.transaction() as conn:
-            ids = conn.db.add_entries(conn, "accumulation", [{"content": "just a note", "category": "misc"}])
+            ids = conn.db.add_entries(conn, "accumulation", [{"content": "just a note"}])
         with db.transaction() as conn:
             row = dict(conn.execute(
                 "SELECT * FROM accumulation WHERE id = ?",

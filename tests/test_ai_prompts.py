@@ -13,7 +13,7 @@ class TestAIPrompts:
         assert len(SYSTEM_PROMPT) > 100
 
     def test_system_prompt_contains_notebook_names(self):
-        for name in ("plan", "diary", "word", "accumulation", "aimemory"):
+        for name in ("plan", "diary", "word", "accumulation", "aimemory", "timeline", "schedule"):
             assert name in SYSTEM_PROMPT
 
     def test_system_prompt_contains_behavior_rules(self):
@@ -37,8 +37,9 @@ class TestAIPrompts:
         assert "month" in info  # plan
         assert "date" in info  # diary
         assert "word" in info  # word
-        assert "category" in info  # accumulation
+        assert "source" in info  # accumulation
         assert "title" in info  # aimemory
+        assert "start_time" in info  # timeline & schedule
 
     def test_field_description_not_empty(self):
         desc = _field_description_section()
@@ -46,17 +47,16 @@ class TestAIPrompts:
 
     def test_field_description_covers_all_notebooks(self):
         desc = _field_description_section()
-        for notebook in list(_FIELD_DESC.keys()) + ["通用", "plan", "diary", "word", "accumulation", "aimemory"]:
+        for notebook in list(_FIELD_DESC.keys()) + ["通用", "plan", "diary", "word", "accumulation", "aimemory", "timeline", "schedule"]:
             if notebook == "":
                 continue
             pass
-
 
 class TestPromptsEdgeCases:
     """覆盖 _field_description_section 的错误路径。"""
 
     def test_field_count_mismatch_raises(self, monkeypatch):
-        """_FIELD_DESC 字段数与列定义不匹配 → PromptError (prompts.py l.93)。"""
+        """_FIELD_DESC 字段数与列定义不匹配 → PromptError。"""
         from xfun.ai import prompts
         bad_desc = copy.deepcopy(prompts._FIELD_DESC)
         bad_plan = dict(list(bad_desc["plan"].items())[:-1])
@@ -66,10 +66,7 @@ class TestPromptsEdgeCases:
             prompts._field_description_section()
 
     def test_field_not_exists_raises(self, monkeypatch):
-        """_FIELD_DESC 包含不存在的字段 → PromptError (prompts.py l.100)。
-
-        需保持字段数不变（替换一个字段名为不存在的），否则先触发 count 检查。
-        """
+        """_FIELD_DESC 包含不存在的字段 → PromptError。"""
         from xfun.ai import prompts
         bad_desc = copy.deepcopy(prompts._FIELD_DESC)
         bad_plan = dict(bad_desc["plan"])
@@ -77,4 +74,13 @@ class TestPromptsEdgeCases:
         bad_desc["plan"] = bad_plan
         monkeypatch.setattr(prompts, "_FIELD_DESC", bad_desc)
         with pytest.raises(PromptError, match="不存在"):
+            prompts._field_description_section()
+
+    def test_notebook_count_mismatch_raises(self, monkeypatch):
+        """_FIELD_DESC 缺少本子 → PromptError。"""
+        from xfun.ai import prompts
+        bad_desc = copy.deepcopy(prompts._FIELD_DESC)
+        bad_desc.pop("timeline", None)
+        monkeypatch.setattr(prompts, "_FIELD_DESC", bad_desc)
+        with pytest.raises(PromptError, match="不匹配"):
             prompts._field_description_section()

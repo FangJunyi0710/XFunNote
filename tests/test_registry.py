@@ -11,19 +11,21 @@ class TestRegistryInit:
         conn = db._connect()
         init_db(conn)
         conn.close()
-        assert set(db.table_infos.keys()) == {"plan", "diary", "word", "accumulation", "aimemory", "_token", "_view", "_permission"}
+        assert set(db.table_infos.keys()) == {"plan", "diary", "word", "accumulation", "aimemory", "timeline", "schedule", "_token", "_view", "_permission"}
 
     def test_registry_has_all_notebooks(self):
         from xfun import registry
-        assert set(registry.keys()) == {"plan", "diary", "word", "accumulation", "aimemory"}
+        assert set(registry.keys()) == {"plan", "diary", "word", "accumulation", "aimemory", "timeline", "schedule"}
 
     def test_notebook_columns_match(self):
         from xfun import registry
         assert len(registry["plan"].columns) == len(registry["plan"]._extra_columns) + 8
         assert len(registry["diary"].columns) == 11  # 8 base + 3 extra
         assert len(registry["word"].columns) == 17  # 8 base + 9 extra
-        assert len(registry["accumulation"].columns) == 11  # 8 base + 3 extra
+        assert len(registry["accumulation"].columns) == 10  # 8 base + 2 extra
         assert len(registry["aimemory"].columns) == 10  # 8 base + 2 extra
+        assert len(registry["timeline"].columns) == 11  # 8 base + 3 extra
+        assert len(registry["schedule"].columns) == 11  # 8 base + 3 extra
 
     def test_db_file_created(self):
         """初始化后数据库文件应存在。"""

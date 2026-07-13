@@ -51,13 +51,22 @@ _FIELD_DESC: dict[str, dict[str, tuple[str, str]]] = {
         "last_review":  ("日期字符串，YYYY-MM-DD 格式", "最近一次复习的日期，用于衡量遗忘"),
     },
     "accumulation": {
-        "category":     ("字符串文本，用`, `隔开", "知识片段所属的分类，便于归类整理和检索"),
         "source":       ("字符串文本", "知识片段的来源出处（如文章名、书名、视频标题等）"),
         "note":         ("字符串文本", "对知识片段的补充说明或个人思考"),
     },
     "aimemory": {
         "title":        ("字符串文本", "记忆条目的标题，用于快速定位和引用该记忆"),
         "source":       ("字符串文本", "记录该记忆的创建场景"),
+    },
+    "timeline": {
+        "start_time":   ("带 UTC 偏移的时间字符串，如 `2026-07-13 09:00:00+08:00`", "事件开始时间"),
+        "end_time":     ("带 UTC 偏移的时间字符串，如 `2026-07-13 12:00:00+08:00`，可选", "事件结束时间"),
+        "location":     ("字符串文本，可选", "事件发生的地点或位置"),
+    },
+    "schedule": {
+        "start_time":   ("带 UTC 偏移的时间字符串，如 `2026-07-14 10:00:00+08:00`", "日程开始时间"),
+        "end_time":     ("带 UTC 偏移的时间字符串，如 `2026-07-14 11:00:00+08:00`，可选", "日程结束时间"),
+        "location":     ("字符串文本，可选", "日程地点或位置"),
     },
 }
 
@@ -82,6 +91,16 @@ def _notebook_infos() -> str:
 
 def _field_description_section() -> str:
     """从 _FIELD_DESC 生成 Markdown 表格。"""
+    # 校验本子数量
+    notebook_names_in_desc = {k for k in _FIELD_DESC if k}
+    notebook_names_in_registry = set(registry.keys())
+    if notebook_names_in_desc != notebook_names_in_registry:
+        raise PromptError(
+            f"_FIELD_DESC 与本子不匹配："
+            f"_FIELD_DESC 有 {notebook_names_in_desc} 个本子，"
+            f"registry 有 {notebook_names_in_registry} 个本子"
+        )
+
     rows = []
     for notebook, fields in _FIELD_DESC.items():
         existing_columns = [col.name for col in (registry[notebook]._extra_columns if notebook else BASE_COLUMNS)]

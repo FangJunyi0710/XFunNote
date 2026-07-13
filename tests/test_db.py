@@ -92,6 +92,11 @@ class TestColumnCompatibility:
         with pytest.raises(InvalidSQLError):
             _check_addition_column(Column("123col", "TEXT"))
 
+    def test_addition_column_unique_raises(self):
+        """新增列为 UNIQUE 应抛出异常 (l.112)。"""
+        with pytest.raises(InvalidSQLError, match="UNIQUE"):
+            _check_addition_column(Column("new_col", "TEXT", unique=True))
+
 
 # ===================================================================
 # DB
@@ -99,7 +104,7 @@ class TestColumnCompatibility:
 
 class TestDB:
     def test_init_empty_db(self, db):
-        assert set(db.table_infos.keys()) == {"plan", "diary", "word", "accumulation", "aimemory"}
+        assert set(db.table_infos.keys()) == {"plan", "diary", "word", "accumulation", "aimemory", "timeline", "schedule"}
 
     def test_transaction_commit(self, db):
         with db.transaction() as conn:
@@ -193,6 +198,36 @@ class TestDB:
         with db.read_transaction() as conn:
             row = conn.execute("PRAGMA journal_mode").fetchone()
         assert row[0].upper() == "WAL"
+
+    def test_unique_column_skips_index(self, db):
+        """UNIQUE 约束列不会重复建索引 (l.243)。"""
+        with db.transaction() as conn:
+            conn.execute(
+                "CREATE TABLE unique_idx_tb ("
+                "id TEXT PRIMARY KEY NOT NULL, "
+                "email TEXT UNIQUE NOT NULL, "
+                "created_at TEXT NOT NULL, updated_at TEXT NOT NULL, "
+                "tags TEXT NOT NULL, ai_tags TEXT NOT NULL, is_ai_gen INTEGER NOT NULL)"
+            )
+        with db.transaction() as conn:
+            db.init(conn, {"unique_idx_tb": [
+                Column("id", "TEXT", primary_key=True, nullable=False),
+                Column("email", "TEXT", unique=True, index=True, nullable=False),
+                Column("created_at", "TEXT", nullable=False, auto=True),
+                Column("updated_at", "TEXT", nullable=False, auto=True),
+                Column("tags", "TEXT", nullable=False, auto=True),
+                Column("ai_tags", "TEXT", nullable=False, auto=True),
+                Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
+            ]})
+        # 验证只有 id 有索引（email 的 UNIQUE 自动建索引，不额外创建）
+        with db.read_transaction() as conn:
+            indexes = [
+                r["name"] for r in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='unique_idx_tb'"
+                )
+            ]
+        # sqlite_autoindex_unique_idx_tb_2 是 UNIQUE 约束自动创建的索引
+        assert any("autoindex" in idx for idx in indexes), "UNIQUE 自动索引应存在"
 
 
 class TestDBTypeConflict:
