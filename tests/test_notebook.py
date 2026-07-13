@@ -55,9 +55,13 @@ class TestNotebookCRUD:
 
     @pytest.fixture
     def nb(self, db):
+        nb = SimpleNotebook()
         with db.transaction() as conn:
-            db.init(conn, {self.NB_NAME: SimpleNotebook().columns})
-        return SimpleNotebook()
+            db.register_hooks(
+                nb.name, pre_add=nb._pre_add, validate=nb._validate, autofill=nb._autofill,
+            )
+            db.init(conn, {nb.name: nb.columns})
+        return nb
 
     def _add_test_entries(self, nb, db, entries):
         """辅助：在单独事务中添加条目并返回 ID。"""
@@ -66,8 +70,14 @@ class TestNotebookCRUD:
 
     def _get_by_ids(self, nb, db, ids):
         """辅助：在单独事务中查询。"""
+        if not ids:
+            return []
         with db.transaction() as conn:
-            return conn.db.get_by_ids(conn, nb.name, ids)
+            rows = conn.execute(
+                f"SELECT * FROM {nb.name} WHERE id IN ({', '.join('?' for _ in ids)})",
+                ids,
+            ).fetchall()
+            return [dict(r) for r in rows]
 
     def test_add(self, nb, db):
         ids = self._add_test_entries(nb, db, [{"content": "hello", "category": "greeting"}])
@@ -84,8 +94,8 @@ class TestNotebookCRUD:
     def test_autofill_defaults(self, nb, db):
         ids = self._add_test_entries(nb, db, [{"content": "test", "category": "cat"}])
         row = self._get_by_ids(nb, db, ids)[0]
-        assert row["tags"] == "[]"
-        assert row["ai_tags"] == "[]"
+        assert row["tags"] is None
+        assert row["ai_tags"] is None
         assert row["is_ai_gen"] == 0
         assert row["created_at"] is not None
         assert row["updated_at"] is not None
@@ -108,19 +118,16 @@ class TestNotebookCRUD:
         assert rows[1]["id"] == ids[1]
 
     def test_get_by_ids_empty(self, nb, db):
-        with db.transaction() as conn:
-            rows = conn.db.get_by_ids(conn, nb.name, [])
+        rows = self._get_by_ids(nb, db, [])
         assert rows == []
 
     def test_get_by_ids_nonexistent(self, nb, db):
-        with db.transaction() as conn:
-            rows = conn.db.get_by_ids(conn, nb.name, ["nonexistent"])
+        rows = self._get_by_ids(nb, db, ["nonexistent"])
         assert rows == []
 
     def test_get_by_ids_partial(self, nb, db):
         ids = self._add_test_entries(nb, db, [{"content": "a", "category": "c1"}])
-        with db.transaction() as conn:
-            rows = conn.db.get_by_ids(conn, nb.name, ids + ["nonexistent"])
+        rows = self._get_by_ids(nb, db, ids + ["nonexistent"])
         assert len(rows) == 1
 
     def test_list_ids_with_filter(self, nb, db):
@@ -150,7 +157,10 @@ class TestNotebookCRUD:
         # 用单次事务包装查询
         with db.transaction() as conn:
             ids = conn.db.list_ids(conn, nb.name, [[]], order_by="content ASC")
-            rows = conn.db.get_by_ids(conn, nb.name, ids)
+            rows = [dict(r) for r in conn.execute(
+                f"SELECT * FROM {nb.name} WHERE id IN ({', '.join('?' for _ in ids)}) ORDER BY content ASC",
+                ids,
+            ).fetchall()]
         assert rows[0]["content"] == "a"
 
     def test_list_ids_with_limit(self, nb, db):
@@ -209,7 +219,10 @@ class TestNotebookCRUD:
     def test_update_autofills_updated_at(self, nb, db):
         ids = self._add_test_entries(nb, db, [{"content": "old", "category": "cat"}])
         with db.transaction() as conn:
-            row = conn.db.get_by_ids(conn, nb.name, ids)[0]
+            row = dict(conn.execute(
+                f"SELECT * FROM {nb.name} WHERE id IN ({', '.join('?' for _ in ids)})",
+                ids,
+            ).fetchone())
             old_updated = row["updated_at"]
         with db.transaction() as conn:
             conn.db.update_entries(conn, nb.name, ids, {"content": "new"})

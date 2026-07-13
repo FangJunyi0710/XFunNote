@@ -51,5 +51,8 @@ class TestAIMemoryNotebook:
         with db.transaction() as conn:
             ids = conn.db.add_entries(conn, "aimemory", [{"content": "info", "title": "[事实]测试"}])
         with db.transaction() as conn:
-            row = conn.db.get_by_ids(conn, "aimemory", ids)[0]
+            row = dict(conn.execute(
+                "SELECT * FROM aimemory WHERE id = ?",
+                ids,
+            ).fetchone())
         assert row["source"] is None

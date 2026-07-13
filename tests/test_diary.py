@@ -44,6 +44,9 @@ class TestDiaryNotebook:
                 "date": "2026-06-03",
             }])
         with db.transaction() as conn:
-            row = conn.db.get_by_ids(conn, "diary", ids)[0]
+            row = dict(conn.execute(
+                "SELECT * FROM diary WHERE id = ?",
+                ids,
+            ).fetchone())
         assert row["mood"] is None
         assert row["weather"] is None

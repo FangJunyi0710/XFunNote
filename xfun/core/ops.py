@@ -6,8 +6,8 @@ from .view import (
     DB_Permission,
     View,
     view_and,
-    view_clean_columns,
-    view_clean_filter,
+    view_clean_add,
+    view_clean_delete,
     view_clean_update,
     view_to_sql,
 )
@@ -30,7 +30,7 @@ def _query_by_ids(conn, permission: DB_Permission, table: str, ids: list[str]) -
 
 def add(conn, permission: DB_Permission, table: str, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     rview, wview = permission
-    cleaned = view_clean_columns(wview, table, entries)
+    cleaned = view_clean_add(wview, table, entries)
     ids = conn.db.add_entries(conn, table, cleaned)
     return _query_by_ids(conn, permission, table, ids)
 
@@ -52,7 +52,7 @@ def update(conn, permission: DB_Permission, table: str, filter: Filter, values: 
 
 def delete(conn, permission: DB_Permission, table: str, filter: Filter) -> list[dict[str, Any]]:
     rview, wview = permission
-    combined_filter = view_clean_filter(wview, table, filter)
+    combined_filter = view_clean_delete(wview, table, filter)
     ids = conn.db.list_ids(conn, table, combined_filter)
     entries = _query_by_ids(conn, permission, table, ids)
     conn.db.delete_entries(conn, table, ids)

@@ -107,7 +107,7 @@ class TestAITools:
         assert "results" in result
         entry = result["results"][0]
         assert entry["id"].startswith("plan-")
-        assert entry["tags"] == "[]"
+        assert entry.get("tags") is None
         assert entry["created_at"] is not None
 
     def test_update_entries_via_tool(self):

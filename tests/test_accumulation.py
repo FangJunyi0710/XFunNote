@@ -41,6 +41,9 @@ class TestAccumulationNotebook:
         with db.transaction() as conn:
             ids = conn.db.add_entries(conn, "accumulation", [{"content": "just a note", "category": "misc"}])
         with db.transaction() as conn:
-            row = conn.db.get_by_ids(conn, "accumulation", ids)[0]
+            row = dict(conn.execute(
+                "SELECT * FROM accumulation WHERE id = ?",
+                ids,
+            ).fetchone())
         assert row["source"] is None
         assert row["note"] is None

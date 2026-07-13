@@ -23,7 +23,10 @@ class TestWordNotebook:
         with db.transaction() as conn:
             ids = conn.db.add_entries(conn, "word", [{"content": "run", "word": "run"}])
         with db.transaction() as conn:
-            row = conn.db.get_by_ids(conn, "word", ids)[0]
+            row = dict(conn.execute(
+                "SELECT * FROM word WHERE id = ?",
+                ids,
+            ).fetchone())
         assert row["review_count"] == 0
 
     def test_performance_defaults_to_zero(self, registry, db):
@@ -31,7 +34,10 @@ class TestWordNotebook:
         with db.transaction() as conn:
             ids = conn.db.add_entries(conn, "word", [{"content": "book", "word": "book"}])
         with db.transaction() as conn:
-            row = conn.db.get_by_ids(conn, "word", ids)[0]
+            row = dict(conn.execute(
+                "SELECT * FROM word WHERE id = ?",
+                ids,
+            ).fetchone())
         assert row["performance"] == 0.0
 
     def test_query_by_word(self, registry, db):
@@ -58,6 +64,9 @@ class TestWordNotebook:
         with db.transaction() as conn:
             conn.db.update_entries(conn, "word", ids, {"review_count": 1, "performance": 0.5})
         with db.transaction() as conn:
-            row = conn.db.get_by_ids(conn, "word", ids)[0]
+            row = dict(conn.execute(
+                "SELECT * FROM word WHERE id = ?",
+                ids,
+            ).fetchone())
         assert row["review_count"] == 1
         assert row["performance"] == 0.5

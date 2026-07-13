@@ -9,8 +9,8 @@ from xfun.core.view import (
     view_to_sql,
     view_or,
     view_and,
-    view_clean_columns,
-    view_clean_filter,
+    view_clean_add,
+    view_clean_delete,
     view_clean_update,
     root_permission,
     no_permission,
@@ -19,7 +19,6 @@ from xfun.core.view import (
     parse_view_json,
 )
 from xfun.core.filter import Condition, TRUE_CONDITION, FALSE_CONDITION
-from xfun.core.filter import Condition, TRUE_CONDITION
 
 
 class TestViewToSQL:
@@ -117,14 +116,14 @@ class TestViewClean:
     def test_clean_columns_removes_disallowed(self):
         view: View = {"plan": [(["content"], TRUE_CONDITION)]}
         entries = [{"content": "ok", "secret_field": "secret"}]
-        cleaned = view_clean_columns(view, "plan", entries)
+        cleaned = view_clean_add(view, "plan", entries)
         assert "content" in cleaned[0]
         assert "secret_field" not in cleaned[0]
 
     def test_clean_filter_combines_with_view_filter(self):
         view: View = {"plan": [(["content"], Condition("month", "2606", "="))]}
         user_filter = Condition("done", 0, "=")
-        combined = view_clean_filter(view, "plan", user_filter)
+        combined = view_clean_delete(view, "plan", user_filter)
         assert isinstance(combined, list)
 
     def test_clean_update(self):

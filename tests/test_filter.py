@@ -204,7 +204,7 @@ class TestFilter:
 
     def test_empty_filter(self):
         sql, params = filter_to_sql([[]])
-        assert sql == ""
+        assert sql == "(1=1)"
         assert params == []
 
     def test_empty_inner_group_skipped(self):
@@ -312,10 +312,10 @@ class TestFilterEdgeCases:
     """覆盖 filter.py 中剩余未覆盖的行。"""
 
     def test_tuple_with_empty_inner_clause(self):
-        """(空筛选, True) → 返回 "" (l.137)。"""
+        """(空筛选, True) → 返回 "NOT ((1=1))"。"""
         flt: Filter = ([[]], True)
         sql, params = filter_to_sql(flt)
-        assert sql == ""
+        assert sql == "NOT ((1=1))"
         assert params == []
 
     def test_and_group_skip_empty_item(self):

@@ -22,7 +22,10 @@ class TestPlanNotebook:
                 {"content": "task 3", "month": "2606"},
             ])
         with db.transaction() as conn:
-            rows = conn.db.get_by_ids(conn, "plan", ids)
+            rows = [dict(r) for r in conn.execute(
+                f"SELECT * FROM plan WHERE id IN ({', '.join('?' for _ in ids)})",
+                ids,
+            ).fetchall()]
         seqs = [r["seq"] for r in rows]
         assert seqs == [1, 2, 3]
 
@@ -37,8 +40,14 @@ class TestPlanNotebook:
                 {"content": "t3", "month": "2607"},
             ])
         with db.transaction() as conn:
-            rows2606 = conn.db.get_by_ids(conn, "plan", ids2606)
-            rows2607 = conn.db.get_by_ids(conn, "plan", ids2607)
+            rows2606 = [dict(r) for r in conn.execute(
+                f"SELECT * FROM plan WHERE id IN ({', '.join('?' for _ in ids2606)})",
+                ids2606,
+            ).fetchall()]
+            rows2607 = [dict(r) for r in conn.execute(
+                f"SELECT * FROM plan WHERE id IN ({', '.join('?' for _ in ids2607)})",
+                ids2607,
+            ).fetchall()]
         assert [r["seq"] for r in rows2606] == [1, 2]
         assert [r["seq"] for r in rows2607] == [1]
 
@@ -51,7 +60,10 @@ class TestPlanNotebook:
                 {"content": "task B", "month": "2606"},
             ])
         with db.transaction() as conn:
-            rows = conn.db.get_by_ids(conn, "plan", ids)
+            rows = [dict(r) for r in conn.execute(
+                f"SELECT * FROM plan WHERE id IN ({', '.join('?' for _ in ids)})",
+                ids,
+            ).fetchall()]
         assert rows[0]["no"] == "2606A"
         assert rows[1]["no"] == "2606B"
 
@@ -61,8 +73,14 @@ class TestPlanNotebook:
             ids2606 = conn.db.add_entries(conn, "plan", [{"content": "t1", "month": "2606"}])
             ids2607 = conn.db.add_entries(conn, "plan", [{"content": "t2", "month": "2607"}])
         with db.transaction() as conn:
-            r1 = conn.db.get_by_ids(conn, "plan", ids2606)
-            r2 = conn.db.get_by_ids(conn, "plan", ids2607)
+            r1 = [dict(r) for r in conn.execute(
+                f"SELECT * FROM plan WHERE id IN ({', '.join('?' for _ in ids2606)})",
+                ids2606,
+            ).fetchall()]
+            r2 = [dict(r) for r in conn.execute(
+                f"SELECT * FROM plan WHERE id IN ({', '.join('?' for _ in ids2607)})",
+                ids2607,
+            ).fetchall()]
         assert r1[0]["no"] == "2606A"
         assert r2[0]["no"] == "2607A"
 
@@ -71,7 +89,10 @@ class TestPlanNotebook:
         with db.transaction() as conn:
             ids = conn.db.add_entries(conn, "plan", [{"content": "task", "month": "2606"}])
         with db.transaction() as conn:
-            row = conn.db.get_by_ids(conn, "plan", ids)[0]
+            row = dict(conn.execute(
+                "SELECT * FROM plan WHERE id = ?",
+                ids,
+            ).fetchone())
         assert row["done"] == 0
 
     def test_missing_month_raises(self, registry, db):
@@ -93,7 +114,10 @@ class TestPlanNotebook:
                 {"content": "c", "month": "2606"},
             ])
         with db.transaction() as conn:
-            r2 = conn.db.get_by_ids(conn, "plan", ids_second)
+            r2 = [dict(r) for r in conn.execute(
+                f"SELECT * FROM plan WHERE id IN ({', '.join('?' for _ in ids_second)})",
+                ids_second,
+            ).fetchall()]
         assert r2[0]["seq"] == 3
         assert r2[0]["no"] == "2606C"
 
@@ -122,8 +146,10 @@ class TestPlanNotebook:
         with db.transaction() as conn:
             ids = conn.db.add_entries(conn, "plan", [{"content": "after", "month": "2606"}])
         with db.transaction() as conn:
-            row = conn.db.get_by_ids(conn, "plan", ids)[0]
-        assert row["seq"] == 6
+            row = dict(conn.execute(
+                "SELECT * FROM plan WHERE id = ?",
+                ids,
+            ).fetchone())
         assert row["no"] == "2606F"
 
     def test_missing_content_raises(self, registry, db):

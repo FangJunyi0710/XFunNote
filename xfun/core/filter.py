@@ -134,7 +134,7 @@ def filter_to_sql(filter: Filter) -> tuple[str, list]:
         inner, negate = filter
         clause, vals = filter_to_sql(inner)
         if not clause:
-            return "", []
+            clause = "1=0"
         if negate:
             clause = f"NOT ({clause})"
         return clause, vals
@@ -146,15 +146,15 @@ def filter_to_sql(filter: Filter) -> tuple[str, list]:
         for item in group:
             clause, vals = filter_to_sql(item)
             if not clause:
-                continue
+                clause = "1=0"
             and_clauses.append(f"({clause})")
             params.extend(vals)
         if not and_clauses:
-            continue
+            and_clauses = ["1=1"]
         or_clauses.append("(" + " AND ".join(and_clauses) + ")")
 
     if not or_clauses:
-        return "", []
+        return "1=0", []
     
     where_sql = " OR ".join(or_clauses)
     return where_sql, params

@@ -112,17 +112,28 @@ def view_and(view1: View, view2: View) -> View:
 def _clean_entry(entry: dict[str, Any], allowed_columns: set[str]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for col in entry:
+        # id 永远不能被 update 或 add
+        if col == "id":
+            continue
         if col in allowed_columns:
             result[col] = entry[col]
     return result
 
-def view_clean_columns(view: View, table: str, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def view_clean_add(view: View, table: str, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    '''只要 view[table] 中出现了该列，则允许 add 时指定'''
+    if table not in view.keys():
+        return []
     return [_clean_entry(entry, {col for cols, _ in view[table] for col in cols}) for entry in entries]
 
-def view_clean_filter(view: View, table: str, filter: Filter) -> Filter:
-    return [[filter, [[flt] for _, flt in view[table]]]]
+def view_clean_delete(view: View, table: str, filter: Filter) -> Filter:
+    '''有 id 的修改权限，含义为允许删除'''
+    if table not in view.keys():
+        return FALSE_CONDITION
+    return [[filter, [[flt] for cols, flt in view[table] if "id" in cols]+[[FALSE_CONDITION]]]]
 
 def view_clean_update(view: View, table: str, filter: Filter, values: dict[str, Any]) -> list[tuple[Filter, dict[str, Any]]]:
+    if table not in view.keys():
+        return []
     result: list[tuple[Filter, dict[str, Any]]] = []
     for cols, flt in view[table]:
         result.append(([[flt, filter]], _clean_entry(values, cols)))
