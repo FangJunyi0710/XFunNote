@@ -127,6 +127,7 @@ def view_clean_update(view: View, table: str, filter: Filter, values: dict[str, 
     for cols, flt in view[table]:
         result.append(([[flt, filter]], _clean_entry(values, cols)))
     return result
+# TODO 添加 add update delete 分别筛选的逻辑
 
 def full_view(db: DB) -> View:
     full_view: View = {}

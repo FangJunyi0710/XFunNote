@@ -15,6 +15,8 @@ registry: dict[str, Notebook] = {
     "accumulation": AccumulationNotebook(),
     "aimemory":     AIMemoryNotebook(),
 }
+# TODO 时间线本子
+# TODO 日程表本子
 
 # ---- 系统表定义 ----
 _SYSTEM_TABLES: dict[str, list[Column]] = {

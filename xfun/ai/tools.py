@@ -200,3 +200,14 @@ def make_tools(tool_names: list[str], permission: DB_Permission) -> list[BaseToo
     return tools
 
 # TODO 计算/分析工具 联网搜索工具 文本搜索工具
+# TODO 变量机制
+# TODO 三档 AI 模式：白板模式（零工具）/ 查询模式（仅只读）/ 读写模式（完全 CRUD）
+# TODO 实现 AI 日报生成
+# TODO 实现 compile_latex(content: str) -> (pdf_path, error_log)
+# TODO 实现用户反馈学习
+
+# TODO 记忆导入与持续学习模块
+
+# TODO 临时层系统
+
+# TODO replace 工具管理标签等

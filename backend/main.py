@@ -24,9 +24,9 @@ from backend.routers import (
     notebooks,
     ai,
     manage_db,
-    manage_views,
-    manage_tokens,
-    manage_permissions,
+    manage_view,
+    manage_token,
+    manage_permission,
 )
 
 
@@ -105,6 +105,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 app.include_router(notebooks.router, prefix="/api/v1")
 app.include_router(ai.router, prefix="/api/v1")
 app.include_router(manage_db.router, prefix="/api/v1")
-app.include_router(manage_views.router, prefix="/api/v1")
-app.include_router(manage_tokens.router, prefix="/api/v1")
-app.include_router(manage_permissions.router, prefix="/api/v1")
+app.include_router(manage_view.router, prefix="/api/v1")
+app.include_router(manage_token.router, prefix="/api/v1")
+app.include_router(manage_permission.router, prefix="/api/v1")
+# TODO TOKEN授予与shortcut机制
