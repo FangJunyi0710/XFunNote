@@ -5,6 +5,8 @@ from .notebooks.diary        import DiaryNotebook
 from .notebooks.word         import WordNotebook
 from .notebooks.accumulation import AccumulationNotebook
 from .notebooks.aimemory     import AIMemoryNotebook
+from .notebooks.timeline     import TimelineNotebook
+from .notebooks.schedule     import ScheduleNotebook
 from .utils.token_utils import generate_token
 
 db: DB = DB()
@@ -14,9 +16,9 @@ registry: dict[str, Notebook] = {
     "word":         WordNotebook(),
     "accumulation": AccumulationNotebook(),
     "aimemory":     AIMemoryNotebook(),
+    "timeline":     TimelineNotebook(),
+    "schedule":     ScheduleNotebook(),
 }
-# TODO 时间线本子
-# TODO 日程表本子
 
 # ---- 系统表定义 ----
 _SYSTEM_TABLES: dict[str, list[Column]] = {
