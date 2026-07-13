@@ -335,7 +335,11 @@ class DB:
         """
         清空所有表并重新初始化。
         """
-        for table_name in self.table_infos:
+        # 查出数据库中所有用户表（排除 sqlite_% 系统表）
+        rows = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        ).fetchall()
+        for (table_name,) in rows:
             conn.execute(f"DROP TABLE IF EXISTS {table_name}")
         self.init(conn, self.table_infos)
 
