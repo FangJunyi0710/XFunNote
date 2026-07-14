@@ -217,12 +217,28 @@ class DB:
     
     @staticmethod
     def _sync_existing_table(conn: _ConnWrapper, table_name: str, desired_cols: list[Column]) -> None:
-        """补齐缺失列并检查已有列的一致性。"""
+        """补齐缺失列并检查已有列的一致性。
+
+        双向检查：
+        - 代码中有但数据库中无 → ALTER TABLE ADD COLUMN 补齐
+        - 代码中有且数据库中有 → 检查类型/可空性/主键一致性
+        - 数据库中有但代码中无 → 报错，防止残留列导致 NOT NULL 约束冲突
+        """
         # 只会被 init 调用，其已检查表名
         existing_cols = {
             row["name"]: row
             for row in conn.execute(f"PRAGMA table_info({table_name})")
         }
+        desired_names = {col.name for col in desired_cols}
+
+        # 反向检查：数据库中有但代码中无的多余列
+        for existing_name in existing_cols:
+            if existing_name not in desired_names:
+                raise InvalidSQLError(
+                    f"表 {table_name} 存在代码未定义的列 {existing_name!r}："
+                    f"请手动删除该列或重置数据库"
+                )
+
         for col in desired_cols:
             existing_info = existing_cols.get(col.name)
             if existing_info is None:

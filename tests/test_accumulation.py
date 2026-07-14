@@ -11,7 +11,6 @@ class TestAccumulationNotebook:
         with db.transaction() as conn:
             ids = conn.db.add_entries(conn, "accumulation", [{
                 "content": "Python 列表推导式",
-                "category": "Python",
                 "source": "官方文档",
                 "note": "很实用的语法糖",
             }])
