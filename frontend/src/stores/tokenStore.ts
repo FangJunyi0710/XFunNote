@@ -10,7 +10,7 @@ export interface LocalTokenEntry {
 interface TokenStoreState {
   tokens: LocalTokenEntry[];
   activeTokenId: string | null;
-  addToken: (key: string) => void;
+  addToken: (key: string) => string | null;
   removeToken: (id: string) => void;
   setActiveToken: (id: string | null) => void;
   updateTokenKey: (id: string, key: string) => void;
@@ -25,12 +25,21 @@ export const useTokenStore = create<TokenStoreState>()(
 
       addToken: (key: string) => {
         const id = crypto.randomUUID();
-        set((state) => ({
-          tokens: [
-            ...state.tokens,
-            { id, key, createdAt: new Date().toISOString() },
-          ],
-        }));
+        let added = false;
+        set((state) => {
+          // 检查是否已存在相同的 key
+          if (state.tokens.some((t) => t.key === key)) {
+            return state; // 已存在，不重复添加
+          }
+          added = true;
+          return {
+            tokens: [
+              ...state.tokens,
+              { id, key, createdAt: new Date().toISOString() },
+            ],
+          };
+        });
+        return added ? id : null;
       },
 
       removeToken: (id: string) => {

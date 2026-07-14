@@ -1,35 +1,50 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTokenStore } from '@/stores/tokenStore';
-import { exchangeTokenByShortcut } from '@/api/tokens';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { exchangeTokenByShortcut, getTokenInfo } from '@/api/tokens';
+import type { TokenInfo } from '@/api/tokens';
 
-function maskKey(key: string): string {
-  if (key.length <= 8) return key.slice(0, 4) + '****';
-  return key.slice(0, 6) + '****' + key.slice(-4);
-}
+import { TokenValueDisplay } from '@/components/ui/TokenValueDisplay';
+import { maskKey } from '@/lib/utils';
 
 export const TokenInputPanel: React.FC = () => {
-  const { tokens, activeTokenId, addToken, removeToken, setActiveToken, updateTokenKey } = useTokenStore();
+  const { tokens, activeTokenId, addToken, removeToken, setActiveToken } = useTokenStore();
   const [key, setKey] = useState('');
   const [error, setError] = useState('');
 
-  // 兑换对话框状态
-  const [exchangeOpen, setExchangeOpen] = useState(false);
-  const [shortcut, setShortcut] = useState('');
+  // 兑换状态（内联，无对话框）
+
   const [exchangeLoading, setExchangeLoading] = useState(false);
   const [exchangeError, setExchangeError] = useState('');
+  const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
+  const [infoLoading, setInfoLoading] = useState(false);
+  const [infoError, setInfoError] = useState('');
 
   const activeToken = tokens.find((t) => t.id === activeTokenId);
+
+  useEffect(() => {
+    if (activeTokenId) {
+      setInfoLoading(true);
+      setInfoError('');
+      setTokenInfo(null);
+      getTokenInfo()
+        .then((info) => {
+          setTokenInfo(info);
+        })
+        .catch((e) => {
+          setInfoError(e.message || '获取 Token 信息失败');
+        })
+        .finally(() => {
+          setInfoLoading(false);
+        });
+    } else {
+      setTokenInfo(null);
+      setInfoError('');
+    }
+  }, [activeTokenId]);
 
   const handleAdd = () => {
     const trimmedKey = key.trim();
@@ -52,7 +67,7 @@ export const TokenInputPanel: React.FC = () => {
   };
 
   const handleExchange = async () => {
-    const code = shortcut.trim();
+    const code = key.trim();
     if (!code) {
       setExchangeError('请输入 Shortcut 码');
       return;
@@ -61,17 +76,19 @@ export const TokenInputPanel: React.FC = () => {
     setExchangeLoading(true);
     try {
       const res = await exchangeTokenByShortcut({ shortcut: code });
-      // 兑换成功：将 token 填入输入框并关闭对话框
-      setKey(res.token);
-      setExchangeOpen(false);
-      setShortcut('');
+      // 兑换成功：自动添加到列表，但不自动激活
+      addToken(res.token);
+      setKey('');
       setError('');
+      setExchangeError('');
     } catch (e: any) {
       setExchangeError(e.message || '兑换失败，请检查 Shortcut 码是否有效');
     } finally {
       setExchangeLoading(false);
     }
   };
+
+  const displayError = error || exchangeError;
 
   return (
     <div className="max-w-2xl mx-auto space-y-4 animate-fade-in">
@@ -143,68 +160,111 @@ export const TokenInputPanel: React.FC = () => {
           <CardTitle className="text-base">添加 Token</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {error && (
+          {displayError && (
             <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded">
-              {error}
+              {displayError}
             </div>
           )}
           <div className="space-y-1.5">
-            <Label htmlFor="token-key">Token 值</Label>
+            <Label htmlFor="token-key">Token 值 / Shortcut 码</Label>
             <div className="flex gap-2">
               <Input
                 id="token-key"
-                type="password"
+                type="text"
                 value={key}
-                onChange={(e) => { setKey(e.target.value); setError(''); }}
-                placeholder="粘贴 Token 值"
+                onChange={(e) => { setKey(e.target.value); setError(''); setExchangeError(''); }}
+                placeholder="粘贴 Token 值或输入 Shortcut 码"
                 className="flex-1"
               />
-              <Dialog open={exchangeOpen} onOpenChange={setExchangeOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" type="button">
-                    兑换
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Shortcut 兑换</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 py-2">
-                    <p className="text-sm text-muted-foreground">
-                      输入管理员提供的 Shortcut 码，兑换完整的 Token 值。
-                    </p>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="shortcut-input">Shortcut 码</Label>
-                      <Input
-                        id="shortcut-input"
-                        value={shortcut}
-                        onChange={(e) => setShortcut(e.target.value)}
-                        placeholder="请输入 Shortcut 码"
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleExchange(); }}
-                      />
-                    </div>
-                    {exchangeError && (
-                      <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded">
-                        {exchangeError}
-                      </div>
-                    )}
-                    <Button
-                      className="w-full"
-                      onClick={handleExchange}
-                      disabled={exchangeLoading || !shortcut.trim()}
-                    >
-                      {exchangeLoading ? '兑换中...' : '兑换'}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <Button variant="outline" type="button" onClick={handleExchange} disabled={exchangeLoading || !key.trim()}>
+                {exchangeLoading ? '兑换中...' : '兑换'}
+              </Button>
+              <Button onClick={handleAdd} disabled={!key.trim()}>
+                添加
+              </Button>
             </div>
           </div>
-          <Button onClick={handleAdd} disabled={!key.trim()}>
-            添加
-          </Button>
         </CardContent>
       </Card>
+
+      {/* Token 详细信息（选中时显示） */}
+      {activeToken && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">当前 Token 详细信息</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            {infoLoading && (
+              <div className="text-sm text-muted-foreground px-3 py-2">加载 Token 信息中...</div>
+            )}
+            {infoError && (
+              <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded">
+                {infoError}
+              </div>
+            )}
+            {tokenInfo && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-muted-foreground">名称：</span>
+                    <span className="font-medium">{tokenInfo.name}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Shortcut：</span>
+                    <span className="font-medium">{tokenInfo.shortcut || '无'}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">过期时间：</span>
+                    <span className="font-medium">
+                      {tokenInfo.expires_at
+                        ? new Date(tokenInfo.expires_at).toLocaleString()
+                        : '永不过期'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Shortcut 过期：</span>
+                    <span className="font-medium">
+                      {tokenInfo.shortcut_expire_at
+                        ? new Date(tokenInfo.shortcut_expire_at).toLocaleString()
+                        : '无'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">创建时间：</span>
+                    <span className="font-medium">
+                      {new Date(tokenInfo.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">更新时间：</span>
+                    <span className="font-medium">
+                      {new Date(tokenInfo.updated_at).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+                {/* 完整的 Token 值 */}
+                <TokenValueDisplay value={activeToken.key} label="完整 Token 值" />
+                {tokenInfo.read_view && (
+                  <div>
+                    <span className="text-muted-foreground">读权限视图：</span>
+                    <code className="block mt-1 text-xs p-2 rounded bg-muted break-all">
+                      {JSON.stringify(tokenInfo.read_view, null, 2)}
+                    </code>
+                  </div>
+                )}
+                {tokenInfo.write_view && (
+                  <div>
+                    <span className="text-muted-foreground">写权限视图：</span>
+                    <code className="block mt-1 text-xs p-2 rounded bg-muted break-all">
+                      {JSON.stringify(tokenInfo.write_view, null, 2)}
+                    </code>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

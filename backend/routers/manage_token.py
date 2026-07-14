@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from backend.deps import get_api_permission
 from backend.permissions import ApiPermission
 from xfun import db as _db
+from xfun.config import ROOT_TOKEN
 from xfun.core import ops as _ops
 from xfun.core.view import full_view, root_permission, view_to_json
 from xfun.core.filter import Condition
@@ -48,6 +49,63 @@ def list_token(
     with _db.read_transaction() as conn:
         return _ops.query(conn, api_perm.permission, "_token", full_view(_db),
                           order_by="created_at DESC")
+
+
+class TokenInfoResponse(BaseModel):
+    """当前 Token 的基本信息（不含 token 明文和 permission id）"""
+    name: str
+    shortcut: str | None = None
+    shortcut_expire_at: str | None = None
+    expires_at: str | None = None
+    created_at: str
+    updated_at: str
+    read_view: dict
+    write_view: dict
+
+
+@router.get("/tokens/info")
+def get_current_token_info(
+    api_perm: ApiPermission = Depends(get_api_permission),
+    x_api_key: str = Header(alias="X-API-Key"),
+):
+    """
+    查询当前 API Key 的 Token 信息。
+    返回 name、shortcut、shortcut_expire_at、expires_at、created_at、updated_at、read_view、write_view。
+    使用 root_permission 二次查询 _token 表获取元数据。
+    """
+
+    perm = root_permission(_db)
+
+    if x_api_key == ROOT_TOKEN:
+        row = {"name": "ROOT_TOKEN", "created_at": "", "updated_at": ""}
+    else:
+        with _db.read_transaction() as conn:
+            cols = ["name", "shortcut", "shortcut_expire_at", "expires_at",
+                    "created_at", "updated_at"]
+            results = _ops.query(conn, perm, "_token",
+                                {"_token": [(cols, Condition("token", x_api_key, "="))]},
+                                limit=1)
+        
+        if not results:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Token 在鉴权后被删除",
+            )
+        row = results[0]
+
+    read_view = view_to_json(api_perm.permission[0])
+    write_view = view_to_json(api_perm.permission[1])
+
+    return TokenInfoResponse(
+        name=row["name"],
+        shortcut=row.get("shortcut"),
+        shortcut_expire_at=row.get("shortcut_expire_at"),
+        expires_at=row.get("expires_at"),
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+        read_view=read_view,
+        write_view=write_view,
+    )
 
 
 @router.get("/tokens/{token_id}")
@@ -198,57 +256,3 @@ def delete_token_route(
             detail=f"Token {token_id!r} 不存在",
         )
     return {"message": f"Token 已删除"}
-
-
-class TokenInfoResponse(BaseModel):
-    """当前 Token 的基本信息（不含 token 明文和 permission id）"""
-    name: str
-    shortcut: str | None = None
-    shortcut_expire_at: str | None = None
-    expires_at: str | None = None
-    created_at: str
-    updated_at: str
-    read_view: str
-    write_view: str
-
-
-@router.get("/tokens/info")
-def get_current_token_info(
-    api_perm: ApiPermission = Depends(get_api_permission),
-    x_api_key: str = Header(alias="X-API-Key"),
-):
-    """
-    查询当前 API Key 的 Token 信息。
-    返回 name、shortcut、shortcut_expire_at、expires_at、created_at、updated_at、read_view、write_view。
-    使用 root_permission 二次查询 _token 表获取元数据。
-    """
-
-    perm = root_permission(_db)
-
-    with _db.read_transaction() as conn:
-        cols = ["name", "shortcut", "shortcut_expire_at", "expires_at",
-                "created_at", "updated_at"]
-        results = _ops.query(conn, perm, "_token",
-                             {"_token": [(cols, Condition("token", x_api_key, "="))]},
-                             limit=1)
-    
-    if not results:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Token 在鉴权后被删除",
-        )
-    row = results[0]
-
-    read_view = view_to_json(api_perm.permission[0])
-    write_view = view_to_json(api_perm.permission[1])
-
-    return TokenInfoResponse(
-        name=row["name"],
-        shortcut=row.get("shortcut"),
-        shortcut_expire_at=row.get("shortcut_expire_at"),
-        expires_at=row.get("expires_at"),
-        created_at=row["created_at"],
-        updated_at=row["updated_at"],
-        read_view=read_view,
-        write_view=write_view,
-    )

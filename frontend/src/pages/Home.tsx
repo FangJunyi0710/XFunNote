@@ -59,26 +59,20 @@ export const Home: React.FC = () => {
         <p className="text-muted-foreground text-sm mt-1">小方的万用本 — 个人数据与 AI 操作系统</p>
       </div>
 
-      {/* API-Key 状态提示 */}
-      <div className={`flex items-center gap-2 px-4 py-3 rounded-lg border text-sm ${
-        hasActiveKey
-          ? 'bg-primary/5 border-primary/20 text-primary'
-          : 'bg-warning/10 border-warning/30 text-warning'
-      }`}>
-        <span className="text-lg">{hasActiveKey ? '🔑' : '⚠️'}</span>
-        <div className="flex-1 min-w-0">
-          {hasActiveKey ? (
-            <span className="font-medium">API Key 已配置</span>
-          ) : (
+      {/* API-Key 状态提示 — 未配置时才显示 */}
+      {!hasActiveKey && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-lg border text-sm bg-warning/10 border-warning/30 text-warning">
+          <span className="text-lg">⚠️</span>
+          <div className="flex-1 min-w-0">
             <span>
               未配置 API Key —{' '}
               <Link to="/token-input" className="underline underline-offset-2 hover:text-primary">
                 前往设置
               </Link>
             </span>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 笔记本概览 */}
       <section>

@@ -38,6 +38,15 @@ export function genId(): string {
 }
 
 /**
+ * 对 Token 值进行脱敏显示（仅保留前6位）
+ */
+export function maskKey(key: string): string {
+  if (!key) return '';
+  if (key.length <= 6) return key;
+  return key.slice(0, 6) + '...';
+}
+
+/**
  * 安全获取条目显示值，处理 undefined/null
  */
 export function safeValue(obj: any, key: string, fallback = '-'): string {

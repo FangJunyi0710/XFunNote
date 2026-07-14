@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { TokenValueDisplay } from '@/components/ui/TokenValueDisplay';
 import * as tokensApi from '@/api/tokens';
 import * as permissionsApi from '@/api/permissions';
 import type { Token } from '@/types/token';
@@ -343,28 +344,11 @@ export const TokenManagement: React.FC = () => {
                   const t = tokens.find((tk) => tk.id === selectedId);
                   return t ? (
                     <div className="space-y-2">
-                      <div className="space-y-1.5">
-                        <Label>Token 值（只读）</Label>
-                        <div className="flex gap-2">
-                          <code className="flex-1 text-xs p-2 rounded bg-muted break-all select-all">
-                            {t.token}
-                          </code>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={async () => {
-                              try {
-                                await navigator.clipboard.writeText(t.token);
-                                setMessage('Token 已复制到剪贴板');
-                              } catch {
-                                setMessage('复制失败');
-                              }
-                            }}
-                          >
-                            复制
-                          </Button>
-                        </div>
-                      </div>
+                      <TokenValueDisplay
+                        value={t.token}
+                        label="Token 值（只读）"
+                        onCopy={() => setMessage('Token 已复制到剪贴板')}
+                      />
                       {t.shortcut && (
                         <div className="space-y-1">
                           <Label>Shortcut 兑换码</Label>

@@ -19,6 +19,8 @@ const TYPE_COLORS: Record<string, string> = {
   word: 'border-l-notebook-word',
   accumulation: 'border-l-notebook-accumulation',
   aimemory: 'border-l-notebook-aimemory',
+  timeline: 'border-l-notebook-timeline',
+  schedule: 'border-l-notebook-schedule',
 };
 
 const TYPE_LABELS: Record<NotebookType, string> = {
