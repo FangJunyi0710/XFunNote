@@ -103,3 +103,5 @@ def _false(column: str, value, op: str):
     常用于构造永假条件以阻断查询，或逻辑禁用某个筛选分支。
     """
     return "1=0", []
+
+# TODO 提供引用其他 filter 的特殊运算符
