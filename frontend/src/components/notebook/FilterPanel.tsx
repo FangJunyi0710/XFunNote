@@ -6,6 +6,18 @@ import { Card, CardContent } from '@/components/ui/card';
 import { genId } from '@/lib/utils';
 import type { FilterOp } from '@/types/filter';
 
+// 后端 op 值映射：前端 FilterOp → 后端 op 字符串
+const OP_MAP: Record<FilterOp, string> = {
+  eq: '=',
+  neq: '!=',
+  gt: '>',
+  ge: '>=',
+  lt: '<',
+  le: '<=',
+  like: 'LIKE',
+  in: 'IN',
+};
+
 interface FilterRow {
   id: string;
   column: string;
@@ -56,19 +68,13 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ columns, onApply }) =>
       return;
     }
 
-    if (valid.length === 1) {
-      const f = {
-        cond: { column: valid[0].column, op: valid[0].op, value: valid[0].value },
-      };
-      onApply(JSON.stringify(f));
-    } else {
-      const f = {
-        and: valid.map((r) => ({
-          cond: { column: r.column, op: r.op, value: r.value },
-        })),
-      };
-      onApply(JSON.stringify(f));
-    }
+    // DNF 格式：[[{column, op, value}, ...]]，外层 OR、内层 AND
+    const dnf = [valid.map((r) => ({
+      column: r.column,
+      op: OP_MAP[r.op],
+      value: r.value,
+    }))];
+    onApply(JSON.stringify(dnf));
   };
 
   const clearFilter = () => {

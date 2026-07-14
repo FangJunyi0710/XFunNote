@@ -37,7 +37,14 @@ export async function listNotebooks(): Promise<NotebookSchema[]> {
 
 /** 获取笔记本 Schema（后端返回列定义，前端组装为完整 NotebookSchema） */
 export async function getSchema(type: NotebookType): Promise<NotebookSchema> {
-  const columns = await api.get<ColumnDef[]>(`/notebooks/${NOTEBOOK_MAP[type]}/schema`);
+  // 后端 Column.asdict() 返回字段：name, col_type, nullable, primary_key, unique, index, auto
+  const rawColumns = await api.get<any[]>(`/notebooks/${NOTEBOOK_MAP[type]}/schema`);
+  const columns: ColumnDef[] = rawColumns.map((col) => ({
+    name: col.name,
+    type: col.col_type,        // 映射 col_type → type
+    required: !col.nullable,   // 取反：nullable=false → required=true
+    default: col.default ?? null,
+  }));
   const info = NOTEBOOK_INFO[type] || { label: type, description: '' };
   return {
     table_name: type,
@@ -48,20 +55,23 @@ export async function getSchema(type: NotebookType): Promise<NotebookSchema> {
 }
 
 /**
- * 构建默认的 View JSON（显示所有列，无筛选条件）。
+ * 构建默认的 View JSON。
  * 后端要求 view 参数必填，格式为 `{表名: [{columns, filter}]}`。
+ * filter 格式：单个 Condition: {column, op, value} 或 DNF: [[{column, op, value}, ...], ...]
+ * @param columns 可选，完整列名列表。传入时使用实际列名，否则使用 ['*']（需后端支持通配展开）。
  */
-function buildDefaultView(type: NotebookType, filter?: string): string {
+function buildDefaultView(type: NotebookType, filter?: string, columns?: string[]): string {
   const tableName = NOTEBOOK_MAP[type];
-  let filterJson: string;
+  let filterJson: any;
   if (filter) {
-    filterJson = filter;
+    filterJson = JSON.parse(filter);
   } else {
     // 无筛选：使用 op=TRUE 作为永真条件
-    filterJson = JSON.stringify({ column: '_', value: '_', op: 'TRUE' });
+    filterJson = { column: '_', value: '_', op: 'TRUE' };
   }
+  const viewColumns = columns && columns.length > 0 ? columns : ['*'];
   return JSON.stringify({
-    [tableName]: [{ columns: ['*'], filter: JSON.parse(filterJson) }],
+    [tableName]: [{ columns: viewColumns, filter: filterJson }],
   });
 }
 
@@ -73,6 +83,7 @@ export async function queryEntries(
     page_size?: number;
     order_by?: string;
     order_dir?: string;
+    columns?: string[];
   },
 ): Promise<QueryResponse> {
   const queryParams: Record<string, string> = {};
@@ -89,7 +100,7 @@ export async function queryEntries(
   }
 
   // view 是后端必填参数，自动生成默认视图
-  queryParams.view = buildDefaultView(type, params?.filter);
+  queryParams.view = buildDefaultView(type, params?.filter, params?.columns);
 
   // 响应映射：后端 { count, results } → 前端 { total, entries, page, page_size }
   const res = await api.get<{ count: number; results: Record<string, any>[] }>(
@@ -115,9 +126,9 @@ export async function updateEntry(
   type: NotebookType,
   data: UpdateRequest,
 ): Promise<{ count: number; results: Record<string, any>[] }> {
-  // 前端格式 { id, updates } → 后端格式 { filter: {column, op, value}, values }
+  // 前端格式 { id, updates } → 后端格式 { filter: [[{column, op, value}]], values }
   return api.put(`/notebooks/${NOTEBOOK_MAP[type]}/entries`, {
-    filter: { column: 'id', op: '=', value: data.id },
+    filter: [[{ column: 'id', op: '=', value: data.id }]],
     values: data.updates,
   });
 }
@@ -126,9 +137,9 @@ export async function deleteEntries(
   type: NotebookType,
   ids: string[],
 ): Promise<DeleteResponse> {
-  // 前端 ids 列表 → 后端 filter: {column, op, value}
+  // 前端 ids 列表 → 后端 filter: [[{column, op, value}]]
   return api.delete<DeleteResponse>(
     `/notebooks/${NOTEBOOK_MAP[type]}/entries`,
-    { filter: { column: 'id', op: 'in', value: ids } },
+    { filter: [[{ column: 'id', op: 'IN', value: ids }]] },
   );
 }

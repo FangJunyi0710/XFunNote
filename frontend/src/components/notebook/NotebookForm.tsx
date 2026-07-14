@@ -25,7 +25,7 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
   const [submitting, setSubmitting] = useState(false);
 
   // 自动填充/内部字段，不应展示给用户
-  const AUTO_FIELDS = ['id', 'created_at', 'updated_at', 'is_ai_gen', 'no', 'seq', 'review_count', 'performance'];
+  const AUTO_FIELDS = ['id', 'created_at', 'updated_at', 'is_ai_gen', 'ai_tags', 'ai_note', 'tags', 'no', 'seq', 'review_count', 'performance'];
 
   useEffect(() => {
     if (initialData) {

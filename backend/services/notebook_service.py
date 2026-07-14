@@ -27,7 +27,7 @@ def query_entries(
     order_by: str = "",
     limit: int = 100,
     offset: int = 0,
-) -> list[dict]:
+) -> tuple[list[dict], int]:
     """查询条目。
 
     Parameters
@@ -35,6 +35,11 @@ def query_entries(
     view : dict | None
         内部 View 格式：``{表名: [(列列表, Filter), ...]}``。
         若为 None，默认查询所有列、无筛选。
+
+    Returns
+    -------
+    tuple[list[dict], int]
+        (条目列表, 总记录数)
     """
     _validate_notetype(notetype)
 
@@ -43,8 +48,10 @@ def query_entries(
         view = {notetype: [([c.name for c in nb.columns], TRUE_CONDITION)]}
 
     with db.read_transaction() as conn:
-        return ops.query(conn, permission, notetype, view,
-                         order_by=order_by, limit=limit, offset=offset)
+        total = ops.count(conn, permission, notetype, view)
+        results = ops.query(conn, permission, notetype, view,
+                            order_by=order_by, limit=limit, offset=offset)
+        return results, total
 
 
 def add_entries(

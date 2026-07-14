@@ -25,6 +25,17 @@ def query(conn, permission: DB_Permission, table: str, query_view: View, order_b
     rows = conn.execute(sql, params).fetchall()
     return [dict(r) for r in rows]
 
+
+def count(conn, permission: DB_Permission, table: str, query_view: View) -> int:
+    """查询满足 view 条件的总条目数（忽略分页与排序）。"""
+    rview, wview = permission
+    sql, params = view_to_sql(view_and(query_view, rview), conn.db, table)
+    if not sql:
+        return 0
+    count_sql = f"SELECT COUNT(*) FROM ({sql}) AS cnt"
+    row = conn.execute(count_sql, params).fetchone()
+    return row[0]
+
 def _query_by_ids(conn, permission: DB_Permission, table: str, ids: list[str]) -> list[dict[str, Any]]:
     return query(conn, permission, table, {table: [(conn.db.cols(table), Condition("id", ids, "IN"))]})
 

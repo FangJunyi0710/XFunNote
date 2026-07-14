@@ -100,7 +100,7 @@ export const NotebookPlan: React.FC = () => {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => store.setFilter(monthFilter ? JSON.stringify({ cond: { column: 'month', op: 'like', value: monthFilter } }) : null)}
+          onClick={() => store.setFilter(monthFilter ? JSON.stringify([[{ column: 'month', op: 'LIKE', value: monthFilter }]]) : null)}
         >
           筛选
         </Button>

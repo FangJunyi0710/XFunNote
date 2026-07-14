@@ -63,7 +63,7 @@ export const NotebookDiary: React.FC = () => {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => store.setFilter(dateFilter ? JSON.stringify({ cond: { column: 'date', op: 'eq', value: dateFilter } }) : null)}
+          onClick={() => store.setFilter(dateFilter ? JSON.stringify([[{ column: 'date', op: '=', value: dateFilter }]]) : null)}
         >
           筛选
         </Button>

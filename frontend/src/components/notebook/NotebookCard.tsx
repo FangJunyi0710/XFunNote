@@ -29,6 +29,8 @@ const TYPE_LABELS: Record<NotebookType, string> = {
   word: '单词',
   accumulation: '积累',
   aimemory: 'AI 记忆',
+  timeline: '时间线',
+  schedule: '日程',
 };
 
 export const NotebookCard: React.FC<NotebookCardProps> = ({
@@ -126,6 +128,47 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
             <p className="text-sm text-muted-foreground line-clamp-2">{entry.content}</p>
             {entry.source && (
               <p className="text-xs text-muted-foreground">来源: {entry.source}</p>
+            )}
+          </div>
+        );
+
+      case 'timeline':
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {entry.start_time && <span>{entry.start_time}</span>}
+              {entry.end_time && <span>→ {entry.end_time}</span>}
+              {entry.duration && <span>({entry.duration})</span>}
+            </div>
+            {entry.content && (
+              <p className="text-sm line-clamp-2">{entry.content}</p>
+            )}
+            {entry.location && (
+              <p className="text-xs text-muted-foreground">📍 {entry.location}</p>
+            )}
+          </div>
+        );
+
+      case 'schedule':
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{entry.title || '(无标题)'}</span>
+              {entry.done ? (
+                <Badge variant="success" className="text-[10px]">已完成</Badge>
+              ) : (
+                <Badge variant="secondary" className="text-[10px]">待办</Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {entry.start_time && <span>{entry.start_time}</span>}
+              {entry.end_time && <span>→ {entry.end_time}</span>}
+            </div>
+            {entry.content && (
+              <p className="text-sm text-muted-foreground line-clamp-2">{entry.content}</p>
+            )}
+            {entry.location && (
+              <p className="text-xs text-muted-foreground">📍 {entry.location}</p>
             )}
           </div>
         );

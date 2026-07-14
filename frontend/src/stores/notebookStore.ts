@@ -43,7 +43,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   page: 1,
   pageSize: 20,
   filterJson: null,
-  orderBy: 'created_at',
+  orderBy: 'id',
   orderDir: 'desc',
   loading: false,
   error: null,
@@ -62,7 +62,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   },
 
   fetchEntries: async () => {
-    const { currentType, page, pageSize, filterJson, orderBy, orderDir } = get();
+    const { currentType, schema, page, pageSize, filterJson, orderBy, orderDir } = get();
     if (!currentType) return;
     try {
       set({ loading: true, error: null });
@@ -72,6 +72,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
         page_size: pageSize,
         order_by: orderBy,
         order_dir: orderDir,
+        columns: schema?.display_order,
       });
       set({ entries: res.entries, total: res.total });
     } catch (e: any) {

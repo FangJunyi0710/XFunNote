@@ -66,7 +66,7 @@ export const NotebookAccumulation: React.FC = () => {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => store.setFilter(sourceFilter ? JSON.stringify({ cond: { column: 'source', op: 'like', value: sourceFilter } }) : null)}
+          onClick={() => store.setFilter(sourceFilter ? JSON.stringify([[{ column: 'source', op: 'LIKE', value: sourceFilter }]]) : null)}
         >
           筛选
         </Button>
