@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { NotebookCard } from '@/components/notebook/NotebookCard';
+import { Pagination } from '@/components/notebook/Pagination';
 import { useNotebookStore } from '@/stores/notebookStore';
 
 export const NotebookPlan: React.FC = () => {
@@ -35,27 +36,38 @@ export const NotebookPlan: React.FC = () => {
     <NotebookLayout
       notetype="plan"
       batchActions={batchActions}
-      renderCardList={({ entries, onEdit, onDelete }) => (
-        <div className="space-y-3">
-          {entries.map((entry) => (
-            <div key={entry.id} className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                className="mt-4"
-                checked={selectedIds.has(entry.id)}
-                onChange={() => toggleSelect(entry.id)}
-              />
-              <div className="flex-1">
-                <NotebookCard
-                  type="plan"
-                  entry={entry}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
+      renderEntryDisplay={({ entries, onEdit, onDelete }) => (
+        <>
+          {entries.length > 0 && (
+            <Pagination
+              page={store.page}
+              pageSize={store.pageSize}
+              total={store.total}
+              onPageChange={store.setPage}
+              onPageSizeChange={store.setPageSize}
+            />
+          )}
+          <div className="space-y-3">
+            {entries.map((entry) => (
+              <div key={entry.id} className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  className="mt-4"
+                  checked={selectedIds.has(entry.id)}
+                  onChange={() => toggleSelect(entry.id)}
                 />
+                <div className="flex-1">
+                  <NotebookCard
+                    type="plan"
+                    entry={entry}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                  />
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
     />
   );

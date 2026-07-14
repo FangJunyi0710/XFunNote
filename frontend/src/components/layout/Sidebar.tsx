@@ -73,7 +73,7 @@ export const Sidebar: React.FC = () => {
         <div className="pt-2">
           <button
             onClick={() => setNotebookOpen((v) => !v)}
-            className="flex items-center gap-2 w-full px-3 py-1.5 rounded-md text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            className="flex items-center gap-2 w-full px-3 py-2.5 rounded-md text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
           >
             <span
               className="inline-block transition-transform duration-200 text-xs"
@@ -87,7 +87,7 @@ export const Sidebar: React.FC = () => {
           <div
             className="overflow-hidden transition-all duration-200"
             style={{
-              maxHeight: notebookOpen ? notebookNav.length * 40 + 8 : 0,
+              maxHeight: notebookOpen ? notebookNav.length * 40 + 50 : 0,
               opacity: notebookOpen ? 1 : 0,
             }}
           >

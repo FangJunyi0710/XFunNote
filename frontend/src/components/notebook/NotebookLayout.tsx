@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { NotebookForm } from '@/components/notebook/NotebookForm';
 import { NotebookDefaultCardList } from '@/components/notebook/NotebookDefaultCardList';
-import { Pagination } from '@/components/notebook/Pagination';
 import { useNotebookStore } from '@/stores/notebookStore';
 import type { NotebookType } from '@/types/notebook';
 
@@ -14,8 +13,8 @@ interface NotebookLayoutProps {
   emoji?: string;
   /** 批量操作按钮（在"筛选"之前显示） */
   batchActions?: React.ReactNode;
-  /** 自定义卡片列表渲染（可选，默认使用 NotebookDefaultCardList） */
-  renderCardList?: (props: {
+  /** 自定义条目展示渲染（可选，默认使用 NotebookDefaultCardList），可在此内部自行控制分页器 */
+  renderEntryDisplay?: (props: {
     entries: Record<string, any>[];
     onEdit: (entry: Record<string, any>) => void;
     onDelete: (id: string) => void;
@@ -46,7 +45,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
   notetype,
   emoji,
   batchActions,
-  renderCardList,
+  renderEntryDisplay,
 }) => {
   const navigate = useNavigate();
   const store = useNotebookStore();
@@ -89,8 +88,8 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* 标题栏 — 筛选 / 新增 / 批量操作 三按钮并列 */}
-      <div className="flex items-center justify-between">
+      {/* 标题栏 — 筛选 / 新增 / 批量操作 三按钮并列 — sticky */}
+      <div className="sticky top-0 z-10 flex items-center justify-between bg-background py-2">
         <h1 className="text-xl font-bold">{icon} {label}</h1>
         <div className="flex items-center gap-2">
           {batchActions}
@@ -123,14 +122,14 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
         </div>
       )}
 
-      {/* 卡片列表 */}
+      {/* 条目展示 */}
       {!store.loading && store.entries.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground text-sm">
           暂无条目
         </div>
       ) : (
-        renderCardList
-          ? renderCardList({ entries: store.entries, onEdit: handleEdit, onDelete: handleDelete })
+        renderEntryDisplay
+          ? renderEntryDisplay({ entries: store.entries, onEdit: handleEdit, onDelete: handleDelete })
           : (
             <NotebookDefaultCardList
               type={notetype}
@@ -140,17 +139,6 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
               onDelete={handleDelete}
             />
           )
-      )}
-
-      {/* 分页 */}
-      {store.entries.length > 0 && (
-        <Pagination
-          page={store.page}
-          pageSize={store.pageSize}
-          total={store.total}
-          onPageChange={store.setPage}
-          onPageSizeChange={store.setPageSize}
-        />
       )}
     </div>
   );
