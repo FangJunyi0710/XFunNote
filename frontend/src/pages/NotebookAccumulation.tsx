@@ -10,17 +10,17 @@ export const NotebookAccumulation: React.FC = () => {
   return (
     <NotebookLayout
       notetype="accumulation"
-      renderEntryDisplay={({ entries, onEdit, onDelete }) => (
-        <>
-          {entries.length > 0 && (
-            <Pagination
-              page={store.page}
-              pageSize={store.pageSize}
-              total={store.total}
-              onPageChange={store.setPage}
-              onPageSizeChange={store.setPageSize}
-            />
-          )}
+      renderEntryDisplay={({ entries, onEdit, onDelete }) => ({
+        stickySlot: entries.length > 0 ? (
+          <Pagination
+            page={store.page}
+            pageSize={store.pageSize}
+            total={store.total}
+            onPageChange={store.setPage}
+            onPageSizeChange={store.setPageSize}
+          />
+        ) : undefined,
+        content: (
           <div className="space-y-3">
             {entries.map((entry) => (
               <NotebookCard
@@ -32,8 +32,8 @@ export const NotebookAccumulation: React.FC = () => {
               />
             ))}
           </div>
-        </>
-      )}
+        ),
+      })}
     />
   );
 };

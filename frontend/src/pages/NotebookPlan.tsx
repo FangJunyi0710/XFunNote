@@ -36,17 +36,17 @@ export const NotebookPlan: React.FC = () => {
     <NotebookLayout
       notetype="plan"
       batchActions={batchActions}
-      renderEntryDisplay={({ entries, onEdit, onDelete }) => (
-        <>
-          {entries.length > 0 && (
-            <Pagination
-              page={store.page}
-              pageSize={store.pageSize}
-              total={store.total}
-              onPageChange={store.setPage}
-              onPageSizeChange={store.setPageSize}
-            />
-          )}
+      renderEntryDisplay={({ entries, onEdit, onDelete }) => ({
+        stickySlot: entries.length > 0 ? (
+          <Pagination
+            page={store.page}
+            pageSize={store.pageSize}
+            total={store.total}
+            onPageChange={store.setPage}
+            onPageSizeChange={store.setPageSize}
+          />
+        ) : undefined,
+        content: (
           <div className="space-y-3">
             {entries.map((entry) => (
               <div key={entry.id} className="flex items-start gap-2">
@@ -67,8 +67,8 @@ export const NotebookPlan: React.FC = () => {
               </div>
             ))}
           </div>
-        </>
-      )}
+        ),
+      })}
     />
   );
 };

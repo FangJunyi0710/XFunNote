@@ -13,12 +13,13 @@ interface NotebookLayoutProps {
   emoji?: string;
   /** 批量操作按钮（在"筛选"之前显示） */
   batchActions?: React.ReactNode;
-  /** 自定义条目展示渲染（可选，默认使用 NotebookDefaultCardList），可在此内部自行控制分页器 */
+  /** 自定义条目展示渲染（可选，默认使用 NotebookDefaultCardList）
+   *  返回 { stickySlot, content }，stickySlot 会被渲染为 sticky 定位的顶部栏，content 为条目列表 */
   renderEntryDisplay?: (props: {
     entries: Record<string, any>[];
     onEdit: (entry: Record<string, any>) => void;
     onDelete: (id: string) => void;
-  }) => React.ReactNode;
+  }) => { stickySlot?: React.ReactNode; content: React.ReactNode };
 }
 
 const TYPE_LABELS: Record<NotebookType, string> = {
@@ -128,9 +129,26 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
           暂无条目
         </div>
       ) : (
-        renderEntryDisplay
-          ? renderEntryDisplay({ entries: store.entries, onEdit: handleEdit, onDelete: handleDelete })
-          : (
+        (() => {
+          const rendered = renderEntryDisplay
+            ? renderEntryDisplay({ entries: store.entries, onEdit: handleEdit, onDelete: handleDelete })
+            : null;
+
+          if (rendered && 'content' in rendered) {
+            const { stickySlot, content } = rendered;
+            return (
+              <>
+                {stickySlot && (
+                  <div className="sticky top-12 z-10 bg-background py-2 border-b">
+                    {stickySlot}
+                  </div>
+                )}
+                {content}
+              </>
+            );
+          }
+
+          return rendered ?? (
             <NotebookDefaultCardList
               type={notetype}
               entries={store.entries}
@@ -138,7 +156,8 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
               onEdit={handleEdit}
               onDelete={handleDelete}
             />
-          )
+          );
+        })()
       )}
     </div>
   );
