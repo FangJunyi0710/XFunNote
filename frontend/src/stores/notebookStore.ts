@@ -50,7 +50,8 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
 
   setCurrentType: async (type: NotebookType) => {
     try {
-      set({ loading: true, error: null, currentType: type, page: 1 });
+      // 先清空旧数据再设置 loading，避免切换时短暂显示先前内容
+      set({ loading: true, error: null, currentType: type, page: 1, entries: [], schema: null });
       const schema = await notebookApi.getSchema(type);
       set({ schema });
       await get().fetchEntries();

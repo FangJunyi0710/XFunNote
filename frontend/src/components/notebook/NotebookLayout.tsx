@@ -115,7 +115,6 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
       )}
 
       {/* 加载/错误 */}
-      {store.loading && <div className="text-sm text-muted-foreground">加载中...</div>}
       {store.error && (
         <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">
           {store.error}
@@ -123,8 +122,12 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
         </div>
       )}
 
-      {/* 条目展示 */}
-      {!store.loading && store.entries.length === 0 ? (
+      {/* 加载中 — 隐藏旧内容，只显示加载状态 */}
+      {store.loading ? (
+        <div className="flex items-center justify-center py-16 text-muted-foreground">
+          加载中...
+        </div>
+      ) : store.entries.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground text-sm">
           暂无条目
         </div>
