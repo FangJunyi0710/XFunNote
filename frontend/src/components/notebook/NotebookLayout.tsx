@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { FilterPanel } from '@/components/notebook/FilterPanel';
 import { NotebookForm } from '@/components/notebook/NotebookForm';
 import { NotebookDefaultCardList } from '@/components/notebook/NotebookDefaultCardList';
 import { Pagination } from '@/components/notebook/Pagination';
@@ -12,20 +12,14 @@ interface NotebookLayoutProps {
   notetype: NotebookType;
   /** 标题 emoji */
   emoji?: string;
-  /** 新建按钮文案 */
-  newLabel?: string;
-  /** 标题右侧扩展按钮（如 Plan 的批量删除） */
-  headerActions?: React.ReactNode;
-  /** 快捷筛选栏（可选） */
-  quickFilter?: React.ReactNode;
+  /** 批量操作按钮（在"筛选"之前显示） */
+  batchActions?: React.ReactNode;
   /** 自定义卡片列表渲染（可选，默认使用 NotebookDefaultCardList） */
   renderCardList?: (props: {
     entries: Record<string, any>[];
     onEdit: (entry: Record<string, any>) => void;
     onDelete: (id: string) => void;
   }) => React.ReactNode;
-  /** 空状态文案 */
-  emptyText?: string;
 }
 
 const TYPE_LABELS: Record<NotebookType, string> = {
@@ -51,12 +45,10 @@ const DEFAULT_EMOJIS: Record<NotebookType, string> = {
 export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
   notetype,
   emoji,
-  newLabel,
-  headerActions,
-  quickFilter,
+  batchActions,
   renderCardList,
-  emptyText,
 }) => {
+  const navigate = useNavigate();
   const store = useNotebookStore();
   const [showForm, setShowForm] = useState(false);
   const [editEntry, setEditEntry] = useState<Record<string, any> | null>(null);
@@ -94,26 +86,22 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
 
   const label = TYPE_LABELS[notetype];
   const icon = emoji || DEFAULT_EMOJIS[notetype];
-  const columns = store.schema?.columns.map((c) => ({ name: c.name, type: c.type })) || [];
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* 标题栏 */}
+      {/* 标题栏 — 筛选 / 新增 / 批量操作 三按钮并列 */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">{icon} {label}</h1>
         <div className="flex items-center gap-2">
-          {headerActions}
+          {batchActions}
+          <Button variant="outline" onClick={() => navigate(`/notebooks/${notetype}/filter`)}>
+            筛选
+          </Button>
           <Button onClick={() => { setEditEntry(null); setShowForm(true); }}>
-            + {newLabel || '新建'}
+            + 添加条目
           </Button>
         </div>
       </div>
-
-      {/* 快捷筛选（可选） */}
-      {quickFilter}
-
-      {/* 高级筛选 */}
-      <FilterPanel columns={columns} onApply={store.setFilter} />
 
       {/* 表单 */}
       {showForm && store.schema && (
@@ -138,7 +126,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
       {/* 卡片列表 */}
       {!store.loading && store.entries.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground text-sm">
-          {emptyText || `暂无${label}，点击"新建"添加第一条`}
+          暂无条目
         </div>
       ) : (
         renderCardList
