@@ -2,8 +2,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { NotebookForm } from '@/components/notebook/NotebookForm';
-import { NotebookDefaultCardList } from '@/components/notebook/NotebookDefaultCardList';
+import { defaultRenderEntryDisplay } from '@/components/notebook/NotebookDefaultCardList';
 import { useNotebookStore } from '@/stores/notebookStore';
+import * as notebookApi from '@/api/notebooks';
 import type { NotebookType } from '@/types/notebook';
 
 interface NotebookLayoutProps {
@@ -11,14 +12,16 @@ interface NotebookLayoutProps {
   notetype: NotebookType;
   /** 标题 emoji */
   emoji?: string;
-  /** 批量操作按钮（在"筛选"之前显示） */
-  batchActions?: React.ReactNode;
   /** 自定义条目展示渲染（可选，默认使用 NotebookDefaultCardList）
    *  返回 { stickySlot, content }，stickySlot 会被渲染为 sticky 定位的顶部栏，content 为条目列表 */
   renderEntryDisplay?: (props: {
     entries: Record<string, any>[];
     onEdit: (entry: Record<string, any>) => void;
     onDelete: (id: string) => void;
+    selectedIds: Set<string>;
+    onToggleSelect: (id: string) => void;
+    onSelectAll: () => void;
+    onDeselectAll: () => void;
   }) => { stickySlot?: React.ReactNode; content: React.ReactNode };
 }
 
@@ -45,13 +48,50 @@ const DEFAULT_EMOJIS: Record<NotebookType, string> = {
 export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
   notetype,
   emoji,
-  batchActions,
   renderEntryDisplay,
 }) => {
   const navigate = useNavigate();
   const store = useNotebookStore();
   const [showForm, setShowForm] = useState(false);
   const [editEntry, setEditEntry] = useState<Record<string, any> | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(async () => {
+    try {
+      const res = await notebookApi.queryEntries(notetype, {
+        filter: store.filterJson || undefined,
+        page: 1,
+        page_size: store.total,
+        order_by: store.orderBy,
+        order_dir: store.orderDir,
+      });
+      setSelectedIds(new Set(res.entries.map((e: any) => e.id)));
+    } catch (e: any) {
+      // 获取所有 ID 失败时静默处理
+    }
+  }, [notetype, store.filterJson, store.total, store.orderBy, store.orderDir]);
+
+  const handleDeselectAll = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleBatchDelete = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (confirm(`确定删除 ${ids.length} 条${TYPE_LABELS[notetype]}？`)) {
+      await store.deleteEntries(ids);
+      setSelectedIds(new Set());
+    }
+  }, [selectedIds, store, notetype]);
 
   useEffect(() => {
     store.setCurrentType(notetype);
@@ -84,6 +124,9 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     [store],
   );
 
+  // 选中数量
+  const selectedCount = selectedIds.size;
+
   const label = TYPE_LABELS[notetype];
   const icon = emoji || DEFAULT_EMOJIS[notetype];
 
@@ -93,7 +136,20 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
       <div className="sticky top-0 z-10 flex items-center justify-between bg-background py-2">
         <h1 className="text-xl font-bold">{icon} {label}</h1>
         <div className="flex items-center gap-2">
-          {batchActions}
+          {selectedIds.size > 0 ? (
+            <>
+              <Button variant="destructive" size="sm" onClick={handleBatchDelete}>
+                删除 {selectedCount} 项
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDeselectAll}>
+                全不选
+              </Button>
+            </>
+          ) : (
+            <Button variant="outline" size="sm" onClick={handleSelectAll}>
+              全选
+            </Button>
+          )}
           <Button variant="outline" onClick={() => navigate(`/notebooks/${notetype}/filter`)}>
             筛选
           </Button>
@@ -134,31 +190,31 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
       ) : (
         (() => {
           const rendered = renderEntryDisplay
-            ? renderEntryDisplay({ entries: store.entries, onEdit: handleEdit, onDelete: handleDelete })
-            : null;
+            ? renderEntryDisplay({ entries: store.entries, onEdit: handleEdit, onDelete: handleDelete, selectedIds, onToggleSelect: toggleSelect, onSelectAll: handleSelectAll, onDeselectAll: handleDeselectAll })
+            : defaultRenderEntryDisplay({
+                type: notetype,
+                entries: store.entries,
+                onEdit: handleEdit,
+                onDelete: handleDelete,
+                selectedIds,
+                onToggleSelect: toggleSelect,
+                page: store.page,
+                pageSize: store.pageSize,
+                total: store.total,
+                onPageChange: store.setPage,
+                onPageSizeChange: store.setPageSize,
+              });
 
-          if (rendered && 'content' in rendered) {
-            const { stickySlot, content } = rendered;
-            return (
-              <>
-                {stickySlot && (
-                  <div className="sticky top-12 z-10 bg-background py-2 border-b">
-                    {stickySlot}
-                  </div>
-                )}
-                {content}
-              </>
-            );
-          }
-
-          return rendered ?? (
-            <NotebookDefaultCardList
-              type={notetype}
-              entries={store.entries}
-              displayOrder={store.schema?.display_order || []}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
+          const { stickySlot, content } = rendered;
+          return (
+            <>
+              {stickySlot && (
+                <div className="sticky top-12 z-10 bg-background py-2 border-b">
+                  {stickySlot}
+                </div>
+              )}
+              {content}
+            </>
           );
         })()
       )}
