@@ -1,4 +1,4 @@
-import { NotebookCard } from '@/components/notebook/NotebookCard';
+import { NotebookCard } from '@/components/notebook/notebookCards/defaultCard';
 import { Pagination } from '@/components/notebook/Pagination';
 import type { NotebookType } from '@/config/notebook';
 

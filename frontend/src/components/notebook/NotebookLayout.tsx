@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { defaultRenderEntryDisplay } from '@/components/notebook/NotebookDefaultCardList';
+import { defaultRenderEntryDisplay } from '@/components/notebook/notebookCards/defaultCardList';
 import { useNotebookStore } from '@/stores/notebookStore';
 import * as notebookApi from '@/api/notebooks';
 import { TYPE_LABELS, DEFAULT_EMOJIS } from '@/config/notebook';
