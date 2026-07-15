@@ -10,6 +10,7 @@ import { NotebookAimemory } from '@/pages/NotebookAimemory';
 import { NotebookTimeline } from '@/pages/NotebookTimeline';
 import { NotebookSchedule } from '@/pages/NotebookSchedule';
 import { NotebookFilter } from '@/pages/NotebookFilter';
+import { NotebookEditPage } from '@/pages/NotebookEditPage';
 import { AiChat } from '@/pages/AiChat';
 import { Management } from '@/pages/Management';
 import { TokenInputPanel } from '@/pages/TokenInputPanel';
@@ -28,6 +29,8 @@ const App: React.FC = () => {
           <Route path="notebooks/aimemory" element={<NotebookAimemory />} />
           <Route path="notebooks/timeline" element={<NotebookTimeline />} />
           <Route path="notebooks/schedule" element={<NotebookSchedule />} />
+          <Route path="notebooks/:notetype/new" element={<NotebookEditPage />} />
+          <Route path="notebooks/:notetype/edit/:id" element={<NotebookEditPage />} />
           <Route path="notebooks/:notetype/filter" element={<NotebookFilter />} />
           <Route path="ai" element={<AiChat />} />
           <Route path="management" element={<Management />} />

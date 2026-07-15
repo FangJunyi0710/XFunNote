@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatDateTime } from '@/lib/utils';
 import { getCardRenderer } from '@/components/notebook/notebookCards';
@@ -30,6 +31,7 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
   onEdit,
   onDelete,
 }) => {
+  const navigate = useNavigate();
   const Renderer = getCardRenderer(type);
 
   return (
@@ -52,7 +54,7 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
           <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
             <button
               className="text-xs text-primary hover:underline"
-              onClick={() => onEdit?.(entry)}
+              onClick={() => navigate(`/notebooks/${type}/edit/${entry.id}`)}
             >
               编辑
             </button>

@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { NotebookForm } from '@/components/notebook/NotebookForm';
 import { defaultRenderEntryDisplay } from '@/components/notebook/NotebookDefaultCardList';
 import { useNotebookStore } from '@/stores/notebookStore';
 import * as notebookApi from '@/api/notebooks';
@@ -52,8 +51,6 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
 }) => {
   const navigate = useNavigate();
   const store = useNotebookStore();
-  const [showForm, setShowForm] = useState(false);
-  const [editEntry, setEditEntry] = useState<Record<string, any> | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const toggleSelect = useCallback((id: string) => {
@@ -99,21 +96,14 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
 
   const handleSubmit = useCallback(
     async (data: Record<string, any>) => {
-      if (editEntry) {
-        await store.updateEntry(editEntry.id, data);
-      } else {
-        await store.addEntries([data]);
-      }
-      setShowForm(false);
-      setEditEntry(null);
+      await store.addEntries([data]);
     },
-    [editEntry, store],
+    [store],
   );
 
   const handleEdit = useCallback((entry: Record<string, any>) => {
-    setEditEntry(entry);
-    setShowForm(true);
-  }, []);
+    navigate(`/notebooks/${notetype}/edit/${entry.id}`);
+  }, [navigate, notetype]);
 
   const handleDelete = useCallback(
     async (id: string) => {
@@ -153,22 +143,11 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
           <Button variant="outline" onClick={() => navigate(`/notebooks/${notetype}/filter`)}>
             筛选
           </Button>
-          <Button onClick={() => { setEditEntry(null); setShowForm(true); }}>
+          <Button onClick={() => navigate(`/notebooks/${notetype}/new`)}>
             + 添加条目
           </Button>
         </div>
       </div>
-
-      {/* 表单 */}
-      {showForm && store.schema && (
-        <NotebookForm
-          schema={store.schema}
-          initialData={editEntry || undefined}
-          onSubmit={handleSubmit}
-          onCancel={() => { setShowForm(false); setEditEntry(null); }}
-          title={editEntry ? `编辑${label}` : `新建${label}`}
-        />
-      )}
 
       {/* 加载/错误 */}
       {store.error && (
