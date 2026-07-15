@@ -845,13 +845,6 @@ AI 对话支持同步与交互两种模式：
 bash scripts/updateREADME.sh
 ```
 
-### 已知问题
-
-1. **`_lookup_filter` 权限旁路**：`xfun/core/filter.py` 直接读取 `_filter` 表，绕过 View/Permission 沙箱。仅 `REF` 运算符触发，影响范围有限。
-2. **`manage_filter.py` list 路由参数错误**：`GET /api/v1/filters` 调用参数顺序有误，当前会导致运行时错误。
-3. **前端 `EntryBase.user_id` 不匹配**：前端类型包含 `user_id`，但后端 `BASE_COLUMNS` 中无此列。
-4. **前端 `*` 通配符列名**：`buildDefaultView()` 使用 `['*']`，后端 `select_sql()` 不支持。
-
 ---
 
 ## FAQ 与关于

@@ -21,7 +21,7 @@ def list_filter(
 ):
     with _db.read_transaction() as conn:
         return _ops.query(conn, api_perm.permission, "_filter", order_by="name ASC")
-
+# TODO 修复参数未传入 view 的问题
 
 @router.get("/filters/{name}", summary="获取指定筛选条件", response_description="筛选条件的 JSON 数据")
 def get_filter_route(

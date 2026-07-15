@@ -174,7 +174,6 @@ export interface EntryBase {
   ai_note: string | null;
   created_at: string;
   updated_at: string;
-  user_id: string;
 }
 
 // Plan 笔记本扩展字段（对应 plan.py _extra_columns）

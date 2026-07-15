@@ -40,9 +40,9 @@ export async function getSchema(type: NotebookType): Promise<NotebookSchema> {
  * 构建默认的 View JSON。
  * 后端要求 view 参数必填，格式为 `{表名: [{columns, filter}]}`。
  * filter 格式：单个 Condition: {column, op, value} 或 DNF: [[{column, op, value}, ...], ...]
- * @param columns 可选，完整列名列表。传入时使用实际列名，否则使用 ['*']（需后端支持通配展开）。
+ * @param columns 完整列名列表。传入时使用实际列名。
  */
-function buildDefaultView(type: NotebookType, filter?: string, columns?: string[]): string {
+function buildDefaultView(type: NotebookType, columns: string[], filter?: string): string {
   const tableName = type;
   let filterJson: any;
   if (filter) {
@@ -51,7 +51,7 @@ function buildDefaultView(type: NotebookType, filter?: string, columns?: string[
     // 无筛选：使用 op=TRUE 作为永真条件
     filterJson = { column: '_', value: '_', op: 'TRUE' };
   }
-  const viewColumns = columns && columns.length > 0 ? columns : ['*'];
+  const viewColumns = columns;
   return JSON.stringify({
     [tableName]: [{ columns: viewColumns, filter: filterJson }],
   });
@@ -59,30 +59,30 @@ function buildDefaultView(type: NotebookType, filter?: string, columns?: string[
 
 export async function queryEntries(
   type: NotebookType,
-  params?: {
+  params: {
     filter?: string;
     page?: number;
     page_size?: number;
     order_by?: string;
     order_dir?: string;
-    columns?: string[];
+    columns: string[];
   },
 ): Promise<QueryResponse> {
   const queryParams: Record<string, string> = {};
 
   // 参数映射：前端 page/page_size → 后端 offset/limit
-  const page = params?.page ?? 1;
-  const pageSize = params?.page_size ?? 20;
+  const page = params.page ?? 1;
+  const pageSize = params.page_size ?? 20;
   queryParams.offset = String((page - 1) * pageSize);
   queryParams.limit = String(pageSize);
 
   // 参数映射：前端 order_by + order_dir → 后端 order_by
-  if (params?.order_by) {
+  if (params.order_by) {
     queryParams.order_by = `${params.order_by} ${(params.order_dir || 'asc').toUpperCase()}`.trim();
   }
 
   // view 是后端必填参数，自动生成默认视图
-  queryParams.view = buildDefaultView(type, params?.filter, params?.columns);
+  queryParams.view = buildDefaultView(type, params.columns, params.filter);
 
   // 响应映射：后端 { count, results } → 前端 { total, entries, page, page_size }
   const res = await api.get<{ count: number; results: Record<string, any>[] }>(
