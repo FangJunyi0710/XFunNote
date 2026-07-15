@@ -456,16 +456,16 @@ class DB:
         from .filter import filter_to_sql
 
         where_sql, params = filter_to_sql(filter)
-        sql = f"SELECT id FROM {table_name}"
+        parts = [f"SELECT id FROM {table_name}"]
         if where_sql:
-            sql += f" WHERE {where_sql}"
+            parts.append(f"WHERE {where_sql}")
         if order_by:
             Column.check_order_by(order_by)
-            sql += f" ORDER BY {order_by}"
-        sql += f" LIMIT {limit} OFFSET {offset}"
+            parts.append(f"ORDER BY {order_by}")
+        parts.append(f"LIMIT {limit} OFFSET {offset}")
+        sql = " ".join(parts)
         rows = conn.execute(sql, params).fetchall()
         return [row["id"] for row in rows]
-# TODO 消除 string +=
 
     def update_entries(self, conn, table_name: str, entry_ids: list[str], entry: dict) -> None:
         """批量更新条目。"""

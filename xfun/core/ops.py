@@ -18,10 +18,12 @@ def query(conn, permission: DB_Permission, table: str, query_view: View, order_b
     sql, params = view_to_sql(view_and(query_view, rview), conn.db, table)
     if not sql:
         return []
+    parts = [sql]
     if order_by:
         Column.check_order_by(order_by)
-        sql += f" ORDER BY {order_by}"
-    sql += f" LIMIT {limit} OFFSET {offset}"
+        parts.append(f"ORDER BY {order_by}")
+    parts.append(f"LIMIT {limit} OFFSET {offset}")
+    sql = " ".join(parts)
     rows = conn.execute(sql, params).fetchall()
     return [dict(r) for r in rows]
 

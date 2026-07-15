@@ -265,11 +265,11 @@ def extract_content_parts(msg: BaseMessage) -> dict[str, str]:
         例如: ``{"thinking": "思考过程...", "text": "最终答案"}``
         或: ``{"text": "纯文本回复"}`` （无 thinking 块时）。
     """
-    parts: dict[str, str] = {}
+    parts: dict[str, list[str]] = {}
     for block in msg.content:
-        parts.setdefault(block.get("type"), "")
-        parts[block.get("type")] += block.get(block.get("type"), "")
-    return parts
+        parts.setdefault(block.get("type"), [])
+        parts[block.get("type")].append(block.get(block.get("type"), ""))
+    return {k: "".join(v) for k, v in parts.items()}
 
 
 def ensure_system_message(
