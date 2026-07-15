@@ -17,12 +17,12 @@ from xfun.ai.schema import ViewModel
 router = APIRouter(tags=["notebooks"])
 
 
-@router.get("/notebooks")
+@router.get("/notebooks", summary="列出所有笔记本名称", response_description="笔记本名称列表")
 def list_notebooks(api_perm: ApiPermission = Depends(get_api_permission)):
     return svc.list_notebooks()
 
 
-@router.get("/notebooks/{name}/schema")
+@router.get("/notebooks/{name}/schema", summary="查看笔记本字段结构", response_description="字段定义列表")
 def get_schema(name: str, api_perm: ApiPermission = Depends(get_api_permission)):
     return svc.get_schema(name)
 
@@ -31,7 +31,7 @@ def parse_view_param(view: str = Query(..., description="View JSON 字符串")) 
     return ViewModel.model_validate_json(view)
 
 
-@router.get("/notebooks/{name}/entries")
+@router.get("/notebooks/{name}/entries", summary="通用查询条目", response_description="匹配的条目列表（含总数）")
 def query_entries(
     name: str,
     order_by: str = Query("", description="排序，如 `created_at DESC`"),
@@ -49,6 +49,8 @@ def query_entries(
 @router.post(
     "/notebooks/{name}/entries",
     status_code=status.HTTP_201_CREATED,
+    summary="批量添加条目",
+    response_description="新增条目的完整信息",
 )
 def add_entries(
     name: str,
@@ -59,7 +61,7 @@ def add_entries(
     return EntryBatchResponse(count=len(results), results=results)
 
 
-@router.put("/notebooks/{name}/entries")
+@router.put("/notebooks/{name}/entries", summary="批量更新条目", response_description="更新后条目的完整信息")
 def update_entries(
     name: str,
     body: EntryUpdate,
@@ -70,7 +72,7 @@ def update_entries(
     return EntryBatchResponse(count=len(results), results=results)
 
 
-@router.delete("/notebooks/{name}/entries")
+@router.delete("/notebooks/{name}/entries", summary="批量删除条目", response_description="被删除条目的完整信息")
 def delete_entries(
     name: str,
     body: EntryDelete,

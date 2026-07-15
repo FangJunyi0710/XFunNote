@@ -192,62 +192,71 @@ XFunError (基类)
 
 ## 路线图
 
-### 阶段零：核心引擎与基础本子（已完成）
+### 阶段零：核心引擎与基础本子
 - [x] 数据库引擎、Ops 操作层、Notebook 抽象基类
 - [x] 7 个内置本子
 - [x] 注册中心
 - [x] 300+ 单元测试
 
-### 阶段一：AI Tools 层（已完成）
+### 阶段一：AI Tools 层
 - [x] 5 个 Function Calling 工具
 - [x] Pydantic 模型及 JSON Schema 双重校验
 - [x] 系统提示词、Agent 对话引擎
 - [x] CLI 命令行（10 个命令）
+- [ ] 计算/分析工具、联网搜索工具、文本搜索工具（tools.py）
+- [ ] `replace` 工具管理标签等功能（tools.py）
+- [ ] `compile_latex` 工具（tools.py）
 
-### 阶段二：View 层（已完成）
+### 阶段二：View 层
 - [x] `view_to_sql`（跨本子 UNION ALL + 去重下推）
 - [x] `view_or`/`view_and`
 - [x] `view_clean_*` 安全沙箱
 - [x] 序列化/反序列化、ViewModel Pydantic 校验
 
-### 阶段三：FastAPI 后端（基本完成）
+### 阶段三：FastAPI 后端
 - [x] RESTful 路由（notebooks/ai/views/tokens/permissions/filters/db）
 - [x] API Key 鉴权体系
 - [x] 依赖注入与 CORS
 - [ ] Filter 编辑器/管理页面
-- [ ] 批量更新功能
-- [ ] 深色主题
-- [ ] 分页器跳转
+- [x] 批量更新功能
+- [x] 深色主题
+- [x] 分页器跳转
+- [ ] 增加导入导出功能
+- [ ] HTTPS 增强安全
 
-### 阶段四：前端可视化（待完成）
+### 阶段四：前端可视化
 - [ ] 计划列表/筛选/增删改
 - [ ] 日记时间线
 - [ ] AI 对话界面
 - [ ] 日报查看/导出
-- [ ] 前端调用 FastAPI 后端（而非直接操作数据库）
+- [ ] 实现 filter 编辑器页面
+- [ ] 前端实现真正的视图筛选
+- [ ] 前端在权限被拒时根据 ops 返回值提示
 
-### 阶段五：AI 日报闭环（待完成）
+### 阶段五：AI 日报闭环
 - [ ] `generate_daily_report()` 拉取当日数据
 - [ ] DeepSeek 生成摘要
 - [ ] LaTeX 模板填充 + 迭代编译（最多重试 3 次）
 - [ ] 用户反馈学习
 
-### 阶段六：记忆导入与持续学习（待完成）
+### 阶段六：记忆导入与持续学习
 - [ ] ChatGPT 对话导出解析
 - [ ] Markdown/纯文本批量导入
 - [ ] 持续学习模块
 - [ ] 命令行聊天界面
+- [ ] 记忆导入与持续学习模块
 
 ### 远期路线
 - [ ] QQ 机器人推送与定时任务
 - [ ] 多端同步与扩展
 - [ ] 工具函数补全与 SM-2 复习调度
-- [ ] 三档 AI 模式与工具链扩展
+- [ ] 三档 AI 模式：白板模式（零工具）/ 查询模式（仅只读）/ 读写模式（完全 CRUD）
 - [ ] 临时层系统
 - [ ] 零散信息整合
 - [ ] 本地优先部署完善
-- [ ] 后端安全与体验增强
 - [ ] 核心引擎补全（正则运算符、权限安全修复）
+- [ ] AI 工具变量机制
+- [ ] 正则表达式匹配运算符
 
 
 ---
@@ -751,14 +760,14 @@ FastAPI 后端运行后访问 `http://localhost:8000/docs` 查看自动生成的
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/notebooks` | 列出本子（需鉴权） |
-| GET | `/api/v1/notebooks/{name}/schema` | 查看字段结构（需鉴权） |
+| GET | `/api/v1/notebooks` | 列出本子 |
+| GET | `/api/v1/notebooks/{name}/schema` | 查看字段结构 |
 | GET | `/api/v1/notebooks/{name}/entries?view=...` | 查询条目 |
 | POST | `/api/v1/notebooks/{name}/entries` | 添加条目 |
 | PUT | `/api/v1/notebooks/{name}/entries` | 更新条目 |
 | DELETE | `/api/v1/notebooks/{name}/entries` | 删除条目 |
-| POST | `/api/v1/ai/chat` | AI 对话（支持 permission_name/tool_names/llm_kwargs） |
-| GET | `/api/v1/ai/permission` | 查询 AI 权限白名单（需鉴权） |
+| POST | `/api/v1/ai/chat` | AI 对话 |
+| GET | `/api/v1/ai/permission` | 查询 AI 权限白名单 |
 | GET/PUT/DELETE | `/api/v1/filters/{name}` | Filter CRUD |
 | GET/POST/PUT/DELETE | `/api/v1/tokens[/{id}]` | Token CRUD |
 | GET/POST/PUT/DELETE | `/api/v1/permissions[/{id}]` | 权限 CRUD |
@@ -766,16 +775,6 @@ FastAPI 后端运行后访问 `http://localhost:8000/docs` 查看自动生成的
 | POST | `/api/v1/db/{init\|backup\|restore\|reset}` | 数据库管理（需 ROOT_TOKEN） |
 | GET | `/api/v1/tokens/info` | 查询当前 Token 元信息 |
 | POST | `/api/v1/tokens/exchange` | Shortcut 兑换 Token（无需鉴权） |
-
-**鉴权说明**：除 Shortcut 兑换外，所有路由均需 `X-API-Key` Header。`/db/*` 路由必须使用 `ROOT_TOKEN`。后端鉴权流程如下：
-
-① 提取 `X-API-Key`，缺失则返回 401；  
-② 若匹配环境变量 `ROOT_TOKEN`，直接获得 root 权限；  
-③ 否则查询 `_token` 表，检查 Token 是否存在；  
-④ 校验 `is_active` 和 `expires_at`，停用或过期则拒绝；  
-⑤ 从 `_permission` 表加载对应的 `(read_view, write_view)` 权限定义。  
-
-每次请求自动计算 API Key 权限与业务权限的交集，遵循最小权限原则。
 
 ### CLI 命令行
 
@@ -789,19 +788,13 @@ FastAPI 后端运行后访问 `http://localhost:8000/docs` 查看自动生成的
 | `xfun add TABLE ENTRIES_JSON` | 通用添加 |
 | `xfun update TABLE FILTER_JSON VALUES_JSON` | 通用更新 |
 | `xfun delete TABLE FILTER_JSON` | 通用删除 |
-| `xfun ai sync --messages JSON` | AI 同步模式（静默调用，stdout JSON） |
+| `xfun ai sync --messages JSON` | AI 同步模式（stdout JSON） |
 | `xfun ai chat` | AI 交互模式（stderr 流式，stdout JSON） |
 | `xfun view full` / `xfun view no` | 输出 full_view / no_view 定义 |
 | `xfun init` | 初始化数据库 |
 | `xfun backup` | 在线热备份数据库 |
 | `xfun restore BACKUP_PATH` | 从备份文件恢复 |
 | `xfun reset` | 重置数据库 |
-
-**Token Shortcut 兑换**：创建 Token 时传入 `shortcut` 字段和 `shortcut_ttl`（默认 120s），客户端通过 `POST /api/v1/tokens/exchange` 无鉴权接口兑换完整 Token，兑换后 Shortcut 立即清空。
-
-**数据库在线热备份**：基于 SQLite `backup()` API，无需停服。备份文件存储于 `data/backups/`，文件名带时间戳。备份前自动清理 `-wal` / `-shm` 残留文件以确保快照一致性，恢复前默认先备份当前数据库作为安全网。
-
-**Filter 引用（REF）运算符**：`_filter` 表存储命名的筛选条件，通过 `Condition("_", filter_id, "REF")` 引用，实现筛选条件的复用与组合。⚠️ 当前 `_lookup_filter()` 无权限校验，存在旁路风险。
 
 ---
 

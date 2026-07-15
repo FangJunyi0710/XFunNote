@@ -41,7 +41,41 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="XFunNote API",
+    description="""
+XFunNote 是一个轻量级、无模式的笔记系统后端。
+
+## 功能特性
+
+- **📓 本子 CRUD** — 对任意笔记本进行增删改查操作，支持视图筛选与分页
+- **🤖 AI 对话** — 集成 LLM 的智能对话与工具调用（查询/添加/更新/删除条目）
+- **🔑 Token 管理** — API 密钥的创建、更新、删除与 Shortcut 快捷兑换
+- **🛡️ 权限管理** — 基于 View 的细粒度读写权限控制
+- **👁️ 视图管理** — 保存/加载自定义查询视图
+- **🔍 筛选管理** — 保存/加载自定义筛选条件
+- **💾 数据库管理** — 初始化、备份、恢复、重置
+
+## 鉴权方式
+
+所有 API（除 `POST /api/v1/tokens/exchange` 和 `/docs` 外）需要在 HTTP 头中携带 `X-API-Key`。
+
+- **ROOT_TOKEN**：超级管理员权限，在 `.env` 文件中设置
+- **普通 Token**：通过 `POST /api/v1/tokens` 创建，可绑定不同权限级别
+
+## 数据模型
+
+- **笔记本（Notebook）**：由代码注册的动态表，无固定 Schema
+- **系统表**：`_token`（令牌）、`_permission`（权限）、`_view`（视图）、`_filter`（筛选）
+""",
+    summary="XFunNote 无模式笔记系统 API",
     version="0.1.0",
+    contact={
+        "name": "FangJunyi0710",
+        "url": "https://github.com/FangJunyi0710",
+    },
+    license_info={
+        "name": "Apache 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0",
+    },
     lifespan=lifespan,
 )
 

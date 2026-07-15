@@ -20,8 +20,8 @@ XFunNote CLI — 命令行接口
     xfun restore  BACKUP_PATH [--list] [--no-backup]  → 从备份恢复数据库
     xfun reset               [--no-backup]  → 重置数据库
 
-系统表 (可通过 list --all 查看): _token, _permission, _view
-Token/Permission/View 管理直接复用 query / add / update / delete 命令
+系统表 (可通过 list --all 查看): _token, _permission, _view, _filter
+Token/Permission/View/Filter 管理直接复用 query / add / update / delete 命令
 """
 
 from __future__ import annotations
@@ -59,12 +59,23 @@ app = typer.Typer(no_args_is_help=True)
 ai_app = typer.Typer(no_args_is_help=True)
 
 
+@app.callback()
+def main_callback():
+    """
+    XFunNote 命令行接口 — 轻量级无模式笔记系统。
+
+    所有 CRUD 命令参数均为 JSON 格式，输出统一为 JSON。
+    系统表 (_token, _permission, _view, _filter) 可直接通过 query/add/update/delete 操作。
+    """
+    pass
+
+
 # ════════════════════════════════════════════════════════════
 #  内部辅助
 # ════════════════════════════════════════════════════════════
 
 
-_SYSTEM_TABLES = {"_token", "_permission", "_view"}
+_SYSTEM_TABLES = {"_token", "_permission", "_view", "_filter"}
 
 
 def _error(msg: str) -> str:
@@ -390,7 +401,7 @@ app.add_typer(ai_app, name="ai")
 #  命令：view — 输出视图定义
 # ════════════════════════════════════════════════════════════
 
-view_app = typer.Typer(no_args_is_help=True)
+view_app = typer.Typer(no_args_is_help=True, help="查看/导出视图定义")
 
 
 @view_app.command("full")

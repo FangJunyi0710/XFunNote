@@ -19,7 +19,7 @@ _ROOT_PERM = root_permission(_db)
 
 
 async def get_api_permission(
-    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    x_api_key: str = Header(alias="X-API-Key"),
 ) -> ApiPermission:
     """提取 API Key 并返回对应的 ApiPermission 对象。
 
@@ -33,12 +33,6 @@ async def get_api_permission(
        3d. permission id 在 _permission 表中不存在 → 401
     4. 正常 → 返回 ApiPermission
     """
-    if not x_api_key:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="缺少 API Key，请在请求头中提供 X-API-Key",
-        )
-
     # 管理员启动密钥：绕过 _token 表，直接返回 root 权限
     if ROOT_TOKEN and x_api_key == ROOT_TOKEN:
         return ApiPermission(_ROOT_PERM)

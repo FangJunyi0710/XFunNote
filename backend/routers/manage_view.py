@@ -16,7 +16,7 @@ from xfun.core.filter import Condition
 router = APIRouter(tags=["management-views"])
 
 
-@router.get("/views")
+@router.get("/views", summary="列出所有保存的视图", response_description="视图列表")
 def list_view(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
@@ -24,7 +24,7 @@ def list_view(
         return _ops.query(conn, api_perm.permission, "_view", full_view(_db), order_by="name ASC")
 
 
-@router.get("/views/{name}")
+@router.get("/views/{name}", summary="获取指定视图内容", response_description="视图的 JSON 数据")
 def get_view_route(
     name: str,
     api_perm: ApiPermission = Depends(get_api_permission),
@@ -42,7 +42,7 @@ def get_view_route(
     return json.loads(results[0]["data"])
 
 
-@router.put("/views/{name}")
+@router.put("/views/{name}", summary="保存或更新视图", description="不存在则创建，存在则覆盖")
 def save_view_route(
     name: str,
     body: dict,
@@ -63,7 +63,7 @@ def save_view_route(
     return {"message": f"视图 {name!r} 已保存"}
 
 
-@router.delete("/views/{name}")
+@router.delete("/views/{name}", summary="删除指定视图", response_description="删除确认消息")
 def delete_view_route(
     name: str,
     api_perm: ApiPermission = Depends(get_api_permission),

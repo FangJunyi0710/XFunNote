@@ -46,7 +46,7 @@ class ChatResponse(BaseModel):
     messages: list[dict] = Field(description="完整的对话历史（含新增消息）")
 
 
-@router.post("/ai/chat")
+@router.post("/ai/chat", summary="AI 对话（同步模式）", response_description="完整的对话历史（含新增消息）")
 def ai_chat(
     body: ChatRequest,
     api_perm: ApiPermission = Depends(get_api_permission),
@@ -82,6 +82,6 @@ def ai_chat(
         )
 
 
-@router.get("/ai/permission")
+@router.get("/ai/permission", summary="查询当前 AI 权限信息", response_description="AI 权限配置详情")
 def ai_permission(api_perm: ApiPermission = Depends(get_api_permission)):
     return svc.get_permission_info()

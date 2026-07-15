@@ -42,7 +42,7 @@ def _permission_exists(perm, permission_id: str) -> bool:
     return len(results) > 0
 
 
-@router.get("/tokens")
+@router.get("/tokens", summary="列出所有 Token", response_description="Token 列表")
 def list_token(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
@@ -63,7 +63,7 @@ class TokenInfoResponse(BaseModel):
     write_view: dict
 
 
-@router.get("/tokens/info")
+@router.get("/tokens/info", summary="查询当前 Token 信息", response_description="当前 Token 的基本信息（含权限视图）")
 def get_current_token_info(
     api_perm: ApiPermission = Depends(get_api_permission),
     x_api_key: str = Header(alias="X-API-Key"),
@@ -108,7 +108,7 @@ def get_current_token_info(
     )
 
 
-@router.get("/tokens/{token_id}")
+@router.get("/tokens/{token_id}", summary="获取指定 Token 详情", response_description="Token 完整记录")
 def get_token_route(
     token_id: str,
     api_perm: ApiPermission = Depends(get_api_permission),
@@ -126,7 +126,7 @@ def get_token_route(
     return results[0]
 
 
-@router.post("/tokens", status_code=status.HTTP_201_CREATED)
+@router.post("/tokens", status_code=status.HTTP_201_CREATED, summary="创建 Token", response_description="新创建的 Token 完整记录")
 def create_token_route(
     body: TokenCreateRequest,
     api_perm: ApiPermission = Depends(get_api_permission),
@@ -152,7 +152,7 @@ def create_token_route(
     return results[0]
 
 
-@router.put("/tokens/{token_id}")
+@router.put("/tokens/{token_id}", summary="更新 Token", description="更新名称、权限、启用状态、过期时间等")
 def update_token_route(
     token_id: str,
     body: TokenUpdateRequest,
@@ -195,7 +195,7 @@ class ShortcutExchangeRequest(BaseModel):
     shortcut: str = Field(description="快捷配对码")
 
 
-@router.post("/tokens/exchange")
+@router.post("/tokens/exchange", summary="通过 Shortcut 兑换完整 Token", description="无需鉴权，一次性使用")
 def exchange_token_by_shortcut(
     body: ShortcutExchangeRequest,
 ):
@@ -242,7 +242,7 @@ def exchange_token_by_shortcut(
     return {"token": token_value}
 
 
-@router.delete("/tokens/{token_id}")
+@router.delete("/tokens/{token_id}", summary="删除 Token", response_description="删除确认消息")
 def delete_token_route(
     token_id: str,
     api_perm: ApiPermission = Depends(get_api_permission),

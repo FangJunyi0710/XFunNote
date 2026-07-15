@@ -32,7 +32,7 @@ class PermissionUpdateRequest(BaseModel):
     write_view: dict | None = Field(default=None)
 
 
-@router.get("/permissions")
+@router.get("/permissions", summary="列出所有权限定义", response_description="权限定义列表")
 def list_permission(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
@@ -40,7 +40,7 @@ def list_permission(
         return _ops.query(conn, api_perm.permission, "_permission", full_view(_db), order_by="id ASC")
 
 
-@router.get("/permissions/{permission_id}")
+@router.get("/permissions/{permission_id}", summary="获取指定权限详情", response_description="权限完整记录")
 def get_permission_route(
     permission_id: str,
     api_perm: ApiPermission = Depends(get_api_permission),
@@ -58,7 +58,7 @@ def get_permission_route(
     return results[0]
 
 
-@router.post("/permissions", status_code=status.HTTP_201_CREATED)
+@router.post("/permissions", status_code=status.HTTP_201_CREATED, summary="创建权限定义", response_description="新创建的权限完整记录")
 def create_permission_route(
     body: PermissionCreateRequest,
     api_perm: ApiPermission = Depends(get_api_permission),
@@ -74,7 +74,7 @@ def create_permission_route(
     return result[0]
 
 
-@router.put("/permissions/{permission_id}")
+@router.put("/permissions/{permission_id}", summary="更新权限定义", response_description="更新后权限完整记录")
 def update_permission_route(
     permission_id: str,
     body: PermissionUpdateRequest,
@@ -108,7 +108,7 @@ def update_permission_route(
     return result[0]
 
 
-@router.delete("/permissions/{permission_id}")
+@router.delete("/permissions/{permission_id}", summary="删除权限定义", response_description="删除确认消息")
 def delete_permission_route(
     permission_id: str,
     api_perm: ApiPermission = Depends(get_api_permission),

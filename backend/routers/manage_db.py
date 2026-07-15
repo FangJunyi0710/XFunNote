@@ -36,7 +36,7 @@ def require_root_token(x_api_key: str = Header(alias="X-API-Key")):
     return x_api_key
 
 
-@router.post("/db/init")
+@router.post("/db/init", summary="初始化数据库", description="建表/同步列/建索引")
 def init_db(
     _=Depends(require_root_token),
 ):
@@ -44,7 +44,7 @@ def init_db(
     return {"message": msg}
 
 
-@router.post("/db/backup")
+@router.post("/db/backup", summary="在线热备份数据库", description="创建数据库的即时快照备份")
 def backup_db(
     _=Depends(require_root_token),
 ):
@@ -52,7 +52,7 @@ def backup_db(
     return {"message": msg}
 
 
-@router.post("/db/reset")
+@router.post("/db/reset", summary="重置数据库", description="清空所有表并重新初始化")
 def reset_db(
     body: ResetRequest = ResetRequest(),
     _=Depends(require_root_token),
@@ -61,7 +61,7 @@ def reset_db(
     return {"message": msg}
 
 
-@router.post("/db/restore")
+@router.post("/db/restore", summary="从备份文件恢复数据库", description="从指定备份文件恢复数据库状态")
 def restore_db(
     body: RestoreRequest,
     _=Depends(require_root_token),
@@ -70,7 +70,7 @@ def restore_db(
     return {"message": msg}
 
 
-@router.get("/db/backups")
+@router.get("/db/backups", summary="列出所有备份文件", description="列出 data/backups/ 目录下所有备份文件")
 def list_backups(
     _=Depends(require_root_token),
 ):
