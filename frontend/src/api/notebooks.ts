@@ -1,33 +1,15 @@
 import { api } from './client';
 import type {
   NotebookSchema,
+  ColumnDef,
+} from '@/types/notebook';
+import type {
   QueryResponse,
   UpdateRequest,
   DeleteResponse,
-  NotebookType,
-  ColumnDef,
 } from '@/types/notebook';
-
-const NOTEBOOK_MAP: Record<NotebookType, string> = {
-  plan: 'plan',
-  diary: 'diary',
-  word: 'word',
-  accumulation: 'accumulation',
-  aimemory: 'aimemory',
-  timeline: 'timeline',
-  schedule: 'schedule',
-};
-
-/** 静态笔记本元信息（后端不返回 label / description） */
-const NOTEBOOK_INFO: Record<string, { label: string; description: string }> = {
-  plan: { label: '计划', description: '管理月度计划与任务' },
-  diary: { label: '日记', description: '记录每日生活与感悟' },
-  word: { label: '单词', description: '单词学习与复习' },
-  accumulation: { label: '积累', description: '知识碎片整理与沉淀' },
-  aimemory: { label: 'AI 记忆', description: 'AI 自动记录的关键信息' },
-  timeline: { label: '时间线', description: '记录实际时间花费' },
-  schedule: { label: '日程', description: '规划未来日程' },
-};
+import type { NotebookType } from '@/config/notebook';
+import { NOTEBOOK_INFO } from '@/config/notebook';
 
 /** 获取笔记本列表（后端返回名称列表，前端组装为 NotebookSchema[]） */
 export async function listNotebooks(): Promise<NotebookSchema[]> {
@@ -38,7 +20,7 @@ export async function listNotebooks(): Promise<NotebookSchema[]> {
 /** 获取笔记本 Schema（后端返回列定义，前端组装为完整 NotebookSchema） */
 export async function getSchema(type: NotebookType): Promise<NotebookSchema> {
   // 后端 Column.asdict() 返回字段：name, col_type, nullable, primary_key, unique, index, auto
-  const rawColumns = await api.get<any[]>(`/notebooks/${NOTEBOOK_MAP[type]}/schema`);
+  const rawColumns = await api.get<any[]>(`/notebooks/${type}/schema`);
   const columns: ColumnDef[] = rawColumns.map((col) => ({
     name: col.name,
     type: col.col_type,        // 映射 col_type → type
@@ -61,7 +43,7 @@ export async function getSchema(type: NotebookType): Promise<NotebookSchema> {
  * @param columns 可选，完整列名列表。传入时使用实际列名，否则使用 ['*']（需后端支持通配展开）。
  */
 function buildDefaultView(type: NotebookType, filter?: string, columns?: string[]): string {
-  const tableName = NOTEBOOK_MAP[type];
+  const tableName = type;
   let filterJson: any;
   if (filter) {
     filterJson = JSON.parse(filter);
@@ -104,7 +86,7 @@ export async function queryEntries(
 
   // 响应映射：后端 { count, results } → 前端 { total, entries, page, page_size }
   const res = await api.get<{ count: number; results: Record<string, any>[] }>(
-    `/notebooks/${NOTEBOOK_MAP[type]}/entries`,
+    `/notebooks/${type}/entries`,
     queryParams,
   );
   return {
@@ -119,7 +101,7 @@ export async function addEntries(
   type: NotebookType,
   data: { entries: Record<string, any>[] },
 ): Promise<{ count: number; results: Record<string, any>[] }> {
-  return api.post(`/notebooks/${NOTEBOOK_MAP[type]}/entries`, data);
+  return api.post(`/notebooks/${type}/entries`, data);
 }
 
 export async function updateEntry(
@@ -127,7 +109,7 @@ export async function updateEntry(
   data: UpdateRequest,
 ): Promise<{ count: number; results: Record<string, any>[] }> {
   // 前端格式 { id, updates } → 后端格式 { filter: [[{column, op, value}]], values }
-  return api.put(`/notebooks/${NOTEBOOK_MAP[type]}/entries`, {
+  return api.put(`/notebooks/${type}/entries`, {
     filter: [[{ column: 'id', op: '=', value: data.id }]],
     values: data.updates,
   });
@@ -139,7 +121,7 @@ export async function batchUpdateEntries(
   ids: string[],
   values: Record<string, any>,
 ): Promise<{ count: number; results: Record<string, any>[] }> {
-  return api.put(`/notebooks/${NOTEBOOK_MAP[type]}/entries`, {
+  return api.put(`/notebooks/${type}/entries`, {
     filter: [[{ column: 'id', op: 'IN', value: ids }]],
     values,
   });
@@ -151,7 +133,7 @@ export async function deleteEntries(
 ): Promise<DeleteResponse> {
   // 前端 ids 列表 → 后端 filter: [[{column, op, value}]]
   return api.delete<DeleteResponse>(
-    `/notebooks/${NOTEBOOK_MAP[type]}/entries`,
+    `/notebooks/${type}/entries`,
     { filter: [[{ column: 'id', op: 'IN', value: ids }]] },
   );
 }

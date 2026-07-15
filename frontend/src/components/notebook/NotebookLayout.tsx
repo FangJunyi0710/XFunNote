@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { defaultRenderEntryDisplay } from '@/components/notebook/NotebookDefaultCardList';
 import { useNotebookStore } from '@/stores/notebookStore';
 import * as notebookApi from '@/api/notebooks';
-import type { NotebookType } from '@/types/notebook';
+import { TYPE_LABELS, DEFAULT_EMOJIS } from '@/config/notebook';
+import type { NotebookType } from '@/config/notebook';
 
 interface NotebookLayoutProps {
   /** 笔记本类型标识 */
@@ -23,26 +24,6 @@ interface NotebookLayoutProps {
     onDeselectAll: () => void;
   }) => { stickySlot?: React.ReactNode; content: React.ReactNode };
 }
-
-const TYPE_LABELS: Record<NotebookType, string> = {
-  plan: '计划',
-  diary: '日记',
-  word: '单词',
-  accumulation: '积累',
-  aimemory: 'AI 记忆',
-  timeline: '时间线',
-  schedule: '日程',
-};
-
-const DEFAULT_EMOJIS: Record<NotebookType, string> = {
-  plan: '📋',
-  diary: '📝',
-  word: '📖',
-  accumulation: '📚',
-  aimemory: '🧠',
-  timeline: '📅',
-  schedule: '📋',
-};
 
 export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
   notetype,

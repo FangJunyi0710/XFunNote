@@ -1,5 +1,7 @@
 import { create } from 'zustand';
-import type { NotebookType, NotebookSchema, QueryResponse } from '@/types/notebook';
+import type { NotebookSchema } from '@/types/notebook';
+import type { NotebookType } from '@/config/notebook';
+import type { QueryResponse } from '@/types/notebook';
 import * as notebookApi from '@/api/notebooks';
 
 interface NotebookState {

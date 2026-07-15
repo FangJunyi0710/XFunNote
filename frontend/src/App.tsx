@@ -2,19 +2,15 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Home } from '@/pages/Home';
-import { NotebookPlan } from '@/pages/NotebookPlan';
-import { NotebookDiary } from '@/pages/NotebookDiary';
-import { NotebookWord } from '@/pages/NotebookWord';
-import { NotebookAccumulation } from '@/pages/NotebookAccumulation';
-import { NotebookAimemory } from '@/pages/NotebookAimemory';
-import { NotebookTimeline } from '@/pages/NotebookTimeline';
-import { NotebookSchedule } from '@/pages/NotebookSchedule';
 import { NotebookFilter } from '@/pages/NotebookFilter';
 import { NotebookEditPage } from '@/pages/NotebookEditPage';
 
 import { AiChat } from '@/pages/AiChat';
 import { Management } from '@/pages/Management';
 import { TokenInputPanel } from '@/pages/TokenInputPanel';
+
+import { NOTEBOOK_ROUTES, NOTEBOOK_PAGES } from '@/config/notebook';
+import type { NotebookType } from '@/config/notebook';
 
 const App: React.FC = () => {
   return (
@@ -23,13 +19,16 @@ const App: React.FC = () => {
         {/* 需要鉴权的应用路由 */}
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
-          <Route path="notebooks/plan" element={<NotebookPlan />} />
-          <Route path="notebooks/diary" element={<NotebookDiary />} />
-          <Route path="notebooks/word" element={<NotebookWord />} />
-          <Route path="notebooks/accumulation" element={<NotebookAccumulation />} />
-          <Route path="notebooks/aimemory" element={<NotebookAimemory />} />
-          <Route path="notebooks/timeline" element={<NotebookTimeline />} />
-          <Route path="notebooks/schedule" element={<NotebookSchedule />} />
+          {Object.entries(NOTEBOOK_ROUTES).map(([key, route]) => {
+            const PageComponent = NOTEBOOK_PAGES[key as NotebookType];
+            return (
+              <Route
+                key={key}
+                path={route.path.replace(/^\//, '')}
+                element={<PageComponent />}
+              />
+            );
+          })}
           <Route path="notebooks/:notetype/new" element={<NotebookEditPage />} />
           <Route path="notebooks/:notetype/edit/:id" element={<NotebookEditPage />} />
           <Route path="notebooks/:notetype/batch-update" element={<NotebookEditPage />} />

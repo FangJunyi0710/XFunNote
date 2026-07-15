@@ -2,7 +2,7 @@ import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { registerCard } from '@/components/notebook/notebookCards';
 import { Badge } from '@/components/ui/badge';
-import type { ScheduleEntry } from '@/types/notebook';
+import type { ScheduleEntry } from '@/config/notebook';
 
 const ScheduleCard: React.FC<{ entry: Record<string, any> }> = ({ entry }) => {
   const e = entry as unknown as ScheduleEntry;

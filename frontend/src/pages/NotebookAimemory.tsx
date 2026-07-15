@@ -1,7 +1,7 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { registerCard } from '@/components/notebook/notebookCards';
-import type { AimemoryEntry } from '@/types/notebook';
+import type { AimemoryEntry } from '@/config/notebook';
 
 const AimemoryCard: React.FC<{ entry: Record<string, any> }> = ({ entry }) => {
   const e = entry as unknown as AimemoryEntry;

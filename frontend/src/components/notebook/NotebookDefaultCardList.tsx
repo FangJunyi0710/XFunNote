@@ -1,6 +1,6 @@
 import { NotebookCard } from '@/components/notebook/NotebookCard';
 import { Pagination } from '@/components/notebook/Pagination';
-import type { NotebookType } from '@/types/notebook';
+import type { NotebookType } from '@/config/notebook';
 
 interface DefaultRenderEntryDisplayProps {
   type: NotebookType;

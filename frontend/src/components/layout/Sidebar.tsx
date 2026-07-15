@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useThemeStore } from '@/stores/themeStore';
+import { NOTEBOOK_ROUTES } from '@/config/notebook';
 
 interface NavItem {
   label: string;
@@ -11,15 +12,11 @@ interface NavItem {
 
 const topNav: NavItem[] = [{ label: '首页', path: '/', icon: '🏠' }];
 
-const notebookNav: NavItem[] = [
-  { label: '计划', path: '/notebooks/plan', icon: '📋' },
-  { label: '日记', path: '/notebooks/diary', icon: '📝' },
-  { label: '单词', path: '/notebooks/word', icon: '📖' },
-  { label: '积累', path: '/notebooks/accumulation', icon: '📚' },
-  { label: 'AI 记忆', path: '/notebooks/aimemory', icon: '🧠' },
-  { label: '时间线', path: '/notebooks/timeline', icon: '📅' },
-  { label: '日程', path: '/notebooks/schedule', icon: '📋' },
-];
+const notebookNav: NavItem[] = Object.values(NOTEBOOK_ROUTES).map((route) => ({
+  label: route.label,
+  path: route.path,
+  icon: route.icon,
+}));
 
 const bottomNav: NavItem[] = [
   { label: 'AI 对话', path: '/ai', icon: '🤖' },

@@ -1,7 +1,7 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { registerCard } from '@/components/notebook/notebookCards';
-import type { TimelineEntry } from '@/types/notebook';
+import type { TimelineEntry } from '@/config/notebook';
 
 const TimelineCard: React.FC<{ entry: Record<string, any> }> = ({ entry }) => {
   const e = entry as unknown as TimelineEntry;

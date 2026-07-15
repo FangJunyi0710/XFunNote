@@ -3,17 +3,8 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { NotebookForm } from '@/components/notebook/NotebookForm';
 import { useNotebookStore } from '@/stores/notebookStore';
 import * as notebookApi from '@/api/notebooks';
-import type { NotebookType } from '@/types/notebook';
-
-const TYPE_LABELS: Record<NotebookType, string> = {
-  plan: '计划',
-  diary: '日记',
-  word: '单词',
-  accumulation: '积累',
-  aimemory: 'AI 记忆',
-  timeline: '时间线',
-  schedule: '日程',
-};
+import { TYPE_LABELS } from '@/config/notebook';
+import type { NotebookType } from '@/config/notebook';
 
 export type PageMode = 'create' | 'edit' | 'batch-update';
 

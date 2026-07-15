@@ -3,17 +3,9 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { listNotebooks, queryEntries } from '@/api/notebooks';
 import { useTokenStore } from '@/stores/tokenStore';
-import type { NotebookSchema, NotebookType } from '@/types/notebook';
-
-const NOTEBOOK_ROUTES: Record<string, { path: string; icon: string; label: string }> = {
-  plan: { path: '/notebooks/plan', icon: '📋', label: '计划' },
-  diary: { path: '/notebooks/diary', icon: '📝', label: '日记' },
-  word: { path: '/notebooks/word', icon: '📖', label: '单词' },
-  accumulation: { path: '/notebooks/accumulation', icon: '📚', label: '积累' },
-  aimemory: { path: '/notebooks/aimemory', icon: '🧠', label: 'AI 记忆' },
-  timeline: { path: '/notebooks/timeline', icon: '⏳', label: '时间线' },
-  schedule: { path: '/notebooks/schedule', icon: '📅', label: '日程' },
-};
+import { NOTEBOOK_ROUTES } from '@/config/notebook';
+import type { NotebookSchema } from '@/types/notebook';
+import type { NotebookType } from '@/config/notebook';
 
 export const Home: React.FC = () => {
   const [notebooks, setNotebooks] = useState<(NotebookSchema & { count?: number })[]>([]);
@@ -31,7 +23,7 @@ export const Home: React.FC = () => {
           schemas.map(async (s) => {
             try {
               const res = await queryEntries(s.table_name as NotebookType, {
-                page_size: 1,
+                page_size: 0,
               });
               return { ...s, count: res.total };
             } catch {

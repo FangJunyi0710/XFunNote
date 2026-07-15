@@ -1,7 +1,7 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { registerCard } from '@/components/notebook/notebookCards';
-import type { WordEntry } from '@/types/notebook';
+import type { WordEntry } from '@/config/notebook';
 
 const WordCard: React.FC<{ entry: Record<string, any> }> = ({ entry }) => {
   const e = entry as unknown as WordEntry;

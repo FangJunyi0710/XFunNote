@@ -3,17 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { FilterPanel } from '@/components/notebook/FilterPanel';
 import { useNotebookStore } from '@/stores/notebookStore';
-import type { NotebookType } from '@/types/notebook';
-
-const TYPE_LABELS: Record<NotebookType, string> = {
-  plan: '计划',
-  diary: '日记',
-  word: '单词',
-  accumulation: '积累',
-  aimemory: 'AI 记忆',
-  timeline: '时间线',
-  schedule: '日程',
-};
+import { TYPE_LABELS } from '@/config/notebook';
+import type { NotebookType } from '@/config/notebook';
 
 export const NotebookFilter: React.FC = () => {
   const { notetype } = useParams<{ notetype: string }>();

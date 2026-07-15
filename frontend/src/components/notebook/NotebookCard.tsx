@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatDateTime } from '@/lib/utils';
 import { getCardRenderer } from '@/components/notebook/notebookCards';
+import { getNotebookStyles } from '@/config/notebook';
+import type { NotebookType } from '@/config/notebook';
 
 interface NotebookCardProps {
   type: string;
@@ -12,26 +14,6 @@ interface NotebookCardProps {
   onEdit?: (entry: Record<string, any>) => void;
   onDelete?: (id: string) => void;
 }
-
-const TYPE_COLORS: Record<string, string> = {
-  plan: 'border-l-notebook-plan',
-  diary: 'border-l-notebook-diary',
-  word: 'border-l-notebook-word',
-  accumulation: 'border-l-notebook-accumulation',
-  aimemory: 'border-l-notebook-aimemory',
-  timeline: 'border-l-notebook-timeline',
-  schedule: 'border-l-notebook-schedule',
-};
-
-const TYPE_RING_COLORS: Record<string, string> = {
-  plan: 'ring-notebook-plan',
-  diary: 'ring-notebook-diary',
-  word: 'ring-notebook-word',
-  accumulation: 'ring-notebook-accumulation',
-  aimemory: 'ring-notebook-aimemory',
-  timeline: 'ring-notebook-timeline',
-  schedule: 'ring-notebook-schedule',
-};
 
 export const NotebookCard: React.FC<NotebookCardProps> = ({
   type,
@@ -43,11 +25,12 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
 }) => {
   const navigate = useNavigate();
   const Renderer = getCardRenderer(type);
+  const styles = getNotebookStyles(type as NotebookType);
 
   return (
     <Card
-      className={`border-l-4 ${TYPE_COLORS[type]} cursor-pointer transition-shadow hover:shadow-md ${
-        selected ? `ring-2 ${TYPE_RING_COLORS[type]}` : ''
+      className={`border-l-4 ${styles.border} cursor-pointer transition-shadow hover:shadow-md ${
+        selected ? `ring-2 ${styles.ring}` : ''
       }`}
       onClick={() => onSelect?.(entry.id)}
     >
