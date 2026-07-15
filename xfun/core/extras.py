@@ -2,50 +2,6 @@ from .filter import Condition
 
 
 # ---------------------------------------------------------------------------
-# JSON 数组包含 / 不包含
-# ---------------------------------------------------------------------------
-
-
-@Condition.register_op("JSON_CONTAINS")
-def _json_contains(column: str, value, op: str):
-    """
-    JSON 数组包含指定值。
-
-    用法::
-
-        Condition("tags", "Python", "JSON_CONTAINS")
-
-    SQL 生成::
-
-        EXISTS (SELECT 1 FROM json_each(tags) WHERE value = ?)
-
-    说明
-    ----
-    利用 SQLite 内置的 ``json_each()`` 表值函数展开 JSON 数组并逐值匹配。
-    只适用于简单值（字符串/数字/布尔/null）数组，不适用于嵌套对象数组。
-    """
-    sql = f"EXISTS (SELECT 1 FROM json_each({column}) WHERE value = ?)"
-    return sql, [value]
-
-
-@Condition.register_op("JSON_NOT_CONTAINS")
-def _json_not_contains(column: str, value, op: str):
-    """
-    JSON 数组不包含指定值。
-
-    用法::
-
-        Condition("tags", "Python", "JSON_NOT_CONTAINS")
-
-    SQL 生成::
-
-        NOT EXISTS (SELECT 1 FROM json_each(tags) WHERE value = ?)
-    """
-    sql = f"NOT EXISTS (SELECT 1 FROM json_each({column}) WHERE value = ?)"
-    return sql, [value]
-
-
-# ---------------------------------------------------------------------------
 # 文本模糊搜索
 # ---------------------------------------------------------------------------
 
