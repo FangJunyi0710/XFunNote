@@ -8,10 +8,9 @@ const PlanCard: React.FC<{ entry: Record<string, any> }> = ({ entry }) => {
   const e = entry as unknown as PlanEntry;
   return (
     <div className="space-y-1">
-      <div className="flex items-center gap-2">
-        {e.no && <span className="text-xs font-mono text-muted-foreground">{e.no}</span>}
-        <span className="text-xs text-muted-foreground">{e.month}</span>
-        <span className="font-medium">{e.content?.split('\n')[0] || '(无标题)'}</span>
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        {e.no && <span className="font-mono">{e.no}</span>}
+        <span>{e.month}</span>
         {e.done ? (
           <Badge variant="success" className="text-[10px]">已完成</Badge>
         ) : (
@@ -22,9 +21,7 @@ const PlanCard: React.FC<{ entry: Record<string, any> }> = ({ entry }) => {
         )}
       </div>
       {e.content && (
-        <p className="text-sm text-muted-foreground line-clamp-2">
-          {e.content.split('\n').slice(1).join('\n') || e.content}
-        </p>
+        <p className="text-sm font-medium line-clamp-3">{e.content}</p>
       )}
     </div>
   );
