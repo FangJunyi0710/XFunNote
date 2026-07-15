@@ -54,6 +54,8 @@ def view_to_sql(view: View, db: DB, table: str) -> tuple[str, list]:
 
     return sql, params
 
+# TODO 验证 view 多 tablespec 正确
+
 def view_to_json(view: View) -> dict:
     """将 View 转换为可 JSON 序列化的 Python 对象。"""
     data: dict = {}

@@ -358,6 +358,7 @@ class DB:
         for (table_name,) in rows:
             conn.execute(f"DROP TABLE IF EXISTS {table_name}")
         self.init(conn, self.table_infos)
+# TODO init/reset 消除 conn 改为自管理事务
 
     # ---- 自动生成 INSERT SQL ----
 
