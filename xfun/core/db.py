@@ -464,6 +464,7 @@ class DB:
         sql += f" LIMIT {limit} OFFSET {offset}"
         rows = conn.execute(sql, params).fetchall()
         return [row["id"] for row in rows]
+# TODO 消除 string +=
 
     def update_entries(self, conn, table_name: str, entry_ids: list[str], entry: dict) -> None:
         """批量更新条目。"""

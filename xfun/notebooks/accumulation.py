@@ -11,5 +11,4 @@ class AccumulationNotebook(Notebook):
     name = "accumulation"
     _extra_columns = [
         Column("source",   "TEXT", nullable=True),
-        Column("note",     "TEXT", nullable=True)
     ]

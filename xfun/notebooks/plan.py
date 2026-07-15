@@ -28,7 +28,6 @@ class PlanNotebook(Notebook):
         Column("seq",    "INTEGER", nullable=False, auto=True),
         Column("month", "TEXT",    nullable=False, index=True),
         Column("done",  "INTEGER", nullable=False, auto=True),
-        Column("status",  "TEXT", nullable=True),
     ]
 
     # ---- 钩子 ----
