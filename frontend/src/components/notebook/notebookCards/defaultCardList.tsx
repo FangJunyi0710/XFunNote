@@ -4,8 +4,8 @@ import type { NotebookType } from '@/config/notebook';
 
 interface DefaultRenderEntryDisplayProps {
   type: NotebookType;
-  entries: Record<string, any>[];
-  onEdit: (entry: Record<string, any>) => void;
+  entries: Record<string, unknown>[];
+  onEdit: (entry: Record<string, unknown>) => void;
   onDelete: (id: string) => void;
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
@@ -37,12 +37,12 @@ export function defaultRenderEntryDisplay(props: DefaultRenderEntryDisplayProps)
       <div className="space-y-3">
         {entries.map((entry) => (
           <NotebookCard
-            key={entry.id}
+            key={entry.id as string}
             type={type}
             entry={entry}
             onEdit={onEdit}
             onDelete={onDelete}
-            selected={selectedIds?.has(entry.id) || false}
+            selected={selectedIds?.has(entry.id as string) || false}
             onSelect={onToggleSelect}
           />
         ))}

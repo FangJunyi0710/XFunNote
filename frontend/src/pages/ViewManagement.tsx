@@ -17,8 +17,8 @@ export const ViewManagement: React.FC = () => {
     try {
       const res = await viewsApi.listViews();
       setViewFiles(res || []);
-    } catch (e: any) {
-      setMessage(`加载失败: ${e.message}`);
+    } catch (e: unknown) {
+      setMessage(`加载失败: ${e instanceof Error ? e.message : String(e)}`);
     }
   }, []);
 
@@ -33,8 +33,8 @@ export const ViewManagement: React.FC = () => {
       setSelectedView(name);
       setViewContent(JSON.stringify(data, null, 2));
       setMessage('');
-    } catch (e: any) {
-      setMessage(`加载视图失败: ${e.message}`);
+    } catch (e: unknown) {
+      setMessage(`加载视图失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setLoading(false);
     }
@@ -48,8 +48,8 @@ export const ViewManagement: React.FC = () => {
       await viewsApi.saveView(selectedView, parsed);
       setMessage('保存成功');
       loadViews();
-    } catch (e: any) {
-      setMessage(e instanceof SyntaxError ? 'JSON 格式错误' : `保存失败: ${e.message}`);
+    } catch (e: unknown) {
+      setMessage(e instanceof SyntaxError ? 'JSON 格式错误' : `保存失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setLoading(false);
     }
@@ -71,8 +71,8 @@ export const ViewManagement: React.FC = () => {
       setNewViewName('');
       setMessage(`视图 "${name}" 已创建`);
       loadViews();
-    } catch (e: any) {
-      setMessage(`创建失败: ${e.message}`);
+    } catch (e: unknown) {
+      setMessage(`创建失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setLoading(false);
     }
@@ -88,8 +88,8 @@ export const ViewManagement: React.FC = () => {
       }
       setMessage('已删除');
       loadViews();
-    } catch (e: any) {
-      setMessage(`删除失败: ${e.message}`);
+    } catch (e: unknown) {
+      setMessage(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 

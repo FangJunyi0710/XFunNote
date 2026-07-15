@@ -13,7 +13,7 @@ export const NotebookEditPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const store = useNotebookStore();
-  const [entry, setEntry] = useState<Record<string, any> | null>(null);
+  const [entry, setEntry] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +47,7 @@ export const NotebookEditPage: React.FC = () => {
           await store.setCurrentType(type);
         }
         if (mode === 'edit' && id) {
-          let found = store.entries.find((e: any) => e.id === id);
+          let found = store.entries.find((e) => e.id === id) as Record<string, unknown> | undefined;
           if (!found) {
             const res = await notebookApi.queryEntries(type, {
               filter: JSON.stringify({ column: 'id', op: '=', value: id }),
@@ -61,8 +61,8 @@ export const NotebookEditPage: React.FC = () => {
         } else {
           setEntry({});
         }
-      } catch (e: any) {
-        setError(e.message || '加载失败');
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : '加载失败');
       } finally {
         setLoading(false);
       }
@@ -70,10 +70,10 @@ export const NotebookEditPage: React.FC = () => {
     load();
   }, [type, mode, id]);
 
-  const handleSubmit = async (data: Record<string, any>) => {
+  const handleSubmit = async (data: Record<string, unknown>) => {
     if (mode === 'batch-update') {
       // 过滤掉空值——空值表示不更新此字段
-      const nonEmptyValues: Record<string, any> = {};
+      const nonEmptyValues: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(data)) {
         if (value !== '' && value !== null && value !== undefined) {
           nonEmptyValues[key] = value;

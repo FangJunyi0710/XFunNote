@@ -12,13 +12,13 @@ export interface PermissionCreateRequest {
   id: string;
   name: string;
   description?: string;
-  read_view: Record<string, any>;
-  write_view: Record<string, any>;
+  read_view: Record<string, unknown>;
+  write_view: Record<string, unknown>;
 }
 
 export interface PermissionUpdateRequest {
   name?: string;
   description?: string;
-  read_view?: Record<string, any>;
-  write_view?: Record<string, any>;
+  read_view?: Record<string, unknown>;
+  write_view?: Record<string, unknown>;
 }

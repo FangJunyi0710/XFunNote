@@ -1,10 +1,13 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { registerCard } from '@/components/notebook/notebookCards';
+import { useNotebookStore } from '@/stores/notebookStore';
+import { asEntry } from '@/lib/type-guards';
 import type { TimelineEntry } from '@/config/notebook';
 
-const TimelineCard: React.FC<{ entry: Record<string, any> }> = ({ entry }) => {
-  const e = entry as unknown as TimelineEntry;
+const TimelineCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
+  const schema = useNotebookStore((s) => s.schema);
+  const e = asEntry('timeline', entry, schema?.columns ?? []);
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">

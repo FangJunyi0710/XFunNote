@@ -1,14 +1,7 @@
-// API 全局响应类型
-
+// API 错误响应
 export interface ApiError {
   detail: string;
   error_code?: string;
-}
-
-export interface ApiResponse<T = any> {
-  data?: T;
-  message?: string;
-  error?: string;
 }
 
 // AI 对话
@@ -18,7 +11,7 @@ export interface ChatRequest {
   max_iterations?: number;
   permission_name?: string;
   tool_names?: string[];
-  llm_kwargs?: Record<string, any>;
+  llm_kwargs?: Record<string, unknown>;
 }
 
 export interface ChatMessage {

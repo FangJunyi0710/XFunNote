@@ -15,8 +15,8 @@ interface NotebookLayoutProps {
   /** 自定义条目展示渲染（可选，默认使用 NotebookDefaultCardList）
    *  返回 { stickySlot, content }，stickySlot 会被渲染为 sticky 定位的顶部栏，content 为条目列表 */
   renderEntryDisplay?: (props: {
-    entries: Record<string, any>[];
-    onEdit: (entry: Record<string, any>) => void;
+    entries: Record<string, unknown>[];
+    onEdit: (entry: Record<string, unknown>) => void;
     onDelete: (id: string) => void;
     selectedIds: Set<string>;
     onToggleSelect: (id: string) => void;
@@ -53,8 +53,8 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
         order_dir: store.orderDir,
         columns: store.schema?.display_order || [],
       });
-      setSelectedIds(new Set(res.entries.map((e: any) => e.id)));
-    } catch (e: any) {
+      setSelectedIds(new Set(res.entries.map((e: Record<string, unknown>) => e.id as string)));
+    } catch {
       // 获取所有 ID 失败时静默处理
     }
   }, [notetype, store.filterJson, store.total, store.orderBy, store.orderDir]);
@@ -83,13 +83,13 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
   }, [notetype]);
 
   const handleSubmit = useCallback(
-    async (data: Record<string, any>) => {
+    async (data: Record<string, unknown>) => {
       await store.addEntries([data]);
     },
     [store],
   );
 
-  const handleEdit = useCallback((entry: Record<string, any>) => {
+  const handleEdit = useCallback((entry: Record<string, unknown>) => {
     navigate(`/notebooks/${notetype}/edit/${entry.id}`);
   }, [navigate, notetype]);
 

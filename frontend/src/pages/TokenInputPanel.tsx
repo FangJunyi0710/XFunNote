@@ -81,8 +81,8 @@ export const TokenInputPanel: React.FC = () => {
       setKey('');
       setError('');
       setExchangeError('');
-    } catch (e: any) {
-      setExchangeError(e.message || '兑换失败，请检查 Shortcut 码是否有效');
+    } catch (e: unknown) {
+      setExchangeError(e instanceof Error ? e.message : '兑换失败，请检查 Shortcut 码是否有效');
     } finally {
       setExchangeLoading(false);
     }

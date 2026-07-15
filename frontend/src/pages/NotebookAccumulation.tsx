@@ -1,10 +1,13 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { registerCard } from '@/components/notebook/notebookCards';
+import { useNotebookStore } from '@/stores/notebookStore';
+import { asEntry } from '@/lib/type-guards';
 import type { AccumulationEntry } from '@/config/notebook';
 
-const AccumulationCard: React.FC<{ entry: Record<string, any> }> = ({ entry }) => {
-  const e = entry as unknown as AccumulationEntry;
+const AccumulationCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
+  const schema = useNotebookStore((s) => s.schema);
+  const e = asEntry('accumulation', entry, schema?.columns ?? []);
   return (
     <div className="space-y-1">
       <p className="text-sm text-muted-foreground line-clamp-2">{e.content}</p>

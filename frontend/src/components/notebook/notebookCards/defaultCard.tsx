@@ -8,10 +8,10 @@ import type { NotebookType } from '@/config/notebook';
 
 interface NotebookCardProps {
   type: string;
-  entry: Record<string, any>;
+  entry: Record<string, unknown>;
   selected?: boolean;
   onSelect?: (id: string) => void;
-  onEdit?: (entry: Record<string, any>) => void;
+  onEdit?: (entry: Record<string, unknown>) => void;
   onDelete?: (id: string) => void;
 }
 
@@ -32,7 +32,7 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
       className={`border-l-4 ${styles.border} cursor-pointer transition-shadow hover:shadow-md ${
         selected ? `ring-2 ${styles.ring}` : ''
       }`}
-      onClick={() => onSelect?.(entry.id)}
+      onClick={() => onSelect?.(entry.id as string)}
     >
       <CardContent className="p-4">
         {Renderer ? (
@@ -42,18 +42,18 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
         )}
         <div className="flex justify-between items-center mt-2 pt-2 border-t border-border/50">
           <span className="text-[10px] text-muted-foreground">
-            {formatDateTime(entry.created_at)}
+            {formatDateTime(entry.created_at as string)}
           </span>
           <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
             <button
               className="text-xs text-primary hover:underline"
-              onClick={() => navigate(`/notebooks/${type}/edit/${entry.id}`)}
+              onClick={() => navigate(`/notebooks/${type}/edit/${entry.id as string}`)}
             >
               编辑
             </button>
             <button
               className="text-xs text-destructive hover:underline"
-              onClick={() => onDelete?.(entry.id)}
+              onClick={() => onDelete?.(entry.id as string)}
             >
               删除
             </button>

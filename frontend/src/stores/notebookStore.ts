@@ -3,6 +3,7 @@ import type { NotebookSchema } from '@/types/notebook';
 import type { NotebookType } from '@/config/notebook';
 import type { QueryResponse } from '@/types/notebook';
 import * as notebookApi from '@/api/notebooks';
+import { castEntries } from '@/lib/type-guards';
 
 interface NotebookState {
   // 当前笔记本
@@ -10,7 +11,7 @@ interface NotebookState {
   schema: NotebookSchema | null;
 
   // 数据
-  entries: Record<string, any>[];
+  entries: Record<string, unknown>[];
   total: number;
   page: number;
   pageSize: number;
@@ -31,9 +32,9 @@ interface NotebookState {
   setPageSize: (size: number) => void;
   setFilter: (filter: string | null) => void;
   setOrder: (by: string, dir: 'asc' | 'desc') => void;
-  addEntries: (entries: Record<string, any>[]) => Promise<void>;
-  updateEntry: (id: string, updates: Record<string, any>) => Promise<void>;
-  batchUpdateEntries: (ids: string[], values: Record<string, any>) => Promise<void>;
+  addEntries: (entries: Record<string, unknown>[]) => Promise<void>;
+  updateEntry: (id: string, updates: Record<string, unknown>) => Promise<void>;
+  batchUpdateEntries: (ids: string[], values: Record<string, unknown>) => Promise<void>;
   deleteEntries: (ids: string[]) => Promise<void>;
   clearError: () => void;
 }
@@ -78,7 +79,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
         order_dir: orderDir,
         columns: schema?.display_order ?? [],
       });
-      set({ entries: res.entries, total: res.total });
+      set({ entries: castEntries(res.entries as Record<string, unknown>[], schema?.columns ?? []), total: res.total });
     } catch (e: unknown) {
       set({ error: e instanceof Error ? e.message : '查询失败' });
     } finally {
@@ -106,7 +107,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
     get().fetchEntries();
   },
 
-  addEntries: async (entries: Record<string, any>[]) => {
+  addEntries: async (entries: Record<string, unknown>[]) => {
     const { currentType } = get();
     if (!currentType) return;
     try {
@@ -119,7 +120,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
     }
   },
 
-  updateEntry: async (id: string, updates: Record<string, any>) => {
+  updateEntry: async (id: string, updates: Record<string, unknown>) => {
     const { currentType } = get();
     if (!currentType) return;
     try {
@@ -132,7 +133,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
     }
   },
 
-  batchUpdateEntries: async (ids: string[], values: Record<string, any>) => {
+  batchUpdateEntries: async (ids: string[], values: Record<string, unknown>) => {
     const { currentType } = get();
     if (!currentType) return;
     try {

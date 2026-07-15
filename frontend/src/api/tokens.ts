@@ -8,8 +8,8 @@ export interface TokenInfo {
   expires_at: string | null;
   created_at: string;
   updated_at: string;
-  read_view: Record<string, any>;
-  write_view: Record<string, any>;
+  read_view: Record<string, unknown>;
+  write_view: Record<string, unknown>;
 }
 
 export async function listTokens(): Promise<Token[]> {

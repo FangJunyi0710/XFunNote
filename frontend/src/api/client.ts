@@ -25,7 +25,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
     throw new ApiError(res.status, detail);
   }
   // 204 No Content
-  if (res.status === 204) return undefined as unknown as T;
+  if (res.status === 204) return undefined as T;
   return res.json();
 }
 

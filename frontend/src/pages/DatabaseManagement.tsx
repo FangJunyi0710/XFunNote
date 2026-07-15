@@ -39,8 +39,8 @@ export const DatabaseManagement: React.FC = () => {
     try {
       const res = await managementApi.initDb();
       addLog(`初始化成功: ${res.message}`, 'success');
-    } catch (e: any) {
-      addLog(`初始化失败: ${e.message}`, 'error');
+    } catch (e: unknown) {
+      addLog(`初始化失败: ${e instanceof Error ? e.message : String(e)}`, 'error');
     } finally {
       setLoading(null);
     }
@@ -51,8 +51,8 @@ export const DatabaseManagement: React.FC = () => {
     try {
       const res = await managementApi.backupDb();
       addLog(`备份成功: ${res.message}`, 'success');
-    } catch (e: any) {
-      addLog(`备份失败: ${e.message}`, 'error');
+    } catch (e: unknown) {
+      addLog(`备份失败: ${e instanceof Error ? e.message : String(e)}`, 'error');
     } finally {
       setLoading(null);
     }
@@ -71,8 +71,8 @@ export const DatabaseManagement: React.FC = () => {
     try {
       const res = await managementApi.resetDb();
       addLog(`重置成功: ${res.message}`, 'success');
-    } catch (e: any) {
-      addLog(`重置失败: ${e.message}`, 'error');
+    } catch (e: unknown) {
+      addLog(`重置失败: ${e instanceof Error ? e.message : String(e)}`, 'error');
     } finally {
       setLoading(null);
     }
@@ -89,8 +89,8 @@ export const DatabaseManagement: React.FC = () => {
         setSelectedBackup(res.backups[0]);
         setRestoreDialogOpen(true);
       }
-    } catch (e: any) {
-      addLog(`获取备份列表失败: ${e.message}`, 'error');
+    } catch (e: unknown) {
+      addLog(`获取备份列表失败: ${e instanceof Error ? e.message : String(e)}`, 'error');
     } finally {
       setLoading(null);
     }
@@ -106,8 +106,8 @@ export const DatabaseManagement: React.FC = () => {
     try {
       const res = await managementApi.restoreDb(selectedBackup);
       addLog(`还原成功: ${res.message}`, 'success');
-    } catch (e: any) {
-      addLog(`还原失败: ${e.message}`, 'error');
+    } catch (e: unknown) {
+      addLog(`还原失败: ${e instanceof Error ? e.message : String(e)}`, 'error');
     } finally {
       setLoading(null);
     }

@@ -1,10 +1,13 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { registerCard } from '@/components/notebook/notebookCards';
+import { useNotebookStore } from '@/stores/notebookStore';
+import { asEntry } from '@/lib/type-guards';
 import type { AimemoryEntry } from '@/config/notebook';
 
-const AimemoryCard: React.FC<{ entry: Record<string, any> }> = ({ entry }) => {
-  const e = entry as unknown as AimemoryEntry;
+const AimemoryCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
+  const schema = useNotebookStore((s) => s.schema);
+  const e = asEntry('aimemory', entry, schema?.columns ?? []);
   return (
     <div className="space-y-1">
       <span className="font-medium">{e.title || '(无标题)'}</span>

@@ -17,10 +17,18 @@ export async function listNotebooks(): Promise<NotebookSchema[]> {
   return Promise.all(names.map((name) => getSchema(name as NotebookType)));
 }
 
+/** 后端 Column.asdict() 返回的原始列定义 */
+interface RawColumn {
+  name: string;
+  col_type: string;
+  nullable: boolean;
+  default: string | number | boolean | null;
+}
+
 /** 获取笔记本 Schema（后端返回列定义，前端组装为完整 NotebookSchema） */
 export async function getSchema(type: NotebookType): Promise<NotebookSchema> {
   // 后端 Column.asdict() 返回字段：name, col_type, nullable, primary_key, unique, index, auto
-  const rawColumns = await api.get<any[]>(`/notebooks/${type}/schema`);
+  const rawColumns = await api.get<RawColumn[]>(`/notebooks/${type}/schema`);
   const columns: ColumnDef[] = rawColumns.map((col) => ({
     name: col.name,
     type: col.col_type,        // 映射 col_type → type
@@ -44,7 +52,7 @@ export async function getSchema(type: NotebookType): Promise<NotebookSchema> {
  */
 function buildDefaultView(type: NotebookType, columns: string[], filter?: string): string {
   const tableName = type;
-  let filterJson: any;
+  let filterJson: unknown;
   if (filter) {
     filterJson = JSON.parse(filter);
   } else {
@@ -85,7 +93,7 @@ export async function queryEntries(
   queryParams.view = buildDefaultView(type, params.columns, params.filter);
 
   // 响应映射：后端 { count, results } → 前端 { total, entries, page, page_size }
-  const res = await api.get<{ count: number; results: Record<string, any>[] }>(
+  const res = await api.get<{ count: number; results: Record<string, unknown>[] }>(
     `/notebooks/${type}/entries`,
     queryParams,
   );
@@ -99,15 +107,15 @@ export async function queryEntries(
 
 export async function addEntries(
   type: NotebookType,
-  data: { entries: Record<string, any>[] },
-): Promise<{ count: number; results: Record<string, any>[] }> {
+  data: { entries: Record<string, unknown>[] },
+): Promise<{ count: number; results: Record<string, unknown>[] }> {
   return api.post(`/notebooks/${type}/entries`, data);
 }
 
 export async function updateEntry(
   type: NotebookType,
   data: UpdateRequest,
-): Promise<{ count: number; results: Record<string, any>[] }> {
+): Promise<{ count: number; results: Record<string, unknown>[] }> {
   // 前端格式 { id, updates } → 后端格式 { filter: [[{column, op, value}]], values }
   return api.put(`/notebooks/${type}/entries`, {
     filter: [[{ column: 'id', op: '=', value: data.id }]],
@@ -119,8 +127,8 @@ export async function updateEntry(
 export async function batchUpdateEntries(
   type: NotebookType,
   ids: string[],
-  values: Record<string, any>,
-): Promise<{ count: number; results: Record<string, any>[] }> {
+  values: Record<string, unknown>,
+): Promise<{ count: number; results: Record<string, unknown>[] }> {
   return api.put(`/notebooks/${type}/entries`, {
     filter: [[{ column: 'id', op: 'IN', value: ids }]],
     values,

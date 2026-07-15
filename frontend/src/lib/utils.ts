@@ -49,8 +49,8 @@ export function maskKey(key: string): string {
 /**
  * 安全获取条目显示值，处理 undefined/null
  */
-export function safeValue(obj: any, key: string, fallback = '-'): string {
-  const v = obj?.[key];
+export function safeValue(obj: unknown, key: string, fallback = '-'): string {
+  const v = (obj as Record<string, unknown>)?.[key];
   if (v === null || v === undefined || v === '') return fallback;
   return String(v);
 }

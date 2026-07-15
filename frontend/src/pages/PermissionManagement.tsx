@@ -27,8 +27,8 @@ export const PermissionManagement: React.FC = () => {
     try {
       const res = await permissionsApi.listPermissions();
       setPermissions(res || []);
-    } catch (e: any) {
-      setMessage(`加载失败: ${e.message}`);
+    } catch (e: unknown) {
+      setMessage(`加载失败: ${e instanceof Error ? e.message : String(e)}`);
     }
   }, []);
 
@@ -50,8 +50,8 @@ export const PermissionManagement: React.FC = () => {
         write_view: p.write_view,
       });
       setMessage('');
-    } catch (e: any) {
-      setMessage(`加载失败: ${e.message}`);
+    } catch (e: unknown) {
+      setMessage(`加载失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setLoading(false);
     }
@@ -100,8 +100,8 @@ export const PermissionManagement: React.FC = () => {
       }
       setIsCreating(false);
       await loadPermissions();
-    } catch (e: any) {
-      setMessage(`保存失败: ${e.message}`);
+    } catch (e: unknown) {
+      setMessage(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setLoading(false);
     }
@@ -118,8 +118,8 @@ export const PermissionManagement: React.FC = () => {
       }
       setMessage('已删除');
       await loadPermissions();
-    } catch (e: any) {
-      setMessage(`删除失败: ${e.message}`);
+    } catch (e: unknown) {
+      setMessage(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 

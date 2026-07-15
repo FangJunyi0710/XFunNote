@@ -11,8 +11,8 @@ import type { ColumnDef, NotebookSchema } from '@/types/notebook';
 // ---------------------------------------------------------------------------
 type FieldRenderer = (
   col: ColumnDef,
-  value: any,
-  onChange: (v: any) => void,
+  value: unknown,
+  onChange: (v: unknown) => void,
   disableRequired?: boolean,
 ) => React.ReactNode;
 
@@ -31,7 +31,7 @@ const renderTextField: FieldRenderer = (col, value, onChange, disableRequired) =
   <div key={col.name} className="space-y-1">
     <FieldLabel name={col.name} required={col.required} />
     <Input
-      value={value}
+      value={value as string}
       onChange={(e) => onChange(e.target.value)}
       required={!disableRequired && col.required}
       placeholder={col.name}
@@ -43,7 +43,7 @@ const renderTextareaField: FieldRenderer = (col, value, onChange, disableRequire
   <div key={col.name} className="space-y-1">
     <FieldLabel name={col.name} required={col.required} />
     <Textarea
-      value={value}
+      value={value as string}
       onChange={(e) => onChange(e.target.value)}
       rows={col.name === 'content' ? 4 : 2}
       required={!disableRequired && col.required}
@@ -85,8 +85,8 @@ const FIELD_RENDERERS: Record<string, FieldRenderer> = {
 // ---------------------------------------------------------------------------
 interface NotebookFormProps {
   schema: NotebookSchema;
-  initialData?: Record<string, any>;
-  onSubmit: (data: Record<string, any>) => Promise<void>;
+  initialData?: Record<string, unknown>;
+  onSubmit: (data: Record<string, unknown>) => Promise<void>;
   onCancel: () => void;
   title?: string;
   /** 关闭原生 required 校验（批量更新时使用） */
@@ -101,7 +101,7 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
   title,
   disableRequired,
 }) => {
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [submitting, setSubmitting] = useState(false);
 
   // 自动填充/内部字段，不应展示给用户
@@ -114,7 +114,7 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
     if (initialData) {
       setFormData({ ...initialData });
     } else {
-      const defaults: Record<string, any> = {};
+      const defaults: Record<string, unknown> = {};
       schema.columns.forEach((col) => {
         if (AUTO_FIELDS.has(col.name)) return;
         defaults[col.name] = col.default !== undefined ? col.default : '';
@@ -123,7 +123,7 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
     }
   }, [initialData, schema, AUTO_FIELDS]);
 
-  const handleChange = (name: string, value: any) => {
+  const handleChange = (name: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -141,7 +141,7 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
     if (AUTO_FIELDS.has(col.name)) return null;
 
     const value = formData[col.name] ?? '';
-    const onChange = (v: any) => handleChange(col.name, v);
+    const onChange = (v: unknown) => handleChange(col.name, v);
 
     // 按类型查找渲染器，特殊列名兜底
     const renderer =

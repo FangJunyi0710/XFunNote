@@ -40,8 +40,8 @@ export const TokenManagement: React.FC = () => {
       ]);
       setTokens(tokensRes || []);
       setPermissions(permsRes || []);
-    } catch (e: any) {
-      setMessage(`加载失败: ${e.message}`);
+    } catch (e: unknown) {
+      setMessage(`加载失败: ${e instanceof Error ? e.message : String(e)}`);
     }
   }, []);
 
@@ -66,8 +66,8 @@ export const TokenManagement: React.FC = () => {
         shortcut_ttl: 120,
       });
       setMessage('');
-    } catch (e: any) {
-      setMessage(`加载失败: ${e.message}`);
+    } catch (e: unknown) {
+      setMessage(`加载失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setLoading(false);
     }
@@ -121,8 +121,8 @@ export const TokenManagement: React.FC = () => {
         setMessage('保存成功');
       }
       await loadData();
-    } catch (e: any) {
-      setMessage(`保存失败: ${e.message}`);
+    } catch (e: unknown) {
+      setMessage(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setLoading(false);
     }
@@ -140,8 +140,8 @@ export const TokenManagement: React.FC = () => {
       }
       setMessage('已删除');
       await loadData();
-    } catch (e: any) {
-      setMessage(`删除失败: ${e.message}`);
+    } catch (e: unknown) {
+      setMessage(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 
