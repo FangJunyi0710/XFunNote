@@ -76,7 +76,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
         page_size: pageSize,
         order_by: orderBy,
         order_dir: orderDir,
-        columns: schema?.display_order,
+        columns: schema?.display_order ?? [],
       });
       set({ entries: res.entries, total: res.total });
     } catch (e: any) {

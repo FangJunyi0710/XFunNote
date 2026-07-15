@@ -112,7 +112,7 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({
   onCancel,
 }) => {
   const [groups, setGroups] = useState<ConditionGroup[]>(() => {
-    const parsed = parseDNF(initialFilter);
+    const parsed = parseDNF(initialFilter ?? null);
     return parsed.length > 0 ? parsed : [];
   });
 

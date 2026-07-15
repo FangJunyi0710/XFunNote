@@ -52,6 +52,7 @@ export const NotebookEditPage: React.FC = () => {
               filter: JSON.stringify({ column: 'id', op: '=', value: id }),
               page: 1,
               page_size: 1,
+              columns: [],
             });
             found = res.entries[0] || null;
           }

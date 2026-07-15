@@ -156,7 +156,7 @@ export const DatabaseManagement: React.FC = () => {
           </CardHeader>
           <CardContent>
             <Button
-              variant="secondary"
+              variant="outline"
               onClick={openRestoreDialog}
               disabled={loading === 'list' || loading === 'restore'}
               className="w-full"
@@ -194,9 +194,9 @@ export const DatabaseManagement: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Select value={selectedBackup} onValueChange={setSelectedBackup}>
+            <Select value={selectedBackup} onChange={(e) => setSelectedBackup(e.target.value)}>
               <SelectTrigger>
-                <SelectValue placeholder="选择备份文件" />
+                <SelectValue>{selectedBackup || '选择备份文件'}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {backupFiles.map((f) => (

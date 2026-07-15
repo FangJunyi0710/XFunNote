@@ -51,6 +51,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
         page_size: store.total,
         order_by: store.orderBy,
         order_dir: store.orderDir,
+        columns: store.schema?.display_order || [],
       });
       setSelectedIds(new Set(res.entries.map((e: any) => e.id)));
     } catch (e: any) {

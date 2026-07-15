@@ -24,6 +24,7 @@ export const Home: React.FC = () => {
             try {
               const res = await queryEntries(s.table_name as NotebookType, {
                 page_size: 0,
+                columns: [],
               });
               return { ...s, count: res.total };
             } catch {

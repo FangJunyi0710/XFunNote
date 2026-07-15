@@ -220,6 +220,7 @@ export interface TimelineEntry extends EntryBase {
   start_time: string;
   end_time?: string;
   location?: string;
+  duration?: string;
 }
 
 // Schedule 笔记本扩展字段
@@ -227,6 +228,7 @@ export interface ScheduleEntry extends EntryBase {
   start_time: string;
   end_time?: string;
   location?: string;
+  done: boolean | number;
 }
 
 // 条目联合类型

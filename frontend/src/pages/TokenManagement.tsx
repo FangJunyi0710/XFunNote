@@ -216,7 +216,7 @@ export const TokenManagement: React.FC = () => {
                         {t.is_active ? '启用' : '禁用'}
                       </Badge>
                       {t.shortcut && (
-                        <Badge variant="outline" className="shrink-0 text-[10px]">
+                        <Badge variant="secondary" className="shrink-0 text-[10px]">
                           Shortcut
                         </Badge>
                       )}
