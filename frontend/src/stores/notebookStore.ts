@@ -31,6 +31,7 @@ interface NotebookState {
   setOrder: (by: string, dir: 'asc' | 'desc') => void;
   addEntries: (entries: Record<string, any>[]) => Promise<void>;
   updateEntry: (id: string, updates: Record<string, any>) => Promise<void>;
+  batchUpdateEntries: (ids: string[], values: Record<string, any>) => Promise<void>;
   deleteEntries: (ids: string[]) => Promise<void>;
   clearError: () => void;
 }
@@ -125,6 +126,19 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
       await get().fetchEntries();
     } catch (e: any) {
       set({ error: e.message || '更新失败' });
+      throw e;
+    }
+  },
+
+  batchUpdateEntries: async (ids: string[], values: Record<string, any>) => {
+    const { currentType } = get();
+    if (!currentType) return;
+    try {
+      set({ error: null });
+      await notebookApi.batchUpdateEntries(currentType, ids, values);
+      await get().fetchEntries();
+    } catch (e: any) {
+      set({ error: e.message || '批量更新失败' });
       throw e;
     }
   },

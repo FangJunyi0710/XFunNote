@@ -133,6 +133,18 @@ export async function updateEntry(
   });
 }
 
+/** 批量更新条目（按 ID 列表 + 统一的值） */
+export async function batchUpdateEntries(
+  type: NotebookType,
+  ids: string[],
+  values: Record<string, any>,
+): Promise<{ count: number; results: Record<string, any>[] }> {
+  return api.put(`/notebooks/${NOTEBOOK_MAP[type]}/entries`, {
+    filter: [[{ column: 'id', op: 'IN', value: ids }]],
+    values,
+  });
+}
+
 export async function deleteEntries(
   type: NotebookType,
   ids: string[],

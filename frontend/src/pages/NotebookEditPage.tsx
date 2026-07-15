@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { NotebookForm } from '@/components/notebook/NotebookForm';
 import { useNotebookStore } from '@/stores/notebookStore';
 import * as notebookApi from '@/api/notebooks';
@@ -15,9 +15,12 @@ const TYPE_LABELS: Record<NotebookType, string> = {
   schedule: '日程',
 };
 
+export type PageMode = 'create' | 'edit' | 'batch-update';
+
 export const NotebookEditPage: React.FC = () => {
   const { notetype, id } = useParams<{ notetype: string; id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const store = useNotebookStore();
   const [entry, setEntry] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,19 +28,33 @@ export const NotebookEditPage: React.FC = () => {
 
   const type = notetype as NotebookType;
   const label = TYPE_LABELS[type] || type;
-  const isEdit = !!id;
+
+  // 判断页面模式
+  const mode: PageMode = location.pathname.endsWith('/batch-update')
+    ? 'batch-update'
+    : id
+      ? 'edit'
+      : 'create';
+
+  // 批量更新时从路由 state 获取 ID 列表
+  const batchIds: string[] = (location.state as any)?.ids ?? [];
+
+  // 如果没有选中 ID，重定向回列表页
+  useEffect(() => {
+    if (mode === 'batch-update' && batchIds.length === 0) {
+      navigate(`/notebooks/${type}`, { replace: true });
+    }
+  }, [mode, batchIds, type, navigate]);
 
   useEffect(() => {
     if (!type) return;
     const load = async () => {
       try {
         setLoading(true);
-        // 确保 schema 已加载
         if (!store.schema || store.currentType !== type) {
           await store.setCurrentType(type);
         }
-        if (id) {
-          // 编辑模式：加载条目数据
+        if (mode === 'edit' && id) {
           let found = store.entries.find((e: any) => e.id === id);
           if (!found) {
             const res = await notebookApi.queryEntries(type, {
@@ -49,7 +66,6 @@ export const NotebookEditPage: React.FC = () => {
           }
           setEntry(found);
         } else {
-          // 新建模式：不需要加载条目
           setEntry({});
         }
       } catch (e: any) {
@@ -59,10 +75,23 @@ export const NotebookEditPage: React.FC = () => {
       }
     };
     load();
-  }, [type, id]);
+  }, [type, mode, id]);
 
   const handleSubmit = async (data: Record<string, any>) => {
-    if (isEdit) {
+    if (mode === 'batch-update') {
+      // 过滤掉空值——空值表示不更新此字段
+      const nonEmptyValues: Record<string, any> = {};
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== '' && value !== null && value !== undefined) {
+          nonEmptyValues[key] = value;
+        }
+      }
+      if (Object.keys(nonEmptyValues).length === 0) {
+        // 所有字段都为空则直接返回，无需弹窗
+        return;
+      }
+      await store.batchUpdateEntries(batchIds, nonEmptyValues);
+    } else if (mode === 'edit') {
       await store.updateEntry(id!, data);
     } else {
       await store.addEntries([data]);
@@ -78,7 +107,7 @@ export const NotebookEditPage: React.FC = () => {
     );
   }
 
-  if (error || (isEdit && !entry)) {
+  if (error || (mode === 'edit' && !entry)) {
     return (
       <div className="space-y-4">
         <button
@@ -105,10 +134,11 @@ export const NotebookEditPage: React.FC = () => {
       {store.schema && (
         <NotebookForm
           schema={store.schema}
-          initialData={isEdit ? entry || undefined : undefined}
+          initialData={mode === 'edit' ? entry || undefined : undefined}
           onSubmit={handleSubmit}
           onCancel={() => navigate(`/notebooks/${type}`)}
-          title={isEdit ? `编辑${label}` : `新建${label}`}
+          title={mode === 'edit' ? `编辑${label}` : mode === 'batch-update' ? `批量更新 ${batchIds.length} 条${label}` : `新建${label}`}
+          disableRequired={mode === 'batch-update'}
         />
       )}
     </div>

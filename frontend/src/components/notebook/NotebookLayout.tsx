@@ -90,6 +90,12 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     }
   }, [selectedIds, store, notetype]);
 
+  const handleBatchUpdate = useCallback(() => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    navigate(`/notebooks/${notetype}/batch-update`, { state: { ids } });
+  }, [selectedIds, navigate, notetype]);
+
   useEffect(() => {
     store.setCurrentType(notetype);
   }, [notetype]);
@@ -130,6 +136,9 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
             <>
               <Button variant="destructive" size="sm" onClick={handleBatchDelete}>
                 删除 {selectedCount} 项
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleBatchUpdate}>
+                批量更新
               </Button>
               <Button variant="outline" size="sm" onClick={handleDeselectAll}>
                 全不选
