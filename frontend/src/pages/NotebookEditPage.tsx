@@ -28,7 +28,8 @@ export const NotebookEditPage: React.FC = () => {
       : 'create';
 
   // 批量更新时从路由 state 获取 ID 列表
-  const batchIds: string[] = (location.state as any)?.ids ?? [];
+  const state = location.state as { ids?: string[] } | null;
+  const batchIds: string[] = state?.ids ?? [];
 
   // 如果没有选中 ID，重定向回列表页
   useEffect(() => {

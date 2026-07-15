@@ -54,12 +54,12 @@ export interface ListBackupsResponse {
 
 // AI Permission
 export interface AIPermissionReadRequest {
-  view: any;
+  view: Record<string, unknown>;
 }
 
 export interface AIPermissionRequest {
-  read_view: any;
-  write_view: any;
+  read_view: Record<string, unknown>;
+  write_view: Record<string, unknown>;
 }
 
 // Notebook 元信息

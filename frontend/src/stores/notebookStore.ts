@@ -58,8 +58,8 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
       const schema = await notebookApi.getSchema(type);
       set({ schema });
       await get().fetchEntries();
-    } catch (e: any) {
-      set({ error: e.message || '加载失败' });
+    } catch (e: unknown) {
+      set({ error: e instanceof Error ? e.message : '加载失败' });
     } finally {
       set({ loading: false });
     }
@@ -79,8 +79,8 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
         columns: schema?.display_order ?? [],
       });
       set({ entries: res.entries, total: res.total });
-    } catch (e: any) {
-      set({ error: e.message || '查询失败' });
+    } catch (e: unknown) {
+      set({ error: e instanceof Error ? e.message : '查询失败' });
     } finally {
       set({ loading: false });
     }
@@ -113,8 +113,8 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
       set({ error: null });
       await notebookApi.addEntries(currentType, { entries });
       await get().fetchEntries();
-    } catch (e: any) {
-      set({ error: e.message || '添加失败' });
+    } catch (e: unknown) {
+      set({ error: e instanceof Error ? e.message : '添加失败' });
       throw e;
     }
   },
@@ -126,8 +126,8 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
       set({ error: null });
       await notebookApi.updateEntry(currentType, { id, updates });
       await get().fetchEntries();
-    } catch (e: any) {
-      set({ error: e.message || '更新失败' });
+    } catch (e: unknown) {
+      set({ error: e instanceof Error ? e.message : '更新失败' });
       throw e;
     }
   },
@@ -139,8 +139,8 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
       set({ error: null });
       await notebookApi.batchUpdateEntries(currentType, ids, values);
       await get().fetchEntries();
-    } catch (e: any) {
-      set({ error: e.message || '批量更新失败' });
+    } catch (e: unknown) {
+      set({ error: e instanceof Error ? e.message : '批量更新失败' });
       throw e;
     }
   },
@@ -152,8 +152,8 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
       set({ error: null });
       await notebookApi.deleteEntries(currentType, ids);
       await get().fetchEntries();
-    } catch (e: any) {
-      set({ error: e.message || '删除失败' });
+    } catch (e: unknown) {
+      set({ error: e instanceof Error ? e.message : '删除失败' });
       throw e;
     }
   },

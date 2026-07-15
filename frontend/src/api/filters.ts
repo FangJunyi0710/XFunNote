@@ -8,15 +8,17 @@ export interface FilterFile {
   updated_at: string;
 }
 
+export type FilterData = Record<string, unknown>;
+
 export async function listFilters(): Promise<FilterFile[]> {
   return api.get<FilterFile[]>('/filters');
 }
 
-export async function getFilter(name: string): Promise<any> {
-  return api.get<any>(`/filters/${name}`);
+export async function getFilter(name: string): Promise<FilterData> {
+  return api.get<FilterData>(`/filters/${name}`);
 }
 
-export async function saveFilter(name: string, data: any): Promise<{ message: string }> {
+export async function saveFilter(name: string, data: FilterData): Promise<{ message: string }> {
   return api.put<{ message: string }>(`/filters/${name}`, data);
 }
 

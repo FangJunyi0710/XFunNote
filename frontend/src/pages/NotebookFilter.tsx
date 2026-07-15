@@ -56,7 +56,7 @@ export const NotebookFilter: React.FC = () => {
       // 刷新列表
       const list = await filterApi.listFilters();
       setSavedFilters(list);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('保存 filter 失败', e);
     }
   };
@@ -65,9 +65,9 @@ export const NotebookFilter: React.FC = () => {
   const handleLoad = async (name: string) => {
     try {
       const data = await filterApi.getFilter(name);
-      setCurrentFilter(data.data || data);
+      setCurrentFilter((data as { data?: string }).data ?? null);
       setSelectedFilterName(name);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('加载 filter 失败', e);
     }
   };
@@ -81,7 +81,7 @@ export const NotebookFilter: React.FC = () => {
         setSelectedFilterName(null);
         setCurrentFilter(null);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('删除 filter 失败', e);
     }
   };

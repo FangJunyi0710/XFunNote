@@ -1,7 +1,8 @@
 import React from 'react';
+import type { NotebookSchema } from '@/types/notebook';
 
 export type FormRenderer = React.FC<{
-  schema: any;
+  schema: NotebookSchema;
   initialData?: Record<string, any>;
   onSubmit: (data: Record<string, any>) => Promise<void>;
   onCancel: () => void;

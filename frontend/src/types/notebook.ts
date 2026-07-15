@@ -5,7 +5,7 @@ export interface ColumnDef {
   name: string;
   type: string;
   required: boolean;
-  default: any;
+  default: string | number | boolean | null;
 }
 
 export interface NotebookSchema {

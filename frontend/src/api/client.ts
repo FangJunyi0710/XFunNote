@@ -32,7 +32,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
 async function request<T>(
   method: string,
   path: string,
-  body?: any,
+  body?: unknown,
   params?: Record<string, string>,
 ): Promise<T> {
   const url = new URL(`${BASE_URL}${path}`, window.location.origin);
@@ -66,9 +66,9 @@ export const api = {
   get: <T>(path: string, params?: Record<string, string>) =>
     request<T>('GET', path, undefined, params),
 
-  post: <T>(path: string, body?: any) => request<T>('POST', path, body),
+  post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
 
-  put: <T>(path: string, body?: any) => request<T>('PUT', path, body),
+  put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body),
 
-  delete: <T>(path: string, body?: any) => request<T>('DELETE', path, body),
+  delete: <T>(path: string, body?: unknown) => request<T>('DELETE', path, body),
 };

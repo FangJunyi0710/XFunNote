@@ -6,7 +6,7 @@ export type FilterOp = 'eq' | 'neq' | 'lt' | 'le' | 'gt' | 'ge' | 'like' | 'in';
 export interface Condition {
   column: string;
   op: FilterOp;
-  value: any;
+  value: string | number | boolean | null | (string | number)[];
 }
 
 export interface FilterClause {

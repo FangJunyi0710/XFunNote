@@ -1,10 +1,11 @@
 // 视图（View） 类型
 // 对应 xfun/core/view.py 中的 View / TableSpec
+import type { FilterClause, Condition } from './filter';
 
 export interface TableSpec {
   table: string;
   columns?: string[];
-  filter?: any; // Filter 的 JSON 形式
+  filter?: FilterClause | Condition;
   order_by?: string;
   order_dir?: 'asc' | 'desc';
   limit?: number;
