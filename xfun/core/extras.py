@@ -104,5 +104,4 @@ def _false(column: str, value, op: str):
     """
     return "1=0", []
 
-# TODO 提供引用其他 filter 的特殊运算符
 # TODO 正则表达式匹配

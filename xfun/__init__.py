@@ -41,6 +41,13 @@ _SYSTEM_TABLES: dict[str, list[Column]] = {
         Column("created_at", "TEXT", nullable=False, auto=True),
         Column("updated_at", "TEXT", nullable=False, auto=True),
     ],
+    "_filter": [
+        Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
+        Column("name", "TEXT", nullable=False, unique=True),
+        Column("data", "TEXT", nullable=False),
+        Column("created_at", "TEXT", nullable=False, auto=True),
+        Column("updated_at", "TEXT", nullable=False, auto=True),
+    ],
     "_permission": [
         Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
         Column("name", "TEXT", nullable=False, unique=True),

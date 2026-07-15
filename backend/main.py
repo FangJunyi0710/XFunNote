@@ -28,6 +28,7 @@ from backend.routers import (
     manage_view,
     manage_token,
     manage_permission,
+    manage_filter,
 )
 
 
@@ -128,6 +129,7 @@ app.include_router(manage_db.router, prefix="/api/v1")
 app.include_router(manage_view.router, prefix="/api/v1")
 app.include_router(manage_token.router, prefix="/api/v1")
 app.include_router(manage_permission.router, prefix="/api/v1")
+app.include_router(manage_filter.router, prefix="/api/v1")
 
 # TODO 前端在权限被拒时根据 ops 返回值提示
 # TODO 增加导入导出功能
