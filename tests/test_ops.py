@@ -2,7 +2,7 @@
 
 import pytest
 
-from xfun.core.ops import query, add, update, delete
+from xfun.core.ops import query, add, update, delete, count
 from xfun.core.filter import Condition, TRUE_CONDITION
 from xfun.core.view import View, root_permission
 
@@ -121,3 +121,39 @@ class TestOps:
                              Condition("id", [entry_id], "IN"),
                              {"content": "should be cleaned"})
         assert updated == []
+
+    def test_count(self, registry, db):
+        """count() 应返回满足条件的总条目数（忽略分页与排序）。"""
+        perm = root_permission(db)
+        with db.transaction() as conn:
+            add(conn, perm, "plan", [
+                {"content": "a", "month": "2606"},
+                {"content": "b", "month": "2606"},
+                {"content": "c", "month": "2607"},
+            ])
+
+        view_all: View = {"plan": [(["content", "month"], TRUE_CONDITION)]}
+        with db.read_transaction() as conn:
+            total = count(conn, perm, "plan", view_all)
+        assert total == 3
+
+        view_filtered: View = {"plan": [(["month"], Condition("month", "2606", "="))]}
+        with db.read_transaction() as conn:
+            filtered = count(conn, perm, "plan", view_filtered)
+        assert filtered == 2
+
+    def test_count_empty_result(self, registry, db):
+        """count() 条件无匹配应返回 0。"""
+        perm = root_permission(db)
+        view: View = {"plan": [(["month"], Condition("month", "9999", "="))]}
+        with db.read_transaction() as conn:
+            result = count(conn, perm, "plan", view)
+        assert result == 0
+
+    def test_count_view_not_contain_table(self, registry, db):
+        """count() 当 view 中不包含目标表时应返回 0（覆盖 view_to_sql 返回空 SQL 的分支）。"""
+        perm = root_permission(db)
+        view: View = {}  # 空 view，不包含 "plan" 表
+        with db.read_transaction() as conn:
+            result = count(conn, perm, "plan", view)
+        assert result == 0

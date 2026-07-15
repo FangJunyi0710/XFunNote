@@ -298,6 +298,28 @@ class TestDBTypeConflict:
             ).fetchone()
         assert row is None
 
+    def test_extra_column_in_db_raises(self, db):
+        """数据库中存在代码未定义的列 → 抛出 InvalidSQLError (l.237)。"""
+        with db.transaction() as conn:
+            conn.execute(
+                "CREATE TABLE extra_col_tb ("
+                "id TEXT PRIMARY KEY NOT NULL, "
+                "content TEXT, "
+                "extra_col TEXT, "
+                "created_at TEXT NOT NULL, updated_at TEXT NOT NULL, tags TEXT NOT NULL, "
+                "ai_tags TEXT NOT NULL, is_ai_gen INTEGER NOT NULL)"
+            )
+        with pytest.raises(InvalidSQLError, match="代码未定义的列"):
+            db.init({"extra_col_tb": [
+                Column("id", "TEXT", primary_key=True, nullable=False),
+                Column("content", "TEXT", nullable=True),
+                Column("created_at", "TEXT", nullable=False, auto=True),
+                Column("updated_at", "TEXT", nullable=False, auto=True),
+                Column("tags", "TEXT", nullable=False, auto=True),
+                Column("ai_tags", "TEXT", nullable=False, auto=True),
+                Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
+            ]})
+
 
 class TestTransactionEdgeCases:
     """覆盖事务上下文管理器的异常路径。"""

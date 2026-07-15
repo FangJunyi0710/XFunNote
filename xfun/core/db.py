@@ -365,7 +365,7 @@ class DB:
 
     def insert_sql(self, table_name: str) -> str:
         """根据 表名 自动生成 INSERT 语句。"""
-        col_names = [c.name for c in self.table_infos[table_name]]
+        col_names = self.cols(table_name)
         cols = ", ".join(col_names)
         vals = ", ".join(f":{n}" for n in col_names)
         return f"INSERT INTO {table_name} ({cols}) VALUES ({vals})"
@@ -393,9 +393,8 @@ class DB:
             完整 SELECT 查询语句，例如
             ``"SELECT plan.id, NULL AS content, plan.month, NULL AS seq FROM plan"``。
         """
-        all_col_names = [c.name for c in self.table_infos[table_name]]
         pieces: list[str] = []
-        for col in all_col_names:
+        for col in self.cols(table_name):
             if col in cols:
                 pieces.append(f"{table_name}.{col}")
             else:
@@ -415,7 +414,7 @@ class DB:
 
     def _autofill_entry(self, table_name: str, entry: dict) -> None:
         """基础自动填充：按表实际列填充 id、时间戳、可空列补 None。"""
-        cols = {c.name for c in self.table_infos[table_name]}
+        cols = self.cols(table_name)
 
         if "id" in cols:
             entry["id"] = f"{table_name}-{str(uuid7())}"

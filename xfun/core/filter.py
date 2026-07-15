@@ -125,16 +125,15 @@ def filter_to_sql(filter: Filter) -> tuple[str, list]:
     Returns
     -------
     tuple[str, list]
-        (WHERE 子句 SQL 片段，可能为空，参数值列表)
+        (WHERE 子句 SQL 片段，参数值列表)
     """
     if isinstance(filter, Condition):
-        return filter.to_sql()
+        sql, vals = filter.to_sql()
+        return (sql, vals) if sql else ("1=0", [])
 
     if isinstance(filter, tuple):
         inner, negate = filter
         clause, vals = filter_to_sql(inner)
-        if not clause:
-            clause = "1=0"
         if negate:
             clause = f"NOT ({clause})"
         return clause, vals
@@ -145,8 +144,6 @@ def filter_to_sql(filter: Filter) -> tuple[str, list]:
         and_clauses: list[str] = []
         for item in group:
             clause, vals = filter_to_sql(item)
-            if not clause:
-                clause = "1=0"
             and_clauses.append(f"({clause})")
             params.extend(vals)
         if not and_clauses:

@@ -34,8 +34,7 @@ def view_to_sql(view: View, db: DB, table: str) -> tuple[str, list]:
                 spec_cols.append(pk)
         sql = db.select_sql(table, spec_cols)
         clause, vals = filter_to_sql(flt)
-        if clause:
-            sql += f" WHERE {clause}"
+        sql += f" WHERE {clause}"
         subsqls.append(sql)
         params.extend(vals)
 
@@ -53,8 +52,6 @@ def view_to_sql(view: View, db: DB, table: str) -> tuple[str, list]:
         sql = f"SELECT {", ".join(pieces)} FROM ({sql}) AS combined GROUP BY {", ".join(pks)}"
 
     return sql, params
-
-# TODO 验证 view 多 tablespec 正确
 
 def view_to_json(view: View) -> dict:
     """将 View 转换为可 JSON 序列化的 Python 对象。"""
@@ -143,13 +140,13 @@ def view_clean_update(view: View, table: str, filter: Filter, values: dict[str, 
 
 def full_view(db: DB) -> View:
     full_view: View = {}
-    for table_name, columns in db.table_infos.items():
-        full_view[table_name] = [([col.name for col in columns], TRUE_CONDITION)]
+    for table_name in db.table_infos:
+        full_view[table_name] = [(db.cols(table_name), TRUE_CONDITION)]
     return full_view
 
 def no_view(db: DB) -> View:
     no_view: View = {}
-    for table_name, columns in db.table_infos.items():
+    for table_name in db.table_infos:
         no_view[table_name] = [([], FALSE_CONDITION)]
     return no_view
 
