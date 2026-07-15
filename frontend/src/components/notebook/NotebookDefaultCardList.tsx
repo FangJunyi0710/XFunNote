@@ -36,22 +36,15 @@ export function defaultRenderEntryDisplay(props: DefaultRenderEntryDisplayProps)
     content: (
       <div className="space-y-3">
         {entries.map((entry) => (
-          <div key={entry.id} className="flex items-start gap-2">
-            <input
-              type="checkbox"
-              className="mt-4"
-              checked={selectedIds?.has(entry.id) || false}
-              onChange={() => onToggleSelect?.(entry.id)}
-            />
-            <div className="flex-1">
-              <NotebookCard
-                type={type}
-                entry={entry}
-                onEdit={onEdit}
-                onDelete={onDelete}
-              />
-            </div>
-          </div>
+          <NotebookCard
+            key={entry.id}
+            type={type}
+            entry={entry}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            selected={selectedIds?.has(entry.id) || false}
+            onSelect={onToggleSelect}
+          />
         ))}
       </div>
     ),
