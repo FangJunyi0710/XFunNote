@@ -14,7 +14,7 @@ import type { NotebookType } from '@/config/notebook';
 
 const App: React.FC = () => {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
         {/* 需要鉴权的应用路由 */}
         <Route path="/" element={<Layout />}>
