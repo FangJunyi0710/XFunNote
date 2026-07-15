@@ -59,8 +59,8 @@ def _autofill_token(entry: dict) -> None:
     entry.setdefault("is_active", 1)
 
 
-def init_db(conn):
-    """初始化数据库（用户表 + 系统表 + 种子数据）。"""
+def init_db():
+    """初始化数据库（注册钩子 + 建用户表 + 建系统表）。"""
     # 注册本子钩子到 DB（CRUD 由 DB 统一管理）
     for name, nb in registry.items():
         db.register_hooks(name, pre_add=nb._pre_add, validate=nb._validate, autofill=nb._autofill)
@@ -68,11 +68,11 @@ def init_db(conn):
     # 注册系统表钩子
     db.register_hooks("_token", autofill=_autofill_token)
 
-    db.init(conn, {name: nb.columns for name, nb in registry.items()})
-    db.init(conn, _SYSTEM_TABLES)
+    # 注册钩子后才初始化表（init 内部自管理事务）
+    db.init({name: nb.columns for name, nb in registry.items()})
+    db.init(_SYSTEM_TABLES)
 
 
-with db.transaction() as conn:
-    init_db(conn)
+init_db()
 
 __all__ = ["db", "registry"]

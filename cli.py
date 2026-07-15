@@ -420,9 +420,8 @@ app.add_typer(view_app, name="view")
 def init():
     """初始化数据库（建表 / 同步列 / 建索引）。"""
     with _cli_handle():
-        with db.transaction() as conn:
-            init_db(conn)
-            typer.echo(json.dumps({"message": "数据库初始化完成"}, ensure_ascii=False))
+        init_db()
+        typer.echo(json.dumps({"message": "数据库初始化完成"}, ensure_ascii=False))
 
 
 # ════════════════════════════════════════════════════════════
@@ -487,9 +486,8 @@ def reset(
         if not no_backup:
             path = db.backup()
             typer.echo(json.dumps({"backup": path}, ensure_ascii=False))
-        with db.transaction() as conn:
-            db.reset(conn)
-            typer.echo(json.dumps({"message": "数据库已重置"}, ensure_ascii=False))
+        db.reset()
+        typer.echo(json.dumps({"message": "数据库已重置"}, ensure_ascii=False))
 
 
 # ════════════════════════════════════════════════════════════

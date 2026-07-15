@@ -5,8 +5,7 @@ from xfun import db, init_db
 
 def init_database() -> str:
     """初始化数据库：建表/补齐缺失列/建索引。"""
-    with db.transaction() as conn:
-        init_db(conn)
+    init_db()
     return "数据库初始化完成"
 
 
@@ -20,8 +19,7 @@ def reset_database(backup_first: bool = True) -> str:
     """重置数据库：清空所有表并重新初始化。"""
     if backup_first:
         db.backup()
-    with db.transaction() as conn:
-        db.reset(conn)
+    db.reset()
     return "数据库已重置"
 
 

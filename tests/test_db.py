@@ -156,16 +156,15 @@ class TestDB:
                 "updated_at TEXT NOT NULL, tags TEXT NOT NULL, ai_tags TEXT NOT NULL, is_ai_gen INTEGER NOT NULL)"
             )
         # 添加 content 列（ADD COLUMN 要求可空）
-        with db.transaction() as conn:
-            db.init(conn, {"test_tb": [
-                Column("id", "TEXT", primary_key=True, nullable=False),
-                Column("content", "TEXT", nullable=True),
-                Column("created_at", "TEXT", nullable=False, auto=True),
-                Column("updated_at", "TEXT", nullable=False, auto=True),
-                Column("tags", "TEXT", nullable=False, auto=True),
-                Column("ai_tags", "TEXT", nullable=False, auto=True),
-                Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
-            ]})
+        db.init({"test_tb": [
+            Column("id", "TEXT", primary_key=True, nullable=False),
+            Column("content", "TEXT", nullable=True),
+            Column("created_at", "TEXT", nullable=False, auto=True),
+            Column("updated_at", "TEXT", nullable=False, auto=True),
+            Column("tags", "TEXT", nullable=False, auto=True),
+            Column("ai_tags", "TEXT", nullable=False, auto=True),
+            Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
+        ]})
         with db.read_transaction() as conn:
             cols = [r["name"] for r in conn.execute("PRAGMA table_info(test_tb)")]
         assert "content" in cols
@@ -209,16 +208,15 @@ class TestDB:
                 "created_at TEXT NOT NULL, updated_at TEXT NOT NULL, "
                 "tags TEXT NOT NULL, ai_tags TEXT NOT NULL, is_ai_gen INTEGER NOT NULL)"
             )
-        with db.transaction() as conn:
-            db.init(conn, {"unique_idx_tb": [
-                Column("id", "TEXT", primary_key=True, nullable=False),
-                Column("email", "TEXT", unique=True, index=True, nullable=False),
-                Column("created_at", "TEXT", nullable=False, auto=True),
-                Column("updated_at", "TEXT", nullable=False, auto=True),
-                Column("tags", "TEXT", nullable=False, auto=True),
-                Column("ai_tags", "TEXT", nullable=False, auto=True),
-                Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
-            ]})
+        db.init({"unique_idx_tb": [
+            Column("id", "TEXT", primary_key=True, nullable=False),
+            Column("email", "TEXT", unique=True, index=True, nullable=False),
+            Column("created_at", "TEXT", nullable=False, auto=True),
+            Column("updated_at", "TEXT", nullable=False, auto=True),
+            Column("tags", "TEXT", nullable=False, auto=True),
+            Column("ai_tags", "TEXT", nullable=False, auto=True),
+            Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
+        ]})
         # 验证只有 id 有索引（email 的 UNIQUE 自动建索引，不额外创建）
         with db.read_transaction() as conn:
             indexes = [
@@ -242,16 +240,15 @@ class TestDBTypeConflict:
                 "ai_tags TEXT NOT NULL, is_ai_gen INTEGER NOT NULL)"
             )
         with pytest.raises(InvalidSQLError, match="类型冲突"):
-            with db.transaction() as conn:
-                db.init(conn, {"conflict_tb": [
-                    Column("id", "TEXT", primary_key=True, nullable=False),
-                    Column("val", "TEXT", nullable=False),
-                    Column("created_at", "TEXT", nullable=False, auto=True),
-                    Column("updated_at", "TEXT", nullable=False, auto=True),
-                    Column("tags", "TEXT", nullable=False, auto=True),
-                    Column("ai_tags", "TEXT", nullable=False, auto=True),
-                    Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
-                ]})
+            db.init({"conflict_tb": [
+                Column("id", "TEXT", primary_key=True, nullable=False),
+                Column("val", "TEXT", nullable=False),
+                Column("created_at", "TEXT", nullable=False, auto=True),
+                Column("updated_at", "TEXT", nullable=False, auto=True),
+                Column("tags", "TEXT", nullable=False, auto=True),
+                Column("ai_tags", "TEXT", nullable=False, auto=True),
+                Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
+            ]})
 
     def test_nullable_constraint_conflict(self, db):
         """数据库列可空，代码定义不可空 → 约束冲突 (l.114)。"""
@@ -262,15 +259,14 @@ class TestDBTypeConflict:
                 "ai_tags TEXT NOT NULL, is_ai_gen INTEGER NOT NULL)"
             )
         with pytest.raises(InvalidSQLError, match="约束冲突"):
-            with db.transaction() as conn:
-                db.init(conn, {"nullable_tb": [
-                    Column("id", "TEXT", nullable=False),
-                    Column("created_at", "TEXT", nullable=False, auto=True),
-                    Column("updated_at", "TEXT", nullable=False, auto=True),
-                    Column("tags", "TEXT", nullable=False, auto=True),
-                    Column("ai_tags", "TEXT", nullable=False, auto=True),
-                    Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
-                ]})
+            db.init({"nullable_tb": [
+                Column("id", "TEXT", nullable=False),
+                Column("created_at", "TEXT", nullable=False, auto=True),
+                Column("updated_at", "TEXT", nullable=False, auto=True),
+                Column("tags", "TEXT", nullable=False, auto=True),
+                Column("ai_tags", "TEXT", nullable=False, auto=True),
+                Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
+            ]})
 
     def test_pk_constraint_conflict(self, db):
         """数据库列非 PK，代码定义 PK → 主键冲突 (l.121)。
@@ -284,20 +280,18 @@ class TestDBTypeConflict:
                 "ai_tags TEXT NOT NULL, is_ai_gen INTEGER NOT NULL)"
             )
         with pytest.raises(InvalidSQLError, match="主键"):
-            with db.transaction() as conn:
-                db.init(conn, {"pk_tb": [
-                    Column("id", "TEXT", primary_key=True, nullable=False),
-                    Column("created_at", "TEXT", nullable=False, auto=True),
-                    Column("updated_at", "TEXT", nullable=False, auto=True),
-                    Column("tags", "TEXT", nullable=False, auto=True),
-                    Column("ai_tags", "TEXT", nullable=False, auto=True),
-                    Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
-                ]})
+            db.init({"pk_tb": [
+                Column("id", "TEXT", primary_key=True, nullable=False),
+                Column("created_at", "TEXT", nullable=False, auto=True),
+                Column("updated_at", "TEXT", nullable=False, auto=True),
+                Column("tags", "TEXT", nullable=False, auto=True),
+                Column("ai_tags", "TEXT", nullable=False, auto=True),
+                Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
+            ]})
 
     def test_empty_desired_cols_skipped(self, db):
-        """init 中 desired_cols 为空列表应跳过 (l.216)。"""
-        with db.transaction() as conn:
-            db.init(conn, {"nonexistent_empty": []})
+        """init 中 desired_cols 为空列表应跳过。"""
+        db.init({"nonexistent_empty": []})
         with db.read_transaction() as conn:
             row = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='nonexistent_empty'"
@@ -361,8 +355,7 @@ class TestDBBackupReset:
         new_db.table_infos.update(db.table_infos)
         import os
         os.makedirs(Path(new_path).parent, exist_ok=True)
-        with new_db.transaction() as conn:
-            new_db.init(conn, new_db.table_infos)
+        new_db.init(new_db.table_infos)
         path = new_db.backup()
         assert os.path.isdir(Path(new_path).parent / "backups")
 
@@ -374,8 +367,7 @@ class TestDBBackupReset:
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 ("reset-1", "重置前数据", "2606", 1, "2606A", 0, "2026-01-01", "2026-01-01", "[]", "[]", 0),
             )
-        with db.transaction() as conn:
-            db.reset(conn)
+        db.reset()
         # 表应存在但无数据
         with db.read_transaction() as conn:
             for table in ("plan", "diary", "word", "accumulation", "aimemory"):
@@ -399,16 +391,14 @@ class TestDBBackupReset:
             Column("is_ai_gen", "INTEGER", nullable=False, auto=True),
         ]
         db = DB(str(tmp_path / "test.db"))
-        with db.transaction() as conn:
-            db.init(conn, {"test_nb": columns})
+        db.init({"test_nb": columns})
         assert set(db.table_infos.keys()) == {"test_nb"}
         with db.read_transaction() as conn:
             row = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='test_nb'"
             ).fetchone()
         assert row is not None
-        with db.transaction() as conn:
-            db.reset(conn)
+        db.reset()
         with db.read_transaction() as conn:
             existing = {
                 r["name"] for r in conn.execute(

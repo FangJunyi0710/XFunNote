@@ -56,11 +56,10 @@ class TestNotebookCRUD:
     @pytest.fixture
     def nb(self, db):
         nb = SimpleNotebook()
-        with db.transaction() as conn:
-            db.register_hooks(
-                nb.name, pre_add=nb._pre_add, validate=nb._validate, autofill=nb._autofill,
-            )
-            db.init(conn, {nb.name: nb.columns})
+        db.register_hooks(
+            nb.name, pre_add=nb._pre_add, validate=nb._validate, autofill=nb._autofill,
+        )
+        db.init({nb.name: nb.columns})
         return nb
 
     def _add_test_entries(self, nb, db, entries):

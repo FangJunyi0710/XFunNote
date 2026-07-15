@@ -236,7 +236,7 @@ class DB:
             if existing_name not in desired_names:
                 raise InvalidSQLError(
                     f"表 {table_name} 存在代码未定义的列 {existing_name!r}："
-                    f"请手动删除该列或重置数据库"
+                    f"请手动删除该列或重置数据库：ALTER TABLE {table_name} DROP COLUMN {existing_name}"
                 )
 
         for col in desired_cols:
@@ -262,29 +262,30 @@ class DB:
                 f"ON {table_name}({col.name})"
             )
 
-    def init(self, conn, table_infos: dict[str, list[Column]]) -> None:
+    def init(self, table_infos: dict[str, list[Column]]) -> None:
         """
-        根据表信息初始化数据库。
+        自管理事务：根据表信息初始化数据库。
 
         若表已存在：
         - 缺失的列通过 ``ALTER TABLE ADD COLUMN`` 自动补齐（不可空或主键列抛出异常）。
         - 已有列与代码定义不一致时抛出异常，不自动修改已有表结构。
         """
-        for table_name, desired_cols in table_infos.items():
-            if not desired_cols:
-                continue
-            Column.check(table_name)
-            for col in desired_cols:
-                Column.check(col.name)
+        with self.transaction() as conn:
+            for table_name, desired_cols in table_infos.items():
+                if not desired_cols:
+                    continue
+                Column.check(table_name)
+                for col in desired_cols:
+                    Column.check(col.name)
 
-            if DB._table_exists(conn, table_name):
-                DB._sync_existing_table(conn, table_name, desired_cols)
-            else:
-                DB._create_table(conn, table_name, desired_cols)
+                if DB._table_exists(conn, table_name):
+                    DB._sync_existing_table(conn, table_name, desired_cols)
+                else:
+                    DB._create_table(conn, table_name, desired_cols)
 
-            DB._create_indexes(conn, table_name, desired_cols)
+                DB._create_indexes(conn, table_name, desired_cols)
 
-        self.table_infos.update(table_infos)
+            self.table_infos.update(table_infos)
 
     # ---- 备份与重置 ----
 
@@ -347,18 +348,18 @@ class DB:
 
         return str(src)
 
-    def reset(self, conn) -> None:
+    def reset(self) -> None:
         """
-        清空所有表并重新初始化。
+        自管理事务：清空所有表并重新初始化。
         """
-        # 查出数据库中所有用户表（排除 sqlite_% 系统表）
-        rows = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-        ).fetchall()
-        for (table_name,) in rows:
-            conn.execute(f"DROP TABLE IF EXISTS {table_name}")
-        self.init(conn, self.table_infos)
-# TODO init/reset 消除 conn 改为自管理事务
+        with self.transaction() as conn:
+            rows = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            ).fetchall()
+            for (table_name,) in rows:
+                conn.execute(f"DROP TABLE IF EXISTS {table_name}")
+        # 重新初始化（内部已有自管理事务）
+        self.init(self.table_infos)
 
     # ---- 自动生成 INSERT SQL ----
 
