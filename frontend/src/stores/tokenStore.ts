@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+
 export interface LocalTokenEntry {
   id: string;
   key: string;
@@ -24,7 +26,7 @@ export const useTokenStore = create<TokenStoreState>()(
       activeTokenId: null,
 
       addToken: (key: string) => {
-        const id = crypto.randomUUID();
+        const id = generateId();
         let added = false;
         set((state) => {
           // 检查是否已存在相同的 key

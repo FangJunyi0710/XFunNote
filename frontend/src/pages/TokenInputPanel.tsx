@@ -17,6 +17,13 @@ export const TokenInputPanel: React.FC = () => {
 
   // 兑换状态（内联，无对话框）
 
+  // 成功提示
+  const [successMessage, setSuccessMessage] = useState('');
+
+  const showSuccess = (msg: string) => {
+    setSuccessMessage(msg);
+  };
+
   const [exchangeLoading, setExchangeLoading] = useState(false);
   const [exchangeError, setExchangeError] = useState('');
   const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
@@ -55,6 +62,7 @@ export const TokenInputPanel: React.FC = () => {
     addToken(trimmedKey);
     setKey('');
     setError('');
+    showSuccess('Token 已添加成功');
   };
 
   const handleDelete = (id: string) => {
@@ -81,6 +89,7 @@ export const TokenInputPanel: React.FC = () => {
       setKey('');
       setError('');
       setExchangeError('');
+      showSuccess('Shortcut 兑换成功');
     } catch (e: unknown) {
       setExchangeError(e instanceof Error ? e.message : '兑换失败，请检查 Shortcut 码是否有效');
     } finally {
@@ -92,6 +101,14 @@ export const TokenInputPanel: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-4 animate-fade-in">
+      {/* 成功提示 */}
+      {successMessage && (
+        <div className="bg-primary/10 border border-primary/30 text-primary text-sm px-4 py-2.5 rounded-md flex items-center justify-between">
+          <span>✅ {successMessage}</span>
+          <button onClick={() => setSuccessMessage('')} className="ml-2 underline text-xs shrink-0">关闭</button>
+        </div>
+      )}
+
       {/* 当前使用的 Token 提示 */}
       {activeToken ? (
         <div className="bg-primary/10 border border-primary/30 text-primary text-sm px-4 py-2.5 rounded-md flex items-center gap-2">
