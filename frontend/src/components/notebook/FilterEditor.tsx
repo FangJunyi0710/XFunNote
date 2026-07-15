@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -31,7 +31,11 @@ const OP_MAP: Record<FilterOp, string> = {
   lt: '<',
   le: '<=',
   like: 'LIKE',
+  not_like: 'NOT LIKE',
   in: 'IN',
+  not_in: 'NOT IN',
+  between: 'BETWEEN',
+  text_search: 'TEXT_SEARCH',
 };
 
 const FILTER_OPS: { value: FilterOp; label: string }[] = [
@@ -42,6 +46,11 @@ const FILTER_OPS: { value: FilterOp; label: string }[] = [
   { value: 'lt', label: '<' },
   { value: 'le', label: '<=' },
   { value: 'like', label: '包含' },
+  { value: 'not_like', label: '不包含' },
+  { value: 'in', label: '包含于' },
+  { value: 'not_in', label: '不包含于' },
+  { value: 'between', label: '介于' },
+  { value: 'text_search', label: '文本搜索' },
 ];
 
 // ── DNF 序列化 / 反序列化 ─────────────────────────────────────
@@ -51,6 +60,44 @@ const FILTER_OPS: { value: FilterOp; label: string }[] = [
  */
 type DNFGroup = { column: string; op: string; value: string }[];
 type DNF = DNFGroup[];
+
+/**
+ * 将 UI 显示值（逗号分隔）反序列化为 DNF value 字符串。
+ * - IN / NOT IN: 数组 → JSON 数组字符串
+ * - BETWEEN: [min, max] → "min,max"（逗号分隔的两个值）
+ * - 其他: 原样
+ */
+function serializeValue(op: FilterOp, display: string): string {
+  if (op === 'in' || op === 'not_in') {
+    const items = display
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return JSON.stringify(items);
+  }
+  if (op === 'between') {
+    const parts = display.split(',').map((s) => s.trim());
+    if (parts.length !== 2) return '';
+    return parts.join(',');
+  }
+  return display;
+}
+
+/**
+ * 将 DNF value 字符串反序列化为 UI 显示值。
+ */
+function deserializeValue(op: FilterOp, raw: string): string {
+  if (op === 'in' || op === 'not_in') {
+    try {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return arr.join(', ');
+    } catch {
+      // 如果解析失败，直接返回原值
+    }
+    return raw;
+  }
+  return raw;
+}
 
 /** 从 DNF 字符串解析为 UI 分组 */
 function parseDNF(json: string | null): ConditionGroup[] {
@@ -62,11 +109,12 @@ function parseDNF(json: string | null): ConditionGroup[] {
       rows: group.map((cond) => {
         // 后端 op → 前端 op
         const entry = Object.entries(OP_MAP).find(([, v]) => v === cond.op);
+        const op = (entry?.[0] as FilterOp) || 'eq';
         return {
           id: genId(),
           column: cond.column,
-          op: (entry?.[0] as FilterOp) || 'eq',
-          value: cond.value,
+          op,
+          value: deserializeValue(op, cond.value),
         };
       }),
     }));
@@ -86,11 +134,99 @@ function serializeDNF(groups: ConditionGroup[]): string | null {
     rows.map((r) => ({
       column: r.column,
       op: OP_MAP[r.op],
-      value: r.value,
+      value: serializeValue(r.op, r.value),
     })),
   );
   return JSON.stringify(dnf);
 }
+
+// ── ValueEditor 子组件 ──────────────────────────────────────
+
+interface ValueEditorProps {
+  op: FilterOp;
+  value: string;
+  columnType?: string;
+  onChange: (value: string) => void;
+}
+
+/** 根据运算符和列类型切换值编辑器 */
+const ValueEditor: React.FC<ValueEditorProps> = ({ op, value, columnType, onChange }) => {
+  // between: 两个输入框
+  if (op === 'between') {
+    const parts = value.split(',').map((s) => s.trim());
+    const min = parts[0] || '';
+    const max = parts[1] || '';
+
+    const handleMin = (v: string) => onChange(`${v},${max}`);
+    const handleMax = (v: string) => onChange(`${min},${v}`);
+
+    return (
+      <div className="flex items-center gap-1 flex-1">
+        <Input
+          value={min}
+          onChange={(e) => handleMin(e.target.value)}
+          placeholder="最小值"
+          className="flex-1"
+        />
+        <span className="text-muted-foreground">~</span>
+        <Input
+          value={max}
+          onChange={(e) => handleMax(e.target.value)}
+          placeholder="最大值"
+          className="flex-1"
+        />
+      </div>
+    );
+  }
+
+  // in / not_in: 逗号分隔的多值输入
+  if (op === 'in' || op === 'not_in') {
+    return (
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="多个值用逗号分隔"
+        className="flex-1"
+      />
+    );
+  }
+
+  // like / not_like: 带通配符提示
+  if (op === 'like' || op === 'not_like') {
+    return (
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="%通配符%"
+        className="flex-1"
+      />
+    );
+  }
+
+  // text_search: 自动包裹 %，提示搜索关键词
+  if (op === 'text_search') {
+    return (
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="搜索关键词"
+        className="flex-1"
+      />
+    );
+  }
+
+  // 默认: 根据列类型选择合适的 input mode
+  const isNumeric = columnType === 'integer' || columnType === 'float' || columnType === 'number';
+  return (
+    <Input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="值"
+      inputMode={isNumeric ? 'decimal' : 'text'}
+      className="flex-1"
+    />
+  );
+};
 
 // ── 组件 ─────────────────────────────────────────────────────
 
@@ -153,13 +289,13 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({
     );
   };
 
-  const updateRow = (gid: string, rid: string, field: keyof ConditionRow, val: string) => {
+  const updateRow = (gid: string, rid: string, patch: Partial<ConditionRow>) => {
     setGroups((prev) =>
       prev.map((g) =>
         g.id === gid
           ? {
               ...g,
-              rows: g.rows.map((r) => (r.id === rid ? { ...r, [field]: val } : r)),
+              rows: g.rows.map((r) => (r.id === rid ? { ...r, ...patch } : r)),
             }
           : g,
       ),
@@ -257,7 +393,7 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({
               <div key={row.id} className="flex items-center gap-2">
                 <Select
                   value={row.column}
-                  onChange={(e) => updateRow(group.id, row.id, 'column', e.target.value)}
+                  onChange={(e) => updateRow(group.id, row.id, { column: e.target.value })}
                   className="w-36"
                 >
                   {columns.map((col) => (
@@ -269,7 +405,10 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({
 
                 <Select
                   value={row.op}
-                  onChange={(e) => updateRow(group.id, row.id, 'op', e.target.value)}
+                  onChange={(e) => {
+                    // 切换运算符时清空值，避免格式冲突
+                    updateRow(group.id, row.id, { op: e.target.value as FilterOp, value: '' });
+                  }}
                   className="w-24"
                 >
                   {FILTER_OPS.map((op) => (
@@ -279,11 +418,11 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({
                   ))}
                 </Select>
 
-                <Input
+                <ValueEditor
+                  op={row.op}
                   value={row.value}
-                  onChange={(e) => updateRow(group.id, row.id, 'value', e.target.value)}
-                  placeholder="值"
-                  className="flex-1"
+                  columnType={columns.find((c) => c.name === row.column)?.type}
+                  onChange={(val) => updateRow(group.id, row.id, { value: val })}
                 />
 
                 <Button

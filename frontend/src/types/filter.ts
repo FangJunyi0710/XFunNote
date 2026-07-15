@@ -1,7 +1,7 @@
 // 筛选 DSL 类型
 // 对应 xfun/core/filter.py 中的 Filter DNF 结构
 
-export type FilterOp = 'eq' | 'neq' | 'lt' | 'le' | 'gt' | 'ge' | 'like' | 'in';
+export type FilterOp = 'eq' | 'neq' | 'lt' | 'le' | 'gt' | 'ge' | 'like' | 'in' | 'not_like' | 'not_in' | 'between' | 'text_search';
 
 export interface Condition {
   column: string;
