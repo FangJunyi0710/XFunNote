@@ -14,7 +14,7 @@ XFunNote 是一个个人知识管理与效率工具，核心目标是：
 - 作为技术实验场：Python 工程化 + AI Agent + 快速原型开发
 
 **当前阶段**：准大一暑假 MVP 开发中
-**当前进度**：Python 核心引擎（xfun/）+ FastAPI 后端已完成，React 前端骨架就绪、页面填充中。
+**当前进度**：Python 核心引擎（xfun/）+ FastAPI 后端已完成，React 前端（页面组件 + 状态管理 + 路由体系）已完成。
 
 ---
 
@@ -38,6 +38,18 @@ npm install && npm run dev
 
 复制项目根目录的 `.env.example` 为 `.env` 并填写配置。
 
+### 依赖分组
+
+`requirements.txt` 中依赖分为三组：
+
+| 组 | 用途 | 是否必需 |
+|----|------|---------|
+| 核心引擎（typer, python-dotenv, future-uuid, langchain*, pydantic） | CLI + 数据操作 + AI Agent | 运行必需 |
+| 后端（fastapi, uvicorn） | RESTful API | 可选（仅使用 CLI 时不需要） |
+| 测试（pytest, pytest-cov） | 测试运行 | 开发依赖 |
+
+### 环境变量
+
 | 变量 | 说明 |
 |------|------|
 | `XFUN_USER` | 数据库用户名，拼接为 `data/{用户名}.db`。若未设置，默认回退为 `data/default.db` |
@@ -45,6 +57,8 @@ npm install && npm run dev
 | `LLM_API_KEY` | DeepSeek API Key，用于 AI 功能 |
 | `LLM_BASE_URL` | DeepSeek API 端点，若不设置则为 None（ChatAnthropic 使用默认端点）（.env.example 中已预填 DeepSeek 兼容端点） |
 | `LLM_MODEL` | 默认模型，若不设置则由 LangChain 默认决定（当前建议 `deepseek-v4-flash`） |
+
+> **注意**：`import xfun` 会自动初始化数据库（建表/补齐列/建索引），无需手动调用 `xfun init`。后端启动时也会自动初始化。
 
 **小贴士**：你也可以用以下命令在终端手动生成 API Token（格式 `sk-xxx`），适合设置 `ROOT_TOKEN` 或作为 `_token` 的 token 值：
 ```bash
@@ -142,49 +156,108 @@ XFunNote 不是"一个管理计划的 App"，而是**一个能够容纳个人全
 - **日报自动化容错闭环**：AI 填充 LaTeX 模板后，后端调用 `pdflatex` 编译，**最多执行 3 次迭代纠错**（针对 LaTeX 语法错误自动修复重试），成功则输出 PDF。用户通过 QQ 反馈偏好后，AI 调用 `save_memory` 固化至 `aimemory`，次日日报自动适配；定时任务通过 CLI + QQ 机器人完成推送。
 
 ### 6. 技术栈与数据契约
-- **后端与 AI 基建**：Python 3.10+、Typer（CLI 管理）、FastAPI（RESTful 接口）。AI 层采用 LangChain + DeepSeek API（通过 `langchain_anthropic.ChatAnthropic` 兼容层，完整支持 thinking blocks）。
+- **后端与 AI 基建**：Python 3.10+、Typer（CLI 管理）、FastAPI（RESTful 接口）。AI 层采用 LangChain + DeepSeek API（通过 `langchain_anthropic.ChatAnthropic` 兼容封装，`base_url` 指向 `https://api.deepseek.com/anthropic`，完整支持 Anthropic 格式的 thinking blocks 和 tool calling）。
 - **数据契约与校验**：Pydantic 承担双重职责——既定义所有数据模型（Notebook、Condition、Filter、View），也自动生成 **JSON Schema** 供 AI Function Calling 的入参校验与结构约束使用，确保大模型生成的参数严格符合系统预期。
-- **前端与质量保障**：React 18 + TypeScript + Tailwind CSS（Vite 构建），状态管理使用 Zustand（骨架开发中）。核心 Python 逻辑由 pytest + pytest-cov 覆盖，保障 Ops 层与下推引擎的正确性。
+- **前端与质量保障**：React 18 + TypeScript + Tailwind CSS（Vite 构建），无第三方 UI 组件库，自建组件体系（button/card/dialog/input/select/tabs/switch/badge 等）。状态管理使用 Zustand。核心 Python 逻辑由 pytest + pytest-cov 覆盖，保障 Ops 层与下推引擎的正确性。
+
+---
+
+## 前端架构
+
+### 技术栈
+- **框架**：React 18 + TypeScript
+- **构建**：Vite 5
+- **样式**：Tailwind CSS 3 + PostCSS
+- **路由**：react-router-dom v6
+- **状态管理**：Zustand（4 个 Store）
+- **UI 组件**：自建组件体系（button/card/dialog/input/select/tabs/switch/badge 等）
+
+### 路由结构
+| 路径 | 页面组件 | 说明 |
+|------|---------|------|
+| `/` | Home | 首页 |
+| `/notebooks/:type` | Notebook*Page（7 个） | 各本子条目列表（plan/diary/word/accumulation/aimemory/timeline/schedule） |
+| `/notebooks/:notetype/new` | NotebookEditPage | 新建条目 |
+| `/notebooks/:notetype/edit/:id` | NotebookEditPage | 编辑条目 |
+| `/notebooks/:notetype/batch-update` | NotebookEditPage | 批量更新 |
+| `/notebooks/:notetype/filter` | NotebookFilter | Filter 编辑 |
+| `/ai` | AiChat | AI 对话界面 |
+| `/management` | Management | 系统管理（视图/权限/Token/数据库 4 个 Tab） |
+| `/token-input` | TokenInputPanel | API Key 输入面板 |
+
+### 状态管理（Zustand）
+| Store | 职责 |
+|-------|------|
+| `notebookStore` | 当前本子数据、分页、筛选、排序 |
+| `chatStore` | AI 对话消息历史 |
+| `tokenStore` | 本地 Token 持久化与切换（localStorage） |
+| `themeStore` | 三档主题切换（light/dark/system），Sidebar 标题点击轮换 |
+
+### 数据流
+前端通过 `api/client.ts` HTTP 客户端访问 FastAPI 后端，所有请求自动携带 `X-API-Key` Header（从 tokenStore 获取）。CRUD 操作通过 `api/notebooks.ts` 等 API 模块封装，响应格式映射在客户端完成（如后端 `count/results` → 前端 `total/entries`，`offset/limit` → `page/page_size`）。
+
+### 可插拔卡片渲染器
+每个本子的条目卡片通过 `notebookCards/index.ts` 注册自定义渲染组件，`NotebookLayout` 根据本子类型自动选择对应渲染器。目前 7 个本子各有独立页面组件。
+
+---
+
+## 测试
+
+### 运行测试
+```bash
+# 安装测试依赖后
+pytest tests/ -v
+# 带覆盖率报告
+pytest -cov=xfun --cov-report=term-missing
+```
+
+### 测试覆盖范围
+22 个测试文件覆盖：核心引擎（db/filter/notebook/ops/view/extras）、全部 7 个内置本子、AI 层（agent/prompts/schema/tools）、工具函数（time_utils/token_utils）、注册中心。
+
+### 测试架构
+- **session 级夹具**：`conftest.py` 提供共享临时数据库，一次初始化所有表
+- **function 级隔离**：每个测试函数执行前自动 `DELETE FROM` 所有表
+- **`populated_db` 夹具**：为每个本子预填 2-3 条样本数据，降低测试模板代码
 
 ---
 ## 路线图
 
 ### 阶段零：核心引擎与基础本子
-- [ ] 数据库引擎：基于 `sqlite3`，支持 `Column`、`Condition`（内置运算符 `=/!=/>/</>=/<=/IN/NOT IN/BETWEEN/LIKE/NOT LIKE` 及自定义扩展 `JSON_CONTAINS`、`JSON_NOT_CONTAINS`、`TEXT_SEARCH`、`TRUE`、`FALSE`）、递归 `Filter`（外层 OR 内层 AND）、读写分离事务（写 `IMMEDIATE`，读不阻塞）
-- [ ] Ops 操作层：`xfun/core/ops.py` 实现 5 个高维函数（`query`/`count`/`add`/`update`/`delete`），封装 View + Notebook 的组合语义
-- [ ] `Notebook` 抽象基类：封装通用 CRUD + 自动建表 + 批量操作，子类只需定义扩展列和自动填充逻辑
-- [ ] 内置本子：`plan`（字母编号/月分组）、`diary`（日期维）、`word`（复习跟踪/去重）、`accumulation`（分类积累）、`aimemory`（标题/来源/备注）、`timeline`（精确到分钟）、`schedule`（周期性重复）
-- [ ] 注册中心：通过 `dict` 管理所有 `Notebook` 实例，支持注册/查找/注销/迭代
-- [ ] 测试覆盖：300+ 个单元测试，覆盖核心引擎及 AI 集成层的正常路径、边界条件、错误路径及事务回滚，覆盖率 100%
+- [x] 数据库引擎：基于 `sqlite3`，支持 `Column`、`Condition`（内置运算符 `=/!=/>/</>=/<=/IN/NOT IN/BETWEEN/LIKE/NOT LIKE` 及自定义扩展 `JSON_CONTAINS`、`JSON_NOT_CONTAINS`、`TEXT_SEARCH`、`TRUE`、`FALSE`）、递归 `Filter`（外层 OR 内层 AND）、读写分离事务（写 `IMMEDIATE`，读不阻塞）
+- [x] Ops 操作层：`xfun/core/ops.py` 实现 5 个高维函数（`query`/`count`/`add`/`update`/`delete`），封装 View + Notebook 的组合语义
+- [x] `Notebook` 抽象基类：封装通用 CRUD + 自动建表 + 批量操作，子类只需定义扩展列和自动填充逻辑
+- [x] 内置本子：`plan`（`no` 字段自动生成 `{month}{字母}` 格式编号，字母序列 A-Z→a-z→小写希腊→大写希腊共 100 字符，`seq` 在同月内自动递增）、`diary`（日期维）、`word`（复习跟踪/去重）、`accumulation`（分类积累）、`aimemory`（标题/来源/备注）、`timeline`（精确到分钟）、`schedule`（周期性重复）
+- [x] 注册中心：通过 `dict` 管理所有 `Notebook` 实例，支持注册/查找/注销/迭代
+- [x] 测试覆盖：300+ 个单元测试，覆盖核心引擎及 AI 集成层的正常路径、边界条件、错误路径及事务回滚，覆盖率 100%
 
 ### 阶段一：AI Tools 层
-- [ ] 实现 5 个 Function Calling 工具：`query_entries`（只读）、`add_entries`（自动注入 `is_ai_gen=1`）、`update_entries`（列白名单）、`delete_entries`（强制安全条件 + 预览拦截）、`get_ai_permission`（返回当前 AI 可读/可写字段权限白名单）
-- [ ] Pydantic 模型（`ConditionModel`、`FilterModel`、`TableSpecModel`、`ViewModel`）及 JSON Schema 双重校验（位于 `xfun/ai/schema.py`）
-- [ ] 系统提示词定义（`xfun/ai/prompts.py`）
-- [ ] Agent 对话引擎：工具调用循环（Tool Calling Loop）、多轮工具调用、自动错误恢复、最大迭代控制（10 轮）
-- [ ] CLI 命令行入口（Typer）：完整实现 `list`、`schema`、`query`、`add`、`update`、`delete`、`ai`、`init`、`backup`、`reset` 共 10 个命令，并接入 Agent 对话引擎
+- [x] 实现 5 个 Function Calling 工具：`query_entries`（只读）、`add_entries`（自动注入 `is_ai_gen=1`）、`update_entries`（列白名单）、`delete_entries`（强制安全条件 + 预览拦截）、`get_ai_permission`（返回当前 AI 可读/可写字段权限白名单）
+- [x] Pydantic 模型（`ConditionModel`、`FilterModel`、`TableSpecModel`、`ViewModel`）及 JSON Schema 双重校验（位于 `xfun/ai/schema.py`）
+- [x] 系统提示词定义（`xfun/ai/prompts.py`）
+- [x] Agent 对话引擎：工具调用循环（Tool Calling Loop）、多轮工具调用、自动错误恢复、最大迭代控制（10 轮）
+- [x] CLI 命令行入口（Typer）：完整实现 `list`、`schema`、`query`、`add`、`update`、`delete`、`ai`、`init`、`backup`、`reset` 共 10 个命令，并接入 Agent 对话引擎
 
 ### 阶段二：View 层
-- [ ] `view_to_sql`：跨本子 `UNION ALL` + 主键去重，全部下推 SQLite
-- [ ] `view_or` / `view_and`：View 的并集/交集操作（安全沙箱通过交集自动约束 AI 权限范围）
-- [ ] `view_clean_add` / `view_clean_delete` / `view_clean_update`：AI 安全沙箱列/行清洗（自动应用列白名单 + 行筛选）
-- [ ] `view_to_json` / `parse_view_json`：View 的序列化/反序列化
-- [ ] `ViewModel` Pydantic 校验：为 View JSON 格式提供双重校验
+- [x] `view_to_sql`：跨本子 `UNION ALL` + 主键去重，全部下推 SQLite
+- [x] `view_or` / `view_and`：View 的并集/交集操作（安全沙箱通过交集自动约束 AI 权限范围）
+- [x] `view_clean_add` / `view_clean_delete` / `view_clean_update`：AI 安全沙箱列/行清洗（自动应用列白名单 + 行筛选）
+- [x] `view_to_json` / `parse_view_json`：View 的序列化/反序列化
+- [x] `ViewModel` Pydantic 校验：为 View JSON 格式提供双重校验
 
 ### 阶段三：FastAPI 后端
-- [ ] RESTful 路由：
+- [x] RESTful 路由：
   - `/api/v1/notebooks/{name}/entries`（GET/POST/PUT/DELETE）
   - `/api/v1/ai/chat`（支持 `permission_name`/`tool_names`/`llm_kwargs`）
   - `/api/v1/ai/permission`（AI 权限查询）
-  - `/api/v1/ai/daily`（日报生成）
-  - `/api/v1/ai/memory`（记忆查询与保存）
   - `/api/v1/views/`（视图 CRUD，基于 `_view` 表）
   - `/api/v1/tokens/`（Token CRUD）
   - `/api/v1/permissions/`（权限 CRUD）
   - `/api/v1/filters/`（筛选条件 CRUD，基于 `_filter` 表）
-  - `/api/v1/db/init` / `/api/v1/db/backup` / `/api/v1/db/reset`（需 `ROOT_TOKEN`）
-- [ ] API Key 鉴权体系：`X-API-Key` Header 鉴权、`ROOT_TOKEN` bootstrap（环境变量）、`_token` 表查询（active/expired）、权限交集（API Key 权限 ∩ AI 配置权限）
-- [ ] 依赖注入、CORS 配置、全局异常处理器（HTTPException / XFunError / RequestValidationError / 兜底 500）
+  - `/api/v1/db/init` / `/api/v1/db/backup` / `/api/v1/db/reset` / `/api/v1/db/restore` / `/api/v1/db/backups`（需 `ROOT_TOKEN`）
+  - `/api/v1/tokens/info`（查询当前 Token 元信息）
+  - `/api/v1/tokens/exchange`（Shortcut 兑换 Token，无需鉴权）
+- [x] API Key 鉴权体系：`X-API-Key` Header 鉴权、`ROOT_TOKEN` bootstrap（环境变量）、`_token` 表查询（active/expired）、权限交集（API Key 权限 ∩ AI 配置权限）
+- [x] 依赖注入、CORS 配置、全局异常处理器（HTTPException / XFunError / RequestValidationError / 兜底 500）
 - [ ] Filter 编辑器/管理页面（前端 `NotebookFilter.tsx` + 后端 `manage_filter.py`）
 - [ ] 批量更新功能、深色主题、分页器跳转
 
@@ -781,9 +854,13 @@ FastAPI 后端已实现，运行 `uvicorn backend.main:app --reload` 后访问 `
 | DELETE | `/api/v1/views/{name}` | 删除视图 |
 | POST | `/api/v1/db/init` | ⚠️ 初始化数据库（需 `ROOT_TOKEN`） |
 | POST | `/api/v1/db/backup` | ⚠️ 热备份数据库（需 `ROOT_TOKEN`） |
+| POST | `/api/v1/db/restore` | ⚠️ 从备份文件恢复数据库（需 `ROOT_TOKEN`） |
+| GET | `/api/v1/db/backups` | ⚠️ 列出所有备份文件（需 `ROOT_TOKEN`） |
 | POST | `/api/v1/db/reset` | ⚠️ 重置数据库（需 `ROOT_TOKEN`） |
+| GET | `/api/v1/tokens/info` | 查询当前 API Key 的 Token 元信息（名称/有效期/权限视图） |
+| POST | `/api/v1/tokens/exchange` | 通过 Shortcut 兑换完整 Token（无需鉴权，一次性） |
 
-> **鉴权说明**：所有路由（除 AI 权限查询外）均需在 `X-API-Key` Header 中传入有效 API Key。普通数据/管理路由使用 `_token` 表中的 Token 鉴权；`/db/*` 管理路由必须使用 `ROOT_TOKEN`（环境变量配置）。每次请求自动计算 **API Key 权限 ∩ 业务权限** 的交集。
+> **鉴权说明**：所有路由（除 `GET /api/v1/notebooks` 列出本子名称和 `POST /api/v1/tokens/exchange` Shortcut 兑换外）均需在 `X-API-Key` Header 中传入有效 API Key。普通数据/管理路由使用 `_token` 表中的 Token 鉴权；`/db/*` 管理路由必须使用 `ROOT_TOKEN`（环境变量配置）。每次请求自动计算 **API Key 权限 ∩ 业务权限** 的交集。
 
 ### CLI `ai` 命令详解
 
@@ -806,6 +883,89 @@ AI 对话支持两种模式，`stdout` 统一输出完整消息列表 JSON：
 | `--llm-kwargs` | `{"thinking": {"type": "disabled"}, "timeout": 30.0, "max_retries": 2}` | LLM 额外参数 JSON 字典 |
 
 > **💡 开发调试**：`xfun/ai/tools.py` 中的 `_TOOL_REGISTRY` 和 `DEFAULT_TOOL_NAMES` 管理着 AI 可用的工具集。权限定义存储在 `_permission` 表中，通过 `backend/permissions.py` 的 `get_api_permission_from_db()` 加载，`cli.py` 中的 `_lookup_permission()` 等效于后端的权限查询。
+
+---
+
+## CLI 命令行
+
+XFunNote 提供基于 Typer 的完整 CLI，所有 CRUD 命令参数为 JSON 格式，输出统一为 JSON。
+
+| 命令 | 说明 |
+|------|------|
+| `xfun list [--all]` | 列出笔记本名称（--all 含系统表 _token/_permission/_view） |
+| `xfun schema TABLE` | 查看表字段结构 |
+| `xfun query TABLE VIEW_JSON [--order-by] [--limit] [--offset]` | 通用查询 |
+| `xfun add TABLE ENTRIES_JSON` | 通用添加 |
+| `xfun update TABLE FILTER_JSON VALUES_JSON` | 通用更新 |
+| `xfun delete TABLE FILTER_JSON` | 通用删除 |
+| `xfun ai sync --messages JSON` | AI 同步模式（静默调用，stdout JSON） |
+| `xfun ai chat` | AI 交互模式（stderr 流式，stdout JSON） |
+| `xfun view full` / `xfun view no` | 输出 full_view / no_view 定义 |
+| `xfun init` | 初始化数据库（建表/补齐列/建索引） |
+| `xfun backup` | 在线热备份数据库 |
+| `xfun restore BACKUP_PATH [--list] [--no-backup]` | 从备份文件恢复数据库。--list 列出所有可用备份，--no-backup 恢复前不备份当前数据库 |
+| `xfun reset [--no-backup]` | 重置数据库（清空所有表） |
+
+### Token Shortcut 一次性兑换机制
+
+创建 Token 时可传入可选的 `shortcut` 字段（自定义短码）和 `shortcut_ttl`（有效期，默认 120 秒）。客户端通过 `POST /api/v1/tokens/exchange` 无鉴权接口用 Shortcut 兑换完整的 Token 明文。兑换后 Shortcut 立即清空，确保一次性安全。适用于前端首次引导登录等场景。
+
+### 数据库在线热备份
+
+基于 SQLite 在线备份 API（`sqlite3.Connection.backup()`），无需停服即可创建数据库快照。备份文件存储于 `data/backups/` 目录，文件名带时间戳。恢复操作对称使用同一 API，恢复前自动清理 `-wal`/`-shm` 残留文件，并默认先备份当前数据库作为安全网。
+
+### Filter 引用（REF）运算符
+
+`_filter` 系统表存储命名的筛选条件，通过 `Condition("_", filter_id, "REF")` 运算符引用。该运算符在 SQL 生成时从 `_filter` 表动态加载并展开，实现筛选条件的复用与组合。⚠️ 当前 `_lookup_filter()` 无权限校验，存在权限旁路风险。
+
+---
+
+## 开发工具
+
+### 代码生成脚本（`scripts/`）
+| 脚本 | 用途 |
+|------|------|
+| `project_info.py` | 自动生成项目结构树（tree）和模块依赖图（mermaid） |
+| `replace.py` | 基于标记块的文本替换工具，用于更新 README 中的项目结构和依赖图 |
+| `updateREADME.sh` | 一键更新 README 的项目结构和依赖图 |
+
+使用方式：
+```bash
+bash scripts/updateREADME.sh
+```
+
+---
+
+## 已知问题
+
+1. **`_lookup_filter` 权限旁路**：`xfun/core/filter.py` 的 `_lookup_filter()` 函数直接读取 `_filter` 表，绕过 View/Permission 沙箱。目前仅 `REF` 运算符触发，影响范围有限，但需修复。
+2. **`manage_filter.py` list 路由参数错误**：`GET /api/v1/filters` 的 `_ops.query()` 调用参数顺序有误（第四个参数应为 `query_view` 而非 `order_by`），当前会导致运行时错误。
+3. **前端 `EntryBase.user_id` 不匹配**：前端类型定义 `EntryBase` 包含 `user_id` 字段，但后端 `BASE_COLUMNS` 中无此列。
+4. **前端 `*` 通配符列名**：前端 `buildDefaultView()` 使用 `['*']`，后端 `select_sql()` 不支持，需改为显式传递列名列表。
+
+---
+
+## FAQ
+
+### 数据库在哪里？
+`data/{XFUN_USER}.db`，默认 `data/default.db`。备份文件在 `data/backups/`。
+
+### 如何重置数据库？
+CLI：`xfun reset`（自动备份后重置）。API：`POST /api/v1/db/reset`（需 ROOT_TOKEN）。
+
+### 如何创建第一个 API Token？
+1. 在 `.env` 中设置 `ROOT_TOKEN`
+2. 启动后端后，用 `ROOT_TOKEN` 作为 `X-API-Key` 调用 `POST /api/v1/tokens`
+3. 或通过前端 `/token-input` 页面输入 ROOT_TOKEN 后创建 Token
+
+### 如何切换用户/数据库？
+设置环境变量 `XFUN_USER=username`，数据库路径变为 `data/username.db`。
+
+### 前端报 CORS 错误怎么办？
+确保后端正在运行，且前端的 `VITE_API_BASE_URL` 配置指向正确的后端地址（默认 `http://localhost:8000`）。
+
+### 模块导入时自动建库？
+`import xfun` 会自动初始化数据库（建表/补齐列/建索引），无需手动调用 `xfun init`。后端启动时也会自动初始化。
 
 ---
 
