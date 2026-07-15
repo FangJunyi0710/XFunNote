@@ -58,7 +58,7 @@ const FILTER_OPS: { value: FilterOp; label: string }[] = [
 /** 后端 DNF 格式：[[{column, op, value}, ...], ...]
  *  外层 OR，内层 AND
  */
-type DNFGroup = { column: string; op: string; value: string }[];
+type DNFGroup = { column: string; op: string; value: string | number[] | string[] }[];
 type DNF = DNFGroup[];
 
 /**
@@ -67,18 +67,22 @@ type DNF = DNFGroup[];
  * - BETWEEN: [min, max] → "min,max"（逗号分隔的两个值）
  * - 其他: 原样
  */
-function serializeValue(op: FilterOp, display: string): string {
+function tryParseNumber(s: string): string | number {
+  const n = Number(s);
+  return !isNaN(n) && s.trim() !== '' ? n : s;
+}
+
+function serializeValue(op: FilterOp, display: string): string | number[] | string[] {
   if (op === 'in' || op === 'not_in') {
-    const items = display
+    return display
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-    return JSON.stringify(items);
   }
   if (op === 'between') {
     const parts = display.split(',').map((s) => s.trim());
     if (parts.length !== 2) return '';
-    return parts.join(',');
+    return parts.map(tryParseNumber).filter((v): v is number => typeof v === 'number');
   }
   return display;
 }
@@ -86,7 +90,10 @@ function serializeValue(op: FilterOp, display: string): string {
 /**
  * 将 DNF value 字符串反序列化为 UI 显示值。
  */
-function deserializeValue(op: FilterOp, raw: string): string {
+function deserializeValue(op: FilterOp, raw: string | number[] | string[]): string {
+  if (Array.isArray(raw)) {
+    return raw.join(', ');
+  }
   if (op === 'in' || op === 'not_in') {
     try {
       const arr = JSON.parse(raw);

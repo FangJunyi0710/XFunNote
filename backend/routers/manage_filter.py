@@ -10,7 +10,7 @@ from backend.deps import get_api_permission
 from backend.permissions import ApiPermission
 from xfun import db as _db
 from xfun.core import ops as _ops
-from xfun.core.filter import Condition
+from xfun.core.filter import Condition, TRUE_CONDITION
 
 router = APIRouter(tags=["management-filters"])
 
@@ -20,8 +20,10 @@ def list_filter(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
     with _db.read_transaction() as conn:
-        return _ops.query(conn, api_perm.permission, "_filter", order_by="name ASC")
-# TODO 修复参数未传入 view 的问题
+        cols = _db.cols("_filter")
+        return _ops.query(conn, api_perm.permission, "_filter",
+                          {"_filter": [(cols, TRUE_CONDITION)]},
+                          order_by="name ASC")
 
 @router.get("/filters/{name}", summary="获取指定筛选条件", response_description="筛选条件的 JSON 数据")
 def get_filter_route(
