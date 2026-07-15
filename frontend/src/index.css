@@ -29,6 +29,8 @@
     --notebook-word: 271.1 91.2% 59.8%;
     --notebook-accumulation: 24.6 95% 53.1%;
     --notebook-aimemory: 336.1 100% 70%;
+    --notebook-timeline: 180 100% 35%;
+    --notebook-schedule: 330 100% 45%;
 
     /* 语义状态色 */
     --success: 142.1 76.2% 36.3%;
@@ -62,6 +64,8 @@
     --notebook-word: 271.1 91.2% 72%;
     --notebook-accumulation: 24.6 95% 60%;
     --notebook-aimemory: 336.1 100% 78%;
+    --notebook-timeline: 180 100% 50%;
+    --notebook-schedule: 330 100% 60%;
 
     /* 深色模式的语义状态色 */
     --success: 142.1 76.2% 45%;

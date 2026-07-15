@@ -16,9 +16,6 @@ const PlanCard: React.FC<{ entry: Record<string, any> }> = ({ entry }) => {
         ) : (
           <Badge variant="secondary" className="text-[10px]">进行中</Badge>
         )}
-        {e.status && (
-          <Badge variant="secondary" className="text-[10px]">{e.status}</Badge>
-        )}
       </div>
       {e.content && (
         <p className="text-sm font-medium line-clamp-3">{e.content}</p>

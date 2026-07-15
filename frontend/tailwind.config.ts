@@ -41,6 +41,8 @@ const config: Config = {
           word: 'hsl(var(--notebook-word))',
           accumulation: 'hsl(var(--notebook-accumulation))',
           aimemory: 'hsl(var(--notebook-aimemory))',
+          timeline: 'hsl(var(--notebook-timeline))',
+          schedule: 'hsl(var(--notebook-schedule))',
         },
         success: {
           DEFAULT: 'hsl(var(--success))',

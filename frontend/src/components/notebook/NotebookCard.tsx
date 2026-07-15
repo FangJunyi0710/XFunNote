@@ -23,6 +23,16 @@ const TYPE_COLORS: Record<string, string> = {
   schedule: 'border-l-notebook-schedule',
 };
 
+const TYPE_RING_COLORS: Record<string, string> = {
+  plan: 'ring-notebook-plan',
+  diary: 'ring-notebook-diary',
+  word: 'ring-notebook-word',
+  accumulation: 'ring-notebook-accumulation',
+  aimemory: 'ring-notebook-aimemory',
+  timeline: 'ring-notebook-timeline',
+  schedule: 'ring-notebook-schedule',
+};
+
 export const NotebookCard: React.FC<NotebookCardProps> = ({
   type,
   entry,
@@ -37,7 +47,7 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
   return (
     <Card
       className={`border-l-4 ${TYPE_COLORS[type]} cursor-pointer transition-shadow hover:shadow-md ${
-        selected ? 'ring-2 ring-primary' : ''
+        selected ? `ring-2 ${TYPE_RING_COLORS[type]}` : ''
       }`}
       onClick={() => onSelect?.(entry.id)}
     >

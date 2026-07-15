@@ -21,6 +21,7 @@ export interface EntryBase {
   id: string;
   content: string;
   tags: string | null;
+  note: string | null;
   is_ai_gen: number;
   ai_tags: string | null;
   ai_note: string | null;
@@ -37,7 +38,6 @@ export interface PlanEntry extends EntryBase {
   seq: number;
   month: string;
   done: boolean | number;
-  status: string | null;
 }
 
 // ------------------------------------------------
@@ -69,7 +69,6 @@ export interface WordEntry extends EntryBase {
 // ------------------------------------------------
 export interface AccumulationEntry extends EntryBase {
   source: string;
-  note: string | null;
 }
 
 // ------------------------------------------------
