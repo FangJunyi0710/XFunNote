@@ -33,9 +33,6 @@ data/backups/*
 !output/.gitkeep
 !data/backups/.gitkeep
 
-views/*
-!views/.gitkeep
-
 .coverage
 
 # ===== npm / 前端 =====

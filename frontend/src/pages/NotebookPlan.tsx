@@ -1,5 +1,36 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
+import { registerCard } from '@/components/notebook/notebookCards';
+import { Badge } from '@/components/ui/badge';
+import type { PlanEntry } from '@/types/notebook';
+
+const PlanCard: React.FC<{ entry: Record<string, any> }> = ({ entry }) => {
+  const e = entry as unknown as PlanEntry;
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        {e.no && <span className="text-xs font-mono text-muted-foreground">{e.no}</span>}
+        <span className="text-xs text-muted-foreground">{e.month}</span>
+        <span className="font-medium">{e.content?.split('\n')[0] || '(无标题)'}</span>
+        {e.done ? (
+          <Badge variant="success" className="text-[10px]">已完成</Badge>
+        ) : (
+          <Badge variant="secondary" className="text-[10px]">进行中</Badge>
+        )}
+        {e.status && (
+          <Badge variant="secondary" className="text-[10px]">{e.status}</Badge>
+        )}
+      </div>
+      {e.content && (
+        <p className="text-sm text-muted-foreground line-clamp-2">
+          {e.content.split('\n').slice(1).join('\n') || e.content}
+        </p>
+      )}
+    </div>
+  );
+};
+
+registerCard('plan', PlanCard);
 
 export const NotebookPlan: React.FC = () => {
   return <NotebookLayout notetype="plan" />;
