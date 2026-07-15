@@ -83,5 +83,5 @@ def ai_chat(
 
 
 @router.get("/ai/permission")
-def ai_permission():
+def ai_permission(api_perm: ApiPermission = Depends(get_api_permission)):
     return svc.get_permission_info()

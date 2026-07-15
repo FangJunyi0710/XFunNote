@@ -18,12 +18,12 @@ router = APIRouter(tags=["notebooks"])
 
 
 @router.get("/notebooks")
-def list_notebooks():
+def list_notebooks(api_perm: ApiPermission = Depends(get_api_permission)):
     return svc.list_notebooks()
 
 
 @router.get("/notebooks/{name}/schema")
-def get_schema(name: str):
+def get_schema(name: str, api_perm: ApiPermission = Depends(get_api_permission)):
     return svc.get_schema(name)
 
 
