@@ -3,7 +3,6 @@ import { create } from 'zustand';
 interface SidebarState {
   isCollapsed: boolean;
   windowWidth: number;
-  hideContent: boolean;
   toggleCollapsed: () => void;
   setWindowWidth: (width: number) => void;
 }
@@ -18,14 +17,9 @@ function loadCollapsed(): boolean {
   }
 }
 
-function shouldHideContent(isCollapsed: boolean, windowWidth: number): boolean {
-  return !isCollapsed && windowWidth < 640;
-}
-
 export const useSidebarStore = create<SidebarState>((set) => ({
   isCollapsed: loadCollapsed(),
   windowWidth: typeof window !== 'undefined' ? window.innerWidth : 1200,
-  hideContent: shouldHideContent(loadCollapsed(), window.innerWidth),
 
   toggleCollapsed: () =>
     set((state) => {
@@ -35,15 +29,11 @@ export const useSidebarStore = create<SidebarState>((set) => ({
       } catch {
         // ignore
       }
-      return {
-        isCollapsed: next,
-        hideContent: shouldHideContent(next, state.windowWidth),
-      };
+      return { isCollapsed: next };
     }),
 
   setWindowWidth: (width: number) =>
-    set((state) => ({
+    set(() => ({
       windowWidth: width,
-      hideContent: shouldHideContent(state.isCollapsed, width),
     })),
 }));
