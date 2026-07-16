@@ -49,13 +49,13 @@ export const NOTEBOOK_INFO: Record<string, { label: string; description: string 
 
 /** 默认 Emoji 映射 */
 export const DEFAULT_EMOJIS: Record<NotebookType, string> = {
-  plan: '📋',
-  diary: '📝',
-  word: '📖',
-  accumulation: '📚',
-  aimemory: '🧠',
-  timeline: '⏳',
-  schedule: '📅',
+  plan: '',
+  diary: '',
+  word: '',
+  accumulation: '',
+  aimemory: '',
+  timeline: '',
+  schedule: '',
 };
 
 // -------------------------------------------------------
@@ -141,11 +141,6 @@ export function getNotebookStyles(type: NotebookType): NotebookStyles {
   };
 }
 
-/** 获取底部边框颜色（用于首页概览卡片） */
-export function getNotebookBottomBorder(type: NotebookType): string {
-  return TYPE_BORDER_BOTTOM_COLORS[type] || '';
-}
-
 // -------------------------------------------------------
 // 向下兼容导出（旧代码可直接替换 import 来源）
 // -------------------------------------------------------
@@ -153,13 +148,13 @@ export function getNotebookBottomBorder(type: NotebookType): string {
 // 路由配置
 // -------------------------------------------------------
 export const NOTEBOOK_ROUTES: Record<string, { path: string; icon: string; label: string }> = {
-  plan: { path: '/notebooks/plan', icon: '📋', label: '计划' },
-  diary: { path: '/notebooks/diary', icon: '📝', label: '日记' },
-  word: { path: '/notebooks/word', icon: '📖', label: '单词' },
-  accumulation: { path: '/notebooks/accumulation', icon: '📚', label: '积累' },
-  aimemory: { path: '/notebooks/aimemory', icon: '🧠', label: 'AI 记忆' },
-  timeline: { path: '/notebooks/timeline', icon: '⏳', label: '时间线' },
-  schedule: { path: '/notebooks/schedule', icon: '📅', label: '日程' },
+  plan: { path: '/notebooks/plan', icon: '', label: '计划' },
+  diary: { path: '/notebooks/diary', icon: '', label: '日记' },
+  word: { path: '/notebooks/word', icon: '', label: '单词' },
+  accumulation: { path: '/notebooks/accumulation', icon: '', label: '积累' },
+  aimemory: { path: '/notebooks/aimemory', icon: '', label: 'AI 记忆' },
+  timeline: { path: '/notebooks/timeline', icon: '', label: '时间线' },
+  schedule: { path: '/notebooks/schedule', icon: '', label: '日程' },
 };
 
 export { TYPE_COLORS, TYPE_RING_COLORS, TYPE_BG_COLORS, TYPE_TEXT_COLORS };

@@ -7,6 +7,7 @@ import { FilterEditor } from '@/components/notebook/FilterEditor';
 import { cn } from '@/lib/utils';
 import { useNotebookStore } from '@/stores/notebookStore';
 import { TYPE_LABELS } from '@/config/notebook';
+import { FilterIcon, ReplyIcon, SubmitIcon } from '@/components/ui/icons';
 import type { NotebookType } from '@/config/notebook';
 import * as filterApi from '@/api/filters';
 import type { FilterFile } from '@/api/filters';
@@ -90,9 +91,9 @@ export const NotebookFilter: React.FC = () => {
     <div className="space-y-4 animate-fade-in">
       {/* 顶部导航 */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">🔍 筛选{TYPE_LABELS[type] || ''}</h1>
-        <Button variant="outline" onClick={() => navigate(`/notebooks/${type}`)}>
-          返回
+        <h1 className="text-xl font-bold"><FilterIcon className="inline-block align-middle" /> 筛选{TYPE_LABELS[type] || ''}</h1>
+        <Button variant="outline" onClick={() => navigate(`/notebooks/${type}`)} title="返回">
+          <ReplyIcon />
         </Button>
       </div>
 
@@ -124,7 +125,7 @@ export const NotebookFilter: React.FC = () => {
                     className="text-destructive hover:text-destructive/80 ml-1"
                     onClick={() => handleDelete(f.name)}
                   >
-                    ✕
+                    ×
                   </button>
                 </div>
               ))}
@@ -158,8 +159,9 @@ export const NotebookFilter: React.FC = () => {
             }
           }}
           disabled={!saveName.trim()}
+          title="保存筛选"
         >
-          保存
+          <SubmitIcon/>
         </Button>
       </div>
     </div>

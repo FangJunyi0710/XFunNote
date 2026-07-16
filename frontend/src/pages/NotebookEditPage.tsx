@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { NotebookForm } from '@/components/notebook/notebookForms/defaultForm';
 import { useNotebookStore } from '@/stores/notebookStore';
 import * as notebookApi from '@/api/notebooks';
 import { TYPE_LABELS } from '@/config/notebook';
 import { handleError } from '@/lib/error';
+import { ReplyIcon } from '@/components/ui/icons';
 import type { NotebookType } from '@/config/notebook';
 
 export type PageMode = 'create' | 'edit' | 'batch-update';
@@ -57,6 +59,11 @@ export const NotebookEditPage: React.FC = () => {
             });
             found = res.entries[0] || null;
           }
+          if (!found) {
+            handleError(new Error(`未找到该${label}条目`), '加载失败');
+            navigate(`/notebooks/${type}`, { replace: true });
+            return;
+          }
           setEntry(found);
         } else {
           setEntry({});
@@ -80,11 +87,9 @@ export const NotebookEditPage: React.FC = () => {
           nonEmptyValues[key] = value;
         }
       }
-      if (Object.keys(nonEmptyValues).length === 0) {
-        // 所有字段都为空则直接返回，无需弹窗
-        return;
+      if (Object.keys(nonEmptyValues).length !== 0) {
+        await store.batchUpdateEntries(batchIds, nonEmptyValues);
       }
-      await store.batchUpdateEntries(batchIds, nonEmptyValues);
     } else if (mode === 'edit') {
       await store.updateEntry(id!, data);
     } else {
@@ -102,35 +107,17 @@ export const NotebookEditPage: React.FC = () => {
   }
 
   if (mode === 'edit' && !entry && !loading) {
-    return (
-      <div className="space-y-4">
-        <button
-          className="text-sm text-primary hover:underline"
-          onClick={() => navigate(`/notebooks/${type}`)}
-        >
-          ← 返回 {label}
-        </button>
-        <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">
-          未找到该条目
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <button
-        className="text-sm text-primary hover:underline"
-        onClick={() => navigate(`/notebooks/${type}`)}
-      >
-        ← 返回 {label}
-      </button>
       {store.schema && (
         <NotebookForm
           schema={store.schema}
           initialData={mode === 'edit' ? entry || undefined : undefined}
           onSubmit={handleSubmit}
-          onCancel={() => navigate(`/notebooks/${type}`)}
+          onCancel={() => navigate(`/notebooks/${type}`, { state: { returnIds: batchIds } })}
           title={mode === 'edit' ? `编辑${label}` : mode === 'batch-update' ? `批量更新 ${batchIds.length} 条${label}` : `新建${label}`}
           disableRequired={mode === 'batch-update'}
         />

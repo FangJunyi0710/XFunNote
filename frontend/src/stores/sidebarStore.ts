@@ -3,8 +3,10 @@ import { create } from 'zustand';
 interface SidebarState {
   isCollapsed: boolean;
   windowWidth: number;
+  dragOffset: number;
   toggleCollapsed: () => void;
   setWindowWidth: (width: number) => void;
+  setDragOffset: (offset: number) => void;
 }
 
 function loadCollapsed(): boolean {
@@ -20,6 +22,7 @@ function loadCollapsed(): boolean {
 export const useSidebarStore = create<SidebarState>((set) => ({
   isCollapsed: loadCollapsed(),
   windowWidth: typeof window !== 'undefined' ? window.innerWidth : 1200,
+  dragOffset: 0,
 
   toggleCollapsed: () =>
     set((state) => {
@@ -29,11 +32,16 @@ export const useSidebarStore = create<SidebarState>((set) => ({
       } catch {
         // ignore
       }
-      return { isCollapsed: next };
+      return { isCollapsed: next, dragOffset: 0 };
     }),
 
   setWindowWidth: (width: number) =>
     set(() => ({
       windowWidth: width,
+    })),
+
+  setDragOffset: (offset: number) =>
+    set(() => ({
+      dragOffset: offset,
     })),
 }));

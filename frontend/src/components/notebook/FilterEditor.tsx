@@ -5,6 +5,7 @@ import { Select } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { genId } from '@/lib/utils';
 import type { FilterOp } from '@/types/filter';
+import { CloseIcon, SubmitIcon } from '../ui/icons';
 
 // ── 类型 ─────────────────────────────────────────────────────
 
@@ -244,7 +245,6 @@ interface FilterEditorProps {
   onApply: (filterJson: string | null) => void;
   /** 编辑器内容变化时的回调，返回当前 DNF 字符串 */
   onChange?: (filterJson: string | null) => void;
-  onCancel?: () => void;
 }
 
 export const FilterEditor: React.FC<FilterEditorProps> = ({
@@ -252,7 +252,6 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({
   initialFilter,
   onApply,
   onChange,
-  onCancel,
 }) => {
   const [groups, setGroups] = useState<ConditionGroup[]>(() => {
     const parsed = parseDNF(initialFilter ?? null);
@@ -328,7 +327,6 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({
 
   const handleClear = () => {
     setGroups([]);
-    onApply(null);
   };
 
   // ── 分组间连接词 ─────────────────────────────────────────
@@ -345,21 +343,12 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({
             <Button variant="outline" size="sm" onClick={addGroup}>
               + OR 组
             </Button>
-            {groups.length > 0 && (
-              <>
-                <Button variant="ghost" size="sm" onClick={handleClear}>
-                  清除
-                </Button>
-                <Button size="sm" onClick={handleApply}>
-                  应用
-                </Button>
-              </>
-            )}
-            {onCancel && (
-              <Button variant="ghost" size="sm" onClick={onCancel}>
-                取消
-              </Button>
-            )}
+            <Button variant="ghost" size="sm" onClick={handleClear} title="清除">
+              <CloseIcon/>
+            </Button>
+            <Button size="sm" onClick={handleApply} title="提交">
+              <SubmitIcon/>
+            </Button>
           </div>
         </div>
 
@@ -438,7 +427,7 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({
                   onClick={() => removeRow(group.id, row.id)}
                   className="text-destructive"
                 >
-                  ✕
+                  ×
                 </Button>
               </div>
             ))}

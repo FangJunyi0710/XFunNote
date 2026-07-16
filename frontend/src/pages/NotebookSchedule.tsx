@@ -24,7 +24,7 @@ const ScheduleCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) =
         <p className="text-sm font-medium line-clamp-2">{e.content}</p>
       )}
       {e.location && (
-        <p className="text-xs text-muted-foreground">📍 {e.location}</p>
+        <p className="text-xs text-muted-foreground">{e.location}</p>
       )}
     </div>
   );

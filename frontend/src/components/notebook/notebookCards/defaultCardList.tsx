@@ -5,8 +5,6 @@ import type { NotebookType } from '@/config/notebook';
 interface DefaultRenderEntryDisplayProps {
   type: NotebookType;
   entries: Record<string, unknown>[];
-  onEdit: (entry: Record<string, unknown>) => void;
-  onDelete: (id: string) => void;
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
   page?: number;
@@ -18,10 +16,12 @@ interface DefaultRenderEntryDisplayProps {
 
 export function defaultRenderEntryDisplay(props: DefaultRenderEntryDisplayProps) {
   const {
-    type, entries, onEdit, onDelete,
+    type, entries,
     selectedIds, onToggleSelect,
     page, pageSize, total, onPageChange, onPageSizeChange,
   } = props;
+
+  const isSelectionMode = selectedIds.size > 0;
 
   return {
     stickySlot: entries.length > 0 && page !== undefined && onPageChange ? (
@@ -40,10 +40,9 @@ export function defaultRenderEntryDisplay(props: DefaultRenderEntryDisplayProps)
             key={entry.id as string}
             type={type}
             entry={entry}
-            onEdit={onEdit}
-            onDelete={onDelete}
             selected={selectedIds?.has(entry.id as string) || false}
             onSelect={onToggleSelect}
+            isSelectionMode={isSelectionMode}
           />
         ))}
       </div>

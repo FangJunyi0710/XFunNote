@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import * as permissionsApi from '@/api/permissions';
 import type { Permission } from '@/types/permission';
 import { handleError, handleSuccess } from '@/lib/error';
+import { CloseIcon, DeleteIcon, PlusIcon, SubmitIcon } from '@/components/ui/icons';
 
 const EMPTY_FORM = {
   id: '',
@@ -134,7 +135,7 @@ export const PermissionManagement: React.FC = () => {
         <Card className="lg:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">权限列表</CardTitle>
-            <Button size="sm" onClick={handleNew}>新建</Button>
+            <Button size="sm" onClick={handleNew} title="新建权限"><PlusIcon /></Button>
           </CardHeader>
           <CardContent>
             <div className="space-y-1 max-h-96 overflow-y-auto">
@@ -156,8 +157,9 @@ export const PermissionManagement: React.FC = () => {
                   <button
                     className="text-xs text-destructive hover:underline shrink-0 ml-2"
                     onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
+                    title="删除"
                   >
-                    删除
+                    <DeleteIcon/>
                   </button>
                 </div>
               ))}
@@ -235,9 +237,9 @@ export const PermissionManagement: React.FC = () => {
                 </div>
 
                 <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={handleCancel}>取消</Button>
-                  <Button onClick={handleSave} disabled={loading}>
-                    {loading ? '保存中...' : '保存'}
+                  <Button variant="outline" onClick={handleCancel} title="取消"><CloseIcon/></Button>
+                  <Button onClick={handleSave} disabled={loading} title="保存">
+                    <SubmitIcon/>
                   </Button>
                 </div>
               </div>

@@ -1,27 +1,27 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatDateTime } from '@/lib/utils';
 import { getCardRenderer } from '@/components/notebook/notebookCards';
 import { getNotebookStyles } from '@/config/notebook';
 import type { NotebookType } from '@/config/notebook';
+import { EditIcon } from '@/components/ui/icons';
 
 interface NotebookCardProps {
   type: string;
   entry: Record<string, unknown>;
   selected?: boolean;
   onSelect?: (id: string) => void;
-  onEdit?: (entry: Record<string, unknown>) => void;
-  onDelete?: (id: string) => void;
+  isSelectionMode?: boolean;
 }
 
-export const NotebookCard: React.FC<NotebookCardProps> = ({
+export const NotebookCard: React.FC<NotebookCardProps> = React.memo(({
   type,
   entry,
   selected,
   onSelect,
-  onEdit,
-  onDelete,
+  isSelectionMode,
 }) => {
   const navigate = useNavigate();
   const Renderer = getCardRenderer(type);
@@ -29,7 +29,7 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
 
   return (
     <Card
-      className={`border-t-0 border-x-0 border-b border-border/50 cursor-pointer transition-all hover:shadow-md ${
+      className={`border-2 border-border cursor-pointer transition-all hover:shadow-md ${
         selected ? `ring-2 ${styles.ring} !bg-accent` : ''
       }`}
       onClick={() => onSelect?.(entry.id as string)}
@@ -45,21 +45,18 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
             {formatDateTime(entry.created_at as string)}
           </span>
           <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-            <button
-              className="text-xs text-primary hover:underline"
-              onClick={() => navigate(`/notebooks/${type}/edit/${entry.id as string}`)}
-            >
-              编辑
-            </button>
-            <button
-              className="text-xs text-destructive hover:underline"
-              onClick={() => onDelete?.(entry.id as string)}
-            >
-              删除
-            </button>
+            <div className={isSelectionMode ? 'invisible' : ''}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(`/notebooks/${type}/edit/${entry.id as string}`)}
+              >
+                <EditIcon/>
+              </Button>
+            </div>
           </div>
         </div>
       </CardContent>
     </Card>
   );
-};
+});

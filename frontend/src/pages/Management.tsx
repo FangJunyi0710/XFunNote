@@ -10,7 +10,7 @@ export const Management: React.FC = () => {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <h1 className="text-xl font-bold">⚙️ 系统管理</h1>
+      <h1 className="text-xl font-bold">系统管理</h1>
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="views">视图</TabsTrigger>

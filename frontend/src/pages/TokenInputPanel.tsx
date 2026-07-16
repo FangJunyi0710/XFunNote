@@ -8,8 +8,12 @@ import { exchangeTokenByShortcut, getTokenInfo } from '@/api/tokens';
 import { handleError, handleSuccess } from '@/lib/error';
 import type { TokenInfo } from '@/api/tokens';
 
+import { Switch } from '@/components/ui/switch';
 import { TokenValueDisplay } from '@/components/ui/TokenValueDisplay';
+import { DeleteIcon, PlusIcon } from '@/components/ui/icons';
 import { maskKey } from '@/lib/utils';
+
+const TOKEN_REGEX = /^sk-[-A-Za-z0-9_]{32}$/;
 
 export const TokenInputPanel: React.FC = () => {
   const { tokens, activeTokenId, addToken, removeToken, setActiveToken } = useTokenStore();
@@ -40,17 +44,6 @@ export const TokenInputPanel: React.FC = () => {
     }
   }, [activeTokenId]);
 
-  const handleAdd = () => {
-    const trimmedKey = key.trim();
-    if (!trimmedKey) {
-      handleError(new Error('Token 值不能为空'), '添加 Token');
-      return;
-    }
-    addToken(trimmedKey);
-    setKey('');
-    handleSuccess('Token 已添加成功');
-  };
-
   const handleDelete = (id: string) => {
     if (!confirm('确定删除此 Token？')) return;
     removeToken(id);
@@ -60,23 +53,34 @@ export const TokenInputPanel: React.FC = () => {
     setActiveToken(activeTokenId === id ? null : id);
   };
 
-  const handleExchange = async () => {
-    const code = key.trim();
-    if (!code) {
-      handleError(new Error('请输入 Shortcut 码'), '兑换 Token');
+  const handleSubmit = async () => {
+    const value = key.trim();
+    if (!value) {
+      handleError(new Error('Token 值不能为空'), '提交 Token');
       return;
     }
-    setExchangeLoading(true);
-    try {
-      const res = await exchangeTokenByShortcut({ shortcut: code });
-      // 兑换成功：自动添加到列表，但不自动激活
-      addToken(res.token);
+    if (TOKEN_REGEX.test(value)) {
+      addToken(value);
       setKey('');
-      handleSuccess('Shortcut 兑换成功');
-    } catch (e: unknown) {
-      handleError(e, '兑换失败');
-    } finally {
-      setExchangeLoading(false);
+      handleSuccess('Token 已添加成功');
+    } else {
+      setExchangeLoading(true);
+      try {
+        const res = await exchangeTokenByShortcut({ shortcut: value });
+        addToken(res.token);
+        setKey('');
+        handleSuccess('Shortcut 兑换成功');
+      } catch (e: unknown) {
+        handleError(e, '兑换失败');
+      } finally {
+        setExchangeLoading(false);
+      }
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSubmit();
     }
   };
 
@@ -85,12 +89,11 @@ export const TokenInputPanel: React.FC = () => {
       {/* 当前使用的 Token 提示 */}
       {activeToken ? (
         <div className="bg-primary/10 border border-primary/30 text-primary text-sm px-4 py-2.5 rounded-md flex items-center gap-2">
-          <span>✅ 当前使用：</span>
-          <span className="text-xs opacity-70">({maskKey(activeToken.key)})</span>
+          <span>当前使用：{maskKey(activeToken.key)}</span>
         </div>
       ) : (
         <div className="bg-warning/10 border border-warning/30 text-warning text-sm px-4 py-2.5 rounded-md flex items-center gap-2">
-          <span>⚠️ 未选择 Token，API 请求将无法通过鉴权</span>
+          <span>未选择 Token，API 请求将无法通过鉴权</span>
         </div>
       )}
 
@@ -122,19 +125,17 @@ export const TokenInputPanel: React.FC = () => {
                     <div className="text-xs text-muted-foreground font-mono">{maskKey(t.key)}</div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0 ml-2">
-                    <Button
-                      size="sm"
-                      variant={activeTokenId === t.id ? 'default' : 'outline'}
-                      onClick={() => handleSetActive(t.id)}
-                    >
-                      {activeTokenId === t.id ? '取消使用' : '使用'}
-                    </Button>
+                    <Switch
+                      checked={activeTokenId === t.id}
+                      onCheckedChange={() => handleSetActive(t.id)}
+                    />
                     <Button
                       size="sm"
                       variant="destructive"
                       onClick={() => handleDelete(t.id)}
+                      title="删除 Token"
                     >
-                      删除
+                      <DeleteIcon/>
                     </Button>
                   </div>
                 </div>
@@ -147,25 +148,27 @@ export const TokenInputPanel: React.FC = () => {
       {/* 添加新 Token */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">添加 Token</CardTitle>
+          <CardTitle className="text-base">
+            {key.trim() ? (TOKEN_REGEX.test(key.trim()) ? '添加 Token' : '兑换 Shortcut') : '添加 Token'}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="token-key">Token 值 / Shortcut 码</Label>
+            <Label htmlFor="token-key">
+              {key.trim() ? (TOKEN_REGEX.test(key.trim()) ? 'Token 值' : 'Shortcut 码') : 'Token 值 / Shortcut 码'}
+            </Label>
             <div className="flex gap-2">
               <Input
                 id="token-key"
                 type="text"
                 value={key}
                 onChange={(e) => { setKey(e.target.value); }}
-                placeholder="粘贴 Token 值或输入 Shortcut 码"
+                onKeyDown={handleKeyDown}
+                placeholder="Token / Shortcut"
                 className="flex-1"
               />
-              <Button variant="outline" type="button" onClick={handleExchange} disabled={exchangeLoading || !key.trim()}>
-                {exchangeLoading ? '兑换中...' : '兑换'}
-              </Button>
-              <Button onClick={handleAdd} disabled={!key.trim()}>
-                添加
+              <Button onClick={handleSubmit} disabled={!key.trim() || exchangeLoading} size="sm" title="添加">
+                <PlusIcon />
               </Button>
             </div>
           </div>
@@ -182,6 +185,8 @@ export const TokenInputPanel: React.FC = () => {
             {infoLoading && (
               <div className="text-sm text-muted-foreground px-3 py-2">加载 Token 信息中...</div>
             )}
+            {/* 完整的 Token 值 */}
+            <TokenValueDisplay value={activeToken.key} />
             {tokenInfo && (
               <>
                 <div className="grid grid-cols-2 gap-3">
@@ -222,8 +227,6 @@ export const TokenInputPanel: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                {/* 完整的 Token 值 */}
-                <TokenValueDisplay value={activeToken.key} label="完整 Token 值" />
                 {tokenInfo.read_view && (
                   <div>
                     <span className="text-muted-foreground">读权限视图：</span>

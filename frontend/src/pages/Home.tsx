@@ -41,7 +41,6 @@ export const Home: React.FC = () => {
       {/* API-Key 状态提示 — 未配置时才显示 */}
       {!hasActiveKey && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-lg border text-sm bg-warning/10 border-warning/30 text-warning">
-          <span className="text-lg">⚠️</span>
           <div className="flex-1 min-w-0">
             <span>
               未配置 API Key —{' '}
@@ -72,7 +71,6 @@ export const Home: React.FC = () => {
                   <Card className={`hover:shadow-lg hover:border-primary/30 transition-all cursor-pointer h-full group border-l-2 ${styles.border}`}>
                     <CardHeader className="p-5 pb-2">
                       <CardTitle className="text-base flex items-center gap-2">
-                        <span className="text-xl group-hover:scale-110 transition-transform">{route.icon}</span>
                         <span>{route.label}</span>
                       </CardTitle>
                     </CardHeader>

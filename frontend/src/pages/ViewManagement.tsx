@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import * as viewsApi from '@/api/views';
+import { CloseIcon, DeleteIcon, PlusIcon, SubmitIcon } from '@/components/ui/icons';
 import type { ViewFile, ViewData } from '@/types/view';
 import { handleError, handleSuccess } from '@/lib/error';
 
@@ -113,8 +114,8 @@ export const ViewManagement: React.FC = () => {
                 placeholder="新视图名称"
                 className="flex-1 h-8 px-2 text-sm border rounded"
               />
-              <Button size="sm" onClick={createView} disabled={loading}>
-                创建
+              <Button size="sm" onClick={createView} disabled={loading} title="新建视图">
+                <PlusIcon />
               </Button>
             </div>
 
@@ -135,8 +136,9 @@ export const ViewManagement: React.FC = () => {
                   <button
                     className="text-xs text-destructive hover:underline shrink-0 ml-2"
                     onClick={(e) => { e.stopPropagation(); deleteView(vf.name); }}
+                    title="删除"
                   >
-                    删除
+                    <DeleteIcon/>
                   </button>
                 </div>
               ))}
@@ -161,11 +163,11 @@ export const ViewManagement: React.FC = () => {
                   className="font-mono text-xs"
                 />
                 <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={() => loadViewContent(selectedView)}>
-                    重置
+                  <Button variant="outline" onClick={() => loadViewContent(selectedView)} title="取消">
+                    <CloseIcon/>
                   </Button>
-                  <Button onClick={saveView} disabled={loading}>
-                    保存
+                  <Button onClick={saveView} disabled={loading} title="保存">
+                    <SubmitIcon/>
                   </Button>
                 </div>
               </>

@@ -1,17 +1,16 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { defaultRenderEntryDisplay } from '@/components/notebook/notebookCards/defaultCardList';
+import { PlusIcon, FilterIcon, BatchEditIcon, DeleteIcon, SelectAllIcon, DeselectAllIcon } from '@/components/ui/icons';
 import { useNotebookStore } from '@/stores/notebookStore';
 import * as notebookApi from '@/api/notebooks';
-import { TYPE_LABELS, DEFAULT_EMOJIS } from '@/config/notebook';
+import { TYPE_LABELS } from '@/config/notebook';
 import type { NotebookType } from '@/config/notebook';
 
 interface NotebookLayoutProps {
   /** 笔记本类型标识 */
   notetype: NotebookType;
-  /** 标题 emoji */
-  emoji?: string;
   /** 自定义条目展示渲染（可选，默认使用 NotebookDefaultCardList）
    *  返回 { stickySlot, content }，stickySlot 会被渲染为 sticky 定位的顶部栏，content 为条目列表 */
   renderEntryDisplay?: (props: {
@@ -27,12 +26,22 @@ interface NotebookLayoutProps {
 
 export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
   notetype,
-  emoji,
   renderEntryDisplay,
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const store = useNotebookStore();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // 从路由 state 恢复选中 ID（批量更新取消返回时）
+  useEffect(() => {
+    const state = location.state as { returnIds?: string[] } | null;
+    if (state?.returnIds && state.returnIds.length > 0) {
+      setSelectedIds(new Set(state.returnIds));
+      // 清除 state，避免刷新或后续导航时重复恢复
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -105,38 +114,69 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
   // 选中数量
   const selectedCount = selectedIds.size;
 
+  const entryList = useMemo(() => {
+    if (store.loading || store.entries.length === 0) return null;
+    const rendered = renderEntryDisplay
+      ? renderEntryDisplay({ entries: store.entries, onEdit: handleEdit, onDelete: handleDelete, selectedIds, onToggleSelect: toggleSelect, onSelectAll: handleSelectAll, onDeselectAll: handleDeselectAll })
+      : defaultRenderEntryDisplay({
+          type: notetype,
+          entries: store.entries,
+          selectedIds,
+          onToggleSelect: toggleSelect,
+          page: store.page,
+          pageSize: store.pageSize,
+          total: store.total,
+          onPageChange: store.setPage,
+          onPageSizeChange: store.setPageSize,
+        });
+
+    const { stickySlot, content } = rendered;
+    return (
+      <>
+        {stickySlot && (
+          <div className="sticky top-12 z-10 bg-background py-2 border-b">
+            {stickySlot}
+          </div>
+        )}
+        {content}
+      </>
+    );
+  }, [renderEntryDisplay, store.entries, store.page, store.pageSize, store.total, notetype, selectedIds, toggleSelect, handleSelectAll, handleDeselectAll]);
+
   const label = TYPE_LABELS[notetype];
-  const icon = emoji || DEFAULT_EMOJIS[notetype];
 
   return (
     <div className="space-y-4 animate-fade-in">
       {/* 标题栏 — 筛选 / 新增 / 批量操作 三按钮并列 — sticky */}
       <div className="sticky top-0 z-10 flex items-center justify-between bg-background py-2">
-        <h1 className="text-xl font-bold">{icon} {label}</h1>
+        <h1 className="text-xl font-bold">{label}</h1>
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 ? (
             <>
-              <Button variant="destructive" size="sm" onClick={handleBatchDelete}>
-                删除 {selectedCount} 项
+              <Button variant="outline" size="sm" onClick={handleDeselectAll} title="取消全选">
+                <DeselectAllIcon/>
               </Button>
-              <Button variant="outline" size="sm" onClick={handleBatchUpdate}>
-                批量更新
+              <Button variant="outline" size="sm" onClick={handleBatchUpdate} title="批量编辑">
+                <BatchEditIcon/>
               </Button>
-              <Button variant="outline" size="sm" onClick={handleDeselectAll}>
-                全不选
+              <Button variant="destructive" size="sm" onClick={handleBatchDelete} title="批量删除">
+                <DeleteIcon/>
               </Button>
             </>
           ) : (
-            <Button variant="outline" size="sm" onClick={handleSelectAll}>
-              全选
-            </Button>
+            <>
+              <Button variant="outline" size="sm" onClick={handleSelectAll} title="全选">
+                <SelectAllIcon/>
+              </Button>
+              <Button variant="outline" onClick={() => navigate(`/notebooks/${notetype}/filter`)} size="sm" title="筛选">
+                <FilterIcon/>
+              </Button>
+              <Button onClick={() => navigate(`/notebooks/${notetype}/new`)} size="sm" title="新增">
+                <PlusIcon />
+              </Button>
+            </>
           )}
-          <Button variant="outline" onClick={() => navigate(`/notebooks/${notetype}/filter`)}>
-            筛选
-          </Button>
-          <Button onClick={() => navigate(`/notebooks/${notetype}/new`)}>
-            + 添加条目
-          </Button>
+
         </div>
       </div>
 
@@ -150,35 +190,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
           暂无条目
         </div>
       ) : (
-        (() => {
-          const rendered = renderEntryDisplay
-            ? renderEntryDisplay({ entries: store.entries, onEdit: handleEdit, onDelete: handleDelete, selectedIds, onToggleSelect: toggleSelect, onSelectAll: handleSelectAll, onDeselectAll: handleDeselectAll })
-            : defaultRenderEntryDisplay({
-                type: notetype,
-                entries: store.entries,
-                onEdit: handleEdit,
-                onDelete: handleDelete,
-                selectedIds,
-                onToggleSelect: toggleSelect,
-                page: store.page,
-                pageSize: store.pageSize,
-                total: store.total,
-                onPageChange: store.setPage,
-                onPageSizeChange: store.setPageSize,
-              });
-
-          const { stickySlot, content } = rendered;
-          return (
-            <>
-              {stickySlot && (
-                <div className="sticky top-12 z-10 bg-background py-2 border-b">
-                  {stickySlot}
-                </div>
-              )}
-              {content}
-            </>
-          );
-        })()
+        entryList
       )}
     </div>
   );

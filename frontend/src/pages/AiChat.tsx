@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { useChatStore } from '@/stores/chatStore';
+import { SendIcon } from '@/components/ui/icons';
 
 export const AiChat: React.FC = () => {
   const { messages, loading, sendMessage, clearMessages } =
@@ -34,7 +35,7 @@ export const AiChat: React.FC = () => {
     <div className="flex flex-col h-[calc(100vh-6rem)] animate-fade-in">
       {/* 标题栏 */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold">🤖 AI 对话</h1>
+        <h1 className="text-xl font-bold">AI 对话</h1>
         <Button variant="outline" size="sm" onClick={clearMessages}>
           清空对话
         </Button>
@@ -45,7 +46,7 @@ export const AiChat: React.FC = () => {
         {messages.length === 0 && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center text-muted-foreground">
-              <p className="text-lg mb-2">💬 开始对话</p>
+              <p className="text-lg mb-2">开始对话</p>
               <p className="text-sm">输入你的问题，AI 助手将为你解答</p>
             </div>
           </div>
@@ -115,7 +116,7 @@ export const AiChat: React.FC = () => {
           disabled={loading || !input.trim()}
           className="h-full"
         >
-          发送
+          <SendIcon/>
         </Button>
       </div>
     </div>

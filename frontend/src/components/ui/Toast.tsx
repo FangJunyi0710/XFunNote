@@ -32,10 +32,7 @@ export const toast = {
 // ── Toast 组件 ──────────────────────────────────────
 
 // 自动消失时间（按类型区分）
-const AUTO_DISMISS_MS: Record<ToastItem['type'], number> = {
-  success: 300,
-  error: 1000,
-};
+const AUTO_DISMISS_MS = 1000
 
 export const ToastContainer: React.FC = () => {
   const [items, setItems] = useState<ToastItem[]>([]);
@@ -53,7 +50,7 @@ export const ToastContainer: React.FC = () => {
 
   // 启动自动消失计时器
   const startTimer = useCallback((item: ToastItem) => {
-    const ms = AUTO_DISMISS_MS[item.type];
+    const ms = AUTO_DISMISS_MS;
     const timer = setTimeout(() => {
       // 进入退出动画
       setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, exiting: true } : i));

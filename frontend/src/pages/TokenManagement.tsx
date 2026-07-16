@@ -7,6 +7,7 @@ import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { TokenValueDisplay } from '@/components/ui/TokenValueDisplay';
+import { CloseIcon, DeleteIcon, PlusIcon, SubmitIcon } from '@/components/ui/icons';
 import * as tokensApi from '@/api/tokens';
 import * as permissionsApi from '@/api/permissions';
 import { handleError, handleSuccess } from '@/lib/error';
@@ -18,7 +19,7 @@ const EMPTY_FORM = {
   permission: '',
   is_active: true,
   expires_at: '',
-  enable_shortcut: false,
+  enable_shortcut: true,
   shortcut: '',
   shortcut_ttl: 120,
 };
@@ -78,7 +79,7 @@ export const TokenManagement: React.FC = () => {
       permission: permissions.length > 0 ? permissions[0].id : '',
       is_active: true,
       expires_at: '',
-      enable_shortcut: false,
+      enable_shortcut: true,
       shortcut: '',
       shortcut_ttl: 120,
     });
@@ -152,7 +153,7 @@ export const TokenManagement: React.FC = () => {
         <Card className="lg:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Token 列表</CardTitle>
-            <Button size="sm" onClick={handleNew}>新建</Button>
+            <Button size="sm" onClick={handleNew} title="新建 Token"><PlusIcon /></Button>
           </CardHeader>
           <CardContent>
             <div className="space-y-1 max-h-96 overflow-y-auto">
@@ -188,8 +189,9 @@ export const TokenManagement: React.FC = () => {
                   <button
                     className="text-xs text-destructive hover:underline shrink-0 ml-2"
                     onClick={(e) => { e.stopPropagation(); handleDelete(t.id); }}
+                    title="删除"
                   >
-                    删除
+                    <DeleteIcon/>
                   </button>
                 </div>
               ))}
@@ -304,8 +306,6 @@ export const TokenManagement: React.FC = () => {
                     <div className="space-y-2">
                       <TokenValueDisplay
                         value={t.token}
-                        label="Token 值（只读）"
-                        onCopy={() => handleSuccess('Token 已复制到剪贴板')}
                       />
                       {t.shortcut && (
                         <div className="space-y-1">
@@ -341,9 +341,9 @@ export const TokenManagement: React.FC = () => {
                 })()}
 
                 <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={handleCancel}>取消</Button>
-                  <Button onClick={handleSave} disabled={loading}>
-                    {loading ? '保存中...' : '保存'}
+                  <Button variant="outline" onClick={handleCancel} title="取消"><CloseIcon/></Button>
+                  <Button onClick={handleSave} disabled={loading} title="保存">
+                    <SubmitIcon/>
                   </Button>
                 </div>
               </div>

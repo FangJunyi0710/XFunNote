@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { useThemeStore } from '@/stores/themeStore';
 import { useSidebarStore } from '@/stores/sidebarStore';
 import { NOTEBOOK_ROUTES } from '@/config/notebook';
+import { ChevronLeftIcon, ChevronRightIcon, MoonIcon, SunIcon } from '@/components/ui/icons';
 
 interface NavItem {
   label: string;
@@ -11,7 +12,7 @@ interface NavItem {
   icon: string;
 }
 
-const topNav: NavItem[] = [{ label: '首页', path: '/', icon: '🏠' }];
+const topNav: NavItem[] = [{ label: '首页', path: '/', icon: '' }];
 
 const notebookNav: NavItem[] = Object.values(NOTEBOOK_ROUTES).map((route) => ({
   label: route.label,
@@ -20,27 +21,12 @@ const notebookNav: NavItem[] = Object.values(NOTEBOOK_ROUTES).map((route) => ({
 }));
 
 const bottomNav: NavItem[] = [
-  { label: 'AI 对话', path: '/ai', icon: '🤖' },
-  { label: '管理', path: '/management', icon: '⚙️' },
-  { label: 'Token 管理', path: '/token-input', icon: '🔑' },
+  { label: 'AI 对话', path: '/ai', icon: '' },
+  { label: '管理', path: '/management', icon: '' },
+  { label: 'Token 管理', path: '/token-input', icon: '' },
 ];
 
-/** 折叠箭头图标，通过 rotate 实现平滑过渡 */
-const ChevronIcon: React.FC<{ collapsed: boolean }> = ({ collapsed }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    className="w-5 h-5 transition-transform duration-200"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    style={{ transform: collapsed ? 'rotate(0deg)' : 'rotate(180deg)' }}
-  >
-    <path d="M15 18l-6-6 6-6" />
-  </svg>
-);
+
 
 function navLinkClass(isActive: boolean, extra = '') {
   return cn(
@@ -54,7 +40,7 @@ function navLinkClass(isActive: boolean, extra = '') {
 
 export const Sidebar: React.FC = () => {
   const { mode, toggle } = useThemeStore();
-  const { isCollapsed, toggleCollapsed, windowWidth } = useSidebarStore();
+  const { isCollapsed, toggleCollapsed, windowWidth, dragOffset } = useSidebarStore();
   const [notebookOpen, setNotebookOpen] = useState(true);
 
   const isMobile = windowWidth < 640;
@@ -74,7 +60,7 @@ export const Sidebar: React.FC = () => {
           className="fixed left-3 top-3 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-transparent transition-colors text-muted-foreground"
           title="展开侧边栏"
         >
-          <ChevronIcon collapsed={true} />
+          <ChevronRightIcon />
         </button>
       )}
 
@@ -88,9 +74,14 @@ export const Sidebar: React.FC = () => {
 
       <aside
         className={cn(
-          'fixed left-0 top-0 z-40 h-screen border-r bg-card flex flex-col transition-transform duration-300 w-56',
-          isCollapsed ? '-translate-x-full' : 'translate-x-0',
+          'fixed left-0 top-0 z-40 h-screen border-r bg-card flex flex-col w-56',
         )}
+        style={{
+          transform: isCollapsed
+            ? `translateX(calc(-100% + ${dragOffset}px))`
+            : `translateX(${dragOffset}px)`,
+          transition: dragOffset === 0 ? 'transform 0.3s ease' : 'none',
+        }}
       >
         <div className="flex flex-col h-full">
           {/* 标题栏：折叠按钮 + XFunNote */}
@@ -100,7 +91,7 @@ export const Sidebar: React.FC = () => {
               className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md hover:bg-accent transition-colors text-muted-foreground"
               title="折叠侧边栏"
             >
-              <ChevronIcon collapsed={false} />
+              <ChevronLeftIcon />
             </button>
 
             <span className="text-lg font-bold tracking-tight whitespace-nowrap">
@@ -185,7 +176,7 @@ export const Sidebar: React.FC = () => {
               className="text-xs text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
               title={`切换主题（当前: ${mode === 'dark' ? '深色' : '浅色'}）`}
             >
-              {mode === 'dark' ? '☀️ 浅色' : '🌙 深色'}
+              {mode === 'dark' ? <MoonIcon/> : <SunIcon/>}
             </button>
           </div>
         </div>

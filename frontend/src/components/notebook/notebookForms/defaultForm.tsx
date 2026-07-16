@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ColumnDef, NotebookSchema } from '@/types/notebook';
+import { ReplyIcon, SubmitIcon } from '@/components/ui/icons';
 
 // ---------------------------------------------------------------------------
 // 注册表：按 col.type 分发渲染器
@@ -159,23 +160,24 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{title || (initialData ? '编辑条目' : '新建条目')}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit}>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>{title || (initialData ? '编辑条目' : '新建条目')}</span>
+            <span className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onCancel} title="返回">
+                <ReplyIcon/>
+              </Button>
+              <Button type="submit" disabled={submitting} title="提交">
+                <SubmitIcon/>
+              </Button>
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
           {editableColumns.map(renderField)}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={onCancel}>
-              取消
-            </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? '提交中...' : '提交'}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
+        </CardContent>
+      </form>
     </Card>
   );
 };
