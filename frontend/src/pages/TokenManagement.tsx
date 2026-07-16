@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { TokenValueDisplay } from '@/components/ui/TokenValueDisplay';
 import * as tokensApi from '@/api/tokens';
 import * as permissionsApi from '@/api/permissions';
+import { handleError, handleSuccess } from '@/lib/error';
 import type { Token } from '@/types/token';
 import type { Permission } from '@/types/permission';
 
@@ -27,10 +28,8 @@ export const TokenManagement: React.FC = () => {
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [createdTokenValue, setCreatedTokenValue] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
 
   const loadData = useCallback(async () => {
     try {
@@ -41,7 +40,7 @@ export const TokenManagement: React.FC = () => {
       setTokens(tokensRes || []);
       setPermissions(permsRes || []);
     } catch (e: unknown) {
-      setMessage(`加载失败: ${e instanceof Error ? e.message : String(e)}`);
+      handleError(e, '加载失败');
     }
   }, []);
 
@@ -55,7 +54,6 @@ export const TokenManagement: React.FC = () => {
       const t = await tokensApi.getToken(id);
       setSelectedId(t.id);
       setIsCreating(false);
-      setCreatedTokenValue(null);
       setForm({
         name: t.name,
         permission: t.permission,
@@ -65,9 +63,8 @@ export const TokenManagement: React.FC = () => {
         shortcut: t.shortcut || '',
         shortcut_ttl: 120,
       });
-      setMessage('');
     } catch (e: unknown) {
-      setMessage(`加载失败: ${e instanceof Error ? e.message : String(e)}`);
+      handleError(e, '加载失败');
     } finally {
       setLoading(false);
     }
@@ -76,7 +73,6 @@ export const TokenManagement: React.FC = () => {
   const handleNew = () => {
     setSelectedId(null);
     setIsCreating(true);
-    setCreatedTokenValue(null);
     setForm({
       name: '',
       permission: permissions.length > 0 ? permissions[0].id : '',
@@ -86,16 +82,15 @@ export const TokenManagement: React.FC = () => {
       shortcut: '',
       shortcut_ttl: 120,
     });
-    setMessage('');
   };
 
   const handleSave = async () => {
     if (!form.name.trim()) {
-      setMessage('名称不能为空');
+      handleError(new Error('名称不能为空'), '保存 Token');
       return;
     }
     if (!form.permission) {
-      setMessage('请选择权限');
+      handleError(new Error('请选择权限'), '保存 Token');
       return;
     }
     try {
@@ -107,8 +102,7 @@ export const TokenManagement: React.FC = () => {
           shortcut: form.enable_shortcut ? form.shortcut || undefined : undefined,
           shortcut_ttl: form.enable_shortcut ? form.shortcut_ttl : undefined,
         });
-        setCreatedTokenValue(created.token);
-        setMessage('Token 创建成功！请复制并安全保存 token 值。');
+        handleSuccess('Token 创建成功');
         setIsCreating(false);
         setSelectedId(created.id);
       } else if (selectedId) {
@@ -118,11 +112,11 @@ export const TokenManagement: React.FC = () => {
           is_active: form.is_active,
           expires_at: form.expires_at || null,
         });
-        setMessage('保存成功');
+        handleSuccess('保存成功');
       }
       await loadData();
     } catch (e: unknown) {
-      setMessage(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
+      handleError(e, '保存失败');
     } finally {
       setLoading(false);
     }
@@ -136,12 +130,11 @@ export const TokenManagement: React.FC = () => {
         setSelectedId(null);
         setIsCreating(false);
         setForm(EMPTY_FORM);
-        setCreatedTokenValue(null);
       }
-      setMessage('已删除');
+      handleSuccess('已删除');
       await loadData();
     } catch (e: unknown) {
-      setMessage(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
+      handleError(e, '删除失败');
     }
   };
 
@@ -149,45 +142,10 @@ export const TokenManagement: React.FC = () => {
     setSelectedId(null);
     setIsCreating(false);
     setForm(EMPTY_FORM);
-    setCreatedTokenValue(null);
-  };
-
-  const copyToken = async () => {
-    if (createdTokenValue) {
-      try {
-        await navigator.clipboard.writeText(createdTokenValue);
-        setMessage('Token 已复制到剪贴板');
-      } catch {
-        setMessage('复制失败，请手动复制');
-      }
-    }
   };
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {message && (
-        <div className={`text-sm px-3 py-2 rounded flex items-center justify-between ${
-          createdTokenValue ? 'bg-warning/10 text-warning border border-warning/30' : 'bg-secondary text-secondary-foreground'
-        }`}>
-          <span>{message}</span>
-          <button onClick={() => setMessage('')} className="ml-2 underline">关闭</button>
-        </div>
-      )}
-
-      {/* 创建成功时显示 token 值 */}
-      {createdTokenValue && (
-        <Card className="border-warning/30 bg-warning/5">
-          <CardContent className="p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold">Token 值（仅显示一次）</span>
-              <Button size="sm" variant="outline" onClick={copyToken}>复制</Button>
-            </div>
-            <code className="block text-xs p-2 rounded bg-warning/10 text-warning break-all select-all">
-              {createdTokenValue}
-            </code>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Token 列表 */}
@@ -347,7 +305,7 @@ export const TokenManagement: React.FC = () => {
                       <TokenValueDisplay
                         value={t.token}
                         label="Token 值（只读）"
-                        onCopy={() => setMessage('Token 已复制到剪贴板')}
+                        onCopy={() => handleSuccess('Token 已复制到剪贴板')}
                       />
                       {t.shortcut && (
                         <div className="space-y-1">
@@ -367,9 +325,9 @@ export const TokenManagement: React.FC = () => {
                               onClick={async () => {
                                 try {
                                   await navigator.clipboard.writeText(t.shortcut!);
-                                  setMessage('Shortcut 已复制到剪贴板');
+                                  handleSuccess('Shortcut 已复制到剪贴板');
                                 } catch {
-                                  setMessage('复制失败');
+                                  handleError(new Error('复制失败'), '复制');
                                 }
                               }}
                             >

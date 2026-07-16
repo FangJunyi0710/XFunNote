@@ -4,13 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { listNotebooks, queryEntries } from '@/api/notebooks';
 import { useTokenStore } from '@/stores/tokenStore';
 import { NOTEBOOK_ROUTES } from '@/config/notebook';
+import { handleError } from '@/lib/error';
 import type { NotebookSchema } from '@/types/notebook';
 import type { NotebookType } from '@/config/notebook';
 
 export const Home: React.FC = () => {
   const [notebooks, setNotebooks] = useState<(NotebookSchema & { count?: number })[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   // 从 zustand store 读取 API-Key 状态
   const hasActiveKey = useTokenStore((s) => !!s.activeTokenId && s.tokens.some((t) => t.id === s.activeTokenId));
@@ -33,9 +33,8 @@ export const Home: React.FC = () => {
           }),
         );
         setNotebooks(withCounts);
-      } catch (e) {
-        console.error('加载首页失败', e);
-        setError('加载失败，请检查后端服务是否启动');
+      } catch (e: unknown) {
+        handleError(e, '加载首页失败');
       } finally {
         setLoading(false);
       }
@@ -70,11 +69,7 @@ export const Home: React.FC = () => {
       {/* 笔记本概览 */}
       <section>
         <h2 className="text-lg font-semibold mb-3">笔记本概览</h2>
-        {error ? (
-          <Card className="p-6 text-center">
-            <p className="text-destructive text-sm">{error}</p>
-          </Card>
-        ) : loading ? (
+        {loading ? (
           <p className="text-sm text-muted-foreground">加载中...</p>
         ) : visibleNotebooks.length === 0 ? (
           <Card className="p-6 text-center">

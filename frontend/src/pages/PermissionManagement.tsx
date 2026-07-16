@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import * as permissionsApi from '@/api/permissions';
 import type { Permission } from '@/types/permission';
+import { handleError, handleSuccess } from '@/lib/error';
 
 const EMPTY_FORM = {
   id: '',
@@ -21,14 +22,13 @@ export const PermissionManagement: React.FC = () => {
   const [form, setForm] = useState(EMPTY_FORM);
   const [isCreating, setIsCreating] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
 
   const loadPermissions = useCallback(async () => {
     try {
       const res = await permissionsApi.listPermissions();
       setPermissions(res || []);
     } catch (e: unknown) {
-      setMessage(`加载失败: ${e instanceof Error ? e.message : String(e)}`);
+      handleError(e, '加载失败');
     }
   }, []);
 
@@ -49,9 +49,8 @@ export const PermissionManagement: React.FC = () => {
         read_view: p.read_view,
         write_view: p.write_view,
       });
-      setMessage('');
     } catch (e: unknown) {
-      setMessage(`加载失败: ${e instanceof Error ? e.message : String(e)}`);
+      handleError(e, '加载失败');
     } finally {
       setLoading(false);
     }
@@ -61,12 +60,11 @@ export const PermissionManagement: React.FC = () => {
     setSelectedId(null);
     setIsCreating(true);
     setForm(EMPTY_FORM);
-    setMessage('');
   };
 
   const handleSave = async () => {
     if (!form.id.trim() || !form.name.trim()) {
-      setMessage('ID 和名称不能为空');
+      handleError(new Error('ID 和名称不能为空'), '保存失败');
       return;
     }
     let readViewObj: Record<string, any>;
@@ -75,7 +73,7 @@ export const PermissionManagement: React.FC = () => {
       readViewObj = form.read_view ? JSON.parse(form.read_view) : {};
       writeViewObj = form.write_view ? JSON.parse(form.write_view) : {};
     } catch {
-      setMessage('read_view 或 write_view 的 JSON 格式不正确');
+      handleError(new Error('read_view 或 write_view 的 JSON 格式不正确'), '保存失败');
       return;
     }
     try {
@@ -88,7 +86,7 @@ export const PermissionManagement: React.FC = () => {
           read_view: readViewObj,
           write_view: writeViewObj,
         });
-        setMessage('创建成功');
+        handleSuccess('创建成功');
       } else if (selectedId) {
         await permissionsApi.updatePermission(selectedId, {
           name: form.name.trim(),
@@ -96,12 +94,12 @@ export const PermissionManagement: React.FC = () => {
           read_view: readViewObj,
           write_view: writeViewObj,
         });
-        setMessage('保存成功');
+        handleSuccess('保存成功');
       }
       setIsCreating(false);
       await loadPermissions();
     } catch (e: unknown) {
-      setMessage(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
+      handleError(e, '保存失败');
     } finally {
       setLoading(false);
     }
@@ -116,10 +114,10 @@ export const PermissionManagement: React.FC = () => {
         setIsCreating(false);
         setForm(EMPTY_FORM);
       }
-      setMessage('已删除');
+      handleSuccess('已删除');
       await loadPermissions();
     } catch (e: unknown) {
-      setMessage(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
+      handleError(e, '删除失败');
     }
   };
 
@@ -131,13 +129,6 @@ export const PermissionManagement: React.FC = () => {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {message && (
-        <div className="text-sm px-3 py-2 rounded bg-secondary text-secondary-foreground flex items-center justify-between">
-          <span>{message}</span>
-          <button onClick={() => setMessage('')} className="ml-2 underline">关闭</button>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* 权限列表 */}
         <Card className="lg:col-span-1">

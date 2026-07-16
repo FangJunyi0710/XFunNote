@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTokenStore } from '@/stores/tokenStore';
 import { exchangeTokenByShortcut, getTokenInfo } from '@/api/tokens';
+import { handleError, handleSuccess } from '@/lib/error';
 import type { TokenInfo } from '@/api/tokens';
 
 import { TokenValueDisplay } from '@/components/ui/TokenValueDisplay';
@@ -13,56 +14,41 @@ import { maskKey } from '@/lib/utils';
 export const TokenInputPanel: React.FC = () => {
   const { tokens, activeTokenId, addToken, removeToken, setActiveToken } = useTokenStore();
   const [key, setKey] = useState('');
-  const [error, setError] = useState('');
-
-  // 兑换状态（内联，无对话框）
-
-  // 成功提示
-  const [successMessage, setSuccessMessage] = useState('');
-
-  const showSuccess = (msg: string) => {
-    setSuccessMessage(msg);
-  };
 
   const [exchangeLoading, setExchangeLoading] = useState(false);
-  const [exchangeError, setExchangeError] = useState('');
   const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
   const [infoLoading, setInfoLoading] = useState(false);
-  const [infoError, setInfoError] = useState('');
 
   const activeToken = tokens.find((t) => t.id === activeTokenId);
 
   useEffect(() => {
     if (activeTokenId) {
       setInfoLoading(true);
-      setInfoError('');
       setTokenInfo(null);
       getTokenInfo()
         .then((info) => {
           setTokenInfo(info);
         })
         .catch((e) => {
-          setInfoError(e.message || '获取 Token 信息失败');
+          handleError(e, '获取 Token 信息失败');
         })
         .finally(() => {
           setInfoLoading(false);
         });
     } else {
       setTokenInfo(null);
-      setInfoError('');
     }
   }, [activeTokenId]);
 
   const handleAdd = () => {
     const trimmedKey = key.trim();
     if (!trimmedKey) {
-      setError('Token 值不能为空');
+      handleError(new Error('Token 值不能为空'), '添加 Token');
       return;
     }
     addToken(trimmedKey);
     setKey('');
-    setError('');
-    showSuccess('Token 已添加成功');
+    handleSuccess('Token 已添加成功');
   };
 
   const handleDelete = (id: string) => {
@@ -77,38 +63,25 @@ export const TokenInputPanel: React.FC = () => {
   const handleExchange = async () => {
     const code = key.trim();
     if (!code) {
-      setExchangeError('请输入 Shortcut 码');
+      handleError(new Error('请输入 Shortcut 码'), '兑换 Token');
       return;
     }
-    setExchangeError('');
     setExchangeLoading(true);
     try {
       const res = await exchangeTokenByShortcut({ shortcut: code });
       // 兑换成功：自动添加到列表，但不自动激活
       addToken(res.token);
       setKey('');
-      setError('');
-      setExchangeError('');
-      showSuccess('Shortcut 兑换成功');
+      handleSuccess('Shortcut 兑换成功');
     } catch (e: unknown) {
-      setExchangeError(e instanceof Error ? e.message : '兑换失败，请检查 Shortcut 码是否有效');
+      handleError(e, '兑换失败');
     } finally {
       setExchangeLoading(false);
     }
   };
 
-  const displayError = error || exchangeError;
-
   return (
     <div className="max-w-2xl mx-auto space-y-4 animate-fade-in">
-      {/* 成功提示 */}
-      {successMessage && (
-        <div className="bg-primary/10 border border-primary/30 text-primary text-sm px-4 py-2.5 rounded-md flex items-center justify-between">
-          <span>✅ {successMessage}</span>
-          <button onClick={() => setSuccessMessage('')} className="ml-2 underline text-xs shrink-0">关闭</button>
-        </div>
-      )}
-
       {/* 当前使用的 Token 提示 */}
       {activeToken ? (
         <div className="bg-primary/10 border border-primary/30 text-primary text-sm px-4 py-2.5 rounded-md flex items-center gap-2">
@@ -177,11 +150,6 @@ export const TokenInputPanel: React.FC = () => {
           <CardTitle className="text-base">添加 Token</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {displayError && (
-            <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded">
-              {displayError}
-            </div>
-          )}
           <div className="space-y-1.5">
             <Label htmlFor="token-key">Token 值 / Shortcut 码</Label>
             <div className="flex gap-2">
@@ -189,7 +157,7 @@ export const TokenInputPanel: React.FC = () => {
                 id="token-key"
                 type="text"
                 value={key}
-                onChange={(e) => { setKey(e.target.value); setError(''); setExchangeError(''); }}
+                onChange={(e) => { setKey(e.target.value); }}
                 placeholder="粘贴 Token 值或输入 Shortcut 码"
                 className="flex-1"
               />
@@ -213,11 +181,6 @@ export const TokenInputPanel: React.FC = () => {
           <CardContent className="space-y-3 text-sm">
             {infoLoading && (
               <div className="text-sm text-muted-foreground px-3 py-2">加载 Token 信息中...</div>
-            )}
-            {infoError && (
-              <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded">
-                {infoError}
-              </div>
             )}
             {tokenInfo && (
               <>

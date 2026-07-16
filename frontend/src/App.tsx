@@ -11,6 +11,7 @@ import { TokenInputPanel } from '@/pages/TokenInputPanel';
 
 import { NOTEBOOK_ROUTES, NOTEBOOK_PAGES } from '@/config/notebook';
 import type { NotebookType } from '@/config/notebook';
+import { ToastContainer } from '@/components/ui/Toast';
 
 const App: React.FC = () => {
   return (
@@ -38,6 +39,7 @@ const App: React.FC = () => {
           <Route path="token-input" element={<TokenInputPanel />} />
         </Route>
       </Routes>
+      <ToastContainer />
     </BrowserRouter>
   );
 };

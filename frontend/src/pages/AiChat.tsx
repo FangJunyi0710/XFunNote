@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { useChatStore } from '@/stores/chatStore';
 
 export const AiChat: React.FC = () => {
-  const { messages, loading, error, sendMessage, clearMessages, clearError } =
+  const { messages, loading, sendMessage, clearMessages } =
     useChatStore();
   const [input, setInput] = React.useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -39,14 +39,6 @@ export const AiChat: React.FC = () => {
           清空对话
         </Button>
       </div>
-
-      {/* 错误提示 */}
-      {error && (
-        <div className="text-sm text-destructive bg-destructive/10 p-2 rounded mb-2">
-          {error}
-          <button onClick={clearError} className="ml-2 underline">关闭</button>
-        </div>
-      )}
 
       {/* 消息列表 */}
       <div className="flex-1 overflow-y-auto space-y-4 mb-4 px-1">

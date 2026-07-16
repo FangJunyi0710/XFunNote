@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import * as viewsApi from '@/api/views';
 import type { ViewFile, ViewData } from '@/types/view';
+import { handleError, handleSuccess } from '@/lib/error';
 
 export const ViewManagement: React.FC = () => {
   const [viewFiles, setViewFiles] = useState<ViewFile[]>([]);
@@ -11,14 +12,13 @@ export const ViewManagement: React.FC = () => {
   const [viewContent, setViewContent] = useState('');
   const [newViewName, setNewViewName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
 
   const loadViews = useCallback(async () => {
     try {
       const res = await viewsApi.listViews();
       setViewFiles(res || []);
     } catch (e: unknown) {
-      setMessage(`加载失败: ${e instanceof Error ? e.message : String(e)}`);
+      handleError(e, '加载失败');
     }
   }, []);
 
@@ -32,9 +32,8 @@ export const ViewManagement: React.FC = () => {
       const data = await viewsApi.getView(name);
       setSelectedView(name);
       setViewContent(JSON.stringify(data, null, 2));
-      setMessage('');
     } catch (e: unknown) {
-      setMessage(`加载视图失败: ${e instanceof Error ? e.message : String(e)}`);
+      handleError(e, '加载视图失败');
     } finally {
       setLoading(false);
     }
@@ -46,10 +45,14 @@ export const ViewManagement: React.FC = () => {
       setLoading(true);
       const parsed = JSON.parse(viewContent);
       await viewsApi.saveView(selectedView, parsed);
-      setMessage('保存成功');
+      handleSuccess('保存成功');
       loadViews();
     } catch (e: unknown) {
-      setMessage(e instanceof SyntaxError ? 'JSON 格式错误' : `保存失败: ${e instanceof Error ? e.message : String(e)}`);
+      if (e instanceof SyntaxError) {
+        handleError(e, 'JSON 格式错误');
+      } else {
+        handleError(e, '保存失败');
+      }
     } finally {
       setLoading(false);
     }
@@ -69,10 +72,10 @@ export const ViewManagement: React.FC = () => {
       setLoading(true);
       await viewsApi.saveView(name, defaultView);
       setNewViewName('');
-      setMessage(`视图 "${name}" 已创建`);
+      handleSuccess(`视图 "${name}" 已创建`);
       loadViews();
     } catch (e: unknown) {
-      setMessage(`创建失败: ${e instanceof Error ? e.message : String(e)}`);
+      handleError(e, '创建失败');
     } finally {
       setLoading(false);
     }
@@ -86,22 +89,15 @@ export const ViewManagement: React.FC = () => {
         setSelectedView(null);
         setViewContent('');
       }
-      setMessage('已删除');
+      handleSuccess('已删除');
       loadViews();
     } catch (e: unknown) {
-      setMessage(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
+      handleError(e, '删除失败');
     }
   };
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {message && (
-        <div className="text-sm px-3 py-2 rounded bg-secondary text-secondary-foreground">
-          {message}
-          <button onClick={() => setMessage('')} className="ml-2 underline">关闭</button>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* 视图文件列表 */}
         <Card className="lg:col-span-1">

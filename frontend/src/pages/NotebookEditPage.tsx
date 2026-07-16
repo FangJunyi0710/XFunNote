@@ -4,6 +4,7 @@ import { NotebookForm } from '@/components/notebook/notebookForms/defaultForm';
 import { useNotebookStore } from '@/stores/notebookStore';
 import * as notebookApi from '@/api/notebooks';
 import { TYPE_LABELS } from '@/config/notebook';
+import { handleError } from '@/lib/error';
 import type { NotebookType } from '@/config/notebook';
 
 export type PageMode = 'create' | 'edit' | 'batch-update';
@@ -15,7 +16,6 @@ export const NotebookEditPage: React.FC = () => {
   const store = useNotebookStore();
   const [entry, setEntry] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const type = notetype as NotebookType;
   const label = TYPE_LABELS[type] || type;
@@ -62,7 +62,8 @@ export const NotebookEditPage: React.FC = () => {
           setEntry({});
         }
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : '加载失败');
+        handleError(e, '加载失败');
+        navigate(`/notebooks/${type}`);
       } finally {
         setLoading(false);
       }
@@ -100,7 +101,7 @@ export const NotebookEditPage: React.FC = () => {
     );
   }
 
-  if (error || (mode === 'edit' && !entry)) {
+  if (mode === 'edit' && !entry && !loading) {
     return (
       <div className="space-y-4">
         <button
@@ -110,7 +111,7 @@ export const NotebookEditPage: React.FC = () => {
           ← 返回 {label}
         </button>
         <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">
-          {error || '未找到该条目'}
+          未找到该条目
         </div>
       </div>
     );

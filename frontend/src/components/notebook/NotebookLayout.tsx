@@ -140,14 +140,6 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
         </div>
       </div>
 
-      {/* 加载/错误 */}
-      {store.error && (
-        <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">
-          {store.error}
-          <button onClick={store.clearError} className="ml-2 underline">关闭</button>
-        </div>
-      )}
-
       {/* 加载中 — 隐藏旧内容，只显示加载状态 */}
       {store.loading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground">

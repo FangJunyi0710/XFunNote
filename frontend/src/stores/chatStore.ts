@@ -1,21 +1,19 @@
 import { create } from 'zustand';
 import type { ChatMessage } from '@/types/api';
 import { chat } from '@/api/ai';
+import { handleError } from '@/lib/error';
 
 interface ChatState {
   messages: ChatMessage[];
   loading: boolean;
-  error: string | null;
 
   sendMessage: (content: string) => Promise<void>;
   clearMessages: () => void;
-  clearError: () => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   loading: false,
-  error: null,
 
   sendMessage: async (content: string) => {
     const { messages } = get();
@@ -24,7 +22,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({
       messages: [...messages, userMsg],
       loading: true,
-      error: null,
     });
 
     try {
@@ -40,14 +37,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
       };
 
       set((s) => ({ messages: [...s.messages, assistantMsg] }));
-    } catch (e: any) {
-      set({ error: e.message || '对话失败' });
+    } catch (e: unknown) {
+      handleError(e, '对话失败');
     } finally {
       set({ loading: false });
     }
   },
 
-  clearMessages: () => set({ messages: [], error: null }),
-
-  clearError: () => set({ error: null }),
+  clearMessages: () => set({ messages: [] }),
 }));

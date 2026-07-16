@@ -4,6 +4,7 @@ import type { NotebookType } from '@/config/notebook';
 import type { QueryResponse } from '@/types/notebook';
 import * as notebookApi from '@/api/notebooks';
 import { castEntries } from '@/lib/type-guards';
+import { handleError } from '@/lib/error';
 
 interface NotebookState {
   // 当前笔记本
@@ -23,7 +24,6 @@ interface NotebookState {
 
   // 加载状态
   loading: boolean;
-  error: string | null;
 
   // 操作
   setCurrentType: (type: NotebookType) => Promise<void>;
@@ -36,7 +36,6 @@ interface NotebookState {
   updateEntry: (id: string, updates: Record<string, unknown>) => Promise<void>;
   batchUpdateEntries: (ids: string[], values: Record<string, unknown>) => Promise<void>;
   deleteEntries: (ids: string[]) => Promise<void>;
-  clearError: () => void;
 }
 
 export const useNotebookStore = create<NotebookState>((set, get) => ({
@@ -50,17 +49,16 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   orderBy: 'id',
   orderDir: 'desc',
   loading: false,
-  error: null,
 
   setCurrentType: async (type: NotebookType) => {
     try {
       // 先清空旧数据再设置 loading，避免切换时短暂显示先前内容
-      set({ loading: true, error: null, currentType: type, page: 1, entries: [], schema: null, filterJson: null });
+      set({ loading: true, currentType: type, page: 1, entries: [], schema: null, filterJson: null });
       const schema = await notebookApi.getSchema(type);
       set({ schema });
       await get().fetchEntries();
     } catch (e: unknown) {
-      set({ error: e instanceof Error ? e.message : '加载失败' });
+      handleError(e, '加载失败');
     } finally {
       set({ loading: false });
     }
@@ -70,7 +68,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
     const { currentType, schema, page, pageSize, filterJson, orderBy, orderDir } = get();
     if (!currentType) return;
     try {
-      set({ loading: true, error: null });
+      set({ loading: true });
       const res: QueryResponse = await notebookApi.queryEntries(currentType, {
         filter: filterJson || undefined,
         page,
@@ -81,7 +79,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
       });
       set({ entries: castEntries(res.entries as Record<string, unknown>[], schema?.columns ?? []), total: res.total });
     } catch (e: unknown) {
-      set({ error: e instanceof Error ? e.message : '查询失败' });
+      handleError(e, '查询失败');
     } finally {
       set({ loading: false });
     }
@@ -111,11 +109,10 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
     const { currentType } = get();
     if (!currentType) return;
     try {
-      set({ error: null });
       await notebookApi.addEntries(currentType, { entries });
       await get().fetchEntries();
     } catch (e: unknown) {
-      set({ error: e instanceof Error ? e.message : '添加失败' });
+      handleError(e, '添加失败');
       throw e;
     }
   },
@@ -124,11 +121,10 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
     const { currentType } = get();
     if (!currentType) return;
     try {
-      set({ error: null });
       await notebookApi.updateEntry(currentType, { id, updates });
       await get().fetchEntries();
     } catch (e: unknown) {
-      set({ error: e instanceof Error ? e.message : '更新失败' });
+      handleError(e, '更新失败');
       throw e;
     }
   },
@@ -137,11 +133,10 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
     const { currentType } = get();
     if (!currentType) return;
     try {
-      set({ error: null });
       await notebookApi.batchUpdateEntries(currentType, ids, values);
       await get().fetchEntries();
     } catch (e: unknown) {
-      set({ error: e instanceof Error ? e.message : '批量更新失败' });
+      handleError(e, '批量更新失败');
       throw e;
     }
   },
@@ -150,14 +145,11 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
     const { currentType } = get();
     if (!currentType) return;
     try {
-      set({ error: null });
       await notebookApi.deleteEntries(currentType, ids);
       await get().fetchEntries();
     } catch (e: unknown) {
-      set({ error: e instanceof Error ? e.message : '删除失败' });
+      handleError(e, '删除失败');
       throw e;
     }
   },
-
-  clearError: () => set({ error: null }),
 }));
