@@ -430,20 +430,22 @@ class DB:
     def add_entries(self, conn, table_name: str, entries: list[dict]) -> list[str]:
         """批量添加条目（钩子驱动）。
 
-        流程：pre_add(conn, entries) → 基础校验 → 本子校验 → 基础自动填充 → 本子自动填充 → INSERT。
+        流程：基础校验 → 本子校验 → pre_add(conn, entries) → 基础自动填充 → 本子自动填充 → INSERT。
         """
         hooks = self.hooks.get(table_name, {})
         pre_add = hooks.get("pre_add")
         validate = hooks.get("validate")
         autofill = hooks.get("autofill")
 
-        if pre_add:
-            pre_add(conn, entries)
-
         for entry in entries:
             self._validate_entry(table_name, entry)
             if validate:
                 validate(entry)
+
+        if pre_add:
+            pre_add(conn, entries)
+
+        for entry in entries:
             self._autofill_entry(table_name, entry)
             if autofill:
                 autofill(entry)

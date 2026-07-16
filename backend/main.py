@@ -108,7 +108,7 @@ async def integrity_error_handler(request: Request, exc: sqlite3.IntegrityError)
         status_code = status.HTTP_409_CONFLICT
         detail = f"数据已存在: {error_msg}"
     elif "NOT NULL constraint failed" in error_msg:
-        status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
         detail = f"缺少必填字段: {error_msg}"
     else:
         status_code = status.HTTP_400_BAD_REQUEST
@@ -123,7 +123,7 @@ async def integrity_error_handler(request: Request, exc: sqlite3.IntegrityError)
 async def xfun_error_handler(request: Request, exc: XFunError):
     """XFunError 处理器：将领域异常转为 422，保留错误消息。"""
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={
             "error": http.HTTPStatus(422).phrase,
             "detail": str(exc),
@@ -139,7 +139,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         field = ".".join(loc) if loc else "-"
         errors.append({"field": field, "message": err["msg"]})
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={
             "error": http.HTTPStatus(422).phrase,
             "detail": "请求参数校验失败",

@@ -66,8 +66,14 @@ def restore_db(
     body: RestoreRequest,
     _=Depends(require_root_token),
 ):
-    msg = svc.restore_database(backup_path=body.backup_path)
-    return {"message": msg}
+    try:
+        msg = svc.restore_database(backup_path=body.backup_path)
+        return {"message": msg}
+    except FileNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
 
 
 @router.get("/db/backups", summary="列出所有备份文件", description="列出 data/backups/ 目录下所有备份文件")
