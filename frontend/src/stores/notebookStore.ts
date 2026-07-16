@@ -6,6 +6,27 @@ import * as notebookApi from '@/api/notebooks';
 import { castEntries } from '@/lib/type-guards';
 import { handleError } from '@/lib/error';
 
+/** 全局 schema 缓存，避免重复请求 */
+let schemaCache: Record<string, NotebookSchema> | null = null;
+
+async function getCachedSchema(type: NotebookType): Promise<NotebookSchema> {
+  if (schemaCache?.[type]) {
+    return schemaCache[type];
+  }
+  // 首次调用时拉取全部 schema
+  const all = await notebookApi.listNotebooks();
+  schemaCache = {};
+  for (const s of all) {
+    schemaCache[s.table_name] = s;
+  }
+  return schemaCache[type];
+}
+
+// 当用户增删笔记本类型时清空缓存（当前没有此类操作，留作扩展）
+export function clearSchemaCache() {
+  schemaCache = null;
+}
+
 interface NotebookState {
   // 当前笔记本
   currentType: NotebookType | null;
@@ -54,7 +75,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
     try {
       // 先清空旧数据再设置 loading，避免切换时短暂显示先前内容
       set({ loading: true, currentType: type, page: 1, entries: [], schema: null, filterJson: null });
-      const schema = await notebookApi.getSchema(type);
+      const schema = await getCachedSchema(type);
       set({ schema });
       await get().fetchEntries();
     } catch (e: unknown) {

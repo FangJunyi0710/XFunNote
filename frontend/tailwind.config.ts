@@ -73,7 +73,7 @@ const config: Config = {
     // 笔记本类型动态样式 — 由 getNotebookStyles() 工厂函数派生
     {
       pattern:
-        /^(border-l-|ring-|bg-|text-)notebook-(plan|diary|word|accumulation|aimemory|timeline|schedule)/,
+        /^(border-l-|border-b-|ring-|bg-|text-)notebook-(plan|diary|word|accumulation|aimemory|timeline|schedule)/,
       variants: ['hover'],
     },
   ],

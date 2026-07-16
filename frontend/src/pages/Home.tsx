@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { listNotebooks, queryEntries } from '@/api/notebooks';
+import { listNotebooks } from '@/api/notebooks';
 import { useTokenStore } from '@/stores/tokenStore';
-import { NOTEBOOK_ROUTES } from '@/config/notebook';
+import { NOTEBOOK_ROUTES, getNotebookStyles } from '@/config/notebook';
+import type { NotebookType } from '@/config/notebook';
 import { handleError } from '@/lib/error';
 import type { NotebookSchema } from '@/types/notebook';
-import type { NotebookType } from '@/config/notebook';
 
 export const Home: React.FC = () => {
-  const [notebooks, setNotebooks] = useState<(NotebookSchema & { count?: number })[]>([]);
+  const [notebooks, setNotebooks] = useState<NotebookSchema[]>([]);
   const [loading, setLoading] = useState(true);
 
   // 从 zustand store 读取 API-Key 状态
@@ -19,20 +19,7 @@ export const Home: React.FC = () => {
     (async () => {
       try {
         const schemas = await listNotebooks();
-        const withCounts = await Promise.all(
-          schemas.map(async (s) => {
-            try {
-              const res = await queryEntries(s.table_name as NotebookType, {
-                page_size: 0,
-                columns: [],
-              });
-              return { ...s, count: res.total };
-            } catch {
-              return { ...s, count: 0 };
-            }
-          }),
-        );
-        setNotebooks(withCounts);
+        setNotebooks(schemas);
       } catch (e: unknown) {
         handleError(e, '加载首页失败');
       } finally {
@@ -79,9 +66,10 @@ export const Home: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {visibleNotebooks.map((nb) => {
               const route = NOTEBOOK_ROUTES[nb.table_name];
+              const styles = getNotebookStyles(nb.table_name as NotebookType);
               return (
                 <Link key={nb.table_name} to={route.path}>
-                  <Card className="hover:shadow-lg hover:border-primary/30 transition-all cursor-pointer h-full group">
+                  <Card className={`hover:shadow-lg hover:border-primary/30 transition-all cursor-pointer h-full group border-l-2 ${styles.border}`}>
                     <CardHeader className="p-5 pb-2">
                       <CardTitle className="text-base flex items-center gap-2">
                         <span className="text-xl group-hover:scale-110 transition-transform">{route.icon}</span>
@@ -89,12 +77,9 @@ export const Home: React.FC = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-5 pt-2">
-                      <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
+                      <p className="text-xs text-muted-foreground line-clamp-2">
                         {nb.description}
                       </p>
-                      <div className="text-sm font-medium tabular-nums">
-                        {nb.count !== undefined ? `共 ${nb.count} 条` : '-'}
-                      </div>
                     </CardContent>
                   </Card>
                 </Link>

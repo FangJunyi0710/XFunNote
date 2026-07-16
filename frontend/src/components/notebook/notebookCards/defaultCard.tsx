@@ -29,8 +29,8 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
 
   return (
     <Card
-      className={`border-l-4 ${styles.border} cursor-pointer transition-shadow hover:shadow-md ${
-        selected ? `ring-2 ${styles.ring}` : ''
+      className={`border-t-0 border-x-0 border-b border-border/50 cursor-pointer transition-all hover:shadow-md ${
+        selected ? `ring-2 ${styles.ring} !bg-accent` : ''
       }`}
       onClick={() => onSelect?.(entry.id as string)}
     >

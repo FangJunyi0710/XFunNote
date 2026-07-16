@@ -17,7 +17,7 @@ from xfun.ai.schema import ViewModel
 router = APIRouter(tags=["notebooks"])
 
 
-@router.get("/notebooks", summary="列出所有笔记本名称", response_description="笔记本名称列表")
+@router.get("/notebooks", summary="列出所有笔记本及字段结构", response_description="笔记本列表（含字段定义）")
 def list_notebooks(api_perm: ApiPermission = Depends(get_api_permission)):
     return svc.list_notebooks()
 

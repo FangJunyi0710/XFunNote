@@ -62,7 +62,7 @@ export const DEFAULT_EMOJIS: Record<NotebookType, string> = {
 // 颜色映射（用于样式工厂函数，也可直接使用）
 // -------------------------------------------------------
 
-/** 左边框颜色类名 */
+/** 左侧边框颜色类名 */
 const TYPE_COLORS: Record<NotebookType, string> = {
   plan: 'border-l-notebook-plan',
   diary: 'border-l-notebook-diary',
@@ -139,6 +139,11 @@ export function getNotebookStyles(type: NotebookType): NotebookStyles {
     bg: TYPE_BG_COLORS[type] || '',
     text: TYPE_TEXT_COLORS[type] || '',
   };
+}
+
+/** 获取底部边框颜色（用于首页概览卡片） */
+export function getNotebookBottomBorder(type: NotebookType): string {
+  return TYPE_BORDER_BOTTOM_COLORS[type] || '';
 }
 
 // -------------------------------------------------------

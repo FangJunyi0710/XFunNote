@@ -10,8 +10,16 @@ from xfun.core.view import DB_Permission
 from xfun.core.filter import TRUE_CONDITION, parse_filter_json
 
 
-def list_notebooks() -> list[str]:
-    return list(registry.keys())
+def list_notebooks() -> list[dict]:
+    from dataclasses import asdict
+    result = []
+    for name, nb in registry.items():
+        columns = [asdict(c) for c in nb.columns]
+        result.append({
+            "table_name": name,
+            "columns": columns,
+        })
+    return result
 
 
 def get_schema(notetype: str) -> list[dict]:

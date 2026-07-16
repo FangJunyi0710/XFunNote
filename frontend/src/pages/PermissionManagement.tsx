@@ -67,8 +67,8 @@ export const PermissionManagement: React.FC = () => {
       handleError(new Error('ID 和名称不能为空'), '保存失败');
       return;
     }
-    let readViewObj: Record<string, any>;
-    let writeViewObj: Record<string, any>;
+    let readViewObj: Record<string, unknown>;
+    let writeViewObj: Record<string, unknown>;
     try {
       readViewObj = form.read_view ? JSON.parse(form.read_view) : {};
       writeViewObj = form.write_view ? JSON.parse(form.write_view) : {};

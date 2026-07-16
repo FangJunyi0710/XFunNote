@@ -11,18 +11,37 @@ import type {
 import type { NotebookType } from '@/config/notebook';
 import { NOTEBOOK_INFO } from '@/config/notebook';
 
-/** 获取笔记本列表（后端返回名称列表，前端组装为 NotebookSchema[]） */
-export async function listNotebooks(): Promise<NotebookSchema[]> {
-  const names = await api.get<string[]>('/notebooks');
-  return Promise.all(names.map((name) => getSchema(name as NotebookType)));
-}
-
-/** 后端 Column.asdict() 返回的原始列定义 */
+/** 后端 list 路由返回的原始格式 */
 interface RawColumn {
   name: string;
   col_type: string;
   nullable: boolean;
   default: string | number | boolean | null;
+}
+
+interface RawNotebookSchema {
+  table_name: string;
+  columns: RawColumn[];
+}
+
+/** 获取笔记本列表（后端一次返回所有 schema，前端组装为 NotebookSchema[]） */
+export async function listNotebooks(): Promise<NotebookSchema[]> {
+  const rawList = await api.get<RawNotebookSchema[]>('/notebooks');
+  return rawList.map((raw) => {
+    const info = NOTEBOOK_INFO[raw.table_name] || { label: raw.table_name, description: '' };
+    const columns: ColumnDef[] = raw.columns.map((col) => ({
+      name: col.name,
+      type: col.col_type,
+      required: !col.nullable,
+      default: col.default ?? null,
+    }));
+    return {
+      table_name: raw.table_name,
+      ...info,
+      columns,
+      display_order: columns.map((c) => c.name),
+    };
+  });
 }
 
 /** 获取笔记本 Schema（后端返回列定义，前端组装为完整 NotebookSchema） */
