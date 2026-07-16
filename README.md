@@ -43,16 +43,6 @@ npm install && npm run dev
 
 复制项目根目录的 `.env.example` 为 `.env` 并填写配置。
 
-### 依赖分组
-
-`requirements.txt` 中依赖分为三组：
-
-| 组 | 用途 | 是否必需 |
-|----|------|---------|
-| 核心引擎（typer, python-dotenv, future-uuid, langchain*, pydantic） | CLI + 数据操作 + AI Agent | 运行必需 |
-| 后端（fastapi, uvicorn） | RESTful API | 可选（仅使用 CLI 时不需要） |
-| 测试（pytest, pytest-cov） | 测试运行 | 开发依赖 |
-
 ### 环境变量
 
 | 变量 | 说明 |
@@ -64,11 +54,6 @@ npm install && npm run dev
 | `LLM_MODEL` | 默认模型（当前建议 `deepseek-v4-flash`） |
 
 **注意**：`import xfun` 会自动初始化数据库（建表/补齐列/建索引），无需手动调用 `xfun init`。后端启动时也会自动初始化。
-
-**小贴士**：手动生成 API Token（格式 `sk-xxx`）：
-```bash
-echo "sk-$(openssl rand -base64 24 | tr '+/' '-_' | tr -d '=')"
-```
 
 ---
 
@@ -85,16 +70,14 @@ echo "sk-$(openssl rand -base64 24 | tr '+/' '-_' | tr -d '=')"
 - **Ops 统一入口**：`query` / `add` / `update` / `delete` 四个高维函数，内部自动编排 View、Permission 与 Notebook，是 API 和 AI Tools 的唯一数据操作入口。
 - **系统支撑表**：
 
-  | 表名 | 核心字段 | 用途 |
-  |------|---------|------|
-  | `_token` | `token`(唯一), `name`, `permission`, `is_active`, `expires_at`, `shortcut`, `shortcut_expire_at` | API 鉴权，支持 Shortcut 一次性兑换、过期/停用 |
-  | `_view` | `name`(唯一), `data`(JSON) | 存储命名的 View 定义，通过 `name` 引用 |
-  | `_filter` | `name`(唯一), `data`(JSON) | 存储命名的 Filter 条件，通过 REF 运算符引用复用 |
-  | `_permission` | `name`(唯一), `description`, `read_view`(JSON), `write_view`(JSON) | 定义 `(读视图, 写视图)` 身份 |
+  | 表名 | 用途 |
+  |------|------|
+  | `_token` | API 鉴权，支持 Shortcut 一次性兑换、过期/停用 |
+  | `_view` | 存储命名的 View 定义，通过 `name` 引用 |
+  | `_filter` | 存储命名的 Filter 条件，通过 REF 运算符引用复用 |
+  | `_permission` | 定义 `(读视图, 写视图)` 身份 |
 
   四张系统表通过对应管理路由（`/views/*`、`/permissions/*`、`/tokens/*`、`/filters/*`）进行 CRUD。
-
-  **注册中心**：`xfun/__init__.py` 维护全局注册中心 `registry`，集中管理全部 7 个内置本子。模块导入时自动初始化数据库（建表/补齐列/建索引），并向 DB 对象注册系统表（`_token`/`_view`/`_filter`/`_permission`）与各本子的钩子函数。
 
   ### 权限沙箱
 - AI Chat 自动计算 **API Key 权限 ∩ AI 模式预设权限** 的交集，遵循最小权限原则。
@@ -138,21 +121,6 @@ echo "sk-$(openssl rand -base64 24 | tr '+/' '-_' | tr -d '=')"
 
 所有本子共有 9 个基类字段：`id`, `content`, `created_at`, `updated_at`, `tags`, `note`, `is_ai_gen`, `ai_tags`, `ai_note`。
 
-### 异常体系
-
-```
-XFunError (基类)
-├── EntryInvalidError      — 条目数据不合法（缺少必填字段等）
-├── InvalidSQLError        — 非法 SQL 片段（列名校验失败）
-├── InvalidConditionError  — Condition 对象解析失败
-├── InvalidFilterError     — Filter 结构无法解析
-├── AIError (AI 相关基类)
-│   ├── PromptError        — Prompt 内部字段定义校验失败
-│   └── ToolError          — 工具执行时输入或数据状态导致的业务错误
-```
-
-所有领域异常统一由后端全局异常处理器捕获：`XFunError` 转换为 HTTP 422，`sqlite3.IntegrityError` 按 UNIQUE 冲突 → 409、NOT NULL 冲突 → 422 分类处理，其余兜底为 500，确保错误信息不泄漏内部实现细节。
-
 ---
 
 ## 技术栈与项目组织
@@ -165,9 +133,9 @@ XFunError (基类)
 | AI | LangChain + DeepSeek API | 通过 `langchain_anthropic.ChatAnthropic` 兼容封装，支持 thinking blocks 和 tool calling |
 | 数据契约 | Pydantic | 数据模型 + JSON Schema 双重校验，供 AI Function Calling 入参约束 |
 | 前端 | React 18, TypeScript, Vite 5, Tailwind CSS 3 | 自建组件体系（button/card/dialog/input/select/tabs/switch/badge 等），无第三方 UI 库 |
-| 状态管理 | Zustand | 4 个 Store：notebookStore / chatStore / tokenStore / themeStore |
+| 状态管理 | Zustand | 5 个 Store：notebookStore / chatStore / sidebarStore / tokenStore / themeStore |
 | 路由 | react-router-dom v6 | 8 个页面组件 |
-| 测试 | pytest, pytest-cov | 22 个测试文件覆盖核心引擎与 AI 层 |
+| 测试 | pytest, pytest-cov | 27 个测试文件覆盖核心引擎、AI 层与后端路由 |
 | 数据库 | SQLite（WAL 模式） | 单文件存储 |
 
 ### 前端路由结构
@@ -183,10 +151,6 @@ XFunError (基类)
 | `/ai` | AiChat | AI 对话界面 |
 | `/management` | Management | 系统管理（视图/权限/Token/数据库 4 个 Tab） |
 | `/token-input` | TokenInputPanel | API Key 输入面板 |
-
-### 前端数据流
-
-前端通过 `api/client.ts` HTTP 客户端访问 FastAPI 后端，所有请求自动携带 `X-API-Key` Header（从 tokenStore 获取）。CRUD 操作通过 `api/notebooks.ts` 等 API 模块封装。每个本子的条目卡片通过 `notebookCards/index.ts` 注册自定义渲染组件，`NotebookLayout` 根据本子类型自动选择对应渲染器。
 
 ---
 
@@ -809,23 +773,24 @@ FastAPI 后端运行后访问 `http://localhost:8000/docs` 查看自动生成的
 
 **路由概览**：
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/v1/notebooks` | 列出本子 |
-| GET | `/api/v1/notebooks/{name}/schema` | 查看字段结构 |
-| GET | `/api/v1/notebooks/{name}/entries?view=...` | 查询条目 |
-| POST | `/api/v1/notebooks/{name}/entries` | 添加条目 |
-| PUT | `/api/v1/notebooks/{name}/entries` | 更新条目 |
-| DELETE | `/api/v1/notebooks/{name}/entries` | 删除条目 |
-| POST | `/api/v1/ai/chat` | AI 对话 |
-| GET | `/api/v1/ai/permission` | 查询 AI 权限白名单 |
-| GET/PUT/DELETE | `/api/v1/filters/{name}` | Filter CRUD |
-| GET/POST/PUT/DELETE | `/api/v1/tokens[/{id}]` | Token CRUD |
-| GET/POST/PUT/DELETE | `/api/v1/permissions[/{id}]` | 权限 CRUD |
-| GET/PUT/DELETE | `/api/v1/views/{name}` | 视图 CRUD |
-| POST | `/api/v1/db/{init\|backup\|restore\|reset}` | 数据库管理（需 ROOT_TOKEN） |
-| GET | `/api/v1/tokens/info` | 查询当前 Token 元信息 |
-| POST | `/api/v1/tokens/exchange` | Shortcut 兑换 Token（无需鉴权） |
+| 方法 | 路径 |
+|------|------|
+| GET | `/api/v1/notebooks` |
+| GET | `/api/v1/notebooks/{name}/schema` |
+| GET | `/api/v1/notebooks/{name}/entries?view=...` |
+| POST | `/api/v1/notebooks/{name}/entries` |
+| PUT | `/api/v1/notebooks/{name}/entries` |
+| DELETE | `/api/v1/notebooks/{name}/entries` |
+| POST | `/api/v1/ai/chat` |
+| GET | `/api/v1/ai/permission` |
+| GET/PUT/DELETE | `/api/v1/filters/{name}` |
+| GET/POST/PUT/DELETE | `/api/v1/tokens[/{id}]` |
+| GET/POST/PUT/DELETE | `/api/v1/permissions[/{id}]` |
+| GET/PUT/DELETE | `/api/v1/views/{name}` |
+| POST | `/api/v1/db/{init\|backup\|restore\|reset}` |
+| GET | `/api/v1/db/backups` |
+| GET | `/api/v1/tokens/info` |
+| POST | `/api/v1/tokens/exchange` |
 
 ### CLI 命令行
 
@@ -844,14 +809,12 @@ FastAPI 后端运行后访问 `http://localhost:8000/docs` 查看自动生成的
 | `xfun view full` / `xfun view no` | 输出 full_view / no_view 定义 |
 | `xfun init` | 初始化数据库 |
 | `xfun backup` | 在线热备份数据库 |
-| `xfun restore BACKUP_PATH` | 从备份文件恢复 |
-| `xfun reset` | 重置数据库 |
+| `xfun restore BACKUP_PATH [--list] [--no-backup]` | 从备份文件恢复（--list 列出备份，--no-backup 恢复前不备份） |
+| `xfun reset [--no-backup]` | 重置数据库（--no-backup 重置前不备份） |
 
 ---
 
-## 开发与测试
-
-### 测试
+## 测试
 
 ```bash
 # 安装测试依赖后
@@ -860,7 +823,7 @@ pytest tests/ -v
 pytest --cov=xfun --cov-report=term-missing
 ```
 
-22 个测试文件覆盖以下范围：
+27 个测试文件覆盖以下范围：
 
 | 覆盖范围 | 文件数 | 包含模块 |
 |---------|--------|---------|
@@ -868,33 +831,9 @@ pytest --cov=xfun --cov-report=term-missing
 | 内置本子 | 7 | 每个内置本子对应一个测试文件 |
 | AI 层 | 4 | agent, prompts, schema, tools |
 | 工具函数 | 2 | time_utils, token_utils |
+| 后端路由 | 7 | ai, db_management, filters, notebooks, permissions, tokens, views |
 
-**测试架构**：session 级夹具（`conftest.py` 共享临时数据库）、function 级隔离（每个测试前 `DELETE FROM` 所有表）、`populated_db` 夹具预填样本数据。
-
-### CLI `ai` 命令详解（开发调试）
-
-AI 对话支持同步与交互两种模式：
-
-| 子命令 | 说明 |
-|--------|------|
-| `xfun ai sync --messages JSON` | 同步模式：静默调用 LLM，stdout 输出 JSON，适合脚本集成 |
-| `xfun ai chat` | 交互模式：stderr 流式输出，退出后 stdout 输出完整消息 JSON |
-
-**全局参数**：`--messages`（消息历史）、`--max-iterations`（默认 10 轮）、`--system-prompt`、`--tool-names`、`--permission-name`（默认 `"ai"`）、`--llm-kwargs`。
-
-开发调试：`xfun/ai/tools.py` 中的 `_TOOL_REGISTRY` 和 `DEFAULT_TOOL_NAMES` 管理 AI 工具集。权限定义存储在 `_permission` 表，`cli.py` 的 `_lookup_permission()` 等效于后端的权限查询。
-
-### 代码生成脚本（`scripts/`）
-
-| 脚本 | 用途 |
-|------|------|
-| `project_info.py` | 自动生成项目结构树和模块依赖图（mermaid） |
-| `replace.py` | 基于标记块的文本替换工具 |
-| `updateREADME.sh` | 一键更新 README 中的项目结构和依赖图 |
-
-```bash
-bash scripts/updateREADME.sh
-```
+**测试架构**：分立的 `tests/xfun/conftest.py`（核心引擎测试）和 `tests/backend/conftest.py`（后端路由测试），各管理独立的临时数据库。function 级隔离（每个测试前 `DELETE FROM` 所有表）、`populated_db` 夹具预填样本数据。
 
 ---
 
@@ -919,6 +858,11 @@ CLI：`xfun reset`（自动备份后重置）。API：`POST /api/v1/db/reset`（
 
 **模块导入时自动建库？**
 `import xfun` 会自动初始化数据库（建表/补齐列/建索引），无需手动调用 `xfun init`。
+
+**如何手动生成 API Token？**
+```bash
+echo "sk-$(openssl rand -base64 24 | tr '+/' '-_' | tr -d '=')"
+```
 
 ### 关于
 
