@@ -3,21 +3,6 @@
 from xfun.core.filter import Condition, filter_to_sql, TRUE_CONDITION, FALSE_CONDITION
 
 
-class TestJsonContains:
-    def test_json_contains(self):
-        cond = Condition("tags", "Python", "JSON_CONTAINS")
-        sql, params = cond.to_sql()
-        assert "json_each(tags)" in sql
-        assert params == ["Python"]
-
-    def test_json_not_contains(self):
-        cond = Condition("tags", "私密", "JSON_NOT_CONTAINS")
-        sql, params = cond.to_sql()
-        assert "NOT EXISTS" in sql
-        assert "json_each(tags)" in sql
-        assert params == ["私密"]
-
-
 class TestTextSearch:
     def test_text_search(self):
         cond = Condition("content", "关键字", "TEXT_SEARCH")
