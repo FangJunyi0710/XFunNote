@@ -112,7 +112,7 @@ export const ViewManagement: React.FC = () => {
                 value={newViewName}
                 onChange={(e) => setNewViewName(e.target.value)}
                 placeholder="新视图名称"
-                className="flex-1 h-8 px-2 text-sm border rounded"
+                className="flex-1 h-8 px-2 text-sm border rounded bg-background text-foreground"
               />
               <Button size="sm" onClick={createView} disabled={loading} title="新建视图">
                 <PlusIcon />

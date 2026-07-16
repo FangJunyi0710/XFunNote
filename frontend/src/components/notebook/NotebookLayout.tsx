@@ -56,8 +56,8 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     try {
       const res = await notebookApi.queryEntries(notetype, {
         filter: store.filterJson || undefined,
-        page: 1,
-        page_size: store.total,
+        offset: 0,
+        limit: store.total,
         order_by: store.orderBy,
         order_dir: store.orderDir,
         columns: store.schema?.display_order || [],
@@ -66,7 +66,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     } catch {
       // 获取所有 ID 失败时静默处理
     }
-  }, [notetype, store.filterJson, store.total, store.orderBy, store.orderDir]);
+  }, [notetype, store.filterJson, store.total, store.orderBy, store.orderDir, store.schema?.display_order]);
 
   const handleDeselectAll = useCallback(() => {
     setSelectedIds(new Set());
@@ -123,11 +123,11 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
           entries: store.entries,
           selectedIds,
           onToggleSelect: toggleSelect,
-          page: store.page,
-          pageSize: store.pageSize,
+          offset: store.offset,
+          limit: store.limit,
           total: store.total,
-          onPageChange: store.setPage,
-          onPageSizeChange: store.setPageSize,
+          onOffsetChange: store.setOffset,
+          onLimitChange: store.setLimit,
         });
 
     const { stickySlot, content } = rendered;
@@ -141,7 +141,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
         {content}
       </>
     );
-  }, [renderEntryDisplay, store.entries, store.page, store.pageSize, store.total, notetype, selectedIds, toggleSelect, handleSelectAll, handleDeselectAll]);
+  }, [renderEntryDisplay, store.entries, store.offset, store.limit, store.total, notetype, selectedIds, toggleSelect, handleSelectAll, handleDeselectAll]);
 
   const label = TYPE_LABELS[notetype];
 

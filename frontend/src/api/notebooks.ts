@@ -33,7 +33,7 @@ export async function listNotebooks(): Promise<NotebookSchema[]> {
       name: col.name,
       type: col.col_type,
       required: !col.nullable,
-      default: col.default ?? null,
+      default: col.default,
     }));
     return {
       table_name: raw.table_name,
@@ -52,7 +52,7 @@ export async function getSchema(type: NotebookType): Promise<NotebookSchema> {
     name: col.name,
     type: col.col_type,        // 映射 col_type → type
     required: !col.nullable,   // 取反：nullable=false → required=true
-    default: col.default ?? null,
+    default: col.default,
   }));
   const info = NOTEBOOK_INFO[type] || { label: type, description: '' };
   return {
@@ -88,8 +88,8 @@ export async function queryEntries(
   type: NotebookType,
   params: {
     filter?: string;
-    page?: number;
-    page_size?: number;
+    offset?: number;
+    limit: number;
     order_by?: string;
     order_dir?: string;
     columns: string[];
@@ -97,11 +97,12 @@ export async function queryEntries(
 ): Promise<QueryResponse> {
   const queryParams: Record<string, string> = {};
 
-  // 参数映射：前端 page/page_size → 后端 offset/limit
-  const page = params.page ?? 1;
-  const pageSize = params.page_size ?? 20;
-  queryParams.offset = String((page - 1) * pageSize);
-  queryParams.limit = String(pageSize);
+  // 参数映射：前端 offset/limit → 后端 offset/limit
+  params.offset = params.offset ?? 0
+  const offset = Math.max(0, params.offset);
+  const limit = params.limit + params.offset - offset;
+  queryParams.offset = String(offset);
+  queryParams.limit = String(limit);
 
   // 参数映射：前端 order_by + order_dir → 后端 order_by
   if (params.order_by) {
@@ -111,7 +112,7 @@ export async function queryEntries(
   // view 是后端必填参数，自动生成默认视图
   queryParams.view = buildDefaultView(type, params.columns, params.filter);
 
-  // 响应映射：后端 { count, results } → 前端 { total, entries, page, page_size }
+  // 响应映射：后端 { count, results } → 前端 { total, entries, offset, limit }
   const res = await api.get<{ count: number; results: Record<string, unknown>[] }>(
     `/notebooks/${type}/entries`,
     queryParams,
@@ -119,8 +120,8 @@ export async function queryEntries(
   return {
     total: res.count,
     entries: res.results,
-    page,
-    page_size: pageSize,
+    offset,
+    limit,
   };
 }
 

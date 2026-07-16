@@ -7,30 +7,30 @@ interface DefaultRenderEntryDisplayProps {
   entries: Record<string, unknown>[];
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
-  page?: number;
-  pageSize?: number;
+  offset?: number;
+  limit: number;
   total?: number;
-  onPageChange?: (page: number) => void;
-  onPageSizeChange?: (size: number) => void;
+  onOffsetChange?: (offset: number) => void;
+  onLimitChange: (limit: number) => void;
 }
 
 export function defaultRenderEntryDisplay(props: DefaultRenderEntryDisplayProps) {
   const {
     type, entries,
     selectedIds, onToggleSelect,
-    page, pageSize, total, onPageChange, onPageSizeChange,
+    offset, limit, total, onOffsetChange, onLimitChange,
   } = props;
 
   const isSelectionMode = selectedIds.size > 0;
 
   return {
-    stickySlot: entries.length > 0 && page !== undefined && onPageChange ? (
+    stickySlot: entries.length > 0 && offset !== undefined && onOffsetChange ? (
       <Pagination
-        page={page}
-        pageSize={pageSize!}
+        offset={offset}
+        limit={limit}
         total={total!}
-        onPageChange={onPageChange}
-        onPageSizeChange={onPageSizeChange!}
+        onOffsetChange={onOffsetChange}
+        onLimitChange={onLimitChange}
       />
     ) : undefined,
     content: (

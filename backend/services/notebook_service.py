@@ -32,9 +32,9 @@ def query_entries(
     notetype: str,
     permission: DB_Permission,
     view: dict | None,
-    order_by: str = "",
-    limit: int = 100,
+    limit: int,
     offset: int = 0,
+    order_by: str = "",
 ) -> tuple[list[dict], int]:
     """查询条目。
 

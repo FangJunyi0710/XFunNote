@@ -3,53 +3,47 @@ import { Input } from '@/components/ui/input';
 import { ArrowIcon, DoubleArrowIcon } from '@/components/ui/icons';
 
 interface PaginationProps {
-  page: number;
-  pageSize: number;
+  offset: number;
+  limit: number;
   total: number;
-  onPageChange: (page: number) => void;
-  onPageSizeChange: (size: number) => void;
+  onOffsetChange: (offset: number) => void;
+  onLimitChange: (limit: number) => void;
 }
 
-
-
 export const Pagination: React.FC<PaginationProps> = ({
-  page,
-  pageSize,
+  offset,
+  limit,
   total,
-  onPageChange,
-  onPageSizeChange,
+  onOffsetChange,
+  onLimitChange,
 }) => {
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const start = (page - 1) * pageSize + 1;
-  const end = Math.min(page * pageSize, total);
-  const [inputValue, setInputValue] = useState(String(pageSize));
+  const totalPages = Math.max(1, Math.ceil((total - offset) / limit) + Math.ceil(offset / limit));
+  const currentPage = Math.max(1, Math.ceil(offset / limit) + 1);
+  const start = Math.max(offset + 1, 1);
+  const end = Math.min(offset + limit, total);
+  const [inputValue, setInputValue] = useState('');
   const [jumpInputValue, setJumpInputValue] = useState('');
 
   const handleBlur = useCallback(() => {
     const val = parseInt(inputValue, 10);
     if (!isNaN(val) && val > 0) {
-      onPageSizeChange(val);
-    } else {
-      setInputValue(String(pageSize));
+      onLimitChange(val);
     }
-  }, [inputValue, onPageSizeChange, pageSize]);
+    setInputValue('');
+  }, [inputValue, onLimitChange]);
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter') {
-        (e.target as HTMLInputElement).blur();
-      }
-    },
-    [],
-  );
+  const goToPage = useCallback((page: number) => {
+    const clampedPage = Math.min(page, totalPages);
+    onOffsetChange(offset + limit * (clampedPage - currentPage));
+  }, [offset, limit, totalPages, currentPage, onOffsetChange]);
 
   const handleJumpBlur = useCallback(() => {
     const val = parseInt(jumpInputValue, 10);
-    if (!isNaN(val) && val >= 1 && val <= totalPages) {
-      onPageChange(val);
+    if (!isNaN(val) && val >= 1 && val <= total) {
+      onOffsetChange(val - 1);
     }
     setJumpInputValue('');
-  }, [jumpInputValue, onPageChange, totalPages]);
+  }, [jumpInputValue, onOffsetChange, total]);
 
   const handleJumpKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -67,21 +61,22 @@ export const Pagination: React.FC<PaginationProps> = ({
     <div className="flex items-center justify-between py-3">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <span className="select-none">
-          {total > 0 ? `${start}-${end}` : '0'} / {total} 条
+          {total > 0 ? `${start}-${end}` : '0'} / {total}
         </span>
         <Input
           type="text"
           inputMode="numeric"
+          placeholder="每页条数"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value.replace(/\D/g, ''))}
           onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
+          onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
           className="w-16 h-7 text-xs"
         />
         <Input
           type="text"
           inputMode="numeric"
-          placeholder="跳转"
+          placeholder="跳转条目"
           value={jumpInputValue}
           onChange={(e) => setJumpInputValue(e.target.value.replace(/\D/g, ''))}
           onBlur={handleJumpBlur}
@@ -93,35 +88,35 @@ export const Pagination: React.FC<PaginationProps> = ({
       <div className="flex items-center gap-1">
         <button
           className={btnClass}
-          disabled={page <= 1}
-          onClick={() => onPageChange(1)}
+          disabled={currentPage <= 1}
+          onClick={() => goToPage(1)}
           title="第一页"
         >
           <DoubleArrowIcon direction="left" />
         </button>
         <button
           className={btnClass}
-          disabled={page <= 1}
-          onClick={() => onPageChange(page - 1)}
+          disabled={currentPage <= 1}
+          onClick={() => goToPage(currentPage - 1)}
           title="上一页"
         >
           <ArrowIcon direction="left" />
         </button>
         <span className="text-sm text-muted-foreground px-2 select-none">
-          {page} / {totalPages}
+          {currentPage} / {totalPages}
         </span>
         <button
           className={btnClass}
-          disabled={page >= totalPages}
-          onClick={() => onPageChange(page + 1)}
+          disabled={currentPage >= totalPages}
+          onClick={() => goToPage(currentPage + 1)}
           title="下一页"
         >
           <ArrowIcon direction="right" />
         </button>
         <button
           className={btnClass}
-          disabled={page >= totalPages}
-          onClick={() => onPageChange(totalPages)}
+          disabled={currentPage >= totalPages}
+          onClick={() => goToPage(totalPages)}
           title="最后一页"
         >
           <DoubleArrowIcon direction="right" />

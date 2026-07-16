@@ -35,14 +35,14 @@ def parse_view_param(view: str = Query(..., description="View JSON 字符串")) 
 def query_entries(
     name: str,
     order_by: str = Query("", description="排序，如 `created_at DESC`"),
-    limit: int = Query(100, ge=-1, description="最大返回条数，-1 不限"),
+    limit: int = Query(ge=-1, description="最大返回条数，-1 不限"),
     offset: int = Query(0, ge=0, description="偏移量"),
     view_model: ViewModel = Depends(parse_view_param),
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
     validated_view = view_model.to_view()
     results, total = svc.query_entries(name, api_perm.permission, validated_view,
-                                       order_by, limit, offset)
+                                       limit, offset, order_by)
     return EntryBatchResponse(count=total, results=results)
 
 

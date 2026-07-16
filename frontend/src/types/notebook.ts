@@ -27,8 +27,8 @@ export interface NotebookSchema {
 export interface QueryResponse {
   entries: Record<string, unknown>[];
   total: number;
-  page?: number;
-  page_size?: number;
+  offset?: number;
+  limit?: number;
 }
 
 export interface AddRequest {

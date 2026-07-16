@@ -53,8 +53,8 @@ export const NotebookEditPage: React.FC = () => {
           if (!found) {
             const res = await notebookApi.queryEntries(type, {
               filter: JSON.stringify({ column: 'id', op: '=', value: id }),
-              page: 1,
-              page_size: 1,
+              offset: 0,
+              limit: 1,
               columns: [],
             });
             found = res.entries[0] || null;

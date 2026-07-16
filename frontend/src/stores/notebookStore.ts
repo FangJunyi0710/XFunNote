@@ -35,8 +35,8 @@ interface NotebookState {
   // 数据
   entries: Record<string, unknown>[];
   total: number;
-  page: number;
-  pageSize: number;
+  offset: number;
+  limit: number;
 
   // 筛选
   filterJson: string | null;
@@ -49,8 +49,8 @@ interface NotebookState {
   // 操作
   setCurrentType: (type: NotebookType) => Promise<void>;
   fetchEntries: () => Promise<void>;
-  setPage: (page: number) => void;
-  setPageSize: (size: number) => void;
+  setOffset: (offset: number) => void;
+  setLimit: (limit: number) => void;
   setFilter: (filter: string | null) => void;
   setOrder: (by: string, dir: 'asc' | 'desc') => void;
   addEntries: (entries: Record<string, unknown>[]) => Promise<void>;
@@ -64,8 +64,8 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   schema: null,
   entries: [],
   total: 0,
-  page: 1,
-  pageSize: 20,
+  offset: 0,
+  limit: 20,
   filterJson: null,
   orderBy: 'id',
   orderDir: 'desc',
@@ -74,7 +74,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   setCurrentType: async (type: NotebookType) => {
     try {
       // 先清空旧数据再设置 loading，避免切换时短暂显示先前内容
-      set({ loading: true, currentType: type, page: 1, entries: [], schema: null, filterJson: null });
+      set({ loading: true, currentType: type, offset: 0, entries: [], schema: null, filterJson: null });
       const schema = await getCachedSchema(type);
       set({ schema });
       await get().fetchEntries();
@@ -86,14 +86,14 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   },
 
   fetchEntries: async () => {
-    const { currentType, schema, page, pageSize, filterJson, orderBy, orderDir } = get();
+    const { currentType, schema, offset, limit, filterJson, orderBy, orderDir } = get();
     if (!currentType) return;
     try {
       set({ loading: true });
       const res: QueryResponse = await notebookApi.queryEntries(currentType, {
         filter: filterJson || undefined,
-        page,
-        page_size: pageSize,
+        offset,
+        limit,
         order_by: orderBy,
         order_dir: orderDir,
         columns: schema?.display_order ?? [],
@@ -106,18 +106,18 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
     }
   },
 
-  setPage: (page: number) => {
-    set({ page });
+  setOffset: (offset: number) => {
+    set({ offset });
     get().fetchEntries();
   },
 
-  setPageSize: (size: number) => {
-    set({ pageSize: size, page: 1 });
+  setLimit: (limit: number) => {
+    set({ limit, offset: 0 });
     get().fetchEntries();
   },
 
   setFilter: (filter: string | null) => {
-    set({ filterJson: filter, page: 1 });
+    set({ filterJson: filter, offset: 0 });
     get().fetchEntries();
   },
 
