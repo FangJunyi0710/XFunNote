@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from backend.services.notebook_service import query_entries
+
 
 class TestListNotebooks:
     """GET /api/v0/notebooks"""
@@ -60,6 +62,16 @@ class TestQueryEntries:
     def test_query_not_found(self, client):
         resp = client.get("/api/v0/notebooks/nonexistent/entries", params={"view": self.VIEW_ALL, "limit": -1})
         assert resp.status_code == 404
+
+
+class TestQueryEntriesNoView:
+    """直接调用 query_entries 不传 view 参数（覆盖默认视图分支）。"""
+
+    def test_query_entries_no_view(self, backend_db, root_perm):
+        results, total = query_entries("plan", root_perm.permission, view=None, limit=-1)
+        assert isinstance(results, list)
+        assert isinstance(total, int)
+        assert total >= 0
 
 
 class TestAddEntries:

@@ -7,7 +7,10 @@ from unittest.mock import patch
 
 import pytest
 
+from fastapi import HTTPException
+
 import xfun
+from backend.services.ai_service import get_permission_info
 from xfun.core.view import full_view, view_to_json
 
 
@@ -42,6 +45,14 @@ class TestAIPermission:
         data = resp.json()
         assert "read" in data
         assert "write" in data
+
+    def test_get_permission_info_not_found(self):
+        """直接调用 get_permission_info 传入不存在的 permission_name 应抛出 404。"""
+        with patch("backend.services.ai_service.get_api_permission_from_db", return_value=None):
+            with pytest.raises(HTTPException) as exc_info:
+                get_permission_info("nonexistent")
+        assert exc_info.value.status_code == 404
+        assert "未知权限名称" in str(exc_info.value.detail)
 
 
 class TestAIChat:

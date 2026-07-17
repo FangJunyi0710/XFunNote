@@ -73,6 +73,42 @@ class TestUpdatePermission:
         )
         assert resp.status_code == 404
 
+    def test_update_description(self, client, demo_perm):
+        """PUT 更新 description 字段。"""
+        resp = client.put(
+            f"/api/v0/permissions/{demo_perm['id']}",
+            json={"description": "新的描述"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["description"] == "新的描述"
+
+    def test_update_read_view(self, client, demo_perm):
+        """PUT 更新 read_view 字段。"""
+        new_view = {"plan": [{"columns": ["id"], "filter": []}]}
+        resp = client.put(
+            f"/api/v0/permissions/{demo_perm['id']}",
+            json={"read_view": new_view},
+        )
+        assert resp.status_code == 200
+
+    def test_update_write_view(self, client, demo_perm):
+        """PUT 更新 write_view 字段。"""
+        new_view = {"plan": [{"columns": ["id"], "filter": []}]}
+        resp = client.put(
+            f"/api/v0/permissions/{demo_perm['id']}",
+            json={"write_view": new_view},
+        )
+        assert resp.status_code == 200
+
+    def test_update_no_fields(self, client, demo_perm):
+        """PUT 不提供任何更新字段，走查询分支（99-100行）。"""
+        resp = client.put(
+            f"/api/v0/permissions/{demo_perm['id']}",
+            json={},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["name"] == demo_perm["name"]
+
 
 class TestDeletePermission:
     """DELETE /api/v0/permissions/{permission_id}"""

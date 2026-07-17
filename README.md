@@ -166,7 +166,7 @@ npm install && npm run dev
 - [x] 数据库引擎、Ops 操作层、Notebook 抽象基类
 - [x] 7 个内置本子
 - [x] 注册中心
-- [x] 300+ 单元测试
+- [x] 400+ 单元测试
 
 ### 阶段一：AI Tools 层
 - [x] 5 个 Function Calling 工具
@@ -259,7 +259,7 @@ XFunNote/
 │       └── .gitkeep
 ├── frontend/
 │   ├── public/
-│   │   └── vite.svg
+│   │   └── xfun.svg
 │   ├── src/
 │   │   ├── api/
 │   │   │   ├── ai.ts
@@ -364,7 +364,9 @@ XFunNote/
 │   │   ├── conftest.py
 │   │   ├── test_ai.py
 │   │   ├── test_db_management.py
+│   │   ├── test_deps.py
 │   │   ├── test_filters.py
+│   │   ├── test_main.py
 │   │   ├── test_notebooks.py
 │   │   ├── test_permissions.py
 │   │   ├── test_tokens.py
@@ -489,7 +491,9 @@ graph LR
         tests_backend_conftest(conftest)
         tests_backend_test_ai(test_ai)
         tests_backend_test_db_management(test_db_management)
+        tests_backend_test_deps(test_deps)
         tests_backend_test_filters(test_filters)
+        tests_backend_test_main(test_main)
         tests_backend_test_notebooks(test_notebooks)
         tests_backend_test_permissions(test_permissions)
         tests_backend_test_tokens(test_tokens)
@@ -653,15 +657,23 @@ graph LR
     tests_backend_conftest --> xfun_core_view
     tests_backend_conftest --> xfun_utils_time_utils
     tests_backend_conftest --> xfun_utils_token_utils
+    tests_backend_test_ai --> backend_services_ai_service
     tests_backend_test_ai --> xfun___init__
     tests_backend_test_ai --> xfun_core_view
     tests_backend_test_ai --> xfun_utils_time_utils
+    tests_backend_test_deps --> backend_deps
+    tests_backend_test_deps --> backend_permissions
+    tests_backend_test_deps --> xfun_utils_time_utils
+    tests_backend_test_main --> backend_main
+    tests_backend_test_notebooks --> backend_services_notebook_service
+    tests_backend_test_tokens --> backend_routers_manage_token
     tests_backend_test_tokens --> xfun___init__
     tests_backend_test_tokens --> xfun_core___init__
     tests_backend_test_tokens --> xfun_core_filter
     tests_backend_test_tokens --> xfun_core_ops
     tests_backend_test_tokens --> xfun_core_view
     tests_backend_test_tokens --> xfun_utils_time_utils
+    tests_backend_test_tokens --> xfun_utils_token_utils
     tests_xfun_conftest --> xfun_core_db
     tests_xfun_conftest --> xfun_core_notebook
     tests_xfun_conftest --> xfun_notebooks_accumulation
@@ -745,7 +757,6 @@ graph LR
     xfun_core_db --> xfun_utils_time_utils
     xfun_core_errors --> xfun_core_filter
     xfun_core_extras --> xfun_core_filter
-    xfun_core_filter --> xfun___init__
     xfun_core_filter --> xfun_core_db
     xfun_core_filter --> xfun_core_errors
     xfun_core_filter --> xfun_core_extras

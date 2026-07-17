@@ -1,9 +1,7 @@
-import json
 from dataclasses import dataclass
 from typing import Any, ClassVar
 from collections.abc import Sequence as Seq
 
-from xfun import db
 from .db import Column
 from .errors import InvalidConditionError, InvalidFilterError
 
@@ -204,30 +202,3 @@ TRUE_CONDITION = Condition("_", None, "TRUE")
 FALSE_CONDITION = Condition("_", None, "FALSE")
 
 from . import extras # 完成运算符注册
-
-def _lookup_filter(filter_id: str) -> Filter:
-    # TODO 注意这里存在严重的权限问题
-    with db.read_transaction() as conn:
-        row = conn.execute(
-            "SELECT data FROM _filter WHERE id = ?", (filter_id,)
-        ).fetchone()
-        if not row:
-            return FALSE_CONDITION
-    return parse_filter_json(json.loads(row["data"]))
-
-@Condition.register_op("REF")
-def _ref(column: str, value: str, op: str):
-    return filter_to_sql(_lookup_filter(value))
-
-def ref_filter(filter_id: str) -> Condition:
-    return Condition("_", filter_id, "REF")
-
-def resolve_filter(filter: Filter) -> Filter:
-    if isinstance(filter, Condition):
-        if filter.op == "REF":
-            return _lookup_filter(filter.value)
-        return filter
-    if isinstance(filter, tuple):
-        inner, negate = filter
-        return (resolve_filter(inner), negate)
-    return [[resolve_filter(item) for item in group] for group in filter]

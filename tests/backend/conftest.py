@@ -136,16 +136,7 @@ def root_perm(backend_db) -> ApiPermission:
 @pytest.fixture
 def client(backend_db) -> TestClient:
     """FastAPI TestClient，注入 root 权限绕过鉴权。"""
-    # 替换 xfun.db 模块级别的 db 实例为测试实例
-    _xfun_module.db = backend_db
-    # 更新所有已导入模块中缓存的 db 引用（from xfun import db 是值拷贝）
-    import sys
-    for mod_name, mod in list(sys.modules.items()):
-        if mod_name.startswith(('backend.', 'xfun.')):
-            for attr in ('db', '_db'):
-                if hasattr(mod, attr) and hasattr(getattr(mod, attr), 'db_path'):
-                    setattr(mod, attr, backend_db)
-
+    _setup_test_db(backend_db)
     app.dependency_overrides[get_api_permission] = lambda: ApiPermission(
         root_permission(backend_db)
     )
@@ -155,6 +146,26 @@ def client(backend_db) -> TestClient:
 
     yield TestClient(app)
     app.dependency_overrides.clear()
+    _manage_db.ROOT_TOKEN = ""
+
+
+def _setup_test_db(backend_db):
+    """替换模块级 db 为测试实例。"""
+    _xfun_module.db = backend_db
+    import sys
+    for mod_name, mod in list(sys.modules.items()):
+        if mod_name.startswith(('backend.', 'xfun.')):
+            for attr in ('db', '_db'):
+                if hasattr(mod, attr) and hasattr(getattr(mod, attr), 'db_path'):
+                    setattr(mod, attr, backend_db)
+
+
+@pytest.fixture
+def real_auth_client(backend_db) -> TestClient:
+    """FastAPI TestClient，不覆盖 get_api_permission，使用真实鉴权。"""
+    _setup_test_db(backend_db)
+    _manage_db.ROOT_TOKEN = "test-root-token"
+    yield TestClient(app)
     _manage_db.ROOT_TOKEN = ""
 
 
