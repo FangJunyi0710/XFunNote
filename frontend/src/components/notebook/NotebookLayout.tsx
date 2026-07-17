@@ -175,7 +175,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
         <div className="flex items-center gap-2">
           <h1
             className="text-xl font-bold cursor-pointer select-none"
-            onClick={() => { if (isCollapsed) toggleCollapsed(); }}
+            onClick={() => { if (isCollapsed) toggleCollapsed(); else navigate('/'); }}
           >
             {label}
           </h1>

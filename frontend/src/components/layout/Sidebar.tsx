@@ -90,9 +90,13 @@ export const Sidebar: React.FC = () => {
               <ChevronLeftIcon />
             </button>
 
-            <span className="text-lg font-bold tracking-tight whitespace-nowrap">
+            <NavLink
+              to="/"
+              onClick={handleNavClick}
+              className="text-lg font-bold tracking-tight whitespace-nowrap transition-colors"
+            >
               XFunNote
-            </span>
+            </NavLink>
           </div>
 
           {/* 导航 */}
