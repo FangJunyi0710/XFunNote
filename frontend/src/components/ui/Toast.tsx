@@ -33,6 +33,7 @@ export const toast = {
 
 // 自动消失时间（按类型区分）
 const AUTO_DISMISS_MS = 1000
+const DISMISS_ANIM_DURATION_MS = 300
 
 export const ToastContainer: React.FC = () => {
   const [items, setItems] = useState<ToastItem[]>([]);
@@ -58,7 +59,7 @@ export const ToastContainer: React.FC = () => {
       setTimeout(() => {
         setItems((prev) => prev.filter((i) => i.id !== item.id));
         timersRef.current.delete(item.id);
-      }, 300);
+      }, DISMISS_ANIM_DURATION_MS);
     }, ms);
     timersRef.current.set(item.id, timer);
   }, []);
@@ -82,7 +83,7 @@ export const ToastContainer: React.FC = () => {
     setItems((prev) => prev.map((item) => item.id === id ? { ...item, exiting: true } : item));
     setTimeout(() => {
       setItems((prev) => prev.filter((item) => item.id !== id));
-    }, 300);
+    }, DISMISS_ANIM_DURATION_MS);
   }, [clearTimer]);
 
   // 新加入时启动计时器

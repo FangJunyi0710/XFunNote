@@ -5,14 +5,7 @@
     <link rel="icon" type="image/svg+xml" href="/xfun.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>XFunNote - 小方的万用本</title>
-    <script>
-      (function() {
-        var mode = localStorage.getItem('xfun-theme') || 'system';
-        var dark = mode === 'dark'
-          || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        document.documentElement.classList.toggle('dark', dark);
-      })();
-    </script>
+    <script>document.documentElement.classList.toggle('dark', localStorage.getItem('xfun-theme') === 'dark' || (localStorage.getItem('xfun-theme') !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches));</script>
   </head>
   <body>
     <div id="root"></div>
