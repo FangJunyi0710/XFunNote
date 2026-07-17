@@ -20,7 +20,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   const totalPages = Math.max(1, Math.ceil((total - offset) / limit) + Math.ceil(offset / limit));
   const currentPage = Math.max(1, Math.ceil(offset / limit) + 1);
   const start = Math.max(offset + 1, 1);
-  const end = Math.min(offset + limit, total);
+  const end = limit < 0 ? total : Math.min(offset + limit, total);
   const [inputValue, setInputValue] = useState('');
   const [jumpInputValue, setJumpInputValue] = useState('');
   const [showPageSizeInput, setShowPageSizeInput] = useState(false);
@@ -41,9 +41,14 @@ export const Pagination: React.FC<PaginationProps> = ({
   }, [showJumpInput]);
 
   const handleBlur = useCallback(() => {
-    const val = parseInt(inputValue, 10);
-    if (!isNaN(val) && val > 0) {
-      onLimitChange(val);
+    if (inputValue.trim() !== '') {
+      const val = parseInt(inputValue, 10);
+      if (!isNaN(val) && val > 0) {
+        onLimitChange(val);
+      }else{
+        onOffsetChange(0);
+        onLimitChange(-1);
+      }
     }
     setInputValue('');
     setShowPageSizeInput(false);
@@ -55,9 +60,9 @@ export const Pagination: React.FC<PaginationProps> = ({
   }, [offset, limit, totalPages, currentPage, onOffsetChange]);
 
   const handleJumpBlur = useCallback(() => {
-    const raw = parseInt(jumpInputValue, 10);
-    let val = isNaN(raw) ? 1 : Math.min(Math.max(raw, 1), total);
-    if (!isNaN(val) && val >= 1 && val <= total) {
+    if (jumpInputValue.trim() !== '') {
+      const raw = parseInt(jumpInputValue, 10);
+      let val = isNaN(raw) ? 1 : Math.min(Math.max(raw, 1), total);
       onOffsetChange(val - 1);
     }
     setJumpInputValue('');
@@ -101,60 +106,62 @@ export const Pagination: React.FC<PaginationProps> = ({
         )}
       </div>
 
-      <div className="flex items-center gap-1">
-        <button
-          className={btnClass}
-          disabled={currentPage <= 1}
-          onClick={() => goToPage(1)}
-          title="第一页"
-        >
-          <DoubleArrowIcon direction="left" />
-        </button>
-        <button
-          className={btnClass}
-          disabled={currentPage <= 1}
-          onClick={() => goToPage(currentPage - 1)}
-          title="上一页"
-        >
-          <ArrowIcon direction="left" />
-        </button>
-        {showJumpInput ? (
-          <Input
-            ref={jumpInputRef}
-            type="text"
-            inputMode="numeric"
-            placeholder="跳转条目"
-            value={jumpInputValue}
-            onChange={(e) => setJumpInputValue(e.target.value.replace(/\D/g, ''))}
-            onBlur={handleJumpBlur}
-            onKeyDown={handleJumpKeyDown}
-            className="max-w-20 h-7 text-xs"
-          />
-        ) : (
-          <span
-            className="text-sm text-muted-foreground px-2 select-none whitespace-nowrap cursor-pointer"
-            onClick={() => setShowJumpInput(true)}
+      {totalPages > 1 && (
+        <div className="flex items-center gap-1">
+          <button
+            className={btnClass}
+            disabled={currentPage <= 1}
+            onClick={() => goToPage(1)}
+            title="第一页"
           >
-            {currentPage} / {totalPages}
-          </span>
-        )}
-        <button
-          className={btnClass}
-          disabled={currentPage >= totalPages}
-          onClick={() => goToPage(currentPage + 1)}
-          title="下一页"
-        >
-          <ArrowIcon direction="right" />
-        </button>
-        <button
-          className={btnClass}
-          disabled={currentPage >= totalPages}
-          onClick={() => goToPage(totalPages)}
-          title="最后一页"
-        >
-          <DoubleArrowIcon direction="right" />
-        </button>
-      </div>
+            <DoubleArrowIcon direction="left" />
+          </button>
+          <button
+            className={btnClass}
+            disabled={currentPage <= 1}
+            onClick={() => goToPage(currentPage - 1)}
+            title="上一页"
+          >
+            <ArrowIcon direction="left" />
+          </button>
+          {showJumpInput ? (
+            <Input
+              ref={jumpInputRef}
+              type="text"
+              inputMode="numeric"
+              placeholder="跳转条目"
+              value={jumpInputValue}
+              onChange={(e) => setJumpInputValue(e.target.value.replace(/\D/g, ''))}
+              onBlur={handleJumpBlur}
+              onKeyDown={handleJumpKeyDown}
+              className="max-w-20 h-7 text-xs"
+            />
+          ) : (
+            <span
+              className="text-sm text-muted-foreground px-2 select-none whitespace-nowrap cursor-pointer"
+              onClick={() => setShowJumpInput(true)}
+            >
+              {currentPage} / {totalPages}
+            </span>
+          )}
+          <button
+            className={btnClass}
+            disabled={currentPage >= totalPages}
+            onClick={() => goToPage(currentPage + 1)}
+            title="下一页"
+          >
+            <ArrowIcon direction="right" />
+          </button>
+          <button
+            className={btnClass}
+            disabled={currentPage >= totalPages}
+            onClick={() => goToPage(totalPages)}
+            title="最后一页"
+          >
+            <DoubleArrowIcon direction="right" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

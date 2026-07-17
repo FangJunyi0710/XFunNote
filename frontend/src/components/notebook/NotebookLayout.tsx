@@ -171,7 +171,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
   return (
     <div className="space-y-4 animate-fade-in">
       {/* 标题栏 — 筛选 / 新增 / 批量操作 三按钮并列 — sticky */}
-      <div className="sticky top-0 z-10 flex items-center justify-between bg-background py-2">
+      <div className="sticky top-0 z-10 flex items-center justify-between bg-background py-2 -mx-6 px-6">
         <div className="flex items-center gap-2">
           <h1
             className="text-xl font-bold cursor-pointer select-none"
