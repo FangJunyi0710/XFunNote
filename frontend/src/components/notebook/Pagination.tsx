@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { ArrowIcon, DoubleArrowIcon } from '@/components/ui/icons';
 
@@ -23,6 +23,22 @@ export const Pagination: React.FC<PaginationProps> = ({
   const end = Math.min(offset + limit, total);
   const [inputValue, setInputValue] = useState('');
   const [jumpInputValue, setJumpInputValue] = useState('');
+  const [showPageSizeInput, setShowPageSizeInput] = useState(false);
+  const [showJumpInput, setShowJumpInput] = useState(false);
+  const pageSizeInputRef = useRef<HTMLInputElement>(null);
+  const jumpInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (showPageSizeInput && pageSizeInputRef.current) {
+      pageSizeInputRef.current.focus();
+    }
+  }, [showPageSizeInput]);
+
+  useEffect(() => {
+    if (showJumpInput && jumpInputRef.current) {
+      jumpInputRef.current.focus();
+    }
+  }, [showJumpInput]);
 
   const handleBlur = useCallback(() => {
     const val = parseInt(inputValue, 10);
@@ -30,6 +46,7 @@ export const Pagination: React.FC<PaginationProps> = ({
       onLimitChange(val);
     }
     setInputValue('');
+    setShowPageSizeInput(false);
   }, [inputValue, onLimitChange]);
 
   const goToPage = useCallback((page: number) => {
@@ -43,6 +60,7 @@ export const Pagination: React.FC<PaginationProps> = ({
       onOffsetChange(val - 1);
     }
     setJumpInputValue('');
+    setShowJumpInput(false);
   }, [jumpInputValue, onOffsetChange, total]);
 
   const handleJumpKeyDown = useCallback(
@@ -60,29 +78,26 @@ export const Pagination: React.FC<PaginationProps> = ({
   return (
     <div className="flex items-center justify-between py-3">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <span className="select-none">
-          {total > 0 ? `${start}-${end}` : '0'} / {total}
-        </span>
-        <Input
-          type="text"
-          inputMode="numeric"
-          placeholder="每页条数"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value.replace(/\D/g, ''))}
-          onBlur={handleBlur}
-          onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-          className="w-16 h-7 text-xs"
-        />
-        <Input
-          type="text"
-          inputMode="numeric"
-          placeholder="跳转条目"
-          value={jumpInputValue}
-          onChange={(e) => setJumpInputValue(e.target.value.replace(/\D/g, ''))}
-          onBlur={handleJumpBlur}
-          onKeyDown={handleJumpKeyDown}
-          className="w-16 h-7 text-xs"
-        />
+        {showPageSizeInput ? (
+          <Input
+            ref={pageSizeInputRef}
+            type="text"
+            inputMode="numeric"
+            placeholder="每页条数"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value.replace(/\D/g, ''))}
+            onBlur={handleBlur}
+            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+            className="max-w-20 h-7 text-xs"
+          />
+        ) : (
+          <span
+            className="select-none whitespace-nowrap cursor-pointer"
+            onClick={() => setShowPageSizeInput(true)}
+          >
+            {total > 0 ? `${start}-${end}` : '0'} / {total}
+          </span>
+        )}
       </div>
 
       <div className="flex items-center gap-1">
@@ -102,9 +117,26 @@ export const Pagination: React.FC<PaginationProps> = ({
         >
           <ArrowIcon direction="left" />
         </button>
-        <span className="text-sm text-muted-foreground px-2 select-none">
-          {currentPage} / {totalPages}
-        </span>
+        {showJumpInput ? (
+          <Input
+            ref={jumpInputRef}
+            type="text"
+            inputMode="numeric"
+            placeholder="跳转条目"
+            value={jumpInputValue}
+            onChange={(e) => setJumpInputValue(e.target.value.replace(/\D/g, ''))}
+            onBlur={handleJumpBlur}
+            onKeyDown={handleJumpKeyDown}
+            className="max-w-20 h-7 text-xs"
+          />
+        ) : (
+          <span
+            className="text-sm text-muted-foreground px-2 select-none whitespace-nowrap cursor-pointer"
+            onClick={() => setShowJumpInput(true)}
+          >
+            {currentPage} / {totalPages}
+          </span>
+        )}
         <button
           className={btnClass}
           disabled={currentPage >= totalPages}

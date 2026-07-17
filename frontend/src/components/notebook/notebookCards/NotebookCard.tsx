@@ -45,10 +45,11 @@ export const NotebookCard: React.FC<NotebookCardProps> = React.memo(({
             {formatDateTime(entry.created_at as string)}
           </span>
           <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-            <div className={isSelectionMode ? 'invisible' : ''}>
+            <div>
               <Button
                 variant="outline"
                 size="sm"
+                disabled={isSelectionMode}
                 onClick={() => navigate(`/notebooks/${type}/edit/${entry.id as string}`)}
               >
                 <EditIcon/>

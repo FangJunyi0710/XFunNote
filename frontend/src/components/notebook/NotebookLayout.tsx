@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { defaultRenderEntryDisplay } from '@/components/notebook/notebookCards/defaultCardList';
+import { defaultRenderEntryDisplay } from '@/components/notebook/notebookCards/NotebookCardList';
 import { PlusIcon, FilterIcon, BatchEditIcon, DeleteIcon, SelectAllIcon, DeselectAllIcon } from '@/components/ui/icons';
 import { useNotebookStore } from '@/stores/notebookStore';
 import * as notebookApi from '@/api/notebooks';

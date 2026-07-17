@@ -270,9 +270,9 @@ XFunNote/
 │   │   │   │   └── Sidebar.tsx
 │   │   │   ├── notebook/
 │   │   │   │   ├── notebookCards/
-│   │   │   │   │   ├── defaultCard.tsx
-│   │   │   │   │   ├── defaultCardList.tsx
-│   │   │   │   │   └── index.ts
+│   │   │   │   │   ├── index.ts
+│   │   │   │   │   ├── NotebookCard.tsx
+│   │   │   │   │   └── NotebookCardList.tsx
 │   │   │   │   ├── notebookForms/
 │   │   │   │   │   ├── defaultForm.tsx
 │   │   │   │   │   └── index.ts
@@ -285,6 +285,7 @@ XFunNote/
 │   │   │       ├── card.tsx
 │   │   │       ├── checkbox.tsx
 │   │   │       ├── dialog.tsx
+│   │   │       ├── icons.tsx
 │   │   │       ├── input.tsx
 │   │   │       ├── label.tsx
 │   │   │       ├── select.tsx
@@ -292,10 +293,12 @@ XFunNote/
 │   │   │       ├── switch.tsx
 │   │   │       ├── tabs.tsx
 │   │   │       ├── textarea.tsx
+│   │   │       ├── Toast.tsx
 │   │   │       └── TokenValueDisplay.tsx
 │   │   ├── config/
 │   │   │   └── notebook.ts
 │   │   ├── lib/
+│   │   │   ├── error.ts
 │   │   │   ├── type-guards.ts
 │   │   │   └── utils.ts
 │   │   ├── pages/
