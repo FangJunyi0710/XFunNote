@@ -4,15 +4,15 @@ from __future__ import annotations
 
 
 class TestListTokens:
-    """GET /api/v1/tokens"""
+    """GET /api/v0/tokens"""
 
     def test_list_empty(self, client):
-        resp = client.get("/api/v1/tokens")
+        resp = client.get("/api/v0/tokens")
         assert resp.status_code == 200
         assert resp.json() == []
 
     def test_list_with_data(self, client, demo_token):
-        resp = client.get("/api/v1/tokens")
+        resp = client.get("/api/v0/tokens")
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) >= 1
@@ -20,24 +20,24 @@ class TestListTokens:
 
 
 class TestGetToken:
-    """GET /api/v1/tokens/{token_id}"""
+    """GET /api/v0/tokens/{token_id}"""
 
     def test_get(self, client, demo_token):
-        resp = client.get(f"/api/v1/tokens/{demo_token['id']}")
+        resp = client.get(f"/api/v0/tokens/{demo_token['id']}")
         assert resp.status_code == 200
         assert resp.json()["name"] == "test-token"
 
     def test_get_not_found(self, client):
-        resp = client.get("/api/v1/tokens/nonexistent")
+        resp = client.get("/api/v0/tokens/nonexistent")
         assert resp.status_code == 404
 
 
 class TestCreateToken:
-    """POST /api/v1/tokens"""
+    """POST /api/v0/tokens"""
 
     def test_create(self, client, demo_perm):
         resp = client.post(
-            "/api/v1/tokens",
+            "/api/v0/tokens",
             json={"name": "新Token", "permission": "test-permission"},
         )
         assert resp.status_code == 201
@@ -49,7 +49,7 @@ class TestCreateToken:
 
     def test_create_with_shortcut(self, client, demo_perm):
         resp = client.post(
-            "/api/v1/tokens",
+            "/api/v0/tokens",
             json={"name": "快捷Token", "permission": "test-permission", "shortcut": "my-shortcut"},
         )
         assert resp.status_code == 201
@@ -59,7 +59,7 @@ class TestCreateToken:
 
     def test_create_invalid_permission(self, client):
         resp = client.post(
-            "/api/v1/tokens",
+            "/api/v0/tokens",
             json={"name": "无效权限", "permission": "nonexistent"},
         )
         assert resp.status_code == 400
@@ -67,11 +67,11 @@ class TestCreateToken:
 
 
 class TestUpdateToken:
-    """PUT /api/v1/tokens/{token_id}"""
+    """PUT /api/v0/tokens/{token_id}"""
 
     def test_update_name(self, client, demo_token):
         resp = client.put(
-            f"/api/v1/tokens/{demo_token['id']}",
+            f"/api/v0/tokens/{demo_token['id']}",
             json={"name": "更新后的名称"},
         )
         assert resp.status_code == 200
@@ -79,7 +79,7 @@ class TestUpdateToken:
 
     def test_update_deactivate(self, client, demo_token):
         resp = client.put(
-            f"/api/v1/tokens/{demo_token['id']}",
+            f"/api/v0/tokens/{demo_token['id']}",
             json={"is_active": False},
         )
         assert resp.status_code == 200
@@ -113,7 +113,7 @@ class TestUpdateToken:
             )
 
         resp = client.put(
-            f"/api/v1/tokens/{demo_token['id']}",
+            f"/api/v0/tokens/{demo_token['id']}",
             json={"permission": "another-perm"},
         )
         assert resp.status_code == 200
@@ -121,45 +121,45 @@ class TestUpdateToken:
 
     def test_update_invalid_permission(self, client, demo_token):
         resp = client.put(
-            f"/api/v1/tokens/{demo_token['id']}",
+            f"/api/v0/tokens/{demo_token['id']}",
             json={"permission": "nonexistent"},
         )
         assert resp.status_code == 400
 
     def test_update_not_found(self, client):
         resp = client.put(
-            "/api/v1/tokens/nonexistent",
+            "/api/v0/tokens/nonexistent",
             json={"name": "新名称"},
         )
         assert resp.status_code == 404
 
 
 class TestDeleteToken:
-    """DELETE /api/v1/tokens/{token_id}"""
+    """DELETE /api/v0/tokens/{token_id}"""
 
     def test_delete(self, client, demo_token):
-        resp = client.delete(f"/api/v1/tokens/{demo_token['id']}")
+        resp = client.delete(f"/api/v0/tokens/{demo_token['id']}")
         assert resp.status_code == 200
         assert "已删除" in resp.json()["message"]
 
     def test_delete_not_found(self, client):
-        resp = client.delete("/api/v1/tokens/nonexistent")
+        resp = client.delete("/api/v0/tokens/nonexistent")
         assert resp.status_code == 404
 
 
 class TestExchangeToken:
-    """POST /api/v1/tokens/exchange"""
+    """POST /api/v0/tokens/exchange"""
 
     def test_exchange(self, client, demo_perm):
         # 先创建带 shortcut 的 token
         create_resp = client.post(
-            "/api/v1/tokens",
+            "/api/v0/tokens",
             json={"name": "可兑换", "permission": "test-permission", "shortcut": "exchange-me"},
         )
         assert create_resp.status_code == 201
 
         resp = client.post(
-            "/api/v1/tokens/exchange",
+            "/api/v0/tokens/exchange",
             json={"shortcut": "exchange-me"},
         )
         assert resp.status_code == 200
@@ -169,7 +169,7 @@ class TestExchangeToken:
 
     def test_exchange_not_found(self, client):
         resp = client.post(
-            "/api/v1/tokens/exchange",
+            "/api/v0/tokens/exchange",
             json={"shortcut": "non-existent"},
         )
         assert resp.status_code == 404
@@ -177,20 +177,20 @@ class TestExchangeToken:
     def test_exchange_one_time(self, client, demo_perm):
         """验证 shortcut 一次性使用。"""
         client.post(
-            "/api/v1/tokens",
+            "/api/v0/tokens",
             json={"name": "一次性", "permission": "test-permission", "shortcut": "one-time"},
         )
-        resp1 = client.post("/api/v1/tokens/exchange", json={"shortcut": "one-time"})
+        resp1 = client.post("/api/v0/tokens/exchange", json={"shortcut": "one-time"})
         assert resp1.status_code == 200
-        resp2 = client.post("/api/v1/tokens/exchange", json={"shortcut": "one-time"})
+        resp2 = client.post("/api/v0/tokens/exchange", json={"shortcut": "one-time"})
         assert resp2.status_code == 404
 
 
 class TestCurrentTokenInfo:
-    """GET /api/v1/tokens/info"""
+    """GET /api/v0/tokens/info"""
 
     def test_info(self, client, demo_token):
-        resp = client.get("/api/v1/tokens/info", headers={"X-API-Key": demo_token.get("token", "")})
+        resp = client.get("/api/v0/tokens/info", headers={"X-API-Key": demo_token.get("token", "")})
         assert resp.status_code == 200
         data = resp.json()
         assert data["name"] == "test-token"

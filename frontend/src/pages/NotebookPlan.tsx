@@ -17,7 +17,7 @@ const PlanCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
         {e.done ? (
           <Badge variant="success" className="text-[10px]">已完成</Badge>
         ) : (
-          <Badge variant="secondary" className="text-[10px]">进行中</Badge>
+          <Badge variant="secondary" className="text-[10px]">未完成</Badge>
         )}
       </div>
       {e.content && (

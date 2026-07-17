@@ -47,17 +47,6 @@ export const NOTEBOOK_INFO: Record<string, { label: string; description: string 
   schedule: { label: '日程', description: '规划未来日程' },
 };
 
-/** 默认 Emoji 映射 */
-export const DEFAULT_EMOJIS: Record<NotebookType, string> = {
-  plan: '',
-  diary: '',
-  word: '',
-  accumulation: '',
-  aimemory: '',
-  timeline: '',
-  schedule: '',
-};
-
 // -------------------------------------------------------
 // 颜色映射（用于样式工厂函数，也可直接使用）
 // -------------------------------------------------------

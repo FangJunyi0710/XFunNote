@@ -6,6 +6,9 @@ import * as notebookApi from '@/api/notebooks';
 import { castEntries } from '@/lib/type-guards';
 import { handleError } from '@/lib/error';
 
+// ── 默认分页大小 ──────────────────────────────────────────────────────
+const DEFAULT_PAGE_LIMIT = 20;
+
 // ── localStorage 分页持久化 ──────────────────────────────────────────
 const PAGINATION_KEY = 'xfun-notebook-pagination';
 
@@ -17,11 +20,11 @@ interface PaginationCache {
 function loadPagination(type: NotebookType): PaginationCache {
   try {
     const raw = localStorage.getItem(PAGINATION_KEY);
-    if (!raw) return { offset: 0, limit: 20 };
+    if (!raw) return { offset: 0, limit: DEFAULT_PAGE_LIMIT };
     const all: Record<string, PaginationCache> = JSON.parse(raw);
-    return all[type] ?? { offset: 0, limit: 20 };
+    return all[type] ?? { offset: 0, limit: DEFAULT_PAGE_LIMIT };
   } catch {
-    return { offset: 0, limit: 20 };
+    return { offset: 0, limit: DEFAULT_PAGE_LIMIT };
   }
 }
 
@@ -50,11 +53,6 @@ async function getCachedSchema(type: NotebookType): Promise<NotebookSchema> {
     schemaCache[s.table_name] = s;
   }
   return schemaCache[type];
-}
-
-// 当用户增删笔记本类型时清空缓存（当前没有此类操作，留作扩展）
-export function clearSchemaCache() {
-  schemaCache = null;
 }
 
 interface NotebookState {
@@ -95,7 +93,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   entries: [],
   total: 0,
   offset: 0,
-  limit: 20,
+  limit: DEFAULT_PAGE_LIMIT,
   filterJson: null,
   orderBy: 'id',
   orderDir: 'desc',

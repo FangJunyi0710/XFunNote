@@ -10,34 +10,34 @@ class TestDBManagementAuth:
 
     def test_init_without_root(self, client):
         """发送错误的 API Key 测试 403。"""
-        resp = client.post("/api/v1/db/init", headers={"X-API-Key": "invalid"})
+        resp = client.post("/api/v0/db/init", headers={"X-API-Key": "invalid"})
         assert resp.status_code == 403
 
 
 class TestDBInit:
-    """POST /api/v1/db/init"""
+    """POST /api/v0/db/init"""
 
     def test_init(self, client):
-        resp = client.post("/api/v1/db/init", headers={"X-API-Key": "test-root-token"})
+        resp = client.post("/api/v0/db/init", headers={"X-API-Key": "test-root-token"})
         assert resp.status_code == 200
         assert "初始化完成" in resp.json()["message"]
 
 
 class TestDBBackup:
-    """POST /api/v1/db/backup"""
+    """POST /api/v0/db/backup"""
 
     def test_backup(self, client):
-        resp = client.post("/api/v1/db/backup", headers={"X-API-Key": "test-root-token"})
+        resp = client.post("/api/v0/db/backup", headers={"X-API-Key": "test-root-token"})
         assert resp.status_code == 200
         assert "备份完成" in resp.json()["message"]
 
 
 class TestDBReset:
-    """POST /api/v1/db/reset"""
+    """POST /api/v0/db/reset"""
 
     def test_reset(self, client):
         resp = client.post(
-            "/api/v1/db/reset",
+            "/api/v0/db/reset",
             json={"backup_first": False},
             headers={"X-API-Key": "test-root-token"},
         )
@@ -46,7 +46,7 @@ class TestDBReset:
 
     def test_reset_with_backup(self, client):
         resp = client.post(
-            "/api/v1/db/reset",
+            "/api/v0/db/reset",
             json={"backup_first": True},
             headers={"X-API-Key": "test-root-token"},
         )
@@ -54,11 +54,11 @@ class TestDBReset:
 
 
 class TestDBRestore:
-    """POST /api/v1/db/restore"""
+    """POST /api/v0/db/restore"""
 
     def test_restore_nonexistent(self, client):
         resp = client.post(
-            "/api/v1/db/restore",
+            "/api/v0/db/restore",
             json={"backup_path": "/nonexistent/backup.db"},
             headers={"X-API-Key": "test-root-token"},
         )
@@ -67,12 +67,12 @@ class TestDBRestore:
 
     def test_restore_valid(self, client):
         # 先备份获取有效路径
-        backup_resp = client.post("/api/v1/db/backup", headers={"X-API-Key": "test-root-token"})
+        backup_resp = client.post("/api/v0/db/backup", headers={"X-API-Key": "test-root-token"})
         assert backup_resp.status_code == 200
         backup_path = backup_resp.json()["message"].replace("备份完成: ", "")
 
         resp = client.post(
-            "/api/v1/db/restore",
+            "/api/v0/db/restore",
             json={"backup_path": backup_path},
             headers={"X-API-Key": "test-root-token"},
         )
@@ -81,13 +81,13 @@ class TestDBRestore:
 
 
 class TestDBListBackups:
-    """GET /api/v1/db/backups"""
+    """GET /api/v0/db/backups"""
 
     def test_list_backups(self, client):
         # 先创建一个备份
-        client.post("/api/v1/db/backup", headers={"X-API-Key": "test-root-token"})
+        client.post("/api/v0/db/backup", headers={"X-API-Key": "test-root-token"})
 
-        resp = client.get("/api/v1/db/backups", headers={"X-API-Key": "test-root-token"})
+        resp = client.get("/api/v0/db/backups", headers={"X-API-Key": "test-root-token"})
         assert resp.status_code == 200
         data = resp.json()
         assert "backups" in data

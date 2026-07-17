@@ -169,6 +169,18 @@ app.include_router(manage_filter.router, prefix=API_PREFIX)
 
 # TODO 前端在权限被拒时根据 ops 返回值提示
 # TODO 增加导入导出功能
-# TODO 实现 filter 编辑器
+# TODO 实现完整的 filter 编辑器
 # TODO 前端实现真正的视图筛选
 # TODO HTTPS 增强安全
+# TODO 添加流式返回 AI 结果的路由及前端支持
+# TODO 前端分各个本子做精致的数据呈现
+# TODO 前端 AI 对话添加历史对话、Agent选择与编辑等页面
+# TODO 前端添加排序设置页面
+# TODO 生产环境应限制 allow_origins
+# TODO 前端缺少错误边界：React 组件中缺少 ErrorBoundary，任何未捕获的渲染错误都会白屏。
+# TODO 前端添加 .env 编辑管理页面
+# TODO Docker 化方案与快速部署 Termux 到手机、apk 打包等
+# TODO FSRS 算法复习调度：为 word 本子实现完整的间隔重复算法。
+# TODO QQ 机器人推送与定时任务：自动定期备份等
+# TODO pyproject.toml 内容很少（缺少项目元数据、依赖声明等）
+# TODO CI/CD 配置

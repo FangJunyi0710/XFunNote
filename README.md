@@ -48,7 +48,7 @@ npm install && npm run dev
 | 变量 | 说明 |
 |------|------|
 | `XFUN_USER` | 数据库用户名，拼接为 `data/{用户名}.db`。若未设置，默认回退为 `data/default.db` |
-| `ROOT_TOKEN` | 管理员启动密钥（bootstrap），用于前期引导和数据库管理操作（`/db/*` 路由）。后续建议通过 `/api/v1/tokens` API 管理普通 Token |
+| `ROOT_TOKEN` | 管理员启动密钥（bootstrap），用于前期引导和数据库管理操作（`/db/*` 路由）。后续建议通过 `/api/v0/tokens` API 管理普通 Token |
 | `LLM_API_KEY` | DeepSeek API Key，用于 AI 功能 |
 | `LLM_BASE_URL` | DeepSeek API 端点（.env.example 中已预填 DeepSeek 兼容端点） |
 | `LLM_MODEL` | 默认模型（当前建议 `deepseek-v4-flash`） |
@@ -66,8 +66,15 @@ npm install && npm run dev
 
 ### 数据模型与核心编排
 - **Notebook**：数据容器基类，子类定义 `_extra_columns` 即获完整 CRUD。筛选由 `Condition`（支持 `JSON_CONTAINS`/`LIKE`/`TEXT_SEARCH` 等自定义运算符）与递归 `Filter`（外层 OR、内层 AND，支持无限嵌套与取反）构成查询语言。
-- **View 与 Permission**：View 描述跨本子的列+行数据子集；Permission 为 `(read_view, write_view)` 元组，写视图强制为读视图子集。
-- **Ops 统一入口**：`query` / `add` / `update` / `delete` 四个高维函数，内部自动编排 View、Permission 与 Notebook，是 API 和 AI Tools 的唯一数据操作入口。
+- **View 与 Permission**：View 描述跨本子的列+行数据子集；Permission 为 `(read_view, write_view)` 元组，写视图强制为读视图子集。Permission 通过双元组精细控制四个 CRUD 操作：
+
+  | 操作 | 控制方式 |
+  |------|---------|
+  | **Query / Count** | `query_view` 与 `read_view` 取 AND 交集，仅返回读视图允许的列和行 |
+  | **Add** | `view_clean_add()` 过滤 entries，仅保留写视图中出现的列；表不在写视图中则拒绝写入 |
+  | **Update** | `view_clean_update()` 对写视图中每个 `(列集, 行筛选)` 规格分别取列交集 + 行筛选 AND 组合；不在写视图中的列被静默丢弃 |
+  | **Delete** | `view_clean_delete()` 仅当写视图的某规格包含 `id` 列时允许删除，且行筛选被限制在写视图范围内 |
+- **Ops 统一入口**：`query` / `count` / `add` / `update` / `delete` 五个高维函数，内部自动编排 View、Permission 与 Notebook，是 API 和 AI Tools 的唯一数据操作入口。
 - **系统支撑表**：
 
   | 表名 | 用途 |
@@ -92,7 +99,6 @@ npm install && npm run dev
 ### AI 原生能力
 - **三级记忆**：显式记忆（`aimemory`，按 `[事实]/[历史]/[策略]` 前缀分类）、知识积累（`accumulation`）、分散索引（各本子 `ai_tags`/`ai_note`）。
 - **Agent 引擎**：`agent_invoke()` 提供 TOKEN/MSG/SYNC 三级流式粒度，配套完整消息序列化基建。
-- **日报自动化**：AI 填充 LaTeX 模板 → `pdflatex` 编译（最多 3 次迭代纠错）→ 用户反馈偏好自动固化至 `aimemory`。
 - **工具工厂与 Agent 循环**：AI 工具通过 `make_tools(tool_names, permission)` 工厂模式创建，每个工具在创建时绑定权限闭包，确保仅操作授权数据。`agent_invoke()` 执行"LLM 调用 → 工具执行 → 结果反馈"循环，最大迭代次数由 `max_iterations` 控制。
 
   ### 核心模块职责
@@ -189,9 +195,9 @@ npm install && npm run dev
 - [ ] HTTPS 增强安全
 
 ### 阶段四：前端可视化
-- [ ] 计划列表/筛选/增删改
-- [ ] 日记时间线
-- [ ] AI 对话界面
+- [x] 列表/筛选/增删改
+- [ ] 日记时间线等的三级概览视图以及其他精致UI
+- [ ] AI 流式对话配置界面
 - [ ] 日报查看/导出
 - [ ] 实现 filter 编辑器页面
 - [ ] 前端实现真正的视图筛选
@@ -213,7 +219,7 @@ npm install && npm run dev
 ### 远期路线
 - [ ] QQ 机器人推送与定时任务
 - [ ] 多端同步与扩展
-- [ ] 工具函数补全与 SM-2 复习调度
+- [ ] 工具函数补全与复习调度
 - [ ] 三档 AI 模式：白板模式（零工具）/ 查询模式（仅只读）/ 读写模式（完全 CRUD）
 - [ ] 临时层系统
 - [ ] 零散信息整合
@@ -284,6 +290,7 @@ XFunNote/
 │   │   │       ├── button.tsx
 │   │   │       ├── card.tsx
 │   │   │       ├── checkbox.tsx
+│   │   │       ├── ConfirmDialog.tsx
 │   │   │       ├── dialog.tsx
 │   │   │       ├── icons.tsx
 │   │   │       ├── input.tsx
@@ -778,22 +785,22 @@ FastAPI 后端运行后访问 `http://localhost:8000/docs` 查看自动生成的
 
 | 方法 | 路径 |
 |------|------|
-| GET | `/api/v1/notebooks` |
-| GET | `/api/v1/notebooks/{name}/schema` |
-| GET | `/api/v1/notebooks/{name}/entries?view=...` |
-| POST | `/api/v1/notebooks/{name}/entries` |
-| PUT | `/api/v1/notebooks/{name}/entries` |
-| DELETE | `/api/v1/notebooks/{name}/entries` |
-| POST | `/api/v1/ai/chat` |
-| GET | `/api/v1/ai/permission` |
-| GET/PUT/DELETE | `/api/v1/filters/{name}` |
-| GET/POST/PUT/DELETE | `/api/v1/tokens[/{id}]` |
-| GET/POST/PUT/DELETE | `/api/v1/permissions[/{id}]` |
-| GET/PUT/DELETE | `/api/v1/views/{name}` |
-| POST | `/api/v1/db/{init\|backup\|restore\|reset}` |
-| GET | `/api/v1/db/backups` |
-| GET | `/api/v1/tokens/info` |
-| POST | `/api/v1/tokens/exchange` |
+| GET | `/api/v0/notebooks` |
+| GET | `/api/v0/notebooks/{name}/schema` |
+| GET | `/api/v0/notebooks/{name}/entries?view=...` |
+| POST | `/api/v0/notebooks/{name}/entries` |
+| PUT | `/api/v0/notebooks/{name}/entries` |
+| DELETE | `/api/v0/notebooks/{name}/entries` |
+| POST | `/api/v0/ai/chat` |
+| GET | `/api/v0/ai/permission` |
+| GET/PUT/DELETE | `/api/v0/filters/{name}` |
+| GET/POST/PUT/DELETE | `/api/v0/tokens[/{id}]` |
+| GET/POST/PUT/DELETE | `/api/v0/permissions[/{id}]` |
+| GET/PUT/DELETE | `/api/v0/views/{name}` |
+| POST | `/api/v0/db/{init\|backup\|restore\|reset}` |
+| GET | `/api/v0/db/backups` |
+| GET | `/api/v0/tokens/info` |
+| POST | `/api/v0/tokens/exchange` |
 
 ### CLI 命令行
 
@@ -848,16 +855,16 @@ pytest --cov=xfun --cov-report=term-missing
 `data/{XFUN_USER}.db`，默认 `data/default.db`。备份文件在 `data/backups/`。
 
 **如何重置数据库？**
-CLI：`xfun reset`（自动备份后重置）。API：`POST /api/v1/db/reset`（需 ROOT_TOKEN）。
+CLI：`xfun reset`（自动备份后重置）。API：`POST /api/v0/db/reset`（需 ROOT_TOKEN）。
 
 **如何创建第一个 API Token？**
-在 `.env` 中设置 `ROOT_TOKEN`，启动后端后以 `ROOT_TOKEN` 作为 `X-API-Key` 调用 `POST /api/v1/tokens`，或通过前端 `/token-input` 页面输入 ROOT_TOKEN 后创建。
+在 `.env` 中设置 `ROOT_TOKEN`，启动后端后以 `ROOT_TOKEN` 作为 `X-API-Key` 调用 `POST /api/v0/tokens`，或通过前端 `/token-input` 页面输入 ROOT_TOKEN 后创建。
 
 **如何切换用户/数据库？**
 设置环境变量 `XFUN_USER=username`，数据库路径变为 `data/username.db`。
 
 **前端报 CORS 错误怎么办？**
-确保后端正在运行，且前端的 `VITE_API_BASE_URL` 指向正确的后端地址（默认 `http://localhost:8000`）。
+确保后端正在运行，前端通过 Vite proxy 转发请求（默认 `http://localhost:8000`）。
 
 **模块导入时自动建库？**
 `import xfun` 会自动初始化数据库（建表/补齐列/建索引），无需手动调用 `xfun init`。

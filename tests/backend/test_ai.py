@@ -12,7 +12,7 @@ from xfun.core.view import full_view, view_to_json
 
 
 class TestAIPermission:
-    """GET /api/v1/ai/permission"""
+    """GET /api/v0/ai/permission"""
 
     def test_get_permission(self, client):
         """AI 权限路由需要 _permission 表中存在 'ai' 记录。"""
@@ -37,7 +37,7 @@ class TestAIPermission:
                 entry,
             )
 
-        resp = client.get("/api/v1/ai/permission")
+        resp = client.get("/api/v0/ai/permission")
         assert resp.status_code == 200
         data = resp.json()
         assert "read" in data
@@ -45,7 +45,7 @@ class TestAIPermission:
 
 
 class TestAIChat:
-    """POST /api/v1/ai/chat"""
+    """POST /api/v0/ai/chat"""
 
     def _ensure_ai_permission(self):
         from xfun.utils.time_utils import now_str
@@ -72,14 +72,14 @@ class TestAIChat:
     def test_chat_no_messages(self, client):
         self._ensure_ai_permission()
         resp = client.post(
-            "/api/v1/ai/chat",
+            "/api/v0/ai/chat",
             json={"messages": []},
         )
         assert resp.status_code == 422  # min_length=1
 
     def test_chat_invalid_permission(self, client):
         resp = client.post(
-            "/api/v1/ai/chat",
+            "/api/v0/ai/chat",
             json={
                 "messages": [{"role": "user", "content": "hello"}],
                 "permission_name": "nonexistent",
@@ -94,7 +94,7 @@ class TestAIChat:
         mock_invoke.return_value = []
 
         resp = client.post(
-            "/api/v1/ai/chat",
+            "/api/v0/ai/chat",
             json={
                 "messages": [{"role": "user", "content": "hello"}],
                 "permission_name": "ai",

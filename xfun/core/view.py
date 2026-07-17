@@ -52,6 +52,7 @@ def view_to_sql(view: View, db: DB, table: str) -> tuple[str, list]:
         sql = f"SELECT {", ".join(pieces)} FROM ({sql}) AS combined GROUP BY {", ".join(pks)}"
 
     return sql, params
+# TODO 使用 rowid 代替主键去重，避免主键错误地被暴露
 
 def view_to_json(view: View) -> dict:
     """将 View 转换为可 JSON 序列化的 Python 对象。"""

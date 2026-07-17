@@ -206,6 +206,8 @@ def make_tools(tool_names: list[str], permission: DB_Permission) -> list[BaseToo
 # TODO 实现 compile_latex(content: str) -> (pdf_path, error_log)
 # TODO 实现用户反馈学习
 
+# TODO 添加 count 工具
+
 # TODO 记忆导入与持续学习模块
 
 # TODO 临时层系统
