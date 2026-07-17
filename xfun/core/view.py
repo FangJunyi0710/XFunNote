@@ -18,41 +18,16 @@ def view_to_sql(view: View, db: DB, table: str) -> tuple[str, list]:
         return "", []
 
     Column.check(table)
-    subsqls = [f"{db.select_sql(table, [])} WHERE 1=0"]
+    subsqls = [f"SELECT rowid, {db.select_sql(table, [])[len("SELECT "):]} WHERE 1=0"]
     params = []
 
-    pks: list[str] = []
-    for col in db.table_infos[table]:
-        if col.primary_key:
-            pks.append(col.name)
-
     for cols, flt in view[table]:
-        # 确保主键列始终被选中（外层 GROUP BY 依赖主键去重）
-        spec_cols = list(cols)
-        for pk in pks:
-            if pk not in spec_cols:
-                spec_cols.append(pk)
-        sql = db.select_sql(table, spec_cols)
         clause, vals = filter_to_sql(flt)
-        sql += f" WHERE {clause}"
-        subsqls.append(sql)
+        subsqls.append(f"SELECT rowid, {db.select_sql(table, list(cols))[len("SELECT "):]} WHERE {clause}")
         params.extend(vals)
 
-    pieces: list[str] = []
-    for col in db.table_infos[table]:
-        if col.primary_key:
-            pieces.append(col.name)
-            continue
-
-        pieces.append(f"MAX({col.name}) AS {col.name}")
-
-    sql = " UNION ALL ".join(subsqls)
-
-    if pks:
-        sql = f"SELECT {", ".join(pieces)} FROM ({sql}) AS combined GROUP BY {", ".join(pks)}"
-
+    sql = f"SELECT {", ".join([f"MAX({col}) AS {col}" for col in db.cols(table)])} FROM ({" UNION ALL ".join(subsqls)}) AS combined GROUP BY rowid"
     return sql, params
-# TODO 使用 rowid 代替主键去重，避免主键错误地被暴露
 
 def view_to_json(view: View) -> dict:
     """将 View 转换为可 JSON 序列化的 Python 对象。"""
@@ -153,6 +128,7 @@ def no_view(db: DB) -> View:
 
 # 读权限, 写权限
 DB_Permission = tuple[View, View]
+# TODO 添加被允许的 filter 列名防止利用 filter 探测信息
 
 def root_permission(db: DB) -> DB_Permission:
     return (full_view(db), full_view(db))
