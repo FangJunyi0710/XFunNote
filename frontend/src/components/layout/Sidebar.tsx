@@ -40,11 +40,8 @@ function navLinkClass(isActive: boolean, extra = '') {
 
 export const Sidebar: React.FC = () => {
   const { mode, toggle } = useThemeStore();
-  const { isCollapsed, toggleCollapsed, windowWidth, dragOffset } = useSidebarStore();
+  const { isCollapsed, toggleCollapsed, dragOffset, isMobile } = useSidebarStore();
   const [notebookOpen, setNotebookOpen] = useState(true);
-
-  const isMobile = windowWidth < 640;
-
   const handleNavClick = () => {
     if (isMobile) {
       toggleCollapsed();

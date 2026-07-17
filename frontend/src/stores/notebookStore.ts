@@ -6,6 +6,36 @@ import * as notebookApi from '@/api/notebooks';
 import { castEntries } from '@/lib/type-guards';
 import { handleError } from '@/lib/error';
 
+// ── localStorage 分页持久化 ──────────────────────────────────────────
+const PAGINATION_KEY = 'xfun-notebook-pagination';
+
+interface PaginationCache {
+  offset: number;
+  limit: number;
+}
+
+function loadPagination(type: NotebookType): PaginationCache {
+  try {
+    const raw = localStorage.getItem(PAGINATION_KEY);
+    if (!raw) return { offset: 0, limit: 20 };
+    const all: Record<string, PaginationCache> = JSON.parse(raw);
+    return all[type] ?? { offset: 0, limit: 20 };
+  } catch {
+    return { offset: 0, limit: 20 };
+  }
+}
+
+function savePagination(type: NotebookType, offset: number, limit: number) {
+  try {
+    const raw = localStorage.getItem(PAGINATION_KEY);
+    const all: Record<string, PaginationCache> = raw ? JSON.parse(raw) : {};
+    all[type] = { offset, limit };
+    localStorage.setItem(PAGINATION_KEY, JSON.stringify(all));
+  } catch {
+    // ignore
+  }
+}
+
 /** 全局 schema 缓存，避免重复请求 */
 let schemaCache: Record<string, NotebookSchema> | null = null;
 
@@ -73,8 +103,10 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
 
   setCurrentType: async (type: NotebookType) => {
     try {
+      // 从持久化记录中恢复该笔记本类型的分页参数
+      const { offset, limit } = loadPagination(type);
       // 先清空旧数据再设置 loading，避免切换时短暂显示先前内容
-      set({ loading: true, currentType: type, offset: 0, entries: [], schema: null, filterJson: null });
+      set({ loading: true, currentType: type, offset, limit, entries: [], schema: null, filterJson: null });
       const schema = await getCachedSchema(type);
       set({ schema });
       await get().fetchEntries();
@@ -107,12 +139,16 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   },
 
   setOffset: (offset: number) => {
+    const { currentType } = get();
     set({ offset });
+    if (currentType) savePagination(currentType, offset, get().limit);
     get().fetchEntries();
   },
 
   setLimit: (limit: number) => {
-    set({ limit, offset: 0 });
+    const { currentType, offset } = get();
+    set({ limit });
+    if (currentType) savePagination(currentType, offset, limit);
     get().fetchEntries();
   },
 
