@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import * as permissionsApi from '@/api/permissions';
 import type { Permission } from '@/types/permission';
 import { handleError, handleSuccess } from '@/lib/error';
@@ -23,6 +24,9 @@ export const PermissionManagement: React.FC = () => {
   const [form, setForm] = useState(EMPTY_FORM);
   const [isCreating, setIsCreating] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const pendingDeleteRef = useRef('');
 
   const loadPermissions = useCallback(async () => {
     try {
@@ -106,8 +110,14 @@ export const PermissionManagement: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm(`确定删除权限 "${id}"？`)) return;
+  const handleDelete = (id: string) => {
+    pendingDeleteRef.current = id;
+    setConfirmDeleteOpen(true);
+  };
+
+  const executeDelete = async () => {
+    const id = pendingDeleteRef.current;
+    if (!id) return;
     try {
       await permissionsApi.deletePermission(id);
       if (selectedId === id) {
@@ -251,6 +261,16 @@ export const PermissionManagement: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="删除权限"
+        description={`确定删除权限 "${pendingDeleteRef.current}"？此操作不可撤销。`}
+        confirmText="删除"
+        variant="destructive"
+        onConfirm={executeDelete}
+      />
     </div>
   );
 };

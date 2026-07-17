@@ -5,25 +5,24 @@ import { useThemeStore } from '@/stores/themeStore';
 import { useSidebarStore } from '@/stores/sidebarStore';
 import { NOTEBOOK_ROUTES } from '@/config/notebook';
 import { ChevronLeftIcon, ChevronRightIcon, MoonIcon, SunIcon } from '@/components/ui/icons';
+import pkg from '../../../package.json';
 
 interface NavItem {
   label: string;
   path: string;
-  icon: string;
 }
 
-const topNav: NavItem[] = [{ label: '首页', path: '/', icon: '' }];
+const topNav: NavItem[] = [{ label: '首页', path: '/' }];
 
 const notebookNav: NavItem[] = Object.values(NOTEBOOK_ROUTES).map((route) => ({
   label: route.label,
   path: route.path,
-  icon: route.icon,
 }));
 
 const bottomNav: NavItem[] = [
-  { label: 'AI 对话', path: '/ai', icon: '' },
-  { label: '管理', path: '/management', icon: '' },
-  { label: 'Token 管理', path: '/token-input', icon: '' },
+  { label: 'AI 对话', path: '/ai' },
+  { label: '管理', path: '/management' },
+  { label: 'Token 管理', path: '/token-input' },
 ];
 
 
@@ -50,8 +49,8 @@ export const Sidebar: React.FC = () => {
 
   return (
     <>
-      {/* 折叠态浮动按钮 */}
-      {isCollapsed && (
+      {/* 折叠态浮动按钮（移动端隐藏，靠触摸滑出） */}
+      {!isMobile && isCollapsed && (
         <button
           onClick={toggleCollapsed}
           className="fixed left-3 top-3 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-transparent transition-colors text-muted-foreground"
@@ -105,7 +104,6 @@ export const Sidebar: React.FC = () => {
                 onClick={handleNavClick}
                 className={({ isActive }) => navLinkClass(isActive)}
               >
-                <span className="text-base shrink-0">{item.icon}</span>
                 <span>{item.label}</span>
               </NavLink>
             ))}
@@ -140,7 +138,6 @@ export const Sidebar: React.FC = () => {
                         onClick={handleNavClick}
                         className={({ isActive }) => navLinkClass(isActive, 'pl-7')}
                       >
-                        <span className="text-base">{item.icon}</span>
                         <span>{item.label}</span>
                       </NavLink>
                     ))}
@@ -158,7 +155,6 @@ export const Sidebar: React.FC = () => {
                   onClick={handleNavClick}
                   className={({ isActive }) => navLinkClass(isActive)}
                 >
-                  <span className="text-base">{item.icon}</span>
                   <span>{item.label}</span>
                 </NavLink>
               ))}
@@ -167,7 +163,7 @@ export const Sidebar: React.FC = () => {
 
           {/* 底部 */}
           <div className="px-5 py-3 border-t flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">v0.1.0</span>
+            <span className="text-xs text-muted-foreground">v{pkg.version}</span>
             <button
               onClick={toggle}
               className="text-xs text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"

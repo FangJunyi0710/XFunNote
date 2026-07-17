@@ -55,7 +55,8 @@ export const Pagination: React.FC<PaginationProps> = ({
   }, [offset, limit, totalPages, currentPage, onOffsetChange]);
 
   const handleJumpBlur = useCallback(() => {
-    const val = parseInt(jumpInputValue, 10);
+    const raw = parseInt(jumpInputValue, 10);
+    let val = isNaN(raw) ? 1 : Math.min(Math.max(raw, 1), total);
     if (!isNaN(val) && val >= 1 && val <= total) {
       onOffsetChange(val - 1);
     }
@@ -76,7 +77,7 @@ export const Pagination: React.FC<PaginationProps> = ({
     'h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors disabled:pointer-events-none disabled:opacity-50';
 
   return (
-    <div className="flex items-center justify-between py-3">
+    <div className="flex items-center justify-between">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         {showPageSizeInput ? (
           <Input

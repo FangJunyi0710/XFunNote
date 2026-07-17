@@ -1,13 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectItem } from '@/components/ui/select';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import {
   Dialog,
   DialogContent,
@@ -26,6 +21,10 @@ export const DatabaseManagement: React.FC = () => {
   const [backupFiles, setBackupFiles] = useState<string[]>([]);
   const [selectedBackup, setSelectedBackup] = useState<string>('');
 
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
+  const restoreBackupRef = useRef('');
+
   const handleBackup = async () => {
     setLoading('backup');
     try {
@@ -38,10 +37,7 @@ export const DatabaseManagement: React.FC = () => {
     }
   };
 
-  const handleReset = async () => {
-    if (!confirm('确定要重置数据库？此操作将清空所有数据！\n\n确认后再次输入 "reset" 确认：')) {
-      return;
-    }
+  const executeReset = async () => {
     const confirm2 = prompt('请输入 "reset" 确认重置：');
     if (confirm2 !== 'reset') return;
     setLoading('reset');
@@ -73,22 +69,26 @@ export const DatabaseManagement: React.FC = () => {
     }
   }, []);
 
-  const handleRestore = useCallback(async () => {
+  const handleRestore = useCallback(() => {
     if (!selectedBackup) return;
-    if (!confirm(`确定要从以下备份文件还原数据库？\n\n${selectedBackup}\n\n还原前会自动备份当前数据库。`)) {
-      return;
-    }
+    restoreBackupRef.current = selectedBackup;
+    setRestoreConfirmOpen(true);
+  }, [selectedBackup]);
+
+  const executeRestore = useCallback(async () => {
+    const backup = restoreBackupRef.current;
+    if (!backup) return;
     setRestoreDialogOpen(false);
     setLoading('restore');
     try {
-      const res = await managementApi.restoreDb(selectedBackup);
+      const res = await managementApi.restoreDb(backup);
       handleSuccess(res.message);
     } catch (e: unknown) {
       handleError(e, '还原失败');
     } finally {
       setLoading(null);
     }
-  }, [selectedBackup]);
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -135,7 +135,7 @@ export const DatabaseManagement: React.FC = () => {
           <CardContent>
             <Button
               variant="destructive"
-              onClick={handleReset}
+              onClick={() => setResetConfirmOpen(true)}
               disabled={loading === 'reset'}
               className="w-full"
             >
@@ -145,7 +145,7 @@ export const DatabaseManagement: React.FC = () => {
         </Card>
       </div>
 
-      {/* 还原对话框 */}
+      {/* 选择备份文件对话框 */}
       <Dialog open={restoreDialogOpen} onOpenChange={setRestoreDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -156,16 +156,12 @@ export const DatabaseManagement: React.FC = () => {
           </DialogHeader>
           <div className="py-4">
             <Select value={selectedBackup} onChange={(e) => setSelectedBackup(e.target.value)}>
-              <SelectTrigger>
-                <SelectValue>{selectedBackup || '选择备份文件'}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {backupFiles.map((f) => (
-                  <SelectItem key={f} value={f}>
-                    {f}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+              <option value="" disabled>选择备份文件</option>
+              {backupFiles.map((f) => (
+                <SelectItem key={f} value={f}>
+                  {f}
+                </SelectItem>
+              ))}
             </Select>
           </div>
           <DialogFooter>
@@ -178,6 +174,25 @@ export const DatabaseManagement: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={resetConfirmOpen}
+        onOpenChange={setResetConfirmOpen}
+        title="重置数据库"
+        description="确定要重置数据库？此操作将清空所有数据！确认后还需输入 &quot;reset&quot; 二次确认。"
+        confirmText="继续"
+        variant="destructive"
+        onConfirm={executeReset}
+      />
+      <ConfirmDialog
+        open={restoreConfirmOpen}
+        onOpenChange={setRestoreConfirmOpen}
+        title="还原数据库"
+        description={`确定要从以下备份文件还原数据库？\n\n${restoreBackupRef.current}\n\n还原前会自动备份当前数据库。`}
+        confirmText="还原"
+        variant="destructive"
+        onConfirm={executeRestore}
+      />
     </div>
   );
 };

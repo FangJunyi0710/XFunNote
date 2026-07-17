@@ -65,7 +65,7 @@ const renderBooleanField: FieldRenderer = (col, value, onChange) => {
       <Checkbox
         id={col.name}
         checked={checked}
-        onChange={(e) => handleChange(e.target.checked)}
+        onCheckedChange={(v) => handleChange(v)}
       />
       <label htmlFor={col.name} className="text-sm font-medium">
         {col.name}

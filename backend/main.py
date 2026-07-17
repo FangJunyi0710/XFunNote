@@ -8,9 +8,11 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from xfun.config import PROJECT_ROOT
+from xfun.config import PROJECT_ROOT, VERSION
 
 assert PROJECT_ROOT == _PROJECT_ROOT
+
+API_PREFIX = f"/api/v{VERSION.split('.')[0]}"
 
 import http
 import sqlite3
@@ -41,7 +43,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="XFunNote API",
-    description="""
+    description=f"""
 XFunNote 是一个轻量级、无模式的笔记系统后端。
 
 ## 功能特性
@@ -56,10 +58,10 @@ XFunNote 是一个轻量级、无模式的笔记系统后端。
 
 ## 鉴权方式
 
-所有 API（除 `POST /api/v1/tokens/exchange` 和 `/docs` 外）需要在 HTTP 头中携带 `X-API-Key`。
+所有 API（除 `POST {API_PREFIX}/tokens/exchange` 和 `/docs` 外）需要在 HTTP 头中携带 `X-API-Key`。
 
 - **ROOT_TOKEN**：超级管理员权限，在 `.env` 文件中设置
-- **普通 Token**：通过 `POST /api/v1/tokens` 创建，可绑定不同权限级别
+- **普通 Token**：通过 `POST {API_PREFIX}/tokens` 创建，可绑定不同权限级别
 
 ## 数据模型
 
@@ -67,7 +69,7 @@ XFunNote 是一个轻量级、无模式的笔记系统后端。
 - **系统表**：`_token`（令牌）、`_permission`（权限）、`_view`（视图）、`_filter`（筛选）
 """,
     summary="XFunNote 无模式笔记系统 API",
-    version="0.1.0",
+    version=VERSION,
     contact={
         "name": "FangJunyi0710",
         "url": "https://github.com/FangJunyi0710",
@@ -157,13 +159,13 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     )
 
 
-app.include_router(notebooks.router, prefix="/api/v1")
-app.include_router(ai.router, prefix="/api/v1")
-app.include_router(manage_db.router, prefix="/api/v1")
-app.include_router(manage_view.router, prefix="/api/v1")
-app.include_router(manage_token.router, prefix="/api/v1")
-app.include_router(manage_permission.router, prefix="/api/v1")
-app.include_router(manage_filter.router, prefix="/api/v1")
+app.include_router(notebooks.router, prefix=API_PREFIX)
+app.include_router(ai.router, prefix=API_PREFIX)
+app.include_router(manage_db.router, prefix=API_PREFIX)
+app.include_router(manage_view.router, prefix=API_PREFIX)
+app.include_router(manage_token.router, prefix=API_PREFIX)
+app.include_router(manage_permission.router, prefix=API_PREFIX)
+app.include_router(manage_filter.router, prefix=API_PREFIX)
 
 # TODO 前端在权限被拒时根据 ops 返回值提示
 # TODO 增加导入导出功能

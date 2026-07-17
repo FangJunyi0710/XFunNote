@@ -1,6 +1,8 @@
 // 基础 HTTP 客户端
+import pkg from '../../package.json';
 
-const BASE_URL = '/api/v1';
+const API_VERSION = pkg.version.split('.')[0];
+const BASE_URL = `/api/v${API_VERSION}`;
 
 export class ApiError extends Error {
   constructor(

@@ -89,7 +89,7 @@ export const Layout: React.FC = () => {
   return (
     <div className="h-screen overflow-hidden bg-background">
       <Sidebar />
-      <main className="h-full overflow-y-auto">
+      <main id="main-scroll-container" className="h-full overflow-y-auto">
         <div className="max-w-5xl mx-auto px-6 py-6">
           <Outlet />
         </div>

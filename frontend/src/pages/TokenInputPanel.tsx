@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useTokenStore } from '@/stores/tokenStore';
 import { exchangeTokenByShortcut, getTokenInfo } from '@/api/tokens';
 import { handleError, handleSuccess } from '@/lib/error';
@@ -44,9 +45,20 @@ export const TokenInputPanel: React.FC = () => {
     }
   }, [activeTokenId]);
 
+  const pendingDeleteRef = useRef<string | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
   const handleDelete = (id: string) => {
-    if (!confirm('确定删除此 Token？')) return;
-    removeToken(id);
+    pendingDeleteRef.current = id;
+    setConfirmDeleteOpen(true);
+  };
+
+  const executeDelete = () => {
+    const id = pendingDeleteRef.current;
+    if (id) {
+      removeToken(id);
+      pendingDeleteRef.current = null;
+    }
   };
 
   const handleSetActive = (id: string) => {
@@ -248,6 +260,15 @@ export const TokenInputPanel: React.FC = () => {
           </CardContent>
         </Card>
       )}
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="删除 Token"
+        description="确定删除此 Token？此操作不可撤销。"
+        confirmText="删除"
+        variant="destructive"
+        onConfirm={executeDelete}
+      />
     </div>
   );
 };

@@ -9,6 +9,12 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 
+# 更新版本号需改两处：
+# frontend/package.json 的 version 字段
+# xfun/config.py 的 VERSION 常量
+# 需保证主版本号一致，避免 API 路由错误
+VERSION = "0.1.0"
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # 加载 .env 文件

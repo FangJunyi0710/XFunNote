@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import * as viewsApi from '@/api/views';
 import { CloseIcon, DeleteIcon, PlusIcon, SubmitIcon } from '@/components/ui/icons';
 import type { ViewFile, ViewData } from '@/types/view';
@@ -13,6 +14,9 @@ export const ViewManagement: React.FC = () => {
   const [viewContent, setViewContent] = useState('');
   const [newViewName, setNewViewName] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const pendingDeleteRef = useRef('');
 
   const loadViews = useCallback(async () => {
     try {
@@ -82,8 +86,14 @@ export const ViewManagement: React.FC = () => {
     }
   };
 
-  const deleteView = async (name: string) => {
-    if (!confirm(`确定删除视图 "${name}"？`)) return;
+  const deleteView = (name: string) => {
+    pendingDeleteRef.current = name;
+    setConfirmDeleteOpen(true);
+  };
+
+  const executeDelete = async () => {
+    const name = pendingDeleteRef.current;
+    if (!name) return;
     try {
       await viewsApi.deleteView(name);
       if (selectedView === name) {
@@ -179,6 +189,16 @@ export const ViewManagement: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="删除视图"
+        description={`确定删除视图 "${pendingDeleteRef.current}"？此操作不可撤销。`}
+        confirmText="删除"
+        variant="destructive"
+        onConfirm={executeDelete}
+      />
     </div>
   );
 };

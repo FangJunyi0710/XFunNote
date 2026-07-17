@@ -147,14 +147,14 @@ export function getNotebookStyles(type: NotebookType): NotebookStyles {
 // -------------------------------------------------------
 // 路由配置
 // -------------------------------------------------------
-export const NOTEBOOK_ROUTES: Record<string, { path: string; icon: string; label: string }> = {
-  plan: { path: '/notebooks/plan', icon: '', label: '计划' },
-  diary: { path: '/notebooks/diary', icon: '', label: '日记' },
-  word: { path: '/notebooks/word', icon: '', label: '单词' },
-  accumulation: { path: '/notebooks/accumulation', icon: '', label: '积累' },
-  aimemory: { path: '/notebooks/aimemory', icon: '', label: 'AI 记忆' },
-  timeline: { path: '/notebooks/timeline', icon: '', label: '时间线' },
-  schedule: { path: '/notebooks/schedule', icon: '', label: '日程' },
+export const NOTEBOOK_ROUTES: Record<string, { path: string; label: string }> = {
+  plan: { path: '/notebooks/plan', label: '计划' },
+  diary: { path: '/notebooks/diary', label: '日记' },
+  word: { path: '/notebooks/word', label: '单词' },
+  accumulation: { path: '/notebooks/accumulation', label: '积累' },
+  aimemory: { path: '/notebooks/aimemory', label: 'AI 记忆' },
+  timeline: { path: '/notebooks/timeline', label: '时间线' },
+  schedule: { path: '/notebooks/schedule', label: '日程' },
 };
 
 export { TYPE_COLORS, TYPE_RING_COLORS, TYPE_BG_COLORS, TYPE_TEXT_COLORS };

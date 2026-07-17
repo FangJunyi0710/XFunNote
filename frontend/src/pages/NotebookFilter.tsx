@@ -11,6 +11,7 @@ import { FilterIcon, ReplyIcon, SubmitIcon } from '@/components/ui/icons';
 import type { NotebookType } from '@/config/notebook';
 import * as filterApi from '@/api/filters';
 import type { FilterFile } from '@/api/filters';
+import { handleError } from '@/lib/error';
 
 export const NotebookFilter: React.FC = () => {
   const { notetype } = useParams<{ notetype: string }>();
@@ -58,7 +59,7 @@ export const NotebookFilter: React.FC = () => {
       const list = await filterApi.listFilters();
       setSavedFilters(list);
     } catch (e: unknown) {
-      console.error('保存 filter 失败', e);
+      handleError(e, '保存 filter 失败');
     }
   };
 
@@ -69,7 +70,7 @@ export const NotebookFilter: React.FC = () => {
       setCurrentFilter((data.data as string | undefined) ?? null);
       setSelectedFilterName(name);
     } catch (e: unknown) {
-      console.error('加载 filter 失败', e);
+      handleError(e, '加载 filter 失败');
     }
   };
 
@@ -83,7 +84,7 @@ export const NotebookFilter: React.FC = () => {
         setCurrentFilter(null);
       }
     } catch (e: unknown) {
-      console.error('删除 filter 失败', e);
+      handleError(e, '删除 filter 失败');
     }
   };
 

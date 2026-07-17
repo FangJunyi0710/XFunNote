@@ -1,12 +1,14 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { defaultRenderEntryDisplay } from '@/components/notebook/notebookCards/NotebookCardList';
-import { PlusIcon, FilterIcon, BatchEditIcon, DeleteIcon, SelectAllIcon, DeselectAllIcon } from '@/components/ui/icons';
+import { PlusIcon, FilterIcon, BatchEditIcon, DeleteIcon, SelectAllIcon, DeselectAllIcon, ChevronUpIcon } from '@/components/ui/icons';
 import { useNotebookStore } from '@/stores/notebookStore';
 import * as notebookApi from '@/api/notebooks';
 import { TYPE_LABELS } from '@/config/notebook';
 import type { NotebookType } from '@/config/notebook';
+import { useSidebarStore } from '@/stores/sidebarStore';
 
 interface NotebookLayoutProps {
   /** 笔记本类型标识 */
@@ -31,7 +33,9 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const store = useNotebookStore();
+  const { isCollapsed, toggleCollapsed } = useSidebarStore();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showTopButton, setShowTopButton] = useState(false);
 
   // 从路由 state 恢复选中 ID（批量更新取消返回时）
   useEffect(() => {
@@ -42,6 +46,20 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, navigate, location.pathname]);
+
+  // 监听滚动容器，控制"回到顶部"按钮显示
+  useEffect(() => {
+    const container = document.getElementById('main-scroll-container');
+    if (!container) return;
+
+    const onScroll = () => {
+      setShowTopButton(container.scrollTop > 20);
+    };
+
+    onScroll(); // 初始检查
+    container.addEventListener('scroll', onScroll);
+    return () => container.removeEventListener('scroll', onScroll);
+  }, []);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -72,14 +90,15 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     setSelectedIds(new Set());
   }, []);
 
-  const handleBatchDelete = useCallback(async () => {
+  const confirmDeleteRef = useRef<string[]>([]);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
+  const handleBatchDelete = useCallback(() => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
-    if (confirm(`确定删除 ${ids.length} 条${TYPE_LABELS[notetype]}？`)) {
-      await store.deleteEntries(ids);
-      setSelectedIds(new Set());
-    }
-  }, [selectedIds, store, notetype]);
+    confirmDeleteRef.current = ids;
+    setConfirmDeleteOpen(true);
+  }, [selectedIds]);
 
   const handleBatchUpdate = useCallback(() => {
     const ids = Array.from(selectedIds);
@@ -102,14 +121,18 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     navigate(`/notebooks/${notetype}/edit/${entry.id}`);
   }, [navigate, notetype]);
 
-  const handleDelete = useCallback(
-    async (id: string) => {
-      if (confirm('确定删除该条目？')) {
-        await store.deleteEntries([id]);
-      }
-    },
-    [store],
-  );
+  const handleDelete = useCallback((id: string) => {
+    confirmDeleteRef.current = [id];
+    setConfirmDeleteOpen(true);
+  }, []);
+
+  const executeDelete = useCallback(async () => {
+    const ids = confirmDeleteRef.current;
+    if (ids.length === 0) return;
+    await store.deleteEntries(ids);
+    setSelectedIds(new Set());
+    confirmDeleteRef.current = [];
+  }, [store]);
 
   // 选中数量
   const selectedCount = selectedIds.size;
@@ -134,7 +157,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     return (
       <>
         {stickySlot && (
-          <div className="sticky top-12 z-10 bg-background py-2 border-b">
+          <div className="sticky top-12 z-10 bg-background py-2 border-b -mx-6 px-6">
             {stickySlot}
           </div>
         )}
@@ -149,12 +172,32 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     <div className="space-y-4 animate-fade-in">
       {/* 标题栏 — 筛选 / 新增 / 批量操作 三按钮并列 — sticky */}
       <div className="sticky top-0 z-10 flex items-center justify-between bg-background py-2">
-        <h1 className="text-xl font-bold">{label}</h1>
+        <div className="flex items-center gap-2">
+          <h1
+            className="text-xl font-bold cursor-pointer select-none"
+            onClick={() => { if (isCollapsed) toggleCollapsed(); }}
+          >
+            {label}
+          </h1>
+          {showTopButton && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                document.getElementById('main-scroll-container')?.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              title="滚动到顶部"
+            >
+              <ChevronUpIcon size={16}/>
+            </Button>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 ? (
             <>
               <Button variant="outline" size="sm" onClick={handleDeselectAll} title="取消全选">
-                <DeselectAllIcon/>
+                <DeselectAllIcon className='mr-1'/> {selectedCount}
               </Button>
               <Button variant="outline" size="sm" onClick={handleBatchUpdate} title="批量编辑">
                 <BatchEditIcon/>
@@ -192,6 +235,19 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
       ) : (
         entryList
       )}
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title={`删除${label}`}
+        description={confirmDeleteRef.current.length === 1
+          ? `确定删除该${label}？此操作不可撤销。`
+          : `确定删除 ${confirmDeleteRef.current.length} 条${label}？此操作不可撤销。`
+        }
+        confirmText="删除"
+        variant="destructive"
+        onConfirm={executeDelete}
+      />
     </div>
   );
 };

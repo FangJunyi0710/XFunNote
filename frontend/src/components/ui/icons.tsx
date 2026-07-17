@@ -79,6 +79,24 @@ export const ChevronRightIcon: React.FC<IconProps> = ({ className, size = 20 }) 
   </svg>
 );
 
+/** 上箭头（Chevron Up）图标 */
+export const ChevronUpIcon: React.FC<IconProps> = ({ className, size = 20 }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M18 15l-6-6-6 6" />
+  </svg>
+);
+
 /** 单箭头图标 */
 interface ArrowIconProps extends IconProps {
   direction: 'left' | 'right';

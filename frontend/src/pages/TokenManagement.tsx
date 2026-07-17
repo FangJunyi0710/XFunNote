@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { TokenValueDisplay } from '@/components/ui/TokenValueDisplay';
 import { CloseIcon, DeleteIcon, PlusIcon, SubmitIcon } from '@/components/ui/icons';
 import * as tokensApi from '@/api/tokens';
@@ -31,6 +32,9 @@ export const TokenManagement: React.FC = () => {
   const [form, setForm] = useState(EMPTY_FORM);
   const [isCreating, setIsCreating] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const pendingDeleteRef = useRef('');
 
   const loadData = useCallback(async () => {
     try {
@@ -123,8 +127,14 @@ export const TokenManagement: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm(`确定删除此 Token？`)) return;
+  const handleDelete = (id: string) => {
+    pendingDeleteRef.current = id;
+    setConfirmDeleteOpen(true);
+  };
+
+  const executeDelete = async () => {
+    const id = pendingDeleteRef.current;
+    if (!id) return;
     try {
       await tokensApi.deleteToken(id);
       if (selectedId === id) {
@@ -355,6 +365,16 @@ export const TokenManagement: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="删除 Token"
+        description="确定删除此 Token？此操作不可撤销。"
+        confirmText="删除"
+        variant="destructive"
+        onConfirm={executeDelete}
+      />
     </div>
   );
 };

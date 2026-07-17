@@ -107,8 +107,8 @@ export const AiChat: React.FC = () => {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
-          rows={3}
-          className="resize-none flex-1"
+          autoResize
+          className="flex-1"
           disabled={loading}
         />
         <Button
