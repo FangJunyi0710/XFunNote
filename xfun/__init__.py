@@ -58,6 +58,9 @@ _SYSTEM_TABLES: dict[str, list[Column]] = {
         Column("updated_at", "TEXT", nullable=False, auto=True),
     ],
 }
+# TODO token 添加 user 列
+# TODO permission 添加 uuid 列
+# TODO token 改为 permission uuid 列表
 
 
 def _autofill_token(entry: dict) -> None:
