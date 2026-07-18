@@ -2,8 +2,10 @@ from datetime import date, datetime, timezone
 
 
 def format_datetime(dt: datetime) -> str:
-    """将 datetime 对象格式化为含 UTC 偏移的字符串，如 "2026-06-16 14:30:00.123+08:00"。"""
-    return dt.isoformat(sep=" ", timespec="milliseconds")
+    """将 datetime 对象格式化为含 UTC 偏移的字符串，如 "2026-06-16T14:30:00.123+08:00"。"""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat(timespec="milliseconds")
 
 def format_date(d: date) -> str:
     """将 date 对象格式化为 ISO 日期字符串，如 "2026-06-18"。"""
@@ -11,7 +13,7 @@ def format_date(d: date) -> str:
 
 
 def now_str() -> str:
-    """返回当前本地时间字符串，包含 UTC 偏移，如 "2026-06-16 14:30:00+08:00"。"""
+    """返回当前本地时间字符串，包含 UTC 偏移，如 "2026-06-16T14:30:00+08:00"。"""
     return format_datetime(datetime.now(timezone.utc).astimezone())
 
 def today_str() -> str:
