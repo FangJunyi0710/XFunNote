@@ -86,7 +86,7 @@ XFunNote 是一个轻量级、无模式的笔记系统后端。
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["127.0.0.1"], # 只能被运行在本机的前端访问
+    allow_origins=[], # 禁止所有跨域访问
     allow_methods=["*"],
     allow_headers=["*"],
 )
