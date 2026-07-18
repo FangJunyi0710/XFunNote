@@ -20,21 +20,18 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # 加载 .env 文件
 load_dotenv(str(PROJECT_ROOT / ".env"))
 
-# ---- 用户 ----
-
 XFUN_USER = os.environ.get("XFUN_USER", "default")
-
-
-# ---- 数据库 ----
 DB_PATH = str(PROJECT_ROOT / "data" / f"{XFUN_USER}.db")
-
-
-# ---- AI ----
 
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL")
 LLM_MODEL = os.environ.get("LLM_MODEL")
 
+SSL_CERT_PATH = os.environ.get("SSL_CERT_PATH", "")
+SSL_KEY_PATH = os.environ.get("SSL_KEY_PATH", "")
 
-# ---- API 鉴权（Bootstrap） ----
+UVICORN_RELOAD = os.environ.get("UVICORN_RELOAD", "false").lower() == "true"
+SHOW_DOCS = os.environ.get("SHOW_DOCS", "false").lower() == "true"
+BACKEND_PORT = int(os.environ.get("BACKEND_PORT", "8000"))
+
 ROOT_TOKEN = os.environ.get("ROOT_TOKEN", "")

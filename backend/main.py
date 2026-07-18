@@ -1,27 +1,27 @@
+#!/usr/bin/env python3
 """FastAPI 后端入口。"""
-import sys
-from pathlib import Path
-
-from xfun.core.errors import XFunError
-
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(_PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(_PROJECT_ROOT))
-
-from xfun.config import PROJECT_ROOT, VERSION
-
-assert PROJECT_ROOT == _PROJECT_ROOT
-
-API_PREFIX = f"/api/v{VERSION.split('.')[0]}"
-
 import http
 import sqlite3
+import sys
+import uvicorn
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from xfun.core.errors import XFunError
+from xfun.config import PROJECT_ROOT, SHOW_DOCS, UVICORN_RELOAD, VERSION, BACKEND_PORT
+
+assert PROJECT_ROOT == _PROJECT_ROOT
+
+API_PREFIX = f"/api/v{VERSION.split('.')[0]}"
 
 from backend.routers import (
     notebooks,
@@ -79,15 +79,17 @@ XFunNote 是一个轻量级、无模式的笔记系统后端。
         "url": "https://www.apache.org/licenses/LICENSE-2.0",
     },
     lifespan=lifespan,
+    docs_url="/docs" if SHOW_DOCS else None,
+    redoc_url="/redoc" if SHOW_DOCS else None,
+    openapi_url="/openapi.json" if SHOW_DOCS else None,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["127.0.0.1"], # 只能被运行在本机的前端访问
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
@@ -167,16 +169,22 @@ app.include_router(manage_token.router, prefix=API_PREFIX)
 app.include_router(manage_permission.router, prefix=API_PREFIX)
 app.include_router(manage_filter.router, prefix=API_PREFIX)
 
+if __name__ == "__main__":
+    uvicorn.run(
+        "backend.main:app",
+        host="127.0.0.1",
+        port=BACKEND_PORT,
+        reload=UVICORN_RELOAD,
+    )
+
 # TODO 前端在权限被拒时根据 ops 返回值提示
 # TODO 增加导入导出功能
 # TODO 实现完整的 filter 编辑器
 # TODO 前端实现真正的视图筛选
-# TODO HTTPS 增强安全
 # TODO 添加流式返回 AI 结果的路由及前端支持
 # TODO 前端分各个本子做精致的数据呈现：点击本子进入仪表盘页面，再点击进入条目列表页面
 # TODO 前端 AI 对话添加历史对话、Agent选择与编辑等页面
 # TODO 前端添加排序设置页面
-# TODO 生产环境应限制 allow_origins
 # TODO 前端缺少错误边界：React 组件中缺少 ErrorBoundary，任何未捕获的渲染错误都会白屏。
 # TODO 前端添加 .env 编辑管理页面
 # TODO Docker 化方案与快速部署 Termux 到手机、apk 打包等

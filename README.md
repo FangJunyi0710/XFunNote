@@ -19,7 +19,7 @@ AI 的"懂你"能力来源于系统内沉淀的多维度数据，当这些数据
 
 - **临时层（对话的版本控制）**：最独特的创新。支持回到任意对话节点分支出新路径、编辑历史消息让 AI 重新生成、保存快照随时回退——让 AI 对话从线性指令变成可编排的实验场。
 - **多维数据感知**：AI 的"懂你"源于意图、行为、感受、输入等数据在同一系统中长期沉淀，使其能自然感知时间跨度与情感变化。
-- **三端统一访问**：手机运行服务，电脑/平板通过 `http://手机主机名:8000` 访问（同一 WiFi），其他设备通过 Tailscale/ZeroTier 安全接入。
+- **三端统一访问**：手机运行服务，电脑/平板通过 `http://hostname.local` 访问（同一 WiFi），其他设备通过 Tailscale/ZeroTier 安全接入。
 
 ---
 
@@ -32,28 +32,53 @@ chmod +x setup.sh && ./setup.sh
 # 2. 激活虚拟环境
 source .venv/bin/activate
 
-# 3. （后端启动）在虚拟环境中运行
-uvicorn backend.main:app --reload
+# 3. 复制项目根目录的 `.env.example` 为 `.env` 并填写配置（环境变量说明见 `.env.example` 文件头部）。
 
-# 4. （前端启动，另开终端）
-# 注意：前端需要 Node.js 18+
+# 4. 启动后端
+chmod +x backend/main.py && ./backend/main.py
+# HTTPS 模式（需先运行 ./scripts/gen_cert.sh 并配置 .env）
+
+# 5. 另开终端启动前端
 cd frontend
-npm install && npm run dev
+npm install && npm run dev # 若使用低于 1024 端口需改为 sudo npm run dev
 ```
 
-复制项目根目录的 `.env.example` 为 `.env` 并填写配置。
+### 安全性提升：前端使用 HTTPS
 
-### 环境变量
+使用自签名证书保护前端，若未生成并配置证书，前端会自动回退到 HTTP 模式，行为与之前一致。
 
-| 变量 | 说明 |
-|------|------|
-| `XFUN_USER` | 数据库用户名，拼接为 `data/{用户名}.db`。若未设置，默认回退为 `data/default.db` |
-| `ROOT_TOKEN` | 管理员启动密钥（bootstrap），用于前期引导和数据库管理操作（`/db/*` 路由）。后续建议通过 `/api/v0/tokens` API 管理普通 Token |
-| `LLM_API_KEY` | DeepSeek API Key，用于 AI 功能 |
-| `LLM_BASE_URL` | DeepSeek API 端点（.env.example 中已预填 DeepSeek 兼容端点） |
-| `LLM_MODEL` | 默认模型（当前建议 `deepseek-v4-flash`） |
+前端 HTTPS 模式下自动启动一个 HTTP 重定向服务，将 `http://hostname.local` 的请求 301 重定向到 `https://hostname.local`。这样局域网其他设备访问 `http://hostname.local` 即可自动跳转到 HTTPS 前端。具体端口可在 `./.env` 修改。
 
-**注意**：`import xfun` 会自动初始化数据库（建表/补齐列/建索引），无需手动调用 `xfun init`。后端启动时也会自动初始化。
+**注意**：浏览器会提示自签名证书不安全，这是正常的，选择"继续前往"即可。可将证书加入系统或浏览器的受信任列表以永久消除警告。生产环境应使用受信任的 CA 证书或配置 DNS 泛域名证书。
+
+```bash
+# 1. 生成自签名证书到 ./certs/
+./scripts/gen_cert.sh
+
+# 2. 编辑 .env 添加 SSL_CERT_PATH, SSL_KEY_PATH
+
+# 3. 之后操作与非 HTTPS 相同
+# ...
+```
+
+### 便捷性提升：mDNS 局域网访问
+
+局域网中的其他设备可通过 `hostname.local` 域名访问本服务，无需记忆并输入 IP 地址。
+
+**注意**：部分浏览器缺乏对 mDNS 域名的解析功能，需更换浏览器或仍直接访问 `http://[服务器IP]` 或 `https://[服务器IP]`。
+
+```bash
+# 安装 Avahi
+sudo apt update
+sudo apt install avahi-daemon avahi-utils -y
+
+# 启动 Avahi
+sudo systemctl enable --now avahi-daemon.service
+
+# 若修改 .env 中的主机名，需手动刷新 Avahi 配置以在局域网中生效
+chmod +x ./scripts/update_avahi_hostname.sh
+sudo ./scripts/update_avahi_hostname.sh
+```
 
 ---
 
@@ -192,7 +217,7 @@ npm install && npm run dev
 - [x] 深色主题
 - [x] 分页器跳转
 - [ ] 增加导入导出功能
-- [ ] HTTPS 增强安全
+- [x] HTTPS 增强安全
 
 ### 阶段四：前端可视化
 - [x] 列表/筛选/增删改
@@ -356,8 +381,10 @@ XFunNote/
 ├── output/
 │   └── .gitkeep
 ├── scripts/
+│   ├── gen_cert.sh
 │   ├── project_info.py
 │   ├── replace.py
+│   ├── update_avahi_hostname.sh
 │   └── updateREADME.sh
 ├── tests/
 │   ├── backend/
