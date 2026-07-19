@@ -87,24 +87,6 @@
   }
 }
 
-/* 主题切换过渡动画 */
-*,
-*::before,
-*::after {
-  transition: background-color 0.2s ease,
-              border-color 0.2s ease,
-              color 0.2s ease;
-}
-
-/* 尊重用户系统偏好：减少动效 */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    transition: none;
-  }
-}
-
 /* 自定义滚动条 */
 ::-webkit-scrollbar {
   width: 6px;
