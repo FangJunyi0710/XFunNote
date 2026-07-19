@@ -35,7 +35,7 @@ import traceback
 import typer
 from typer import Abort, Argument, Option
 
-from xfun import db, init_db, registry
+from xfun import init_db, registry
 from xfun.ai.agent import (
     StreamLevel,
     accumulate_messages,
@@ -48,26 +48,37 @@ from xfun.ai.agent import (
 from xfun.ai.prompts import SYSTEM_PROMPT
 from langchain_core.messages import AIMessageChunk, BaseMessage, HumanMessage, ToolMessage
 from xfun.ai.tools import DEFAULT_TOOL_NAMES, make_tools
+from xfun.core.db import DB
 from xfun.core.filter import Condition, parse_filter_json
 from xfun.core.ops import add as ops_add
 from xfun.core.ops import delete as ops_delete
 from xfun.core.ops import query as ops_query
 from xfun.core.ops import update as ops_update
 from xfun.core.view import full_view, no_view, parse_view_json, root_permission, view_to_json
+from xfun.utils.file_utils import get_db_path
 
 app = typer.Typer(no_args_is_help=True)
 ai_app = typer.Typer(no_args_is_help=True)
 
+db: DB
 
 @app.callback()
-def main_callback():
+def main_callback(
+    user: str = Option("--user", "-u", help="用户名")
+):
     """
     XFunNote 命令行接口 — 轻量级无模式笔记系统。
 
     所有 CRUD 命令参数均为 JSON 格式，输出统一为 JSON。
     系统表 (_token, _permission, _view, _filter) 可直接通过 query/add/update/delete 操作。
     """
-    pass
+    if not user:
+        typer.echo("必须指定用户名", err = True)
+        typer.Exit(code=1)
+
+    global db
+    db = DB(get_db_path(user))
+    init_db(db)
 
 
 # ════════════════════════════════════════════════════════════

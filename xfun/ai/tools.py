@@ -1,8 +1,9 @@
 from typing import Any, Callable
 from langchain_core.tools import BaseTool, tool
 
-from xfun import db, registry
+from xfun import registry
 from xfun.core import ops
+from xfun.core.db import DB
 from xfun.core.filter import Condition
 from xfun.core.view import DB_Permission, View, root_permission, view_to_json
 from xfun.core.errors import XFunError, ToolError
@@ -38,7 +39,7 @@ def _clean_null_fields(data: list[dict]) -> list[dict]:
     return [{k: v for k, v in item.items() if v is not None} for item in data]
 
 
-def _with_read_tool(impl) -> dict:
+def _with_read_tool(db: DB, impl) -> dict:
     """只读事务 + XFunError 处理，返回字典。"""
     try:
         with db.read_transaction() as conn:
@@ -48,7 +49,7 @@ def _with_read_tool(impl) -> dict:
         return {"error": str(e)}
 
 
-def _with_write_tool(impl) -> dict:
+def _with_write_tool(db: DB, impl) -> dict:
     """写事务 + XFunError 处理，返回字典。"""
     try:
         with db.transaction() as conn:

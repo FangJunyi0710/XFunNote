@@ -8,9 +8,8 @@ from typing import Any
 
 from future_uuid import uuid7
 
-from .. import config
 from ..utils.time_utils import now_str, timestamp_str
-from .errors import EntryInvalidError, InvalidSQLError
+from .errors import EntryInvalidError, SQLInvalidError
 
 
 # ---------------------------------------------------------------------------
@@ -51,7 +50,7 @@ class Column:
     @classmethod
     def check(cls, name: str) -> None:
         if not cls._COLUMN_PATTERN.match(name):
-            raise InvalidSQLError(name)
+            raise SQLInvalidError(name)
 
     @classmethod
     def check_order_by(cls, order_by: str) -> None:
@@ -70,7 +69,7 @@ class Column:
             part = part.strip().split(None, 1)
             cls.check(part[0])
             if len(part) > 1 and part[1] not in ("ASC", "DESC"):
-                raise InvalidSQLError(part[1])
+                raise SQLInvalidError(part[1])
 
     @property
     def sql(self) -> str:
@@ -100,16 +99,16 @@ def _check_addition_column(col: Column):
     """
     Column.check(col.name)
     if not col.nullable:
-        raise InvalidSQLError(
+        raise SQLInvalidError(
             f"新增列 {col.name} 不可为 NULL：ALTER TABLE ADD COLUMN "
             f"要求列必须可空，否则无法为已有数据行填充值"
         )
     if col.primary_key:
-        raise InvalidSQLError(
+        raise SQLInvalidError(
             f"新增列 {col.name} 为主键：ALTER TABLE ADD COLUMN 不支持添加主键列"
         )
     if col.unique:
-        raise InvalidSQLError(
+        raise SQLInvalidError(
             f"新增列 {col.name} 为 UNIQUE：ALTER TABLE ADD COLUMN 不支持添加 UNIQUE 约束列"
         )
 
@@ -117,20 +116,20 @@ def _check_addition_column(col: Column):
 def _check_existing_column(col: Column, existing: sqlite3.Row, table_name: str) -> None:
     """检查已有列与代码定义是否一致，不一致时抛出异常。"""
     if col.col_type.upper() != existing["type"].upper():
-        raise InvalidSQLError(
+        raise SQLInvalidError(
             f"表 {table_name} 列 {col.name} 类型冲突："
             f"代码定义 {col.col_type}，数据库中为 {existing['type']}"
         )
     existing_not_null = bool(existing["notnull"])
     if (not col.nullable) != existing_not_null:
-        raise InvalidSQLError(
+        raise SQLInvalidError(
             f"表 {table_name} 列 {col.name} 约束冲突："
             f"代码定义 nullable={col.nullable}，数据库中 "
             f"{'NOT NULL' if existing_not_null else 'NULLABLE'}"
         )
     col_pk = 1 if col.primary_key else 0
     if col_pk != existing["pk"]:
-        raise InvalidSQLError(
+        raise SQLInvalidError(
             f"表 {table_name} 列 {col.name} 主键属性冲突："
             f"代码定义 primary_key={col.primary_key}，数据库中 "
             f"{'是主键' if existing['pk'] else '非主键'}"
@@ -145,8 +144,8 @@ def _check_existing_column(col: Column, existing: sqlite3.Row, table_name: str) 
 class DB:
     """数据库管理器，每个事务返回独立的连接，保证隔离。"""
 
-    def __init__(self, db_path: str = ""):
-        self.db_path = db_path or config.DB_PATH
+    def __init__(self, db_path: str):
+        self.db_path = db_path
         self.table_infos: dict[str, list[Column]] = {}
         # {table_name: {"pre_add": callable, "validate": callable, "autofill": callable}}
         self.hooks: dict[str, dict[str, Any]] = {}
@@ -234,7 +233,7 @@ class DB:
         # 反向检查：数据库中有但代码中无的多余列
         for existing_name in existing_cols:
             if existing_name not in desired_names:
-                raise InvalidSQLError(
+                raise SQLInvalidError(
                     f"表 {table_name} 存在代码未定义的列 {existing_name!r}："
                     f"请手动删除该列或重置数据库：ALTER TABLE {table_name} DROP COLUMN {existing_name}"
                 )
@@ -262,7 +261,7 @@ class DB:
                 f"ON {table_name}({col.name})"
             )
 
-    def init(self, table_infos: dict[str, list[Column]]) -> None:
+    def init(self) -> None:
         """
         自管理事务：根据表信息初始化数据库。
 
@@ -271,7 +270,7 @@ class DB:
         - 已有列与代码定义不一致时抛出异常，不自动修改已有表结构。
         """
         with self.transaction() as conn:
-            for table_name, desired_cols in table_infos.items():
+            for table_name, desired_cols in self.table_infos.items():
                 if not desired_cols:
                     continue
                 Column.check(table_name)
@@ -284,8 +283,6 @@ class DB:
                     DB._create_table(conn, table_name, desired_cols)
 
                 DB._create_indexes(conn, table_name, desired_cols)
-
-            self.table_infos.update(table_infos)
 
     # ---- 备份与重置 ----
 

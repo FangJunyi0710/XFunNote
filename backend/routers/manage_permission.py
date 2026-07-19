@@ -7,9 +7,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from backend.deps import get_api_permission
-from backend.permissions import ApiPermission
-from xfun import db as _db
+from backend.deps import get_api_permission, ApiPermission
 from xfun.core import ops as _ops
 from xfun.core.view import full_view
 from xfun.core.filter import Condition
@@ -36,8 +34,8 @@ class PermissionUpdateRequest(BaseModel):
 def list_permission(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    with _db.read_transaction() as conn:
-        return _ops.query(conn, api_perm.permission, "_permission", full_view(_db), order_by="id ASC")
+    with api_perm.db.read_transaction() as conn:
+        return _ops.query(conn, api_perm.permission, "_permission", full_view(api_perm.db), order_by="id ASC")
 
 
 @router.get("/permissions/{permission_id}", summary="获取指定权限详情", response_description="权限完整记录")
@@ -45,8 +43,8 @@ def get_permission_route(
     permission_id: str,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    with _db.read_transaction() as conn:
-        cols = _db.cols("_permission")
+    with api_perm.db.read_transaction() as conn:
+        cols = api_perm.db.cols("_permission")
         results = _ops.query(conn, api_perm.permission, "_permission",
                              {"_permission": [(cols, Condition("id", permission_id, "="))]},
                              limit=1)
@@ -63,7 +61,7 @@ def create_permission_route(
     body: PermissionCreateRequest,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    with _db.transaction() as conn:
+    with api_perm.db.transaction() as conn:
         result = _ops.add(conn, api_perm.permission, "_permission", [{
             "id": body.id,
             "name": body.name,
@@ -91,12 +89,12 @@ def update_permission_route(
     if body.write_view is not None:
         updates["write_view"] = json.dumps(body.write_view, ensure_ascii=False)
 
-    with _db.transaction() as conn:
+    with api_perm.db.transaction() as conn:
         if updates:
             result = _ops.update(conn, api_perm.permission, "_permission",
                                  Condition("id", permission_id, "="), updates)
         else:
-            cols = _db.cols("_permission")
+            cols = api_perm.db.cols("_permission")
             result = _ops.query(conn, api_perm.permission, "_permission",
                                 {"_permission": [(cols, Condition("id", permission_id, "="))]},
                                 limit=1)
@@ -113,7 +111,7 @@ def delete_permission_route(
     permission_id: str,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    with _db.transaction() as conn:
+    with api_perm.db.transaction() as conn:
         result = _ops.delete(conn, api_perm.permission, "_permission",
                              Condition("id", permission_id, "="))
     if not result:

@@ -10,7 +10,7 @@ from xfun.core.filter import (
     filter_to_json,
     parse_filter_json,
 )
-from xfun.core.errors import InvalidConditionError, InvalidFilterError, InvalidSQLError
+from xfun.core.errors import FilterInvalidError, SQLInvalidError
 
 
 # ===================================================================
@@ -98,12 +98,12 @@ class TestConditionBuiltin:
 
     def test_between_not_list(self):
         cond = Condition("a", 5, "BETWEEN")
-        with pytest.raises(InvalidConditionError):
+        with pytest.raises(FilterInvalidError):
             cond.to_sql()
 
     def test_between_not_two_elements(self):
         cond = Condition("a", [5], "BETWEEN")
-        with pytest.raises(InvalidConditionError):
+        with pytest.raises(FilterInvalidError):
             cond.to_sql()
 
     def test_between_none_lower(self):
@@ -126,12 +126,12 @@ class TestConditionBuiltin:
 
     def test_null_with_other_op_raises(self):
         cond = Condition("a", None, ">")
-        with pytest.raises(InvalidConditionError):
+        with pytest.raises(FilterInvalidError):
             cond.to_sql()
 
     def test_in_not_list_raises(self):
         cond = Condition("a", "not_a_list", "IN")
-        with pytest.raises(InvalidConditionError):
+        with pytest.raises(FilterInvalidError):
             cond.to_sql()
 
     def test_duplicates_removed_in_in(self):
@@ -142,12 +142,12 @@ class TestConditionBuiltin:
 
     def test_unknown_op_raises(self):
         cond = Condition("a", 1, "UNKNOWN_OP")
-        with pytest.raises(InvalidConditionError):
+        with pytest.raises(FilterInvalidError):
             cond.to_sql()
 
     def test_invalid_column_raises(self):
         cond = Condition("123col", 1, "=")
-        with pytest.raises(InvalidSQLError):
+        with pytest.raises(SQLInvalidError):
             cond.to_sql()
 
 
@@ -291,16 +291,16 @@ class TestFilterSerialization:
         assert c.column == "month"
 
     def test_convert_filter_object_invalid(self):
-        with pytest.raises(InvalidFilterError):
+        with pytest.raises(FilterInvalidError):
             parse_filter_json(42)
 
     def test_convert_filter_object_invalid_inner(self):
-        with pytest.raises(InvalidFilterError):
+        with pytest.raises(FilterInvalidError):
             parse_filter_json([42])
 
     def test_invalid_op_raises(self):
         cond = Condition("a", 1, "NONEXISTENT")
-        with pytest.raises(InvalidConditionError):
+        with pytest.raises(FilterInvalidError):
             cond.to_sql()
 
 

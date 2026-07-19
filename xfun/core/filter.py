@@ -3,7 +3,7 @@ from typing import Any, ClassVar
 from collections.abc import Sequence as Seq
 
 from .db import Column
-from .errors import InvalidConditionError, InvalidFilterError
+from .errors import FilterInvalidError
 
 
 # ---------------------------------------------------------------------------
@@ -47,13 +47,13 @@ class Condition:
 
         Raises
         ------
-        InvalidConditionError
+        FilterInvalidError
         """
         Column.check(self.column)
 
         handler = self._op_registry.get(self.op)
         if handler is None:
-            raise InvalidConditionError(self)
+            raise FilterInvalidError(self)
         
         return handler(self.column, self.value, self.op)
     
@@ -76,12 +76,12 @@ def _builtin_sql(column, value, op) -> tuple[str, list]:
             return f"{column} IS NULL", []
         if op == "!=":
             return f"{column} IS NOT NULL", []
-        raise InvalidConditionError(Condition(column, value, op))
+        raise FilterInvalidError(Condition(column, value, op))
 
     # --- IN / NOT IN ---
     if op in ("IN", "NOT IN"):
         if not isinstance(value, (list, tuple)):
-            raise InvalidConditionError(Condition(column, value, op))
+            raise FilterInvalidError(Condition(column, value, op))
         value = list(dict.fromkeys(value))
         if not value:
             # 空列表：IN → 永假，NOT IN → 永真
@@ -93,7 +93,7 @@ def _builtin_sql(column, value, op) -> tuple[str, list]:
     # --- BETWEEN ---
     elif op == "BETWEEN":
         if not isinstance(value, (list, tuple)) or len(value) != 2:
-            raise InvalidConditionError(Condition(column, value, op))
+            raise FilterInvalidError(Condition(column, value, op))
         if value[0] is None or value[1] is None:
             # 任意端点为 None → 永假
             return "1=0", []
@@ -165,12 +165,12 @@ def parse_filter_json(obj) -> Filter:
     if isinstance(obj, list) and len(obj) == 2 and isinstance(obj[1], bool):
         return (parse_filter_json(obj[0]), obj[1])
     if not isinstance(obj, list):
-        raise InvalidFilterError(obj)
+        raise FilterInvalidError(obj)
     result = []
     for group in obj:
         clause = []
         if not isinstance(group, list):
-            raise InvalidFilterError(obj)
+            raise FilterInvalidError(obj)
         for item in group:
             clause.append(parse_filter_json(item))
         result.append(clause)

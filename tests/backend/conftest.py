@@ -11,17 +11,14 @@ from __future__ import annotations
 
 import os
 import tempfile
-from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 
-from xfun import db as _db
 from xfun import registry
 from xfun.core.db import DB
 from xfun.core.view import root_permission
-from backend.permissions import ApiPermission
-from backend.deps import get_api_permission
+from backend.deps import get_api_permission, ApiPermission
 from backend.main import app
 from backend.routers import manage_db as _manage_db
 

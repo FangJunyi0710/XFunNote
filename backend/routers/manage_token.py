@@ -2,19 +2,22 @@
 
 from __future__ import annotations
 from functools import partial
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Header, status
 from pydantic import BaseModel, Field
 
 from datetime import datetime, timedelta
 
-from backend.deps import get_api_permission
-from backend.permissions import ApiPermission
-from xfun import db as _db
+from backend.deps import get_api_permission, ApiPermission
+from xfun import init_db
 from xfun.config import ROOT_TOKEN
 from xfun.core import ops as _ops
+from xfun.core.db import DB
 from xfun.core.view import full_view, root_permission, view_to_json
 from xfun.core.filter import Condition
+from xfun.utils.file_utils import get_db_path
+from xfun.utils.time_utils import now_str
 
 router = APIRouter(tags=["management-tokens"])
 
@@ -32,23 +35,12 @@ class TokenUpdateRequest(BaseModel):
     is_active: bool | None = Field(default=None, description="是否启用")
     expires_at: str | None = Field(default=None, description="过期时间，ISO 格式字符串或 null")
 
-
-def _permission_exists(perm, permission_id: str) -> bool:
-    """检查 _permission 表中是否存在指定 id。"""
-    with _db.read_transaction() as conn:
-        cols = _db.cols("_permission")
-        results = _ops.query(conn, perm, "_permission",
-                             {"_permission": [(cols, Condition("id", permission_id, "="))]},
-                             limit=1)
-    return len(results) > 0
-
-
 @router.get("/tokens", summary="列出所有 Token", response_description="Token 列表")
 def list_token(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    with _db.read_transaction() as conn:
-        return _ops.query(conn, api_perm.permission, "_token", full_view(_db),
+    with api_perm.db.read_transaction() as conn:
+        return _ops.query(conn, api_perm.permission, "_token", full_view(api_perm.db),
                           order_by="created_at DESC")
 
 
@@ -66,23 +58,20 @@ class TokenInfoResponse(BaseModel):
 
 
 @router.get("/tokens/info", summary="查询当前 Token 信息", response_description="当前 Token 的基本信息（含权限视图）")
-def get_current_token_info(
-    api_perm: ApiPermission = Depends(partial(get_api_permission, allow_inactive=True)),
-    x_api_key: str = Header(alias="X-API-Key"),
-):
+def get_current_token_info(api_perm: ApiPermission = Depends(partial(get_api_permission, allow_inactive=True))):
     """
-    查询当前 API Key 的 Token 信息。
+    查询当前 Token 信息。
     使用 root_permission 二次查询 _token 表获取元数据。
     """
 
-    perm = root_permission(_db)
+    perm = root_permission(api_perm.db)
 
-    if x_api_key != ROOT_TOKEN:
-        with _db.read_transaction() as conn:
+    if api_perm.token != ROOT_TOKEN:
+        with api_perm.db.read_transaction() as conn:
             cols = ["name", "shortcut", "shortcut_expire_at", "expires_at",
                     "created_at", "updated_at", "is_active"]
             results = _ops.query(conn, perm, "_token",
-                                {"_token": [(cols, Condition("token", x_api_key, "="))]},
+                                {"_token": [(cols, Condition("token", api_perm.token, "="))]},
                                 limit=1)
         
         if not results:
@@ -115,8 +104,8 @@ def get_token_route(
     token_id: str,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    with _db.read_transaction() as conn:
-        cols = _db.cols("_token")
+    with api_perm.db.read_transaction() as conn:
+        cols = api_perm.db.cols("_token")
         results = _ops.query(conn, api_perm.permission, "_token",
                              {"_token": [(cols, Condition("id", token_id, "="))]},
                              limit=1)
@@ -133,12 +122,6 @@ def create_token_route(
     body: TokenCreateRequest,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    if not _permission_exists(api_perm.permission, body.permission):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"不存在的权限标识: {body.permission!r}",
-        )
-
     entry = {
         "name": body.name,
         "permission": body.permission,
@@ -148,7 +131,7 @@ def create_token_route(
         entry["shortcut"] = body.shortcut
         entry["shortcut_expire_at"] = (datetime.now() + timedelta(seconds=body.shortcut_ttl)).isoformat()
 
-    with _db.transaction() as conn:
+    with api_perm.db.transaction() as conn:
         results = _ops.add(conn, api_perm.permission, "_token", [entry])
 
     return results[0]
@@ -165,23 +148,18 @@ def update_token_route(
     if body.name is not None:
         updates["name"] = body.name
     if body.permission is not None:
-        if not _permission_exists(api_perm.permission, body.permission):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"不存在的权限标识: {body.permission!r}",
-            )
         updates["permission"] = body.permission
     if body.is_active is not None:
         updates["is_active"] = 1 if body.is_active else 0
     if body.expires_at is not None:
         updates["expires_at"] = body.expires_at
 
-    with _db.transaction() as conn:
+    with api_perm.db.transaction() as conn:
         if updates:
             result = _ops.update(conn, api_perm.permission, "_token",
                                  Condition("id", token_id, "="), updates)
         else:
-            cols = _db.cols("_token")
+            cols = api_perm.db.cols("_token")
             result = _ops.query(conn, api_perm.permission, "_token",
                                 {"_token": [(cols, Condition("id", token_id, "="))]},
                                 limit=1)
@@ -200,18 +178,28 @@ class ShortcutExchangeRequest(BaseModel):
 @router.post("/tokens/exchange", summary="通过 Shortcut 兑换完整 Token", description="无需鉴权，一次性使用")
 def exchange_token_by_shortcut(
     body: ShortcutExchangeRequest,
+    user: str = Header(alias="User")
 ):
     """
     通过 Shortcut 兑换完整 Token（无需鉴权）。
 
     原子操作：检查有效性 -> 返回完整 token 明文 -> 立即清空 shortcut（一次性）。
     """
-    from xfun.utils.time_utils import now_str
 
-    perm = root_permission(_db)
+    db_path = get_db_path(user)
+    if not Path(db_path).exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在",
+        )
+    
+    db = DB(db_path)
+    init_db(db)
 
-    with _db.transaction() as conn:
-        cols = _db.cols("_token")
+    perm = root_permission(db)
+
+    with db.transaction() as conn:
+        cols = db.cols("_token")
         results = _ops.query(conn, perm, "_token",
                              {"_token": [(cols, Condition("shortcut", body.shortcut, "="))]},
                              limit=1)
@@ -249,7 +237,7 @@ def delete_token_route(
     token_id: str,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    with _db.transaction() as conn:
+    with api_perm.db.transaction() as conn:
         result = _ops.delete(conn, api_perm.permission, "_token",
                              Condition("id", token_id, "="))
     if not result:

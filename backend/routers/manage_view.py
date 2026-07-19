@@ -6,9 +6,7 @@ import json
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from backend.deps import get_api_permission
-from backend.permissions import ApiPermission
-from xfun import db as _db
+from backend.deps import get_api_permission, ApiPermission
 from xfun.core import ops as _ops
 from xfun.core.view import full_view
 from xfun.core.filter import Condition
@@ -20,8 +18,8 @@ router = APIRouter(tags=["management-views"])
 def list_view(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    with _db.read_transaction() as conn:
-        return _ops.query(conn, api_perm.permission, "_view", full_view(_db), order_by="name ASC")
+    with api_perm.db.read_transaction() as conn:
+        return _ops.query(conn, api_perm.permission, "_view", full_view(api_perm.db), order_by="name ASC")
 
 
 @router.get("/views/{name}", summary="获取指定视图内容", response_description="视图的 JSON 数据")
@@ -29,8 +27,8 @@ def get_view_route(
     name: str,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    with _db.read_transaction() as conn:
-        cols = _db.cols("_view")
+    with api_perm.db.read_transaction() as conn:
+        cols = api_perm.db.cols("_view")
         results = _ops.query(conn, api_perm.permission, "_view",
                              {"_view": [(cols, Condition("name", name, "="))]},
                              limit=1)
@@ -49,8 +47,8 @@ def save_view_route(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
     json_data = json.dumps(body, ensure_ascii=False)
-    with _db.transaction() as conn:
-        cols = _db.cols("_view")
+    with api_perm.db.transaction() as conn:
+        cols = api_perm.db.cols("_view")
         existing = _ops.query(conn, api_perm.permission, "_view",
                               {"_view": [(cols, Condition("name", name, "="))]},
                               limit=1)
@@ -68,7 +66,7 @@ def delete_view_route(
     name: str,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    with _db.transaction() as conn:
+    with api_perm.db.transaction() as conn:
         result = _ops.delete(conn, api_perm.permission, "_view",
                              Condition("name", name, "="))
     if not result:

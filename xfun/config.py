@@ -20,9 +20,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # 加载 .env 文件
 load_dotenv(str(PROJECT_ROOT / ".env"))
 
-XFUN_USER = os.environ.get("XFUN_USER", "default")
-DB_PATH = str(PROJECT_ROOT / "data" / f"{XFUN_USER}.db")
-
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL")
 LLM_MODEL = os.environ.get("LLM_MODEL")

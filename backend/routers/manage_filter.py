@@ -6,9 +6,7 @@ import json
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from backend.deps import get_api_permission
-from backend.permissions import ApiPermission
-from xfun import db as _db
+from backend.deps import ApiPermission, get_api_permission
 from xfun.core import ops as _ops
 from xfun.core.filter import Condition, TRUE_CONDITION
 
@@ -19,8 +17,8 @@ router = APIRouter(tags=["management-filters"])
 def list_filter(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    with _db.read_transaction() as conn:
-        cols = _db.cols("_filter")
+    with api_perm.db.read_transaction() as conn:
+        cols = api_perm.db.cols("_filter")
         return _ops.query(conn, api_perm.permission, "_filter",
                           {"_filter": [(cols, TRUE_CONDITION)]},
                           order_by="name ASC")
@@ -30,8 +28,8 @@ def get_filter_route(
     name: str,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    with _db.read_transaction() as conn:
-        cols = _db.cols("_filter")
+    with api_perm.db.read_transaction() as conn:
+        cols = api_perm.db.cols("_filter")
         results = _ops.query(conn, api_perm.permission, "_filter",
                              {"_filter": [(cols, Condition("name", name, "="))]},
                              limit=1)
@@ -50,8 +48,8 @@ def save_filter_route(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
     json_data = json.dumps(body, ensure_ascii=False)
-    with _db.transaction() as conn:
-        cols = _db.cols("_filter")
+    with api_perm.db.transaction() as conn:
+        cols = api_perm.db.cols("_filter")
         existing = _ops.query(conn, api_perm.permission, "_filter",
                               {"_filter": [(cols, Condition("name", name, "="))]},
                               limit=1)
@@ -69,7 +67,7 @@ def delete_filter_route(
     name: str,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    with _db.transaction() as conn:
+    with api_perm.db.transaction() as conn:
         result = _ops.delete(conn, api_perm.permission, "_filter",
                              Condition("name", name, "="))
     if not result:

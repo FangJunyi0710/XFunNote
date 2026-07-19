@@ -54,3 +54,12 @@ export function safeValue(obj: unknown, key: string, fallback = '-'): string {
   if (v === null || v === undefined || v === '') return fallback;
   return String(v);
 }
+
+/**
+ * 校验用户名是否合法（与后端保持一致：^[a-zA-Z0-9\-_]{1,64}$）
+ */
+export function isValidUsername(username: string): boolean {
+  if (!username) return false;
+  const USERNAME_PATTERN = /^[a-zA-Z0-9\-_]{1,64}$/;
+  return USERNAME_PATTERN.test(username);
+}

@@ -31,8 +31,8 @@ export const toast = {
 
 // ── Toast 组件 ──────────────────────────────────────
 
-// 自动消失时间（按类型区分）
-const AUTO_DISMISS_MS = 1000
+// 自动消失时间
+const AUTO_DISMISS_MS = 2000
 const DISMISS_ANIM_DURATION_MS = 300
 
 export const ToastContainer: React.FC = () => {

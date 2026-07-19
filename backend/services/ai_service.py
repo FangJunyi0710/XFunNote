@@ -5,7 +5,6 @@ from typing import Any
 
 from langchain_core.messages import BaseMessage
 
-from backend.permissions import get_api_permission_from_db
 from xfun.ai.agent import (
     StreamLevel,
     accumulate_messages,
@@ -16,9 +15,7 @@ from xfun.ai.agent import (
 )
 from xfun.ai.prompts import SYSTEM_PROMPT
 from xfun.ai.tools import DEFAULT_TOOL_NAMES, make_tools
-from xfun.core.view import DB_Permission, view_to_json
-from fastapi import HTTPException, status
-
+from xfun.core.view import DB_Permission
 
 def chat(
     messages: list[dict],
@@ -71,16 +68,3 @@ def chat(
     msgs.extend(new_messages)
 
     return messages_to_json(msgs)
-
-
-def get_permission_info(permission_name: str = "ai") -> dict:
-    """返回指定权限的可读/可写字段的白名单。"""
-    perm_obj = get_api_permission_from_db(permission_name)
-    if perm_obj is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f"未知权限名称: {permission_name!r}")
-    read_view, write_view = perm_obj.permission
-    return {
-        "read": view_to_json(read_view),
-        "write": view_to_json(write_view),
-    }

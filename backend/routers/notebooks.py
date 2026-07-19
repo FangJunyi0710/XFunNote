@@ -10,8 +10,7 @@ from backend.schemas import (
     EntryUpdate,
 )
 from backend.services import notebook_service as svc
-from backend.deps import get_api_permission
-from backend.permissions import ApiPermission
+from backend.deps import get_api_permission, ApiPermission
 from xfun.ai.schema import ViewModel
 
 router = APIRouter(tags=["notebooks"])
@@ -41,7 +40,7 @@ def query_entries(
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
     validated_view = view_model.to_view()
-    results, total = svc.query_entries(name, api_perm.permission, validated_view,
+    results, total = svc.query_entries(api_perm.db, name, api_perm.permission, validated_view,
                                        limit, offset, order_by)
     return EntryBatchResponse(count=total, results=results)
 
@@ -57,7 +56,7 @@ def add_entries(
     body: EntryCreate,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    results = svc.add_entries(name, body.entries, permission=api_perm.permission)
+    results = svc.add_entries(api_perm.db, name, body.entries, permission=api_perm.permission)
     return EntryBatchResponse(count=len(results), results=results)
 
 
@@ -67,8 +66,7 @@ def update_entries(
     body: EntryUpdate,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    results = svc.update_entries(name, body.filter, body.values,
-                                  permission=api_perm.permission)
+    results = svc.update_entries(api_perm.db, name, body.filter, body.values, permission=api_perm.permission)
     return EntryBatchResponse(count=len(results), results=results)
 
 
@@ -78,5 +76,5 @@ def delete_entries(
     body: EntryDelete,
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    results = svc.delete_entries(name, body.filter, permission=api_perm.permission)
+    results = svc.delete_entries(api_perm.db, name, body.filter, permission=api_perm.permission)
     return EntryBatchResponse(count=len(results), results=results)

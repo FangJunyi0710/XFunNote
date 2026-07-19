@@ -4,8 +4,9 @@ from typing import Any
 
 from fastapi import HTTPException, status
 
-from xfun import db, registry
+from xfun import registry
 from xfun.core import ops
+from xfun.core.db import DB
 from xfun.core.view import DB_Permission
 from xfun.core.filter import TRUE_CONDITION, parse_filter_json
 
@@ -29,6 +30,7 @@ def get_schema(notetype: str) -> list[dict]:
 
 
 def query_entries(
+    db: DB,
     notetype: str,
     permission: DB_Permission,
     view: dict | None,
@@ -63,6 +65,7 @@ def query_entries(
 
 
 def add_entries(
+    db: DB,
     notetype: str,
     entries: list[dict],
     permission: DB_Permission,
@@ -73,6 +76,7 @@ def add_entries(
 
 
 def update_entries(
+    db: DB,
     notetype: str,
     filter_obj: Any,
     values: dict,
@@ -85,6 +89,7 @@ def update_entries(
 
 
 def delete_entries(
+    db: DB,
     notetype: str,
     filter_obj: Any,
     permission: DB_Permission,

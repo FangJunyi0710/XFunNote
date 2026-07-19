@@ -10,7 +10,6 @@ from .notebooks.schedule     import ScheduleNotebook
 from .notebooks.ledger       import LedgerNotebook
 from .utils.token_utils import generate_token
 
-db: DB = DB()
 registry: dict[str, Notebook] = {
     "plan":         PlanNotebook(),
     "diary":        DiaryNotebook(),
@@ -60,7 +59,6 @@ _SYSTEM_TABLES: dict[str, list[Column]] = {
         Column("updated_at", "TEXT", nullable=False, auto=True),
     ],
 }
-# TODO token 添加 user 列
 # TODO permission 添加 uuid 列
 # TODO token 改为 permission uuid 列表
 # TODO permission view 等数据结构应支持 REF 等随引用自动更新
@@ -72,7 +70,7 @@ def _autofill_token(entry: dict) -> None:
     entry.setdefault("is_active", 1)
 
 
-def init_db():
+def init_db(db: DB):
     """初始化数据库（注册钩子 + 建用户表 + 建系统表）。"""
     # 注册本子钩子到 DB（CRUD 由 DB 统一管理）
     for name, nb in registry.items():
@@ -82,10 +80,5 @@ def init_db():
     db.register_hooks("_token", autofill=_autofill_token)
 
     # 注册钩子后才初始化表（init 内部自管理事务）
-    db.init({name: nb.columns for name, nb in registry.items()})
-    db.init(_SYSTEM_TABLES)
-
-
-init_db()
-
-__all__ = ["db", "registry"]
+    db.table_infos.update({name: nb.columns for name, nb in registry.items()})
+    db.table_infos.update(_SYSTEM_TABLES)

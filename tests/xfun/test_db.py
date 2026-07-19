@@ -6,7 +6,7 @@ import sqlite3
 import pytest
 
 from xfun.core.db import Column, DB, _check_addition_column, _check_existing_column, _TransactionContext, _ReadTransactionContext
-from xfun.core.errors import InvalidSQLError
+from xfun.core.errors import SQLInvalidError
 
 
 # ===================================================================
@@ -31,11 +31,11 @@ class TestColumn:
         assert col.sql == "created_at TEXT"
 
     def test_invalid_column_name(self):
-        with pytest.raises(InvalidSQLError):
+        with pytest.raises(SQLInvalidError):
             Column("123col", "TEXT").sql
 
     def test_invalid_column_name_special_chars(self):
-        with pytest.raises(InvalidSQLError):
+        with pytest.raises(SQLInvalidError):
             Column("col; DROP TABLE", "TEXT").sql
 
     def test_dotted_column_name_valid(self):
@@ -53,22 +53,22 @@ class TestColumn:
         Column.check_order_by("month ASC, seq DESC")
 
     def test_check_order_by_invalid_direction(self):
-        with pytest.raises(InvalidSQLError):
+        with pytest.raises(SQLInvalidError):
             Column.check_order_by("month INVALID")
 
     def test_check_order_by_invalid_name(self):
-        with pytest.raises(InvalidSQLError):
+        with pytest.raises(SQLInvalidError):
             Column.check_order_by("123col")
 
     def test_check_valid_name(self):
         Column.check("valid_column")
 
     def test_check_invalid_name(self):
-        with pytest.raises(InvalidSQLError):
+        with pytest.raises(SQLInvalidError):
             Column.check("invalid column")
 
     def test_check_empty_name(self):
-        with pytest.raises(InvalidSQLError):
+        with pytest.raises(SQLInvalidError):
             Column.check("")
 
 
@@ -81,20 +81,20 @@ class TestColumnCompatibility:
         _check_addition_column(Column("new_col", "TEXT"))
 
     def test_addition_column_not_null_raises(self):
-        with pytest.raises(InvalidSQLError, match="不可为 NULL"):
+        with pytest.raises(SQLInvalidError, match="不可为 NULL"):
             _check_addition_column(Column("new_col", "TEXT", nullable=False))
 
     def test_addition_column_pk_raises(self):
-        with pytest.raises(InvalidSQLError, match="主键"):
+        with pytest.raises(SQLInvalidError, match="主键"):
             _check_addition_column(Column("new_col", "TEXT", primary_key=True))
 
     def test_addition_column_invalid_name_raises(self):
-        with pytest.raises(InvalidSQLError):
+        with pytest.raises(SQLInvalidError):
             _check_addition_column(Column("123col", "TEXT"))
 
     def test_addition_column_unique_raises(self):
         """新增列为 UNIQUE 应抛出异常 (l.112)。"""
-        with pytest.raises(InvalidSQLError, match="UNIQUE"):
+        with pytest.raises(SQLInvalidError, match="UNIQUE"):
             _check_addition_column(Column("new_col", "TEXT", unique=True))
 
 
@@ -239,7 +239,7 @@ class TestDBTypeConflict:
                 "created_at TEXT NOT NULL, updated_at TEXT NOT NULL, tags TEXT NOT NULL, "
                 "ai_tags TEXT NOT NULL, is_ai_gen INTEGER NOT NULL)"
             )
-        with pytest.raises(InvalidSQLError, match="类型冲突"):
+        with pytest.raises(SQLInvalidError, match="类型冲突"):
             db.init({"conflict_tb": [
                 Column("id", "TEXT", primary_key=True, nullable=False),
                 Column("val", "TEXT", nullable=False),
@@ -258,7 +258,7 @@ class TestDBTypeConflict:
                 "created_at TEXT NOT NULL, updated_at TEXT NOT NULL, tags TEXT NOT NULL, "
                 "ai_tags TEXT NOT NULL, is_ai_gen INTEGER NOT NULL)"
             )
-        with pytest.raises(InvalidSQLError, match="约束冲突"):
+        with pytest.raises(SQLInvalidError, match="约束冲突"):
             db.init({"nullable_tb": [
                 Column("id", "TEXT", nullable=False),
                 Column("created_at", "TEXT", nullable=False, auto=True),
@@ -279,7 +279,7 @@ class TestDBTypeConflict:
                 "created_at TEXT NOT NULL, updated_at TEXT NOT NULL, tags TEXT NOT NULL, "
                 "ai_tags TEXT NOT NULL, is_ai_gen INTEGER NOT NULL)"
             )
-        with pytest.raises(InvalidSQLError, match="主键"):
+        with pytest.raises(SQLInvalidError, match="主键"):
             db.init({"pk_tb": [
                 Column("id", "TEXT", primary_key=True, nullable=False),
                 Column("created_at", "TEXT", nullable=False, auto=True),
@@ -309,7 +309,7 @@ class TestDBTypeConflict:
                 "created_at TEXT NOT NULL, updated_at TEXT NOT NULL, tags TEXT NOT NULL, "
                 "ai_tags TEXT NOT NULL, is_ai_gen INTEGER NOT NULL)"
             )
-        with pytest.raises(InvalidSQLError, match="代码未定义的列"):
+        with pytest.raises(SQLInvalidError, match="代码未定义的列"):
             db.init({"extra_col_tb": [
                 Column("id", "TEXT", primary_key=True, nullable=False),
                 Column("content", "TEXT", nullable=True),

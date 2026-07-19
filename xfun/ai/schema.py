@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any
 from pydantic import BaseModel, Field, RootModel, field_validator
 
-from xfun.core.errors import InvalidFilterError
+from xfun.core.errors import FilterInvalidError
 from xfun.core.filter import Condition, Filter
 
 def _inject_op_enum(schema: dict) -> None:
@@ -87,7 +87,7 @@ def _resolve_filter(val: Any) -> Filter:
     if isinstance(val, list):
         # 外层 list → OR，内层 list → AND
         return [[_resolve_filter(item) for item in group] for group in val]
-    raise InvalidFilterError(val)
+    raise FilterInvalidError(val)
 
 
 FilterModel.model_rebuild()

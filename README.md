@@ -112,7 +112,7 @@ sudo ./scripts/update_avahi_hostname.sh
   四张系统表通过对应管理路由（`/views/*`、`/permissions/*`、`/tokens/*`、`/filters/*`）进行 CRUD。
 
   ### 权限沙箱
-- AI Chat 自动计算 **API Key 权限 ∩ AI 模式预设权限** 的交集，遵循最小权限原则。
+- AI Chat 自动计算 **Token 权限 ∩ AI 模式预设权限** 的交集，遵循最小权限原则。
 - 写操作前自动清洗非授权列；删除操作强制"预览 → 确认"两阶段。
 - `_TOOL_REGISTRY` 注册 5 个工具工厂，不同 AI 模式可绑定不同工具子集。
 
@@ -181,7 +181,7 @@ sudo ./scripts/update_avahi_hostname.sh
 | `/notebooks/:notetype/filter` | NotebookFilter | Filter 编辑 |
 | `/ai` | AiChat | AI 对话界面 |
 | `/management` | Management | 系统管理（视图/权限/Token/数据库 4 个 Tab） |
-| `/token-input` | TokenInputPanel | API Key 输入面板 |
+| `/token-input` | TokenInputPanel | Token 输入面板 |
 
 ---
 
@@ -210,7 +210,7 @@ sudo ./scripts/update_avahi_hostname.sh
 
 ### 阶段三：FastAPI 后端
 - [x] RESTful 路由（notebooks/ai/views/tokens/permissions/filters/db）
-- [x] API Key 鉴权体系
+- [x] Token 鉴权体系
 - [x] 依赖注入与 CORS
 - [ ] Filter 编辑器/管理页面
 - [x] 批量更新功能
@@ -277,7 +277,6 @@ XFunNote/
 │   ├── __init__.py
 │   ├── deps.py
 │   ├── main.py
-│   ├── permissions.py
 │   └── schemas.py
 ├── data/
 │   └── backups/
@@ -317,6 +316,7 @@ XFunNote/
 │   │   │       ├── checkbox.tsx
 │   │   │       ├── ConfirmDialog.tsx
 │   │   │       ├── dialog.tsx
+│   │   │       ├── ErrorBoundary.tsx
 │   │   │       ├── icons.tsx
 │   │   │       ├── input.tsx
 │   │   │       ├── label.tsx
@@ -450,6 +450,7 @@ XFunNote/
 │   │   └── word.py
 │   ├── utils/
 │   │   ├── __init__.py
+│   │   ├── file_utils.py
 │   │   ├── time_utils.py
 │   │   └── token_utils.py
 │   ├── __init__.py
@@ -480,20 +481,13 @@ graph LR
         tests___init__(__init__)
     end
     style tests fill:#e8f4fd,stroke:#333,stroke-width:1px,color:#333
-    subgraph xfun_utils[xfun/utils]
-        xfun_utils___init__(__init__)
-        xfun_utils_time_utils(time_utils)
-        xfun_utils_token_utils(token_utils)
-    end
-    style xfun_utils fill:#ffe0f0,stroke:#333,stroke-width:1px,color:#333
     subgraph backend[backend]
         backend___init__(__init__)
         backend_deps(deps)
         backend_main(main)
-        backend_permissions(permissions)
         backend_schemas(schemas)
     end
-    style backend fill:#f0e6ff,stroke:#333,stroke-width:1px,color:#333
+    style backend fill:#ffe0f0,stroke:#333,stroke-width:1px,color:#333
     subgraph backend_routers[backend/routers]
         backend_routers___init__(__init__)
         backend_routers_ai(ai)
@@ -504,18 +498,18 @@ graph LR
         backend_routers_manage_view(manage_view)
         backend_routers_notebooks(notebooks)
     end
-    style backend_routers fill:#fff3cd,stroke:#333,stroke-width:1px,color:#333
+    style backend_routers fill:#f0e6ff,stroke:#333,stroke-width:1px,color:#333
     subgraph backend_services[backend/services]
         backend_services___init__(__init__)
         backend_services_ai_service(ai_service)
         backend_services_management_service(management_service)
         backend_services_notebook_service(notebook_service)
     end
-    style backend_services fill:#ffe0e0,stroke:#333,stroke-width:1px,color:#333
+    style backend_services fill:#fff3cd,stroke:#333,stroke-width:1px,color:#333
     subgraph _[.]
         cli(cli)
     end
-    style _ fill:#d5f5e3,stroke:#333,stroke-width:1px,color:#333
+    style _ fill:#ffe0e0,stroke:#333,stroke-width:1px,color:#333
     subgraph tests_backend[tests/backend]
         tests_backend_conftest(conftest)
         tests_backend_test_ai(test_ai)
@@ -528,7 +522,7 @@ graph LR
         tests_backend_test_tokens(test_tokens)
         tests_backend_test_views(test_views)
     end
-    style tests_backend fill:#fdebd0,stroke:#333,stroke-width:1px,color:#333
+    style tests_backend fill:#d5f5e3,stroke:#333,stroke-width:1px,color:#333
     subgraph tests_xfun[tests/xfun]
         tests_xfun_conftest(conftest)
         tests_xfun_test_accumulation(test_accumulation)
@@ -552,12 +546,12 @@ graph LR
         tests_xfun_test_view(test_view)
         tests_xfun_test_word(test_word)
     end
-    style tests_xfun fill:#d6eaf8,stroke:#333,stroke-width:1px,color:#333
+    style tests_xfun fill:#fdebd0,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun[xfun]
         xfun___init__(__init__)
         xfun_config(config)
     end
-    style xfun fill:#e8daef,stroke:#333,stroke-width:1px,color:#333
+    style xfun fill:#d6eaf8,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun_ai[xfun/ai]
         xfun_ai___init__(__init__)
         xfun_ai_agent(agent)
@@ -565,7 +559,7 @@ graph LR
         xfun_ai_schema(schema)
         xfun_ai_tools(tools)
     end
-    style xfun_ai fill:#d4f0c0,stroke:#333,stroke-width:1px,color:#333
+    style xfun_ai fill:#e8daef,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun_core[xfun/core]
         xfun_core___init__(__init__)
         xfun_core_db(db)
@@ -576,7 +570,7 @@ graph LR
         xfun_core_ops(ops)
         xfun_core_view(view)
     end
-    style xfun_core fill:#e8f4fd,stroke:#333,stroke-width:1px,color:#333
+    style xfun_core fill:#d4f0c0,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun_notebooks[xfun/notebooks]
         xfun_notebooks___init__(__init__)
         xfun_notebooks_accumulation(accumulation)
@@ -588,14 +582,22 @@ graph LR
         xfun_notebooks_timeline(timeline)
         xfun_notebooks_word(word)
     end
-    style xfun_notebooks fill:#ffe0f0,stroke:#333,stroke-width:1px,color:#333
-    backend_deps --> backend_permissions
+    style xfun_notebooks fill:#e8f4fd,stroke:#333,stroke-width:1px,color:#333
+    subgraph xfun_utils[xfun/utils]
+        xfun_utils___init__(__init__)
+        xfun_utils_file_utils(file_utils)
+        xfun_utils_time_utils(time_utils)
+        xfun_utils_token_utils(token_utils)
+    end
+    style xfun_utils fill:#ffe0f0,stroke:#333,stroke-width:1px,color:#333
     backend_deps --> xfun___init__
     backend_deps --> xfun_config
     backend_deps --> xfun_core___init__
+    backend_deps --> xfun_core_db
     backend_deps --> xfun_core_filter
     backend_deps --> xfun_core_ops
     backend_deps --> xfun_core_view
+    backend_deps --> xfun_utils_file_utils
     backend_deps --> xfun_utils_time_utils
     backend_main --> backend_routers___init__
     backend_main --> backend_routers_ai
@@ -607,63 +609,51 @@ graph LR
     backend_main --> backend_routers_notebooks
     backend_main --> xfun_config
     backend_main --> xfun_core_errors
-    backend_permissions --> xfun___init__
-    backend_permissions --> xfun_core___init__
-    backend_permissions --> xfun_core_filter
-    backend_permissions --> xfun_core_ops
-    backend_permissions --> xfun_core_view
     backend_routers_ai --> backend_deps
-    backend_routers_ai --> backend_permissions
     backend_routers_ai --> backend_services___init__
     backend_routers_ai --> backend_services_ai_service
     backend_routers_ai --> xfun_core_view
+    backend_routers_manage_db --> backend_deps
     backend_routers_manage_db --> backend_services___init__
     backend_routers_manage_db --> backend_services_management_service
-    backend_routers_manage_db --> xfun___init__
     backend_routers_manage_db --> xfun_config
     backend_routers_manage_filter --> backend_deps
-    backend_routers_manage_filter --> backend_permissions
-    backend_routers_manage_filter --> xfun___init__
     backend_routers_manage_filter --> xfun_core___init__
     backend_routers_manage_filter --> xfun_core_filter
     backend_routers_manage_filter --> xfun_core_ops
     backend_routers_manage_permission --> backend_deps
-    backend_routers_manage_permission --> backend_permissions
-    backend_routers_manage_permission --> xfun___init__
     backend_routers_manage_permission --> xfun_core___init__
     backend_routers_manage_permission --> xfun_core_filter
     backend_routers_manage_permission --> xfun_core_ops
     backend_routers_manage_permission --> xfun_core_view
     backend_routers_manage_token --> backend_deps
-    backend_routers_manage_token --> backend_permissions
-    backend_routers_manage_token --> xfun___init__
     backend_routers_manage_token --> xfun_config
     backend_routers_manage_token --> xfun_core___init__
+    backend_routers_manage_token --> xfun_core_db
     backend_routers_manage_token --> xfun_core_filter
     backend_routers_manage_token --> xfun_core_ops
     backend_routers_manage_token --> xfun_core_view
+    backend_routers_manage_token --> xfun_utils_file_utils
     backend_routers_manage_token --> xfun_utils_time_utils
     backend_routers_manage_view --> backend_deps
-    backend_routers_manage_view --> backend_permissions
-    backend_routers_manage_view --> xfun___init__
     backend_routers_manage_view --> xfun_core___init__
     backend_routers_manage_view --> xfun_core_filter
     backend_routers_manage_view --> xfun_core_ops
     backend_routers_manage_view --> xfun_core_view
     backend_routers_notebooks --> backend_deps
-    backend_routers_notebooks --> backend_permissions
     backend_routers_notebooks --> backend_schemas
     backend_routers_notebooks --> backend_services___init__
     backend_routers_notebooks --> backend_services_notebook_service
     backend_routers_notebooks --> xfun_ai_schema
-    backend_services_ai_service --> backend_permissions
     backend_services_ai_service --> xfun_ai_agent
     backend_services_ai_service --> xfun_ai_prompts
     backend_services_ai_service --> xfun_ai_tools
     backend_services_ai_service --> xfun_core_view
     backend_services_management_service --> xfun___init__
+    backend_services_management_service --> xfun_core_db
     backend_services_notebook_service --> xfun___init__
     backend_services_notebook_service --> xfun_core___init__
+    backend_services_notebook_service --> xfun_core_db
     backend_services_notebook_service --> xfun_core_filter
     backend_services_notebook_service --> xfun_core_ops
     backend_services_notebook_service --> xfun_core_view
@@ -671,12 +661,13 @@ graph LR
     cli --> xfun_ai_agent
     cli --> xfun_ai_prompts
     cli --> xfun_ai_tools
+    cli --> xfun_core_db
     cli --> xfun_core_filter
     cli --> xfun_core_ops
     cli --> xfun_core_view
+    cli --> xfun_utils_file_utils
     tests_backend_conftest --> backend_deps
     tests_backend_conftest --> backend_main
-    tests_backend_conftest --> backend_permissions
     tests_backend_conftest --> backend_routers___init__
     tests_backend_conftest --> backend_routers_manage_db
     tests_backend_conftest --> xfun___init__
@@ -691,8 +682,8 @@ graph LR
     tests_backend_test_ai --> xfun___init__
     tests_backend_test_ai --> xfun_core_view
     tests_backend_test_ai --> xfun_utils_time_utils
+    tests_backend_test_deps --> backend___init__
     tests_backend_test_deps --> backend_deps
-    tests_backend_test_deps --> backend_permissions
     tests_backend_test_deps --> xfun_utils_time_utils
     tests_backend_test_main --> backend_main
     tests_backend_test_notebooks --> backend_services_notebook_service
@@ -779,11 +770,11 @@ graph LR
     xfun_ai_tools --> xfun___init__
     xfun_ai_tools --> xfun_ai_schema
     xfun_ai_tools --> xfun_core___init__
+    xfun_ai_tools --> xfun_core_db
     xfun_ai_tools --> xfun_core_errors
     xfun_ai_tools --> xfun_core_filter
     xfun_ai_tools --> xfun_core_ops
     xfun_ai_tools --> xfun_core_view
-    xfun_core_db --> xfun_config
     xfun_core_db --> xfun_core_errors
     xfun_core_db --> xfun_core_filter
     xfun_core_db --> xfun_utils_time_utils
@@ -796,7 +787,6 @@ graph LR
     xfun_core_ops --> xfun_core_db
     xfun_core_ops --> xfun_core_filter
     xfun_core_ops --> xfun_core_view
-    xfun_core_view --> xfun___init__
     xfun_core_view --> xfun_core_db
     xfun_core_view --> xfun_core_filter
     xfun_notebooks_accumulation --> xfun_core_db
@@ -815,6 +805,8 @@ graph LR
     xfun_notebooks_timeline --> xfun_core_notebook
     xfun_notebooks_word --> xfun_core_db
     xfun_notebooks_word --> xfun_core_notebook
+    xfun_utils_file_utils --> xfun_config
+    xfun_utils_file_utils --> xfun_core_errors
 ```
 <!-- end dependence graph -->
 
@@ -903,7 +895,7 @@ pytest --cov=xfun --cov-report=term-missing
 CLI：`xfun reset`（自动备份后重置）。API：`POST /api/v0/db/reset`（需 ROOT_TOKEN）。
 
 **如何创建第一个 API Token？**
-在 `.env` 中设置 `ROOT_TOKEN`，启动后端后以 `ROOT_TOKEN` 作为 `X-API-Key` 调用 `POST /api/v0/tokens`，或通过前端 `/token-input` 页面输入 ROOT_TOKEN 后创建。
+在 `.env` 中设置 `ROOT_TOKEN`，启动后端后以 `ROOT_TOKEN` 作为 `Token` 调用 `POST /api/v0/tokens`，或通过前端 `/token-input` 页面输入 ROOT_TOKEN 后创建。
 
 **如何切换用户/数据库？**
 设置环境变量 `XFUN_USER=username`，数据库路径变为 `data/username.db`。

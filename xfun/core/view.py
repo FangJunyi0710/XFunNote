@@ -1,10 +1,7 @@
 from typing import Any
 
 from .db import Column, DB
-from .filter import TRUE_CONDITION, FALSE_CONDITION, Condition, Filter, filter_to_json, filter_to_sql, parse_filter_json
-import json
-
-from .. import db as _db
+from .filter import TRUE_CONDITION, FALSE_CONDITION, Filter, filter_to_json, filter_to_sql, parse_filter_json
 
 TableSpec = tuple[list[str], Filter]
 # dict[表名, list[(列名列表, 行筛选条件)]]

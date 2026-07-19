@@ -16,7 +16,7 @@ from xfun.ai.schema import (
     parse_and_validate_view,
     _resolve_filter,
 )
-from xfun.core.errors import InvalidFilterError, PromptError
+from xfun.core.errors import FilterInvalidError, PromptError
 
 
 class TestConditionModel:
@@ -126,8 +126,8 @@ class TestEdgeCases:
     """覆盖 schema.py + errors.py 剩余分支。"""
 
     def test_resolve_filter_invalid_value(self):
-        """_resolve_filter(42) → InvalidFilterError (schema.py l.78)。"""
-        with pytest.raises(InvalidFilterError):
+        """_resolve_filter(42) → FilterInvalidError (schema.py l.78)。"""
+        with pytest.raises(FilterInvalidError):
             _resolve_filter(42)
 
     def test_prompt_error_instantiation(self):

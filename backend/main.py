@@ -58,7 +58,7 @@ XFunNote 是一个轻量级、无模式的笔记系统后端。
 
 ## 鉴权方式
 
-所有 API（除 `POST {API_PREFIX}/tokens/exchange` 和 `/docs` 外）需要在 HTTP 头中携带 `X-API-Key`。
+所有 API（除 `POST {API_PREFIX}/tokens/exchange` 和 `/docs` 外）需要在 HTTP 头中携带 `Authorization: Bearer Token`。
 
 - **ROOT_TOKEN**：超级管理员权限，在 `.env` 文件中设置
 - **普通 Token**：通过 `POST {API_PREFIX}/tokens` 创建，可绑定不同权限级别
@@ -146,8 +146,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={
             "error": http.HTTPStatus(422).phrase,
-            "detail": "请求参数校验失败",
-            "errors": errors,
+            "detail": f"请求参数校验失败：{errors}",
         },
     )
 
