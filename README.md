@@ -385,7 +385,7 @@ XFunNote/
 │   ├── project_info.py
 │   ├── replace.py
 │   ├── update_avahi_hostname.sh
-│   └── updateREADME.sh
+│   └── update_readme.sh
 ├── tests/
 │   ├── backend/
 │   │   ├── conftest.py
