@@ -185,7 +185,6 @@ if __name__ == "__main__":
 # TODO 前端分各个本子做精致的数据呈现：点击本子进入仪表盘页面，再点击进入条目列表页面
 # TODO 前端 AI 对话添加历史对话、Agent选择与编辑等页面
 # TODO 前端添加排序设置页面
-# TODO 前端缺少错误边界：React 组件中缺少 ErrorBoundary，任何未捕获的渲染错误都会白屏
 # TODO 前端添加 .env 编辑管理页面
 # TODO Docker 化方案与快速部署 Termux 到手机、apk 打包等
 # TODO FSRS 算法复习调度：为 word 本子实现完整的间隔重复算法

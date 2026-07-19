@@ -129,3 +129,60 @@
 .cursor-blink {
   animation: blink 1s step-end infinite;
 }
+
+/* --- ErrorBoundary 降级 UI 样式 --- */
+.error-boundary-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: hsl(var(--background));
+  padding: 1rem;
+}
+.error-boundary-card {
+  max-width: 480px;
+  width: 100%;
+  padding: 2rem;
+  background-color: hsl(var(--card));
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+  text-align: center;
+}
+.error-boundary-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  margin-bottom: 0.5rem;
+}
+.error-boundary-desc {
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 1.5rem;
+}
+.error-boundary-button {
+  display: inline-block;
+  padding: 0.5rem 1.5rem;
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.2s;
+}
+.error-boundary-button:hover {
+  background-color: hsl(var(--primary) / 0.9);
+}
+.error-boundary-details {
+  margin-top: 1.5rem;
+  text-align: left;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}
+.error-boundary-details pre {
+  white-space: pre-wrap;
+  word-break: break-all;
+  background-color: hsl(var(--muted));
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  margin-top: 0.5rem;
+}

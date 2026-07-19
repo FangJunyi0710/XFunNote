@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { type ServerOptions, defineConfig } from 'vite';
+import { type ServerOptions, ViteDevServer, defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import http from 'http';
@@ -57,7 +57,7 @@ const isHttps = !!httpsConfig;
 const redirectPlugin = isHttps
   ? {
       name: 'redirect-server',
-      configureServer(server) {
+      configureServer(server: ViteDevServer) {
         const redirectPort = VITE_HTTP_PORT;
         const httpsPort = VITE_HTTPS_PORT;
         const httpsHost = VITE_HOST;
@@ -74,8 +74,12 @@ const redirectPlugin = isHttps
           );
         });
 
-        const closeServer = (serverInstance: http.Server) =>
+        const closeServer = (serverInstance: { close: (cb: (err?: Error) => void) => void } | null) =>
           new Promise<string>((resolve, reject) => {
+            if (!serverInstance) {
+              resolve('no server');
+              return;
+            }
             serverInstance.close((err?: Error) => {
               if (err) reject(err);
               else resolve('closed');
