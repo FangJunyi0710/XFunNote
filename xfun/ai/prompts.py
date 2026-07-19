@@ -67,6 +67,11 @@ _FIELD_DESC: dict[str, dict[str, tuple[str, str]]] = {
         "end_time":     ("带 UTC 偏移的时间字符串，如 `2026-07-14 11:00:00+08:00`，可选", "日程结束时间"),
         "location":     ("字符串文本，可选", "日程地点或位置"),
     },
+  "ledger": {
+    "date": ("YYYY-MM-DD 格式", "账本记录日期"),
+    "amount": ("数字（正数收入，负数支出）", "金额"),
+    "account": ("字符串", "账户名称，如微信、现金、银行卡等"),
+  },
 }
 
 
@@ -96,8 +101,8 @@ def _field_description_section() -> str:
     if notebook_names_in_desc != notebook_names_in_registry:
         raise PromptError(
             f"_FIELD_DESC 与本子不匹配："
-            f"_FIELD_DESC 有 {notebook_names_in_desc} 个本子，"
-            f"registry 有 {notebook_names_in_registry} 个本子"
+            f"_FIELD_DESC 有本子 {notebook_names_in_desc}，"
+            f"registry 有本子 {notebook_names_in_registry}"
         )
 
     rows = []

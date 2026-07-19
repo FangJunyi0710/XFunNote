@@ -43,6 +43,7 @@ const config: Config = {
           aimemory: 'hsl(var(--notebook-aimemory))',
           timeline: 'hsl(var(--notebook-timeline))',
           schedule: 'hsl(var(--notebook-schedule))',
+          ledger: 'hsl(var(--notebook-ledger))',
         },
         success: {
           DEFAULT: 'hsl(var(--success))',
@@ -72,8 +73,7 @@ const config: Config = {
   safelist: [
     // 笔记本类型动态样式 — 由 getNotebookStyles() 工厂函数派生
     {
-      pattern:
-        /^(border-l-|border-b-|ring-|bg-|text-)notebook-(plan|diary|word|accumulation|aimemory|timeline|schedule)/,
+      pattern: /^(border-l-|border-b-|ring-|bg-|text-)notebook-(plan|diary|word|accumulation|aimemory|timeline|schedule|ledger)/,
       variants: ['hover'],
     },
   ],

@@ -15,6 +15,7 @@ import type {
   AimemoryEntry,
   TimelineEntry,
   ScheduleEntry,
+  LedgerEntry,
 } from '@/config/notebook';
 
 // ── SQLite 类型 → JS 类型 运行时转换器 ────────────────────
@@ -67,6 +68,7 @@ export interface EntryTypeMap {
   aimemory: AimemoryEntry;
   timeline: TimelineEntry;
   schedule: ScheduleEntry;
+  ledger: LedgerEntry;
 }
 
 /**

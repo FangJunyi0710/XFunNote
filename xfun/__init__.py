@@ -7,6 +7,7 @@ from .notebooks.accumulation import AccumulationNotebook
 from .notebooks.aimemory     import AIMemoryNotebook
 from .notebooks.timeline     import TimelineNotebook
 from .notebooks.schedule     import ScheduleNotebook
+from .notebooks.ledger       import LedgerNotebook
 from .utils.token_utils import generate_token
 
 db: DB = DB()
@@ -18,6 +19,7 @@ registry: dict[str, Notebook] = {
     "aimemory":     AIMemoryNotebook(),
     "timeline":     TimelineNotebook(),
     "schedule":     ScheduleNotebook(),
+    "ledger":       LedgerNotebook(),
 }
 
 # ---- 系统表定义 ----
@@ -61,6 +63,7 @@ _SYSTEM_TABLES: dict[str, list[Column]] = {
 # TODO token 添加 user 列
 # TODO permission 添加 uuid 列
 # TODO token 改为 permission uuid 列表
+# TODO permission view 等数据结构应支持 REF 等随引用自动更新
 
 
 def _autofill_token(entry: dict) -> None:

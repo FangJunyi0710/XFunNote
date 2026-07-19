@@ -196,3 +196,9 @@ if __name__ == "__main__":
 # TODO 提供获取预定义 permission 的接口
 # TODO 添加 SSE 事件驱动的后端避免轮询
 # TODO 添加前端 shortcut 兑换确认页面，且未被兑换的 token 状态为停用以增强安全
+# TODO 部署时注意 HSTS 等安全机制
+# TODO 前端编辑条目提供更合适的文本框，带记忆功能。
+# TODO 前端添加操作日志等历史记录
+# TODO 支持未来添加虚拟本子临时以本子形态展示数据
+# TODO 前端将所有AI相关数据移入AI部分
+# TODO 前端添加标签编辑器、AI note等的移入移出等

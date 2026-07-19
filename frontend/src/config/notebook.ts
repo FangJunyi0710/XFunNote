@@ -5,6 +5,7 @@ import { NotebookAccumulation } from '@/pages/NotebookAccumulation';
 import { NotebookAimemory } from '@/pages/NotebookAimemory';
 import { NotebookTimeline } from '@/pages/NotebookTimeline';
 import { NotebookSchedule } from '@/pages/NotebookSchedule';
+import { NotebookLedger } from '@/pages/NotebookLedger';
 
 // ============================================================
 // 笔记本类型配置 — 单一数据源 (SSOT)
@@ -12,7 +13,7 @@ import { NotebookSchedule } from '@/pages/NotebookSchedule';
 // ============================================================
 
 /** 笔记本类型标识 */
-export type NotebookType = 'plan' | 'diary' | 'word' | 'accumulation' | 'aimemory' | 'timeline' | 'schedule';
+export type NotebookType = 'plan' | 'diary' | 'word' | 'accumulation' | 'aimemory' | 'timeline' | 'schedule' | 'ledger';
 
 /** 所有笔记本类型的列表 */
 export const NOTEBOOK_TYPES: NotebookType[] = [
@@ -23,6 +24,7 @@ export const NOTEBOOK_TYPES: NotebookType[] = [
   'aimemory',
   'timeline',
   'schedule',
+  'ledger',
 ];
 
 /** 中文标签映射 */
@@ -34,6 +36,7 @@ export const TYPE_LABELS: Record<NotebookType, string> = {
   aimemory: 'AI 记忆',
   timeline: '时间线',
   schedule: '日程',
+  ledger: '账本',
 };
 
 /** 元信息：标签 + 描述 */
@@ -45,6 +48,7 @@ export const NOTEBOOK_INFO: Record<string, { label: string; description: string 
   aimemory: { label: 'AI 记忆', description: 'AI 自动记录的关键信息' },
   timeline: { label: '时间线', description: '记录实际时间花费' },
   schedule: { label: '日程', description: '规划未来日程' },
+  ledger: { label: '账本', description: '记录收支流水' },
 };
 
 // -------------------------------------------------------
@@ -60,6 +64,7 @@ const TYPE_COLORS: Record<NotebookType, string> = {
   aimemory: 'border-l-notebook-aimemory',
   timeline: 'border-l-notebook-timeline',
   schedule: 'border-l-notebook-schedule',
+  ledger: 'border-l-notebook-ledger',
 };
 
 /** 聚焦环颜色类名 */
@@ -71,6 +76,7 @@ const TYPE_RING_COLORS: Record<NotebookType, string> = {
   aimemory: 'ring-notebook-aimemory',
   timeline: 'ring-notebook-timeline',
   schedule: 'ring-notebook-schedule',
+  ledger: 'ring-notebook-ledger',
 };
 
 /** 背景色类名 */
@@ -82,6 +88,7 @@ const TYPE_BG_COLORS: Record<NotebookType, string> = {
   aimemory: 'bg-notebook-aimemory/10',
   timeline: 'bg-notebook-timeline/10',
   schedule: 'bg-notebook-schedule/10',
+  ledger: 'bg-notebook-ledger/10',
 };
 
 /** 文字颜色类名 */
@@ -93,6 +100,7 @@ const TYPE_TEXT_COLORS: Record<NotebookType, string> = {
   aimemory: 'text-notebook-aimemory',
   timeline: 'text-notebook-timeline',
   schedule: 'text-notebook-schedule',
+  ledger: 'text-notebook-ledger',
 };
 
 /** 颜色名称映射（用于 UI 中的颜色选择器等） */
@@ -104,6 +112,7 @@ export const NOTEBOOK_COLOR_NAMES: Record<NotebookType, string> = {
   aimemory: 'aimemory',
   timeline: 'timeline',
   schedule: 'schedule',
+  ledger: 'ledger',
 };
 
 // -------------------------------------------------------
@@ -144,6 +153,7 @@ export const NOTEBOOK_ROUTES: Record<string, { path: string; label: string }> = 
   aimemory: { path: '/notebooks/aimemory', label: 'AI 记忆' },
   timeline: { path: '/notebooks/timeline', label: '时间线' },
   schedule: { path: '/notebooks/schedule', label: '日程' },
+  ledger: { path: '/notebooks/ledger', label: '账本' },
 };
 
 export { TYPE_COLORS, TYPE_RING_COLORS, TYPE_BG_COLORS, TYPE_TEXT_COLORS };
@@ -212,6 +222,13 @@ export interface TimelineEntry extends EntryBase {
   duration?: string;
 }
 
+// Ledger 笔记本扩展字段（对应 ledger.py _extra_columns）
+export interface LedgerEntry extends EntryBase {
+  date: string;
+  amount: number;
+  account: string | null;
+}
+
 // Schedule 笔记本扩展字段
 export interface ScheduleEntry extends EntryBase {
   start_time: string;
@@ -237,4 +254,5 @@ export const NOTEBOOK_PAGES: Record<NotebookType, NotebookPageComponent> = {
   aimemory: NotebookAimemory,
   timeline: NotebookTimeline,
   schedule: NotebookSchedule,
+  ledger: NotebookLedger,
 };
