@@ -262,8 +262,10 @@ class TestCurrentTokenInfo:
 
     def test_info_root_token(self, client, monkeypatch):
         """ROOT_TOKEN 访问 /tokens/info（80行）。"""
-        import backend.routers.manage_token as _token_mod
-        monkeypatch.setattr(_token_mod, "ROOT_TOKEN", "my-root-token-val")
+        import backend.deps as _deps
+        import backend.routers.manage_token as _tokon
+        monkeypatch.setattr(_deps, "ROOT_TOKEN", "my-root-token-val")
+        monkeypatch.setattr(_tokon, "ROOT_TOKEN", "my-root-token-val")
         resp = client.get("/api/v0/tokens/info", headers={"X-API-Key": "my-root-token-val"})
         assert resp.status_code == 200
         data = resp.json()
@@ -301,5 +303,5 @@ class TestCurrentTokenInfo:
             conn.execute("DELETE FROM _token WHERE id = ?", [entry["id"]])
 
         resp = client.get("/api/v0/tokens/info", headers={"X-API-Key": token_val})
-        assert resp.status_code == 404
-        assert "删除" in resp.json()["detail"]
+        assert resp.status_code == 401
+        assert "无效" in resp.json()["detail"]

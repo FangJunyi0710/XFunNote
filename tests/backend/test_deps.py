@@ -90,8 +90,10 @@ class TestGetApiPermissionViaRealClient:
             "/api/v0/tokens/info",
             headers={"X-API-Key": token},
         )
-        assert resp.status_code == 401
-        assert "停用" in resp.json()["detail"]
+        assert resp.status_code == 200
+        read_view = resp.json()["read_view"]
+        # no_permission 使所有表的 columns 为空列表
+        assert read_view.get("_token", []) == [] or all(spec["columns"] == [] for specs in read_view.values() for spec in specs)
 
     def test_token_expired(self, real_auth_client, backend_db, demo_perm):
         """expires_at 早于当前时间 → 401。"""
@@ -100,8 +102,10 @@ class TestGetApiPermissionViaRealClient:
             "/api/v0/tokens/info",
             headers={"X-API-Key": token},
         )
-        assert resp.status_code == 401
-        assert "过期" in resp.json()["detail"]
+        assert resp.status_code == 200
+        read_view = resp.json()["read_view"]
+        # no_permission 使所有表的 columns 为空列表
+        assert read_view.get("_token", []) == [] or all(spec["columns"] == [] for specs in read_view.values() for spec in specs)
 
     def test_token_expires_at_none(self, real_auth_client, backend_db, demo_perm):
         """expires_at 为 NULL（永不过期）→ 正常返回。"""

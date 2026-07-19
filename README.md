@@ -343,6 +343,7 @@ XFunNote/
 │   │   │   ├── NotebookDiary.tsx
 │   │   │   ├── NotebookEditPage.tsx
 │   │   │   ├── NotebookFilter.tsx
+│   │   │   ├── NotebookLedger.tsx
 │   │   │   ├── NotebookPlan.tsx
 │   │   │   ├── NotebookSchedule.tsx
 │   │   │   ├── NotebookTimeline.tsx
@@ -442,6 +443,7 @@ XFunNote/
 │   │   ├── accumulation.py
 │   │   ├── aimemory.py
 │   │   ├── diary.py
+│   │   ├── ledger.py
 │   │   ├── plan.py
 │   │   ├── schedule.py
 │   │   ├── timeline.py
@@ -580,6 +582,7 @@ graph LR
         xfun_notebooks_accumulation(accumulation)
         xfun_notebooks_aimemory(aimemory)
         xfun_notebooks_diary(diary)
+        xfun_notebooks_ledger(ledger)
         xfun_notebooks_plan(plan)
         xfun_notebooks_schedule(schedule)
         xfun_notebooks_timeline(timeline)
@@ -693,6 +696,7 @@ graph LR
     tests_backend_test_deps --> xfun_utils_time_utils
     tests_backend_test_main --> backend_main
     tests_backend_test_notebooks --> backend_services_notebook_service
+    tests_backend_test_tokens --> backend_deps
     tests_backend_test_tokens --> backend_routers_manage_token
     tests_backend_test_tokens --> xfun___init__
     tests_backend_test_tokens --> xfun_core___init__
@@ -758,6 +762,7 @@ graph LR
     xfun___init__ --> xfun_notebooks_accumulation
     xfun___init__ --> xfun_notebooks_aimemory
     xfun___init__ --> xfun_notebooks_diary
+    xfun___init__ --> xfun_notebooks_ledger
     xfun___init__ --> xfun_notebooks_plan
     xfun___init__ --> xfun_notebooks_schedule
     xfun___init__ --> xfun_notebooks_timeline
@@ -800,6 +805,8 @@ graph LR
     xfun_notebooks_aimemory --> xfun_core_notebook
     xfun_notebooks_diary --> xfun_core_db
     xfun_notebooks_diary --> xfun_core_notebook
+    xfun_notebooks_ledger --> xfun_core_db
+    xfun_notebooks_ledger --> xfun_core_notebook
     xfun_notebooks_plan --> xfun_core_db
     xfun_notebooks_plan --> xfun_core_notebook
     xfun_notebooks_schedule --> xfun_core_db
