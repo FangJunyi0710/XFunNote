@@ -195,3 +195,4 @@ if __name__ == "__main__":
 # TODO 前端选择时应提供筛选出仅选择条目的视图便于更好呈现
 # TODO 提供获取预定义 permission 的接口
 # TODO 添加 SSE 事件驱动的后端避免轮询
+# TODO 添加前端 shortcut 兑换确认页面，且未被兑换的 token 状态为停用以增强安全

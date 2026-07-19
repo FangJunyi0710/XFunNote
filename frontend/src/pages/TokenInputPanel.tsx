@@ -65,6 +65,15 @@ export const TokenInputPanel: React.FC = () => {
     setActiveToken(activeTokenId === id ? null : id);
   };
 
+  const handleAddToken = (key: string) => {
+    const store = useTokenStore.getState();
+    const newId = addToken(key);
+    if (newId && !store.activeTokenId) {
+      setActiveToken(newId);
+    }
+    return newId;
+  };
+
   const handleSubmit = async () => {
     const value = key.trim();
     if (!value) {
@@ -72,14 +81,14 @@ export const TokenInputPanel: React.FC = () => {
       return;
     }
     if (TOKEN_REGEX.test(value)) {
-      addToken(value);
+      handleAddToken(value);
       setKey('');
       handleSuccess('Token 已添加成功');
     } else {
       setExchangeLoading(true);
       try {
         const res = await exchangeTokenByShortcut({ shortcut: value });
-        addToken(res.token);
+        handleAddToken(res.token);
         setKey('');
         handleSuccess('Shortcut 兑换成功');
       } catch (e: unknown) {
