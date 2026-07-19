@@ -233,15 +233,21 @@ export const TokenInputPanel: React.FC = () => {
                   <div>
                     <span className="text-muted-foreground">创建时间：</span>
                     <span className="font-medium">
-                      {new Date(tokenInfo.created_at).toLocaleString()}
+                      {tokenInfo.created_at ? new Date(tokenInfo.created_at).toLocaleString() : <span className="text-red-600">不适用</span>}
                     </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">更新时间：</span>
                     <span className="font-medium">
-                      {new Date(tokenInfo.updated_at).toLocaleString()}
+                      {tokenInfo.updated_at ? new Date(tokenInfo.updated_at).toLocaleString() : <span className="text-red-600">不适用</span>}
                     </span>
                   </div>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">状态：</span>
+                  <span className={`font-medium ${tokenInfo.is_active ? 'text-green-600' : 'text-red-600'}`}>
+                    {tokenInfo.is_active ? '已启用' : '已停用'}
+                  </span>
                 </div>
                 {tokenInfo.read_view && (
                   <div>

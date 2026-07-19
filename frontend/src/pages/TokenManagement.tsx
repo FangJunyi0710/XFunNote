@@ -182,7 +182,7 @@ export const TokenManagement: React.FC = () => {
                     <div className="flex items-center gap-1.5">
                       <span className="font-medium truncate">{t.name}</span>
                       <Badge variant={t.is_active ? 'success' : 'secondary'} className="shrink-0">
-                        {t.is_active ? '启用' : '禁用'}
+                        {t.is_active ? '启用' : '停用'}
                       </Badge>
                       {t.shortcut && (
                         <Badge variant="secondary" className="shrink-0 text-[10px]">
@@ -257,7 +257,7 @@ export const TokenManagement: React.FC = () => {
                         onCheckedChange={(v) => setForm({ ...form, is_active: v })}
                       />
                       <span className="text-sm text-muted-foreground">
-                        {form.is_active ? '已启用' : '已禁用'}
+                        {form.is_active ? '已启用' : '已停用'}
                       </span>
                     </div>
                   </div>

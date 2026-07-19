@@ -6,10 +6,11 @@ export interface TokenInfo {
   shortcut: string | null;
   shortcut_expire_at: string | null;
   expires_at: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | null;
+  updated_at: string | null;
   read_view: Record<string, unknown>;
   write_view: Record<string, unknown>;
+  is_active: boolean;
 }
 
 export async function listTokens(): Promise<Token[]> {

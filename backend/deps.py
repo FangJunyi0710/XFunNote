@@ -8,7 +8,7 @@ from xfun.config import ROOT_TOKEN
 from xfun.utils.time_utils import now_str
 from xfun import db as _db
 from xfun.core import ops as _ops
-from xfun.core.view import root_permission, full_view
+from xfun.core.view import no_permission, root_permission, full_view
 from xfun.core.filter import Condition
 
 from backend.permissions import ApiPermission, get_api_permission_from_db
@@ -20,6 +20,7 @@ _ROOT_PERM = root_permission(_db)
 
 async def get_api_permission(
     x_api_key: str = Header(alias="X-API-Key"),
+    allow_inactive: bool = False
 ) -> ApiPermission:
     """提取 API Key 并返回对应的 ApiPermission 对象。
 
@@ -49,19 +50,22 @@ async def get_api_permission(
         )
 
     if not row["is_active"]:
+        if allow_inactive:
+            return ApiPermission(no_permission(_db))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="API Key 已被停用",
         )
 
     if row["expires_at"] and row["expires_at"] < now_str():
+        if allow_inactive:
+            return ApiPermission(no_permission(_db))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="API Key 已过期",
         )
 
     return _lookup_permission(row["permission"])
-
 
 def _lookup_permission(permission_id: str) -> ApiPermission:
     """按 _permission.id 查询权限定义，查不到则抛 401。"""

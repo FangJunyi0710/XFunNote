@@ -1,6 +1,7 @@
 """Token 管理路由。"""
 
 from __future__ import annotations
+from functools import partial
 
 from fastapi import APIRouter, Depends, HTTPException, Header, status
 from pydantic import BaseModel, Field
@@ -57,31 +58,29 @@ class TokenInfoResponse(BaseModel):
     shortcut: str | None = None
     shortcut_expire_at: str | None = None
     expires_at: str | None = None
-    created_at: str
-    updated_at: str
+    created_at: str | None
+    updated_at: str | None
+    is_active: bool
     read_view: dict
     write_view: dict
 
 
 @router.get("/tokens/info", summary="查询当前 Token 信息", response_description="当前 Token 的基本信息（含权限视图）")
 def get_current_token_info(
-    api_perm: ApiPermission = Depends(get_api_permission),
+    api_perm: ApiPermission = Depends(partial(get_api_permission, allow_inactive=True)),
     x_api_key: str = Header(alias="X-API-Key"),
 ):
     """
     查询当前 API Key 的 Token 信息。
-    返回 name、shortcut、shortcut_expire_at、expires_at、created_at、updated_at、read_view、write_view。
     使用 root_permission 二次查询 _token 表获取元数据。
     """
 
     perm = root_permission(_db)
 
-    if x_api_key == ROOT_TOKEN:
-        row = {"name": "ROOT_TOKEN", "created_at": "", "updated_at": ""}
-    else:
+    if x_api_key != ROOT_TOKEN:
         with _db.read_transaction() as conn:
             cols = ["name", "shortcut", "shortcut_expire_at", "expires_at",
-                    "created_at", "updated_at"]
+                    "created_at", "updated_at", "is_active"]
             results = _ops.query(conn, perm, "_token",
                                 {"_token": [(cols, Condition("token", x_api_key, "="))]},
                                 limit=1)
@@ -92,17 +91,20 @@ def get_current_token_info(
                 detail="Token 在鉴权后被删除",
             )
         row = results[0]
+    else:
+        row = {}
 
     read_view = view_to_json(api_perm.permission[0])
     write_view = view_to_json(api_perm.permission[1])
 
     return TokenInfoResponse(
-        name=row["name"],
+        name=row.get("name", "ROOT_TOKEN"),
         shortcut=row.get("shortcut"),
         shortcut_expire_at=row.get("shortcut_expire_at"),
         expires_at=row.get("expires_at"),
-        created_at=row["created_at"],
-        updated_at=row["updated_at"],
+        created_at=row.get("created_at"),
+        updated_at=row.get("updated_at"),
+        is_active=row.get("is_active", True),
         read_view=read_view,
         write_view=write_view,
     )
