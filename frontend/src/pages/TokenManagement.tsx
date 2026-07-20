@@ -80,7 +80,7 @@ export const TokenManagement: React.FC = () => {
     setIsCreating(true);
     setForm({
       name: '',
-      permission: permissions.length > 0 ? permissions[0].id : '',
+      permission: permissions.length > 0 ? permissions[0].uuid : '',
       is_active: true,
       expires_at: '',
       enable_shortcut: true,
@@ -240,8 +240,8 @@ export const TokenManagement: React.FC = () => {
                         <option value="">暂无权限，请先创建</option>
                       )}
                       {permissions.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} ({p.id})
+                        <option key={p.id} value={p.uuid}>
+                          {p.name} ({p.uuid})
                         </option>
                       ))}
                     </Select>
@@ -290,9 +290,8 @@ export const TokenManagement: React.FC = () => {
                           id="tshortcut"
                           value={form.shortcut}
                           onChange={(e) => setForm({ ...form, shortcut: e.target.value })}
-                          placeholder="留空则自动生成"
+                          placeholder="自定义短码"
                         />
-                        <p className="text-xs text-muted-foreground">留空由系统自动生成唯一短码</p>
                       </div>
                       <div className="space-y-1.5">
                         <Label htmlFor="tshortcut_ttl">短码有效期（秒）</Label>

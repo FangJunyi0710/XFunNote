@@ -24,7 +24,7 @@ router = APIRouter(tags=["management-tokens"])
 
 class TokenCreateRequest(BaseModel):
     name: str = Field(description="Token 可读名称")
-    permission: str = Field(description="权限标识，对应 _permission 表中的 id")
+    permission: str = Field(description="权限标识，对应 _permission 表中的 uuid")
     shortcut: str | None = Field(default=None, description="可选的自定义快捷配对码", max_length=64)
     shortcut_ttl: int = Field(default=120, ge=10, le=86400, description="Shortcut 有效期（秒），默认 120 秒")
 

@@ -1,5 +1,6 @@
 export interface Permission {
   id: string;
+  uuid: string;
   name: string;
   description: string | null;
   read_view: string;

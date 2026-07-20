@@ -1,3 +1,5 @@
+import uuid
+
 from xfun.core.db import DB, Column
 from xfun.utils.token_utils import generate_token
 from xfun.core.errors import EntryInvalidError
@@ -32,6 +34,7 @@ SYSTEM_TABLES: dict[str, list[Column]] = {
     ],
     "_permission": [
         Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
+        Column("uuid", "TEXT", nullable=False, auto=True, unique=True),
         Column("name", "TEXT", nullable=False, unique=True),
         Column("description", "TEXT", nullable=True),
         Column("read_view", "TEXT", nullable=False),
@@ -40,7 +43,6 @@ SYSTEM_TABLES: dict[str, list[Column]] = {
         Column("updated_at", "TEXT", nullable=False, auto=True),
     ],
 }
-# TODO permission 添加 uuid 列
 # TODO token 改为 permission uuid 列表
 # TODO permission view 等数据结构应支持 REF 等随引用自动更新
 
@@ -108,9 +110,12 @@ def _autofill_token(entry: dict) -> None:
     """_token 自动填充钩子：自动生成 token。"""
     entry["token"] = generate_token()
     entry.setdefault("is_active", 1)
+    
+def _autofill_permission(entry: dict) -> None:
+    entry["uuid"] = uuid.uuid4()
 
 def register_system_hooks(db: DB) -> None:
     db.register_hooks("_token", autofill=_autofill_token, validate=_validate_token)
-    db.register_hooks("_permission", validate=_validate_permission)
+    db.register_hooks("_permission", validate=_validate_permission, autofill=_autofill_permission)
     db.register_hooks("_view", validate=_validate_view)
     db.register_hooks("_filter", validate=_validate_filter)

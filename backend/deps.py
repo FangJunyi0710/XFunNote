@@ -90,7 +90,7 @@ async def get_api_permission(
         )
 
     with db.read_transaction() as conn:
-        permission_res = _ops.query(conn, root_permission(db), "_permission", {"_permission": [(db.cols("_permission"), Condition("id", token_res["permission"], "="))]}, limit=1)
+        permission_res = _ops.query(conn, root_permission(db), "_permission", {"_permission": [(db.cols("_permission"), Condition("uuid", token_res["permission"], "="))]}, limit=1)
 
     if not permission_res:
         raise HTTPException(
