@@ -8,6 +8,8 @@ langchain-anthropic # Anthropic / DeepSeek 兼容封装
 langchain-core      # LangChain 核心抽象
 pydantic            # 数据模型与校验
 
+fsrs                # 单词复习调度器
+
 # ===================== 后端 API =====================
 
 fastapi             # RESTful API（backend/）

@@ -186,7 +186,6 @@ if __name__ == "__main__":
 # TODO 前端添加排序设置页面
 # TODO 前端添加 .env 编辑管理页面
 # TODO Docker 化方案与快速部署 Termux 到手机、apk 打包等
-# TODO FSRS 算法复习调度：为 word 本子实现完整的间隔重复算法
 # TODO QQ 机器人推送与定时任务：自动定期备份等
 # TODO pyproject.toml 内容很少（缺少项目元数据、依赖声明等）
 # TODO CI/CD 配置
