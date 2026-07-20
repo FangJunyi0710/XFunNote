@@ -7,6 +7,8 @@ plan 本：以月份为分组，管理待办事项 / 目标条目。
 from collections import defaultdict
 from typing import Any
 
+from ..core.errors import EntryInvalidError
+
 from ..core.db import Column
 from ..core.notebook import Notebook
 
@@ -53,3 +55,12 @@ class PlanNotebook(Notebook):
         super()._autofill(entry)
         entry["no"] = f"{entry['month']}{_seq_to_letter(entry['seq'])}"
         entry.setdefault("done", 0)
+
+    def _validate(self, entry: dict[str, Any]) -> None:
+        from xfun.utils.time_utils import validate_yymm
+        if "month" in entry and entry["month"] is not None:
+            if not validate_yymm(str(entry["month"])):
+                raise EntryInvalidError("plan", f"month 格式错误，应为 YYMM，实际: {entry['month']}")
+        if "done" in entry and entry["done"] is not None:
+            if entry["done"] not in (0, 1):
+                raise EntryInvalidError("plan", f"done 必须为 0 或 1，实际: {entry['done']}")
