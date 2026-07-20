@@ -55,6 +55,7 @@ from xfun.core.ops import delete as ops_delete
 from xfun.core.ops import query as ops_query
 from xfun.core.ops import update as ops_update
 from xfun.core.view import full_view, no_view, parse_view_json, root_permission, view_to_json
+from xfun.system_tables import SYSTEM_TABLES
 from xfun.utils.file_utils import get_db_path
 
 app = typer.Typer(no_args_is_help=True)
@@ -86,7 +87,7 @@ def main_callback(
 # ════════════════════════════════════════════════════════════
 
 
-_SYSTEM_TABLES = {"_token", "_permission", "_view", "_filter"}
+_SYSTEM_TABLES = SYSTEM_TABLES.keys()
 
 
 def _error(msg: str) -> str:

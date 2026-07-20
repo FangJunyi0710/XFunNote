@@ -15,12 +15,12 @@ def view_to_sql(view: View, db: DB, table: str) -> tuple[str, list]:
         return "", []
 
     Column.check(table)
-    subsqls = [f"SELECT rowid, {db.select_sql(table, [])[len("SELECT "):]} WHERE 1=0"]
+    subsqls = [f"SELECT rowid, {db._select_sql(table, [])[len("SELECT "):]} WHERE 1=0"]
     params = []
 
     for cols, flt in view[table]:
         clause, vals = filter_to_sql(flt)
-        subsqls.append(f"SELECT rowid, {db.select_sql(table, list(cols))[len("SELECT "):]} WHERE {clause}")
+        subsqls.append(f"SELECT rowid, {db._select_sql(table, list(cols))[len("SELECT "):]} WHERE {clause}")
         params.extend(vals)
 
     sql = f"SELECT {", ".join([f"MAX({col}) AS {col}" for col in db.cols(table)])} FROM ({" UNION ALL ".join(subsqls)}) AS combined GROUP BY rowid"

@@ -1,5 +1,6 @@
-from .core.db       import DB, Column
+from .core.db       import DB
 from .core.notebook import Notebook
+from .system_tables import SYSTEM_TABLES, register_system_hooks
 from .notebooks.plan         import PlanNotebook
 from .notebooks.diary        import DiaryNotebook
 from .notebooks.word         import WordNotebook
@@ -8,7 +9,6 @@ from .notebooks.aimemory     import AIMemoryNotebook
 from .notebooks.timeline     import TimelineNotebook
 from .notebooks.schedule     import ScheduleNotebook
 from .notebooks.ledger       import LedgerNotebook
-from .utils.token_utils import generate_token
 
 registry: dict[str, Notebook] = {
     "plan":         PlanNotebook(),
@@ -21,55 +21,6 @@ registry: dict[str, Notebook] = {
     "ledger":       LedgerNotebook(),
 }
 
-# ---- 系统表定义 ----
-_SYSTEM_TABLES: dict[str, list[Column]] = {
-    "_token": [
-        Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
-        Column("token", "TEXT", nullable=False, auto=True, unique=True),
-        Column("name", "TEXT", nullable=False),
-        Column("permission", "TEXT", nullable=False),
-        Column("is_active", "INTEGER", nullable=False, auto=True),
-        Column("shortcut", "TEXT", nullable=True, unique=True),
-        Column("shortcut_expire_at", "TEXT", nullable=True),
-        Column("expires_at", "TEXT", nullable=True),
-        Column("created_at", "TEXT", nullable=False, auto=True),
-        Column("updated_at", "TEXT", nullable=False, auto=True),
-    ],
-    "_view": [
-        Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
-        Column("name", "TEXT", nullable=False, unique=True),
-        Column("data", "TEXT", nullable=False),
-        Column("created_at", "TEXT", nullable=False, auto=True),
-        Column("updated_at", "TEXT", nullable=False, auto=True),
-    ],
-    "_filter": [
-        Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
-        Column("name", "TEXT", nullable=False, unique=True),
-        Column("data", "TEXT", nullable=False),
-        Column("created_at", "TEXT", nullable=False, auto=True),
-        Column("updated_at", "TEXT", nullable=False, auto=True),
-    ],
-    "_permission": [
-        Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
-        Column("name", "TEXT", nullable=False, unique=True),
-        Column("description", "TEXT", nullable=True),
-        Column("read_view", "TEXT", nullable=False),
-        Column("write_view", "TEXT", nullable=False),
-        Column("created_at", "TEXT", nullable=False, auto=True),
-        Column("updated_at", "TEXT", nullable=False, auto=True),
-    ],
-}
-# TODO permission 添加 uuid 列
-# TODO token 改为 permission uuid 列表
-# TODO permission view 等数据结构应支持 REF 等随引用自动更新
-
-
-def _autofill_token(entry: dict) -> None:
-    """_token 自动填充钩子：缺失 token 时自动生成。"""
-    entry.setdefault("token", generate_token())
-    entry.setdefault("is_active", 1)
-
-
 def init_db(db: DB):
     """初始化数据库（注册钩子 + 建用户表 + 建系统表）。"""
     # 注册本子钩子到 DB（CRUD 由 DB 统一管理）
@@ -77,8 +28,8 @@ def init_db(db: DB):
         db.register_hooks(name, pre_add=nb._pre_add, validate=nb._validate, autofill=nb._autofill)
 
     # 注册系统表钩子
-    db.register_hooks("_token", autofill=_autofill_token)
+    register_system_hooks(db)
 
     # 注册钩子后才初始化表（init 内部自管理事务）
     db.table_infos.update({name: nb.columns for name, nb in registry.items()})
-    db.table_infos.update(_SYSTEM_TABLES)
+    db.table_infos.update(SYSTEM_TABLES)

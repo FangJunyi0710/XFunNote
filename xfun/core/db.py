@@ -360,7 +360,7 @@ class DB:
 
     # ---- 自动生成 INSERT SQL ----
 
-    def insert_sql(self, table_name: str) -> str:
+    def _insert_sql(self, table_name: str) -> str:
         """根据 表名 自动生成 INSERT 语句。"""
         col_names = self.cols(table_name)
         cols = ", ".join(col_names)
@@ -369,7 +369,7 @@ class DB:
 
     # ---- SELECT 语句 ----
 
-    def select_sql(self, table_name: str, cols: list[str]) -> str:
+    def _select_sql(self, table_name: str, cols: list[str]) -> str:
         """
         生成完整 SELECT 语句。
 
@@ -447,7 +447,7 @@ class DB:
             if autofill:
                 autofill(entry)
 
-        conn.executemany(self.insert_sql(table_name), entries)
+        conn.executemany(self._insert_sql(table_name), entries)
         return [entry["id"] for entry in entries]
 
     def list_ids(self, conn, table_name: str, filter, *, order_by: str = "", limit: int = -1, offset: int = 0) -> list[str]:
@@ -472,7 +472,14 @@ class DB:
             return
         for k in entry:
             Column.check(k)
-        entry["updated_at"] = now_str()
+
+        validate = self.hooks.get(table_name, {}).get("validate")
+        if validate:
+            validate(entry)
+
+        if "updated_at" in self.cols(table_name):
+            entry["updated_at"] = now_str()
+
         set_clause = ", ".join(f"{k} = :{k}" for k in entry)
         params = [{**entry, "id": eid} for eid in entry_ids]
         conn.executemany(
