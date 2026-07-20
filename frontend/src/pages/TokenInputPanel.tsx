@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { TokenValueDisplay } from '@/components/ui/TokenValueDisplay';
 import { DeleteIcon, PlusIcon } from '@/components/ui/icons';
 import { maskKey } from '@/lib/utils';
+import { Timestamp } from '@/components/ui/Timestamp';
 
 const TOKEN_REGEX = /^sk-[-A-Za-z0-9_]{32}$/;
 
@@ -308,31 +309,43 @@ export const TokenInputPanel: React.FC = () => {
                   </div>
                   <div>
                     <span className="text-muted-foreground">过期时间：</span>
-                    <span className="font-medium">
-                      {tokenInfo.expires_at
-                        ? new Date(tokenInfo.expires_at).toLocaleString()
-                        : '永不过期'}
-                    </span>
+                  <span className="font-medium">
+                    {tokenInfo.expires_at ? (
+                      <Timestamp date={tokenInfo.expires_at} from="year" to="minute" />
+                    ) : (
+                      '永不过期'
+                    )}
+                  </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Shortcut 过期：</span>
-                    <span className="font-medium">
-                      {tokenInfo.shortcut_expire_at
-                        ? new Date(tokenInfo.shortcut_expire_at).toLocaleString()
-                        : '无'}
-                    </span>
+                  <span className="font-medium">
+                    {tokenInfo.shortcut_expire_at ? (
+                      <Timestamp date={tokenInfo.shortcut_expire_at} from="year" to="minute" />
+                    ) : (
+                      '无'
+                    )}
+                  </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">创建时间：</span>
-                    <span className="font-medium">
-                      {tokenInfo.created_at ? new Date(tokenInfo.created_at).toLocaleString() : <span className="text-red-600">不适用</span>}
-                    </span>
+                  <span className="font-medium">
+                    {tokenInfo.created_at ? (
+                      <Timestamp date={tokenInfo.created_at} from="year" to="minute" />
+                    ) : (
+                      <span className="text-red-600">不适用</span>
+                    )}
+                  </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">更新时间：</span>
-                    <span className="font-medium">
-                      {tokenInfo.updated_at ? new Date(tokenInfo.updated_at).toLocaleString() : <span className="text-red-600">不适用</span>}
-                    </span>
+                  <span className="font-medium">
+                    {tokenInfo.updated_at ? (
+                      <Timestamp date={tokenInfo.updated_at} from="year" to="minute" />
+                    ) : (
+                      <span className="text-red-600">不适用</span>
+                    )}
+                  </span>
                   </div>
                 </div>
                 <div>

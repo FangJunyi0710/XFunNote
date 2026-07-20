@@ -63,3 +63,16 @@ export function isValidUsername(username: string): boolean {
   const USERNAME_PATTERN = /^[a-zA-Z0-9\-_]{1,64}$/;
   return USERNAME_PATTERN.test(username);
 }
+
+/**
+ * 获取当前时区偏移字符串，如 "+8"、"-5"、"+5:30"
+ */
+export function getTimezoneOffsetStr(): string {
+  const offset = -new Date().getTimezoneOffset() / 60;
+  if (Number.isInteger(offset)) {
+    return (offset >= 0 ? '+' : '') + offset.toString();
+  }
+  const hours = Math.floor(offset);
+  const minutes = Math.abs((offset - hours) * 60);
+  return (hours >= 0 ? '+' : '') + hours + ':' + String(minutes).padStart(2, '0');
+}
