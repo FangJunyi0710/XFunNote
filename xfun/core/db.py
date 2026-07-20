@@ -356,7 +356,7 @@ class DB:
             for (table_name,) in rows:
                 conn.execute(f"DROP TABLE IF EXISTS {table_name}")
         # 重新初始化（内部已有自管理事务）
-        self.init(self.table_infos)
+        self.init()
 
     # ---- 自动生成 INSERT SQL ----
 
@@ -476,6 +476,12 @@ class DB:
         validate = self.hooks.get(table_name, {}).get("validate")
         if validate:
             validate(entry)
+
+        if "id" in entry:
+            entry.pop("id")
+
+        if "created_at" in entry:
+            entry.pop("created_at")
 
         if "updated_at" in self.cols(table_name):
             entry["updated_at"] = now_str()

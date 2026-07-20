@@ -20,7 +20,7 @@ class TimelineNotebook(Notebook):
         from xfun.utils.time_utils import validate_datetime
         if "start_time" in entry and entry["start_time"] is not None:
             if not validate_datetime(str(entry["start_time"])):
-                raise EntryInvalidError("timeline", f"start_time 格式错误，应为 ISO 8601 Z，实际: {entry['start_time']}")
+                raise EntryInvalidError("timeline", f"start_time 格式错误，应为 ISO 8601，实际: {entry['start_time']}")
         if "end_time" in entry and entry["end_time"] is not None:
             if not validate_datetime(str(entry["end_time"])):
-                raise EntryInvalidError("timeline", f"end_time 格式错误，应为 ISO 8601 Z，实际: {entry['end_time']}")
+                raise EntryInvalidError("timeline", f"end_time 格式错误，应为 ISO 8601，实际: {entry['end_time']}")

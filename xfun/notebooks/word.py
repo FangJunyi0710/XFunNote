@@ -102,11 +102,11 @@ class WordNotebook(Notebook):
         # ---- 时间字段 ----
         if "next_review" in entry and entry["next_review"] is not None:
             if not validate_datetime(str(entry["next_review"])):
-                raise EntryInvalidError("word", f"next_review 格式错误，应为 ISO 8601 Z，实际: {entry['next_review']}")
+                raise EntryInvalidError("word", f"next_review 格式错误，应为 ISO 8601，实际: {entry['next_review']}")
 
         if "last_review" in entry and entry["last_review"] is not None:
             if not validate_datetime(str(entry["last_review"])):
-                raise EntryInvalidError("word", f"last_review 格式错误，应为 ISO 8601 Z，实际: {entry['last_review']}")
+                raise EntryInvalidError("word", f"last_review 格式错误，应为 ISO 8601，实际: {entry['last_review']}")
 
 def review_word(word_entry: dict, rating: Rating) -> dict:
     """

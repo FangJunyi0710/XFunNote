@@ -202,3 +202,14 @@ TRUE_CONDITION = Condition("_", None, "TRUE")
 FALSE_CONDITION = Condition("_", None, "FALSE")
 
 from . import extras # 完成运算符注册
+
+def validate_filter(data: str) -> None:
+    import json
+    from .filter import parse_filter_json, filter_to_sql
+    try:
+        obj = json.loads(data)
+        flt = parse_filter_json(obj)
+        sql, params = filter_to_sql(flt)
+    except Exception as e:
+        from .errors import EntryInvalidError
+        raise EntryInvalidError("_filter", f"data 不是有效的 DNF JSON: {e}")

@@ -132,3 +132,20 @@ def root_permission(db: DB) -> DB_Permission:
 
 def no_permission(db: DB) -> DB_Permission:
     return (no_view(db), no_view(db))
+
+def validate_view(data: str) -> None:
+    import json
+    from .filter import filter_to_sql
+    from .db import Column
+    try:
+        obj = json.loads(data)
+        view = parse_view_json(obj)
+        for table, specs in view.items():
+            Column.check(table)
+            for cols, flt in specs:
+                for col in cols:
+                    Column.check(col)
+                sql, params = filter_to_sql(flt)
+    except Exception as e:
+        from .errors import EntryInvalidError
+        raise EntryInvalidError("_view", f"data 不是有效的 View JSON: {e}")

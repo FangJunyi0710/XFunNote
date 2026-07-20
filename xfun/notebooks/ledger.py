@@ -14,7 +14,7 @@ class LedgerNotebook(Notebook):
     name = "ledger"
     _extra_columns = [
         Column("date", "TEXT", nullable=False, index=True),
-        Column("amount", "REAL", nullable=False),
+        Column("amount_cents", "INTEGER", nullable=False),
         Column("account", "TEXT", nullable=True),
     ]
 
@@ -23,10 +23,10 @@ class LedgerNotebook(Notebook):
         if "date" in entry and entry["date"] is not None:
             if not validate_date(str(entry["date"])):
                 raise EntryInvalidError("ledger", f"date 格式错误，应为 YYYY-MM-DD，实际: {entry['date']}")
-        if "amount" in entry and entry["amount"] is not None:
+        if "amount_cents" in entry and entry["amount_cents"] is not None:
             try:
-                amount = float(entry["amount"])
-                if amount == 0:
-                    raise EntryInvalidError("ledger", "amount 不能为 0")
+                amount_cents = int(entry["amount_cents"])
+                if amount_cents == 0:
+                    raise EntryInvalidError("ledger", "amount_cents 不能为 0")
             except (ValueError, TypeError):
-                raise EntryInvalidError("ledger", f"amount 必须为数字，实际: {entry['amount']}")
+                raise EntryInvalidError("ledger", f"amount_cents 必须为数字，实际: {entry['amount_cents']}")

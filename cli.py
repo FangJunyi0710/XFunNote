@@ -443,7 +443,7 @@ app.add_typer(view_app, name="view")
 def init():
     """初始化数据库（建表 / 同步列 / 建索引）。"""
     with _cli_handle():
-        init_db()
+        db.init()
         typer.echo(json.dumps({"message": "数据库初始化完成"}, ensure_ascii=False))
 
 
