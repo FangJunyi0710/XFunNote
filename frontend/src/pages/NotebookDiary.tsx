@@ -1,13 +1,14 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { registerCard } from '@/components/notebook/notebookCards';
-import { useNotebookStore } from '@/stores/notebookStore';
+import { useCurrentNotebookData } from '@/stores/notebookStore';
 import { asEntry } from '@/lib/type-guards';
 import type { DiaryEntry } from '@/config/notebook';
 
 const DiaryCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
-  const schema = useNotebookStore((s) => s.schema);
-  const e = asEntry('diary', entry, schema?.columns ?? []);
+  const userData = useCurrentNotebookData();
+  const schema = userData?.schema?.columns ?? [];
+  const e = asEntry('diary', entry, schema);
   return (
     <div className="space-y-1">
       <div className="text-xs text-muted-foreground">{e.date}</div>

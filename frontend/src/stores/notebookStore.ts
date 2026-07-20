@@ -5,48 +5,18 @@ import type { QueryResponse } from '@/types/notebook';
 import * as notebookApi from '@/api/notebooks';
 import { castEntries } from '@/lib/type-guards';
 import { handleError } from '@/lib/error';
+import { useTokenStore } from './tokenStore';
 
 // ── 默认分页大小 ──────────────────────────────────────────────────────
 const DEFAULT_PAGE_LIMIT = 20;
 
-// ── localStorage 分页持久化 ──────────────────────────────────────────
-const PAGINATION_KEY = 'xfun-notebook-pagination';
-
-interface PaginationCache {
-  offset: number;
-  limit: number;
-}
-
-function loadPagination(type: NotebookType): PaginationCache {
-  try {
-    const raw = localStorage.getItem(PAGINATION_KEY);
-    if (!raw) return { offset: 0, limit: DEFAULT_PAGE_LIMIT };
-    const all: Record<string, PaginationCache> = JSON.parse(raw);
-    return all[type] ?? { offset: 0, limit: DEFAULT_PAGE_LIMIT };
-  } catch {
-    return { offset: 0, limit: DEFAULT_PAGE_LIMIT };
-  }
-}
-
-function savePagination(type: NotebookType, offset: number, limit: number) {
-  try {
-    const raw = localStorage.getItem(PAGINATION_KEY);
-    const all: Record<string, PaginationCache> = raw ? JSON.parse(raw) : {};
-    all[type] = { offset, limit };
-    localStorage.setItem(PAGINATION_KEY, JSON.stringify(all));
-  } catch {
-    // ignore
-  }
-}
-
-/** 全局 schema 缓存，避免重复请求 */
+// ── 全局 schema 缓存（所有用户共享） ──────────────────────────────────
 let schemaCache: Record<string, NotebookSchema> | null = null;
 
 async function getCachedSchema(type: NotebookType): Promise<NotebookSchema> {
   if (schemaCache?.[type]) {
     return schemaCache[type];
   }
-  // 首次调用时拉取全部 schema
   const all = await notebookApi.listNotebooks();
   schemaCache = {};
   for (const s of all) {
@@ -55,26 +25,55 @@ async function getCachedSchema(type: NotebookType): Promise<NotebookSchema> {
   return schemaCache[type];
 }
 
-interface NotebookState {
-  // 当前笔记本
+// ── 按用户分页持久化 ──────────────────────────────────────────────────
+function getPaginationKey(userName: string): string {
+  return `xfun-notebook-pagination-${userName}`;
+}
+
+interface PaginationCache {
+  offset: number;
+  limit: number;
+}
+
+function loadPagination(userName: string, type: NotebookType): PaginationCache {
+  try {
+    const raw = localStorage.getItem(getPaginationKey(userName));
+    if (!raw) return { offset: 0, limit: DEFAULT_PAGE_LIMIT };
+    const all: Record<string, PaginationCache> = JSON.parse(raw);
+    return all[type] ?? { offset: 0, limit: DEFAULT_PAGE_LIMIT };
+  } catch {
+    return { offset: 0, limit: DEFAULT_PAGE_LIMIT };
+  }
+}
+
+function savePagination(userName: string, type: NotebookType, offset: number, limit: number) {
+  try {
+    const key = getPaginationKey(userName);
+    const raw = localStorage.getItem(key);
+    const all: Record<string, PaginationCache> = raw ? JSON.parse(raw) : {};
+    all[type] = { offset, limit };
+    localStorage.setItem(key, JSON.stringify(all));
+  } catch {
+    // ignore
+  }
+}
+
+// ── Store 状态（按用户隔离） ──────────────────────────────────────────
+interface UserNotebookData {
   currentType: NotebookType | null;
   schema: NotebookSchema | null;
-
-  // 数据
   entries: Record<string, unknown>[];
   total: number;
   offset: number;
   limit: number;
-
-  // 筛选
   filterJson: string | null;
   orderBy: string;
   orderDir: 'asc' | 'desc';
+}
 
-  // 加载状态
-  loading: boolean;
-
-  // 操作
+interface NotebookState {
+  users: Record<string, UserNotebookData>;
+  loading: boolean; // 全局加载状态
   setCurrentType: (type: NotebookType) => Promise<void>;
   fetchEntries: () => Promise<void>;
   setOffset: (offset: number) => void;
@@ -87,7 +86,9 @@ interface NotebookState {
   deleteEntries: (ids: string[]) => Promise<void>;
 }
 
-export const useNotebookStore = create<NotebookState>((set, get) => ({
+const getCurrentUserName = () => useTokenStore.getState().activeUserName;
+
+const defaultUserData = (): UserNotebookData => ({
   currentType: null,
   schema: null,
   entries: [],
@@ -97,16 +98,66 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   filterJson: null,
   orderBy: 'id',
   orderDir: 'desc',
+});
+
+export const useNotebookStore = create<NotebookState>((set, get) => ({
+  users: {},
   loading: false,
 
+  // 确保当前用户存在
+  ensureUser: () => {
+    const userName = getCurrentUserName();
+    if (!userName) return null;
+    set((state) => {
+      if (!state.users[userName]) {
+        return { users: { ...state.users, [userName]: defaultUserData() } };
+      }
+      return state;
+    });
+    return userName;
+  },
+
   setCurrentType: async (type: NotebookType) => {
+    const userName = getCurrentUserName();
+    if (!userName) {
+      handleError(new Error('未选择用户'), '加载失败');
+      return;
+    }
+    // 确保用户存在
+    if (!get().users[userName]) {
+      set((state) => ({ users: { ...state.users, [userName]: defaultUserData() } }));
+    }
+
     try {
-      // 从持久化记录中恢复该笔记本类型的分页参数
-      const { offset, limit } = loadPagination(type);
-      // 先清空旧数据再设置 loading，避免切换时短暂显示先前内容
-      set({ loading: true, currentType: type, offset, limit, entries: [], schema: null, filterJson: null });
+      // 从持久化记录中恢复分页
+      const { offset, limit } = loadPagination(userName, type);
+      set((state) => ({
+        users: {
+          ...state.users,
+          [userName]: {
+            ...state.users[userName],
+            currentType: type,
+            offset,
+            limit,
+            entries: [],
+            schema: null,
+            filterJson: null,
+          },
+        },
+        loading: true,
+      }));
+
       const schema = await getCachedSchema(type);
-      set({ schema });
+      set((state) => ({
+        users: {
+          ...state.users,
+          [userName]: {
+            ...state.users[userName],
+            schema,
+          },
+        },
+      }));
+
       await get().fetchEntries();
     } catch (e: unknown) {
       handleError(e, '加载失败');
@@ -116,8 +167,11 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   },
 
   fetchEntries: async () => {
-    const { currentType, schema, offset, limit, filterJson, orderBy, orderDir } = get();
-    if (!currentType) return;
+    const userName = getCurrentUserName();
+    if (!userName) return;
+    const userData = get().users[userName];
+    if (!userData || !userData.currentType) return;
+    const { currentType, schema, offset, limit, filterJson, orderBy, orderDir } = userData;
     try {
       set({ loading: true });
       const res: QueryResponse = await notebookApi.queryEntries(currentType, {
@@ -128,7 +182,16 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
         order_dir: orderDir,
         columns: schema?.display_order ?? [],
       });
-      set({ entries: castEntries(res.entries as Record<string, unknown>[], schema?.columns ?? []), total: res.total });
+      set((state) => ({
+        users: {
+          ...state.users,
+          [userName]: {
+            ...state.users[userName],
+            entries: castEntries(res.entries as Record<string, unknown>[], schema?.columns ?? []),
+            total: res.total,
+          },
+        },
+      }));
     } catch (e: unknown) {
       handleError(e, '查询失败');
     } finally {
@@ -137,34 +200,86 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   },
 
   setOffset: (offset: number) => {
-    const { currentType } = get();
-    set({ offset });
-    if (currentType) savePagination(currentType, offset, get().limit);
+    const userName = getCurrentUserName();
+    if (!userName) return;
+    const userData = get().users[userName];
+    if (!userData) return;
+    const { currentType, limit } = userData;
+    set((state) => ({
+      users: {
+        ...state.users,
+        [userName]: {
+          ...state.users[userName],
+          offset,
+        },
+      },
+    }));
+    if (currentType) {
+      savePagination(userName, currentType, offset, limit);
+    }
     get().fetchEntries();
   },
 
   setLimit: (limit: number) => {
-    const { currentType, offset } = get();
-    set({ limit });
-    if (currentType) savePagination(currentType, offset, limit);
+    const userName = getCurrentUserName();
+    if (!userName) return;
+    const userData = get().users[userName];
+    if (!userData) return;
+    const { currentType, offset } = userData;
+    set((state) => ({
+      users: {
+        ...state.users,
+        [userName]: {
+          ...state.users[userName],
+          limit,
+        },
+      },
+    }));
+    if (currentType) {
+      savePagination(userName, currentType, offset, limit);
+    }
     get().fetchEntries();
   },
 
   setFilter: (filter: string | null) => {
-    set({ filterJson: filter, offset: 0 });
+    const userName = getCurrentUserName();
+    if (!userName) return;
+    set((state) => ({
+      users: {
+        ...state.users,
+        [userName]: {
+          ...state.users[userName],
+          filterJson: filter,
+          offset: 0,
+        },
+      },
+    }));
     get().fetchEntries();
   },
 
   setOrder: (by: string, dir: 'asc' | 'desc') => {
-    set({ orderBy: by, orderDir: dir });
+    const userName = getCurrentUserName();
+    if (!userName) return;
+    set((state) => ({
+      users: {
+        ...state.users,
+        [userName]: {
+          ...state.users[userName],
+          orderBy: by,
+          orderDir: dir,
+        },
+      },
+    }));
     get().fetchEntries();
   },
 
   addEntries: async (entries: Record<string, unknown>[]) => {
-    const { currentType } = get();
-    if (!currentType) return;
+    const userName = getCurrentUserName();
+    if (!userName) return;
+    const userData = get().users[userName];
+    if (!userData || !userData.currentType) return;
     try {
-      await notebookApi.addEntries(currentType, { entries });
+      await notebookApi.addEntries(userData.currentType, { entries });
       await get().fetchEntries();
     } catch (e: unknown) {
       handleError(e, '添加失败');
@@ -173,10 +288,12 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   },
 
   updateEntry: async (id: string, updates: Record<string, unknown>) => {
-    const { currentType } = get();
-    if (!currentType) return;
+    const userName = getCurrentUserName();
+    if (!userName) return;
+    const userData = get().users[userName];
+    if (!userData || !userData.currentType) return;
     try {
-      await notebookApi.updateEntry(currentType, { id, updates });
+      await notebookApi.updateEntry(userData.currentType, { id, updates });
       await get().fetchEntries();
     } catch (e: unknown) {
       handleError(e, '更新失败');
@@ -185,10 +302,12 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   },
 
   batchUpdateEntries: async (ids: string[], values: Record<string, unknown>) => {
-    const { currentType } = get();
-    if (!currentType) return;
+    const userName = getCurrentUserName();
+    if (!userName) return;
+    const userData = get().users[userName];
+    if (!userData || !userData.currentType) return;
     try {
-      await notebookApi.batchUpdateEntries(currentType, ids, values);
+      await notebookApi.batchUpdateEntries(userData.currentType, ids, values);
       await get().fetchEntries();
     } catch (e: unknown) {
       handleError(e, '批量更新失败');
@@ -197,10 +316,12 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   },
 
   deleteEntries: async (ids: string[]) => {
-    const { currentType } = get();
-    if (!currentType) return;
+    const userName = getCurrentUserName();
+    if (!userName) return;
+    const userData = get().users[userName];
+    if (!userData || !userData.currentType) return;
     try {
-      await notebookApi.deleteEntries(currentType, ids);
+      await notebookApi.deleteEntries(userData.currentType, ids);
       await get().fetchEntries();
     } catch (e: unknown) {
       handleError(e, '删除失败');
@@ -208,3 +329,10 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
     }
   },
 }));
+
+// ── 自定义 hook：获取当前用户的数据 ──────────────────────────────
+
+export const useCurrentNotebookData = () => {
+  const userName = useTokenStore((s) => s.activeUserName);
+  return useNotebookStore((s) => userName ? s.users[userName] : null);
+};

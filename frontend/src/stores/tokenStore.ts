@@ -9,69 +9,157 @@ export interface LocalTokenEntry {
   createdAt: string;
 }
 
-interface TokenStoreState {
+interface UserData {
   tokens: LocalTokenEntry[];
   activeTokenId: string | null;
+}
+
+interface TokenStoreState {
+  users: Record<string, UserData>;
+  activeUserName: string | null;
+  addUser: (userName: string) => void;
+  removeUser: (userName: string) => void;
+  setActiveUser: (userName: string | null) => void;
+  getCurrentUserTokens: () => LocalTokenEntry[];
+  getActiveTokenKey: () => string | null;
   addToken: (key: string) => string | null;
   removeToken: (id: string) => void;
   setActiveToken: (id: string | null) => void;
   updateTokenKey: (id: string, key: string) => void;
-  getActiveTokenKey: () => string | null;
 }
+
+const defaultUserData = (): UserData => ({
+  tokens: [],
+  activeTokenId: null,
+});
 
 export const useTokenStore = create<TokenStoreState>()(
   persist(
     (set, get) => ({
-      tokens: [],
-      activeTokenId: null,
+      users: {},
+      activeUserName: null,
+
+      addUser: (userName: string) => {
+        set((state) => {
+          if (state.users[userName]) return state;
+          return {
+            users: {
+              ...state.users,
+              [userName]: defaultUserData(),
+            },
+          };
+        });
+      },
+
+      removeUser: (userName: string) => {
+        set((state) => {
+          const { [userName]: _, ...rest } = state.users;
+          return {
+            users: rest,
+            activeUserName: state.activeUserName === userName ? null : state.activeUserName,
+          };
+        });
+      },
+
+      setActiveUser: (userName: string | null) => {
+        set({ activeUserName: userName });
+      },
+
+      getCurrentUserTokens: () => {
+        const { users, activeUserName } = get();
+        if (!activeUserName || !users[activeUserName]) return [];
+        return users[activeUserName].tokens;
+      },
+
+      getActiveTokenKey: () => {
+        const { users, activeUserName } = get();
+        if (!activeUserName || !users[activeUserName]) return null;
+        const user = users[activeUserName];
+        if (!user.activeTokenId) return null;
+        const active = user.tokens.find((t) => t.id === user.activeTokenId);
+        return active ? active.key : null;
+      },
 
       addToken: (key: string) => {
+        const { users, activeUserName } = get();
+        if (!activeUserName || !users[activeUserName]) return null;
         const id = generateId();
         let added = false;
         set((state) => {
-          // 检查是否已存在相同的 key
-          if (state.tokens.some((t) => t.key === key)) {
-            return state; // 已存在，不重复添加
+          const user = state.users[activeUserName];
+          if (user.tokens.some((t) => t.key === key)) {
+            return state;
           }
           added = true;
           return {
-            tokens: [
-              ...state.tokens,
-              { id, key, createdAt: new Date().toISOString() },
-            ],
+            users: {
+              ...state.users,
+              [activeUserName]: {
+                ...user,
+                tokens: [
+                  ...user.tokens,
+                  { id, key, createdAt: new Date().toISOString() },
+                ],
+              },
+            },
           };
         });
         return added ? id : null;
       },
 
       removeToken: (id: string) => {
-        set((state) => ({
-          tokens: state.tokens.filter((t) => t.id !== id),
-          activeTokenId: state.activeTokenId === id ? null : state.activeTokenId,
-        }));
+        const { users, activeUserName } = get();
+        if (!activeUserName || !users[activeUserName]) return;
+        set((state) => {
+          const user = state.users[activeUserName];
+          return {
+            users: {
+              ...state.users,
+              [activeUserName]: {
+                ...user,
+                tokens: user.tokens.filter((t) => t.id !== id),
+                activeTokenId: user.activeTokenId === id ? null : user.activeTokenId,
+              },
+            },
+          };
+        });
       },
 
       setActiveToken: (id: string | null) => {
-        set({ activeTokenId: id });
-      },
-
-      updateTokenKey: (id: string, key: string) => {
+        const { users, activeUserName } = get();
+        if (!activeUserName || !users[activeUserName]) return;
         set((state) => ({
-          tokens: state.tokens.map((t) =>
-            t.id === id ? { ...t, key } : t,
-          ),
+          users: {
+            ...state.users,
+            [activeUserName]: {
+              ...state.users[activeUserName],
+              activeTokenId: id,
+            },
+          },
         }));
       },
 
-      getActiveTokenKey: () => {
-        const { tokens, activeTokenId } = get();
-        if (!activeTokenId) return null;
-        const active = tokens.find((t) => t.id === activeTokenId);
-        return active ? active.key : null;
+      updateTokenKey: (id: string, key: string) => {
+        const { users, activeUserName } = get();
+        if (!activeUserName || !users[activeUserName]) return;
+        set((state) => {
+          const user = state.users[activeUserName];
+          return {
+            users: {
+              ...state.users,
+              [activeUserName]: {
+                ...user,
+                tokens: user.tokens.map((t) =>
+                  t.id === id ? { ...t, key } : t
+                ),
+              },
+            },
+          };
+        });
       },
     }),
     {
       name: 'xfun-token-storage',
-    },
-  ),
+    }
+  )
 );

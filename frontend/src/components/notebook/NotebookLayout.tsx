@@ -4,17 +4,14 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { defaultRenderEntryDisplay } from '@/components/notebook/notebookCards/NotebookCardList';
 import { PlusIcon, FilterIcon, BatchEditIcon, DeleteIcon, SelectAllIcon, DeselectAllIcon, ChevronUpIcon } from '@/components/ui/icons';
-import { useNotebookStore } from '@/stores/notebookStore';
+import { useNotebookStore, useCurrentNotebookData } from '@/stores/notebookStore';
 import * as notebookApi from '@/api/notebooks';
 import { TYPE_LABELS } from '@/config/notebook';
 import type { NotebookType } from '@/config/notebook';
 import { useSidebarStore } from '@/stores/sidebarStore';
 
 interface NotebookLayoutProps {
-  /** 笔记本类型标识 */
   notetype: NotebookType;
-  /** 自定义条目展示渲染（可选，默认使用 NotebookDefaultCardList）
-   *  返回 { stickySlot, content }，stickySlot 会被渲染为 sticky 定位的顶部栏，content 为条目列表 */
   renderEntryDisplay?: (props: {
     entries: Record<string, unknown>[];
     onEdit: (entry: Record<string, unknown>) => void;
@@ -33,30 +30,24 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const store = useNotebookStore();
+  const userData = useCurrentNotebookData();
   const { isCollapsed, toggleCollapsed } = useSidebarStore();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showTopButton, setShowTopButton] = useState(false);
 
-  // 从路由 state 恢复选中 ID（批量更新取消返回时）
   useEffect(() => {
     const state = location.state as { returnIds?: string[] } | null;
     if (state?.returnIds && state.returnIds.length > 0) {
       setSelectedIds(new Set(state.returnIds));
-      // 清除 state，避免刷新或后续导航时重复恢复
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, navigate, location.pathname]);
 
-  // 监听滚动容器，控制"回到顶部"按钮显示
   useEffect(() => {
     const container = document.getElementById('main-scroll-container');
     if (!container) return;
-
-    const onScroll = () => {
-      setShowTopButton(container.scrollTop > 20);
-    };
-
-    onScroll(); // 初始检查
+    const onScroll = () => setShowTopButton(container.scrollTop > 20);
+    onScroll();
     container.addEventListener('scroll', onScroll);
     return () => container.removeEventListener('scroll', onScroll);
   }, []);
@@ -73,22 +64,20 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
   const handleSelectAll = useCallback(async () => {
     try {
       const res = await notebookApi.queryEntries(notetype, {
-        filter: store.filterJson || undefined,
+        filter: userData?.filterJson || undefined,
         offset: 0,
-        limit: store.total,
-        order_by: store.orderBy,
-        order_dir: store.orderDir,
-        columns: store.schema?.display_order || [],
+        limit: userData?.total || 0,
+        order_by: userData?.orderBy || 'id',
+        order_dir: userData?.orderDir || 'desc',
+        columns: userData?.schema?.display_order || [],
       });
       setSelectedIds(new Set(res.entries.map((e: Record<string, unknown>) => e.id as string)));
     } catch {
-      // 获取所有 ID 失败时静默处理
+      // ignore
     }
-  }, [notetype, store.filterJson, store.total, store.orderBy, store.orderDir, store.schema?.display_order]);
+  }, [notetype, userData]);
 
-  const handleDeselectAll = useCallback(() => {
-    setSelectedIds(new Set());
-  }, []);
+  const handleDeselectAll = useCallback(() => setSelectedIds(new Set()), []);
 
   const confirmDeleteRef = useRef<string[]>([]);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -110,12 +99,9 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     store.setCurrentType(notetype);
   }, [notetype]);
 
-  const handleSubmit = useCallback(
-    async (data: Record<string, unknown>) => {
-      await store.addEntries([data]);
-    },
-    [store],
-  );
+  const handleSubmit = useCallback(async (data: Record<string, unknown>) => {
+    await store.addEntries([data]);
+  }, [store]);
 
   const handleEdit = useCallback((entry: Record<string, unknown>) => {
     navigate(`/notebooks/${notetype}/edit/${entry.id}`);
@@ -134,21 +120,20 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     confirmDeleteRef.current = [];
   }, [store]);
 
-  // 选中数量
   const selectedCount = selectedIds.size;
 
   const entryList = useMemo(() => {
-    if (store.loading || store.entries.length === 0) return null;
+    if (store.loading || !userData || userData.entries.length === 0) return null;
     const rendered = renderEntryDisplay
-      ? renderEntryDisplay({ entries: store.entries, onEdit: handleEdit, onDelete: handleDelete, selectedIds, onToggleSelect: toggleSelect, onSelectAll: handleSelectAll, onDeselectAll: handleDeselectAll })
+      ? renderEntryDisplay({ entries: userData.entries, onEdit: handleEdit, onDelete: handleDelete, selectedIds, onToggleSelect: toggleSelect, onSelectAll: handleSelectAll, onDeselectAll: handleDeselectAll })
       : defaultRenderEntryDisplay({
           type: notetype,
-          entries: store.entries,
+          entries: userData.entries,
           selectedIds,
           onToggleSelect: toggleSelect,
-          offset: store.offset,
-          limit: store.limit,
-          total: store.total,
+          offset: userData.offset,
+          limit: userData.limit,
+          total: userData.total,
           onOffsetChange: store.setOffset,
           onLimitChange: store.setLimit,
         });
@@ -164,13 +149,12 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
         {content}
       </>
     );
-  }, [renderEntryDisplay, store.entries, store.offset, store.limit, store.total, notetype, selectedIds, toggleSelect, handleSelectAll, handleDeselectAll]);
+  }, [renderEntryDisplay, userData, notetype, selectedIds, toggleSelect, handleSelectAll, handleDeselectAll, handleEdit, handleDelete, store.loading, store.setOffset, store.setLimit]);
 
   const label = TYPE_LABELS[notetype];
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* 标题栏 — 筛选 / 新增 / 批量操作 三按钮并列 — sticky */}
       <div className="sticky top-0 z-10 flex items-center justify-between bg-background py-2 -mx-6 px-6">
         <div className="flex items-center gap-2">
           <h1
@@ -219,16 +203,14 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
               </Button>
             </>
           )}
-
         </div>
       </div>
 
-      {/* 加载中 — 隐藏旧内容，只显示加载状态 */}
       {store.loading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground">
           加载中...
         </div>
-      ) : store.entries.length === 0 ? (
+      ) : !userData || userData.entries.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground text-sm">
           暂无条目
         </div>

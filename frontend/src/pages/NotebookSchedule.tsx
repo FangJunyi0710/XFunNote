@@ -1,14 +1,14 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { registerCard } from '@/components/notebook/notebookCards';
-import { Badge } from '@/components/ui/badge';
-import { useNotebookStore } from '@/stores/notebookStore';
+import { useCurrentNotebookData } from '@/stores/notebookStore';
 import { asEntry } from '@/lib/type-guards';
 import type { ScheduleEntry } from '@/config/notebook';
 
 const ScheduleCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
-  const schema = useNotebookStore((s) => s.schema);
-  const e = asEntry('schedule', entry, schema?.columns ?? []);
+  const userData = useCurrentNotebookData();
+  const schema = userData?.schema?.columns ?? [];
+  const e = asEntry('schedule', entry, schema);
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -28,9 +28,5 @@ const ScheduleCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) =
 registerCard('schedule', ScheduleCard);
 
 export const NotebookSchedule: React.FC = () => {
-  return (
-    <NotebookLayout
-      notetype="schedule"
-    />
-  );
+  return <NotebookLayout notetype="schedule" />;
 };

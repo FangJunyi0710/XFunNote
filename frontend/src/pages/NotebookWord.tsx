@@ -1,13 +1,14 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { registerCard } from '@/components/notebook/notebookCards';
-import { useNotebookStore } from '@/stores/notebookStore';
+import { useCurrentNotebookData } from '@/stores/notebookStore';
 import { asEntry } from '@/lib/type-guards';
 import type { WordEntry } from '@/config/notebook';
 
 const WordCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
-  const schema = useNotebookStore((s) => s.schema);
-  const e = asEntry('word', entry, schema?.columns ?? []);
+  const userData = useCurrentNotebookData();
+  const schema = userData?.schema?.columns ?? [];
+  const e = asEntry('word', entry, schema);
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2">
@@ -37,9 +38,5 @@ const WordCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
 registerCard('word', WordCard);
 
 export const NotebookWord: React.FC = () => {
-  return (
-    <NotebookLayout
-      notetype="word"
-    />
-  );
+  return <NotebookLayout notetype="word" />;
 };

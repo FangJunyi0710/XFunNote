@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { FilterEditor } from '@/components/notebook/FilterEditor';
 import { cn } from '@/lib/utils';
-import { useNotebookStore } from '@/stores/notebookStore';
+import { useNotebookStore, useCurrentNotebookData } from '@/stores/notebookStore';
 import { TYPE_LABELS } from '@/config/notebook';
 import { FilterIcon, ReplyIcon, SubmitIcon } from '@/components/ui/icons';
 import type { NotebookType } from '@/config/notebook';
@@ -17,45 +17,37 @@ export const NotebookFilter: React.FC = () => {
   const { notetype } = useParams<{ notetype: string }>();
   const navigate = useNavigate();
   const store = useNotebookStore();
+  const userData = useCurrentNotebookData();
   const type = notetype as NotebookType;
 
-  // 命名 filter 管理
   const [savedFilters, setSavedFilters] = useState<FilterFile[]>([]);
   const [selectedFilterName, setSelectedFilterName] = useState<string | null>(null);
   const [saveName, setSaveName] = useState('');
-
-  // 当前 filter DNF 字符串（用于回显编辑器）
   const [currentFilter, setCurrentFilter] = useState<string | null>(null);
 
   useEffect(() => {
-    if (type && store.currentType !== type) {
+    if (type && userData?.currentType !== type) {
       store.setCurrentType(type);
     }
-  }, [type, store]);
+  }, [type, userData, store]);
 
-  // 加载已保存的 filter
   useEffect(() => {
     filterApi.listFilters().then(setSavedFilters).catch(() => {});
   }, []);
 
   const columns =
-    store.schema?.columns.map((c) => ({ name: c.name, type: c.type })) || [];
+    userData?.schema?.columns.map((c) => ({ name: c.name, type: c.type })) || [];
 
-  // ── 应用 filter ──────────────────────────────────────────
   const handleApply = (filterJson: string | null) => {
     store.setFilter(filterJson);
     navigate(`/notebooks/${type}`);
   };
 
-  // ── 保存命名 filter ──────────────────────────────────────
   const handleSave = async () => {
     if (!saveName.trim()) return;
-    // 从编辑器获取当前 DNF —— 通过编辑器内部状态管理，这里使用已应用的 currentFilter
-    // 实际上用户点击保存时，当前编辑器内容就是最新的
     try {
       await filterApi.saveFilter(saveName.trim(), { data: currentFilter });
       setSaveName('');
-      // 刷新列表
       const list = await filterApi.listFilters();
       setSavedFilters(list);
     } catch (e: unknown) {
@@ -63,7 +55,6 @@ export const NotebookFilter: React.FC = () => {
     }
   };
 
-  // ── 加载命名 filter ──────────────────────────────────────
   const handleLoad = async (name: string) => {
     try {
       const data = await filterApi.getFilter(name);
@@ -74,7 +65,6 @@ export const NotebookFilter: React.FC = () => {
     }
   };
 
-  // ── 删除命名 filter ──────────────────────────────────────
   const handleDelete = async (name: string) => {
     try {
       await filterApi.deleteFilter(name);
@@ -90,7 +80,6 @@ export const NotebookFilter: React.FC = () => {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* 顶部导航 */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold"><FilterIcon className="inline-block align-middle" /> 筛选{TYPE_LABELS[type] || ''}</h1>
         <Button variant="outline" onClick={() => navigate(`/notebooks/${type}`)} title="返回">
@@ -98,7 +87,6 @@ export const NotebookFilter: React.FC = () => {
         </Button>
       </div>
 
-      {/* 已保存的 filter 列表 */}
       {savedFilters.length > 0 && (
         <Card className="mb-4">
           <CardContent className="p-4">
@@ -135,7 +123,6 @@ export const NotebookFilter: React.FC = () => {
         </Card>
       )}
 
-      {/* Filter 编辑器 */}
       <FilterEditor
         columns={columns}
         initialFilter={currentFilter}
@@ -143,7 +130,6 @@ export const NotebookFilter: React.FC = () => {
         onChange={(json) => setCurrentFilter(json)}
       />
 
-      {/* 保存命名 filter */}
       <div className="flex items-center gap-2">
         <Input
           value={saveName}

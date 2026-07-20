@@ -2,17 +2,19 @@ import React, { useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
-import { useChatStore } from '@/stores/chatStore';
+import { useChatStore, useCurrentChatData } from '@/stores/chatStore';
 import { SendIcon } from '@/components/ui/icons';
 
 export const AiChat: React.FC = () => {
-  const { messages, loading, sendMessage, clearMessages } =
-    useChatStore();
+  const store = useChatStore();
+  const userData = useCurrentChatData();
   const [input, setInput] = React.useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // 自动滚动到底部
+  const messages = userData?.messages ?? [];
+  const loading = store.loading;
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -21,7 +23,7 @@ export const AiChat: React.FC = () => {
     const trimmed = input.trim();
     if (!trimmed || loading) return;
     setInput('');
-    await sendMessage(trimmed);
+    await store.sendMessage(trimmed);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -33,15 +35,13 @@ export const AiChat: React.FC = () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)] animate-fade-in">
-      {/* 标题栏 */}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold">AI 对话</h1>
-        <Button variant="outline" size="sm" onClick={clearMessages}>
+        <Button variant="outline" size="sm" onClick={store.clearMessages}>
           清空对话
         </Button>
       </div>
 
-      {/* 消息列表 */}
       <div className="flex-1 overflow-y-auto space-y-4 mb-4 px-1">
         {messages.length === 0 && (
           <div className="flex items-center justify-center h-full">
@@ -64,7 +64,6 @@ export const AiChat: React.FC = () => {
                   : 'bg-muted'
               }`}
             >
-              {/* thinking 内容 */}
               {msg.thinking && (
                 <details className="mb-2 text-xs opacity-70">
                   <summary className="cursor-pointer font-medium">思考过程</summary>
@@ -73,7 +72,6 @@ export const AiChat: React.FC = () => {
                   </pre>
                 </details>
               )}
-              {/* 主要回复 */}
               <div className="text-sm whitespace-pre-wrap">
                 {msg.content || (msg.role === 'assistant' ? (
                   <span className="cursor-blink">▊</span>
@@ -83,7 +81,6 @@ export const AiChat: React.FC = () => {
           </div>
         ))}
 
-        {/* 加载指示器 */}
         {loading && (
           <div className="flex justify-start">
             <Card className="bg-muted px-4 py-2">
@@ -99,14 +96,13 @@ export const AiChat: React.FC = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* 输入区 */}
       <div className="flex gap-2 items-end">
         <Textarea
           ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={"输入消息... \nEnter 发送，Shift+Enter 换行。"}
+          placeholder="输入消息... \nEnter 发送，Shift+Enter 换行。"
           autoResize
           className="flex-1"
           disabled={loading}

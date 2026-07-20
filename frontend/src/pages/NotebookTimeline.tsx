@@ -1,13 +1,14 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { registerCard } from '@/components/notebook/notebookCards';
-import { useNotebookStore } from '@/stores/notebookStore';
+import { useCurrentNotebookData } from '@/stores/notebookStore';
 import { asEntry } from '@/lib/type-guards';
 import type { TimelineEntry } from '@/config/notebook';
 
 const TimelineCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
-  const schema = useNotebookStore((s) => s.schema);
-  const e = asEntry('timeline', entry, schema?.columns ?? []);
+  const userData = useCurrentNotebookData();
+  const schema = userData?.schema?.columns ?? [];
+  const e = asEntry('timeline', entry, schema);
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -28,9 +29,5 @@ const TimelineCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) =
 registerCard('timeline', TimelineCard);
 
 export const NotebookTimeline: React.FC = () => {
-  return (
-    <NotebookLayout
-      notetype="timeline"
-    />
-  );
+  return <NotebookLayout notetype="timeline" />;
 };

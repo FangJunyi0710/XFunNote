@@ -13,7 +13,7 @@ export const Home: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   // 从 zustand store 读取 API-Key 状态
-  const hasActiveKey = useTokenStore((s) => !!s.activeTokenId && s.tokens.some((t) => t.id === s.activeTokenId));
+  const hasActiveKey = useTokenStore((s) => !!s.getActiveTokenKey());
 
   useEffect(() => {
     (async () => {

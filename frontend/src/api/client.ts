@@ -49,11 +49,17 @@ async function request<T>(
     headers: { 'Content-Type': 'application/json' },
   };
 
-  // 从浏览器本地存储的 token 列表中获取当前使用的 token
+  // 从 store 获取当前用户和 Token
   const { useTokenStore } = await import('@/stores/tokenStore');
-  const apiKey = useTokenStore.getState().getActiveTokenKey();
-  if (apiKey) {
-    options.headers = { ...options.headers, 'X-API-Key': apiKey };
+  const state = useTokenStore.getState();
+  const userName = state.activeUserName;
+  const apiKey = state.getActiveTokenKey();
+  if (userName) {
+    options.headers = {
+      ...options.headers,
+      'Authorization': `Bearer ${apiKey}`,
+      'User': userName,
+    };
   }
 
   if (body !== undefined) {
