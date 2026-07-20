@@ -86,6 +86,10 @@ def get_current_token_info(api_perm: ApiPermission = Depends(partial(get_api_per
     read_view = view_to_json(api_perm.permission[0])
     write_view = view_to_json(api_perm.permission[1])
 
+    if not row.get("is_active", True):
+        row["shortcut"] = None
+        row["shortcut_expire_at"] = None
+
     return TokenInfoResponse(
         name=row.get("name", "ROOT_TOKEN"),
         shortcut=row.get("shortcut"),
@@ -214,10 +218,6 @@ def exchange_token_by_shortcut(
         # 检查是否过期
         expire_at = row.get("shortcut_expire_at")
         if expire_at and expire_at < now_str():
-            # 过期：清空 shortcut 使其不再可兑
-            _ops.update(conn, perm, "_token",
-                        Condition("id", row["id"], "="),
-                        {"shortcut": None, "shortcut_expire_at": None})
             raise HTTPException(
                 status_code=status.HTTP_410_GONE,
                 detail="Shortcut 已过期",
