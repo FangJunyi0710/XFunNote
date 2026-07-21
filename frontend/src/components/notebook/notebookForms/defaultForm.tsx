@@ -228,7 +228,7 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
   return (
     <Card>
       <form onSubmit={handleSubmit}>
-        <CardHeader>
+        <CardHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50 pb-2">
           <CardTitle className="flex items-center justify-between">
             <span>{title || (initialData ? '编辑条目' : '新建条目')}</span>
             <span className="flex gap-2">
@@ -241,7 +241,7 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
             </span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
           {/* 可编辑字段 */}
           {schema.columns.filter((c) => !autoFieldNamesRef.current.has(c.name)).map((col) => renderField(col))}
 
