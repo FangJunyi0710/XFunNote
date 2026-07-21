@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ColumnDef, NotebookSchema } from '@/types/notebook';
 import { ReplyIcon, SubmitIcon } from '@/components/ui/icons';
 import { ChevronRightIcon, ChevronUpIcon } from '@/components/ui/icons';
+import { handleError } from '@/lib/error';
 
 // ---------------------------------------------------------------------------
 // 注册表：按 col.type 分发渲染器
@@ -41,22 +42,15 @@ const renderTextField: FieldRenderer = (col, value, onChange, disableRequired) =
   </div>
 );
 
-/** 日期/时间字段渲染为原生日期时间选择器 */
-const renderDateTimeField: FieldRenderer = (col, value, onChange, disableRequired) => {
-  // 判断使用 date 还是 datetime-local
-  const isDateOnly = ['date', 'next_review', 'last_review'].includes(col.name);
-  const inputType = isDateOnly ? 'date' : 'datetime-local';
-
-  // 将后端日期字符串转换为输入框所需格式
+/** 日期字段渲染为原生 date 选择器 */
+const renderDateField: FieldRenderer = (col, value, onChange, disableRequired) => {
+  // 将后端日期字符串转换为输入框所需格式 (YYYY-MM-DD)
   const formatValue = (val: unknown): string => {
     if (!val) return '';
     const d = typeof val === 'string' ? new Date(val) : val;
     if (d instanceof Date && !isNaN(d.getTime())) {
-      if (isDateOnly) {
-        return d.toISOString().split('T')[0];
-      }
-      // datetime-local: YYYY-MM-DDTHH:mm
-      return d.toISOString().slice(0, 16);
+      // date: YYYY-MM-DD
+      return d.toISOString().split('T')[0];
     }
     return '';
   };
@@ -67,15 +61,49 @@ const renderDateTimeField: FieldRenderer = (col, value, onChange, disableRequire
       onChange(null);
       return;
     }
-    if (isDateOnly) {
-      // date: 转为 UTC 日期字符串 (YYYY-MM-DD)
-      onChange(raw);
-    } else {
-      // datetime-local: 转为 ISO 字符串
-      const d = new Date(raw);
-      if (!isNaN(d.getTime())) {
-        onChange(d.toISOString());
-      }
+    // date: 直接传递 YYYY-MM-DD
+    onChange(raw);
+  };
+
+  return (
+    <div key={col.name} className="space-y-1">
+      <FieldLabel name={col.name} required={col.required} />
+      <Input
+        type="date"
+        value={formatValue(value)}
+        onChange={handleChange}
+        required={!disableRequired && col.required}
+      />
+    </div>
+  );
+};
+
+/** 日期时间字段渲染为原生 datetime-local 选择器 */
+const renderDateTimeField: FieldRenderer = (col, value, onChange, disableRequired) => {
+  // 将存储的 UTC 时间转为本地时间字符串用于显示（格式：YYYY-MM-DDTHH:mm）
+  const formatValue = (val: unknown): string => {
+    if (!val) return '';
+    const d = typeof val === 'string' ? new Date(val) : val;
+    if (d instanceof Date && !isNaN(d.getTime())) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+    return '';
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    if (!raw) {
+      onChange(null);
+      return;
+    }
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) {
+      onChange(d.toISOString());
     }
   };
 
@@ -83,7 +111,7 @@ const renderDateTimeField: FieldRenderer = (col, value, onChange, disableRequire
     <div key={col.name} className="space-y-1">
       <FieldLabel name={col.name} required={col.required} />
       <Input
-        type={inputType}
+        type="datetime-local"
         value={formatValue(value)}
         onChange={handleChange}
         required={!disableRequired && col.required}
@@ -103,35 +131,78 @@ const renderTextareaField: FieldRenderer = (col, value, onChange, disableRequire
     />
   </div>
 );
-/** 布尔 / done(0/1) 字段渲染为复选框 */
+/** 布尔 字段渲染为复选框 */
 const renderBooleanField: FieldRenderer = (col, value, onChange) => {
-  // done 是 INTEGER(0/1)，需要做类型转换
-  const isDone = col.name === 'done';
-  const checked = isDone ? value === 1 || value === true : !!value;
+  const checked = value === 1 || value === true;
   const handleChange = (v: boolean) => {
-    onChange(isDone ? (v ? 1 : 0) : v);
+    onChange(v ? 1 : 0);
   };
   return (
     <div key={col.name} className="flex items-center gap-2">
+      <label htmlFor={col.name} className="text-sm font-medium">
+        {col.name}
+      </label>
       <Checkbox
         id={col.name}
         checked={checked}
         onCheckedChange={(v) => handleChange(v)}
       />
-      <label htmlFor={col.name} className="text-sm font-medium">
-        {col.name}
-      </label>
     </div>
   );
 };
 
+/** 整数类型渲染：数字输入框 */
+const renderIntegerField: FieldRenderer = (col, value, onChange, disableRequired) => {
+  return (
+    <div key={col.name} className="space-y-1">
+      <FieldLabel name={col.name} required={col.required} />
+      <Input
+        type="number"
+        value={value as number || ''}
+        onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
+        required={!disableRequired && col.required}
+        placeholder={col.name}
+      />
+    </div>
+  );
+};
+
+/** 浮点数类型渲染 */
+const renderNumberField: FieldRenderer = (col, value, onChange, disableRequired) => (
+  <div key={col.name} className="space-y-1">
+    <FieldLabel name={col.name} required={col.required} />
+    <Input
+      type="number"
+      step="any"
+      value={value as number || ''}
+      onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
+      required={!disableRequired && col.required}
+      placeholder={col.name}
+    />
+  </div>
+);
+
 /** 按列名和类型查找渲染器的注册表 */
 const FIELD_RENDERERS: Record<string, FieldRenderer> = {
-  boolean: renderBooleanField,
-  text: renderTextareaField,
-  date: renderDateTimeField,
-  datetime: renderDateTimeField,
+  TEXT: renderTextField,
+  INTEGER: renderIntegerField,
+  REAL: renderNumberField,
+
+  content: renderTextareaField,
+
   done: renderBooleanField,
+  is_ai_gen: renderBooleanField,
+
+  date: renderDateField,
+
+  created_at: renderDateTimeField,
+  updated_at: renderDateTimeField,
+  expires_at: renderDateTimeField,
+  shortcut_expires_at: renderDateTimeField,
+  start_time: renderDateTimeField,
+  end_time: renderDateTimeField,
+  next_review: renderDateTimeField,
+  last_review: renderDateTimeField,
 };
 
 
@@ -160,12 +231,7 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [autoFieldsCollapsed, setAutoFieldsCollapsed] = useState(true);
 
-  // 自动字段：从 schema 中标记 auto === true 的字段
-  const autoFieldNames = useMemo(
-    () => new Set(schema.columns.filter((c) => c.auto === true).map((c) => c.name)),
-    // 使用列名+auto标识的拼接字符串作为依赖，避免 schema 引用变化导致频繁重算
-    [schema.columns.map(c => c.name + '|' + c.auto).join(',')]
-  );
+  const autoFieldNames = useMemo(() => new Set(schema.columns.filter((c) => c.auto === true).map((c) => c.name)), [schema.columns]);
 
   useEffect(() => {
     if (initialData) {
@@ -192,7 +258,7 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
         return defaults;
       });
     }
-  }, [initialData, schema, autoFieldNames]);
+  }, [initialData]);
 
   const handleChange = (name: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -215,7 +281,6 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
     const renderer = FIELD_RENDERERS[col.name] ?? FIELD_RENDERERS[col.type] ?? renderTextField;
     return renderer(col, value, onChange, disableRequired);
   };
-
 
   return (
     <Card>

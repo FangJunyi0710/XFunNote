@@ -3,10 +3,10 @@ import re
 
 
 def format_datetime(dt: datetime) -> str:
-    """将 datetime 对象格式化为 ISO 字符串，如 "2026-06-16T14:30:00.123+00:00"。"""
+    """将 datetime 对象格式化为 ISO 字符串，如 "2026-06-16T14:30:00.123Z"。"""
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(tz=timezone.utc).isoformat(timespec="milliseconds")
+    return dt.astimezone(tz=timezone.utc).isoformat(timespec="milliseconds").replace("+00:00","Z")
 
 def format_date(d: date) -> str:
     """将 date 对象格式化为 ISO 日期字符串，如 "2026-06-18"。"""
@@ -21,12 +21,12 @@ def timestamp_str() -> str:
     """返回适合文件名的时间戳，如 "20260625_143000"。"""
     return datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
 
-_DATETIME_PATTERN = re.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\+00:00$')
+_DATETIME_PATTERN = re.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$')
 
 def validate_datetime(s: str) -> bool:
     """
-    判断字符串是否为严格的 ISO 8601 UTC 格式，
-    例如 "2026-06-16T14:30:00.123+00:00"
+    判断字符串是否为严格的 ISO 8601 Z 格式，
+    例如 "2026-06-16T14:30:00.123Z"
     """
     # 先校验基本格式（正则）
     if not _DATETIME_PATTERN.match(s):
