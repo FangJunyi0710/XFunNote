@@ -9,6 +9,7 @@ import * as notebookApi from '@/api/notebooks';
 import { TYPE_LABELS } from '@/config/notebook';
 import type { NotebookType } from '@/config/notebook';
 import { useSidebarStore } from '@/stores/sidebarStore';
+import { useTokenStore } from '@/stores/tokenStore';
 
 interface NotebookLayoutProps {
   notetype: NotebookType;
@@ -32,8 +33,10 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
   const store = useNotebookStore();
   const userData = useCurrentNotebookData();
   const { isCollapsed, toggleCollapsed } = useSidebarStore();
+  const activeUserName = useTokenStore((s) => s.activeUserName);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showTopButton, setShowTopButton] = useState(false);
+  const getStorageKey = (userName: string) => `xfun-selected-ids-${userName}-${notetype}`;
 
   useEffect(() => {
     const state = location.state as { returnIds?: string[] } | null;
@@ -42,6 +45,23 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, navigate, location.pathname]);
+
+  // 从 sessionStorage 恢复选中状态
+  useEffect(() => {
+    if (!activeUserName) return;
+    const key = getStorageKey(activeUserName);
+    const stored = sessionStorage.getItem(key);
+    if (stored) {
+      try {
+        const ids = JSON.parse(stored);
+        if (Array.isArray(ids) && ids.length > 0) {
+          setSelectedIds(new Set(ids));
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, [activeUserName]);
 
   useEffect(() => {
     const container = document.getElementById('main-scroll-container');
@@ -60,6 +80,18 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
       return next;
     });
   }, []);
+
+  // 选中状态变化时保存到 sessionStorage
+  useEffect(() => {
+    if (!activeUserName) return;
+    const key = getStorageKey(activeUserName);
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) {
+      sessionStorage.removeItem(key);
+    } else {
+      sessionStorage.setItem(key, JSON.stringify(ids));
+    }
+  }, [selectedIds, activeUserName]);
 
   const handleSelectAll = useCallback(async () => {
     try {

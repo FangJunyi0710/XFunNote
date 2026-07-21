@@ -21,8 +21,6 @@ export function defaultRenderEntryDisplay(props: DefaultRenderEntryDisplayProps)
     offset, limit, total, onOffsetChange, onLimitChange,
   } = props;
 
-  const isSelectionMode = selectedIds.size > 0;
-
   return {
     stickySlot: entries.length > 0 && offset !== undefined && onOffsetChange ? (
       <Pagination
@@ -42,7 +40,6 @@ export function defaultRenderEntryDisplay(props: DefaultRenderEntryDisplayProps)
             entry={entry}
             selected={selectedIds?.has(entry.id as string) || false}
             onSelect={onToggleSelect}
-            isSelectionMode={isSelectionMode}
           />
         ))}
       </div>

@@ -13,7 +13,6 @@ interface NotebookCardProps {
   entry: Record<string, unknown>;
   selected?: boolean;
   onSelect?: (id: string) => void;
-  isSelectionMode?: boolean;
 }
 
 export const NotebookCard: React.FC<NotebookCardProps> = React.memo(({
@@ -21,7 +20,6 @@ export const NotebookCard: React.FC<NotebookCardProps> = React.memo(({
   entry,
   selected,
   onSelect,
-  isSelectionMode,
 }) => {
   const navigate = useNavigate();
   const Renderer = getCardRenderer(type);
@@ -47,7 +45,6 @@ export const NotebookCard: React.FC<NotebookCardProps> = React.memo(({
               <Button
                 variant="outline"
                 size="sm"
-                disabled={isSelectionMode}
                 onClick={() => navigate(`/notebooks/${type}/edit/${entry.id as string}`)}
               >
                 <EditIcon/>
