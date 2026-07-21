@@ -25,7 +25,12 @@ const WordCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
       )}
       <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
         <span>复习 {e.review_count ?? 0} 次</span>
-        <span>掌握度 {((e.performance ?? 0) * 100).toFixed(0)}%</span>
+        {e.stability !== undefined && e.stability !== null && (
+          <span>稳定性 {e.stability.toFixed(1)}d</span>
+        )}
+        {e.difficulty !== undefined && e.difficulty !== null && (
+          <span>难度 {e.difficulty.toFixed(1)}</span>
+        )}
         {e.next_review && <span>下次: {e.next_review}</span>}
       </div>
       {e.related_words && (

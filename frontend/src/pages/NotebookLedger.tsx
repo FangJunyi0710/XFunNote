@@ -13,9 +13,9 @@ const LedgerCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => 
       <div className="text-xs text-muted-foreground">{e.date}</div>
       {e.account && <div className="text-xs text-muted-foreground">账户：{e.account}</div>}
       <div className="font-mono text-sm">
-        {e.amount !== undefined && e.amount !== null ? (
-          <span className={e.amount >= 0 ? 'text-green-600' : 'text-red-600'}>
-            {e.amount > 0 ? '+' : ''}{e.amount}
+        {e.amount_cents !== undefined && e.amount_cents !== null ? (
+          <span className={e.amount_cents >= 0 ? 'text-green-600' : 'text-red-600'}>
+            {e.amount_cents > 0 ? '+' : ''}{(e.amount_cents / 100).toFixed(2)}
           </span>
         ) : null}
       </div>

@@ -60,5 +60,4 @@ export interface NotebookInfo {
   table_name: string;
   label: string;
   description: string;
-  entry_count?: number;
 }

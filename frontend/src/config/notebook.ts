@@ -197,7 +197,11 @@ export interface WordEntry extends EntryBase {
   phonetic: string | null;
   example: string | null;
   review_count: number;
-  performance: number;
+  stability: number;
+  difficulty: number;
+  state: number;
+  lapses: number;
+  step: number;
   next_review: string | null;
   last_review: string | null;
   related_words: string | null;
@@ -219,13 +223,12 @@ export interface TimelineEntry extends EntryBase {
   start_time: string;
   end_time?: string;
   location?: string;
-  duration?: string;
 }
 
 // Ledger 笔记本扩展字段（对应 ledger.py _extra_columns）
 export interface LedgerEntry extends EntryBase {
   date: string;
-  amount: number;
+  amount_cents: number;
   account: string | null;
 }
 
@@ -234,7 +237,6 @@ export interface ScheduleEntry extends EntryBase {
   start_time: string;
   end_time?: string;
   location?: string;
-  done: boolean | number;
 }
 
 // 条目联合类型
