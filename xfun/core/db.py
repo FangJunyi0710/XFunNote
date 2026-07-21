@@ -401,7 +401,7 @@ class DB:
     
     # ---- 钩子驱动的 CRUD ----
 
-    def _validate_entry(self, table_name: str, entry: dict) -> None:
+    def _validate_entry_null(self, table_name: str, entry: dict) -> None:
         """基础校验：检查非空非自动字段是否存在。"""
         for col in self.table_infos[table_name]:
             if not col.nullable and col.default is None and not col.auto:
@@ -409,6 +409,32 @@ class DB:
                     raise EntryInvalidError(
                         table_name, f"缺少必填字段 '{col.name}'"
                     )
+
+    def _validate_entry_type(self, table_name: str, entry: dict) -> None:
+        """基础校验：检查字段值类型是否与列定义一致。"""
+        for col in self.table_infos[table_name]:
+            value = entry.get(col.name)
+            if value is None:
+                continue
+            if col.col_type == "TEXT":
+                if not isinstance(value, str):
+                    raise EntryInvalidError(
+                        table_name,
+                        f"列 '{col.name}' 应为 TEXT 类型，实际为 {type(value).__name__}"
+                    )
+            elif col.col_type == "INTEGER":
+                if not isinstance(value, int):
+                    raise EntryInvalidError(
+                        table_name,
+                        f"列 '{col.name}' 应为 INTEGER 类型，实际为 {type(value).__name__}"
+                    )
+            elif col.col_type == "REAL":
+                if not isinstance(value, (int, float)):
+                    raise EntryInvalidError(
+                        table_name,
+                        f"列 '{col.name}' 应为 REAL 类型，实际为 {type(value).__name__}"
+                    )
+            # BLOB 类型不进行类型检查（任何值均可存储）
 
     def _autofill_entry(self, table_name: str, entry: dict) -> None:
         """基础自动填充：按表实际列填充 id、时间戳、可空列补 None。"""
@@ -438,7 +464,8 @@ class DB:
         autofill = hooks.get("autofill")
 
         for entry in entries:
-            self._validate_entry(table_name, entry)
+            self._validate_entry_null(table_name, entry)
+            self._validate_entry_type(table_name, entry)
             if validate:
                 validate(entry)
 
@@ -476,6 +503,7 @@ class DB:
         for k in entry:
             Column.check(k)
 
+        self._validate_entry_type(table_name, entry)
         validate = self.hooks.get(table_name, {}).get("validate")
         if validate:
             validate(entry)
