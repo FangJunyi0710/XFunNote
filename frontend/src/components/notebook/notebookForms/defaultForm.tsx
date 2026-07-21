@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -160,12 +160,20 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [autoFieldsCollapsed, setAutoFieldsCollapsed] = useState(true);
 
-  // 自动字段：从 schema 中标记 auto === true 的字段
-  const autoFieldNames = useMemo(
-    () => new Set(schema.columns.filter((c) => c.auto === true).map((c) => c.name)),
-    // 使用列名+auto标识的拼接字符串作为依赖，避免 schema 引用变化导致频繁重算
-    [schema.columns.map(c => c.name + '|' + c.auto).join(',')]
-  );
+  // 自动字段集合（使用 ref 缓存，避免因引用变化触发重渲染）
+  const autoFieldNamesRef = useRef<Set<string>>(new Set());
+  const prevColumnsKeyRef = useRef<string>('');
+
+  // 仅在 schema.columns 实际内容变化时更新 autoFieldNamesRef
+  useEffect(() => {
+    const key = schema.columns.map(c => c.name + '|' + c.auto).join(',');
+    if (prevColumnsKeyRef.current !== key) {
+      prevColumnsKeyRef.current = key;
+      autoFieldNamesRef.current = new Set(
+        schema.columns.filter((c) => c.auto === true).map((c) => c.name)
+      );
+    }
+  }, [schema.columns]);
 
   useEffect(() => {
     if (initialData) {
@@ -180,7 +188,7 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
     } else {
       const defaults: Record<string, unknown> = {};
       schema.columns.forEach((col) => {
-        if (autoFieldNames.has(col.name)) return;
+        if (autoFieldNamesRef.current.has(col.name)) return;
         defaults[col.name] = col.default !== undefined ? col.default : '';
       });
       setFormData((prev) => {
@@ -192,7 +200,7 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
         return defaults;
       });
     }
-  }, [initialData, schema, autoFieldNames]);
+  }, [initialData, schema.columns]);
 
   const handleChange = (name: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -235,11 +243,11 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
         </CardHeader>
         <CardContent className="space-y-4">
           {/* 可编辑字段 */}
-          {schema.columns.filter((c) => !autoFieldNames.has(c.name)).map((col) => renderField(col))}
+          {schema.columns.filter((c) => !autoFieldNamesRef.current.has(c.name)).map((col) => renderField(col))}
 
           {/* 自动字段折叠面板 */}
           {(() => {
-            const autoCols = schema.columns.filter((c) => autoFieldNames.has(c.name));
+            const autoCols = schema.columns.filter((c) => autoFieldNamesRef.current.has(c.name));
             if (autoCols.length === 0) return null;
             return (
               <div className="mt-4 pt-4 border-t border-border/50">
