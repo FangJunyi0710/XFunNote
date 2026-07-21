@@ -21,9 +21,9 @@ BASE_COLUMNS = [
     Column("updated_at", "TEXT", auto=True),
     Column("tags",       "TEXT",    nullable=True),
     Column("note",       "TEXT",    nullable=True),
-    Column("is_ai_gen",  "INTEGER", default=0),
-    Column("ai_tags",    "TEXT",    nullable=True),
-    Column("ai_note",    "TEXT",    nullable=True),
+    Column("is_ai_gen",  "INTEGER", default=0, auto=True),
+    Column("ai_tags",    "TEXT",    nullable=True, auto=True),
+    Column("ai_note",    "TEXT",    nullable=True, auto=True),
 ]
 
 

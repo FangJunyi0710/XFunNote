@@ -17,6 +17,7 @@ interface RawColumn {
   col_type: string;
   nullable: boolean;
   default: string | number | boolean | null;
+  auto?: boolean;
 }
 
 interface RawNotebookSchema {
@@ -34,6 +35,7 @@ export async function listNotebooks(): Promise<NotebookSchema[]> {
       type: col.col_type,
       required: !col.nullable,
       default: col.default,
+      auto: col.auto,
     }));
     return {
       table_name: raw.table_name,
@@ -50,9 +52,10 @@ export async function getSchema(type: NotebookType): Promise<NotebookSchema> {
   const rawColumns = await api.get<RawColumn[]>(`/notebooks/${type}/schema`);
   const columns: ColumnDef[] = rawColumns.map((col) => ({
     name: col.name,
-    type: col.col_type,        // 映射 col_type → type
-    required: !col.nullable,   // 取反：nullable=false → required=true
+    type: col.col_type,
+    required: !col.nullable,
     default: col.default,
+    auto: col.auto,
   }));
   const info = NOTEBOOK_INFO[type] || { label: type, description: '' };
   return {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
+import { Timestamp } from '@/components/ui/Timestamp';
 import { registerCard } from '@/components/notebook/notebookCards';
 import { useCurrentNotebookData } from '@/stores/notebookStore';
 import { asEntry } from '@/lib/type-guards';
@@ -31,7 +32,7 @@ const WordCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
         {e.difficulty !== undefined && e.difficulty !== null && (
           <span>难度 {e.difficulty.toFixed(1)}</span>
         )}
-        {e.next_review && <span>下次: {e.next_review}</span>}
+        {e.next_review && <span>下次: <Timestamp date={e.next_review} from="year" to="day" /></span>}
       </div>
       {e.related_words && (
         <p className="text-xs text-muted-foreground">关联: {e.related_words}</p>

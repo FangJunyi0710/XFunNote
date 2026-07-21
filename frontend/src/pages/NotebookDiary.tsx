@@ -1,5 +1,6 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
+import { Timestamp } from '@/components/ui/Timestamp';
 import { registerCard } from '@/components/notebook/notebookCards';
 import { useCurrentNotebookData } from '@/stores/notebookStore';
 import { asEntry } from '@/lib/type-guards';
@@ -11,7 +12,7 @@ const DiaryCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
   const e = asEntry('diary', entry, schema);
   return (
     <div className="space-y-1">
-      <div className="text-xs text-muted-foreground">{e.date}</div>
+      <div className="text-xs text-muted-foreground"><Timestamp date={e.date} from="year" to="day" showTimezone={false} /></div>
       {(e.mood || e.weather) && (
         <div className="text-xs text-muted-foreground">
           {e.mood && `心情: ${e.mood}`}

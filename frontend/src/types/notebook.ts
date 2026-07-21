@@ -11,6 +11,7 @@ export interface ColumnDef {
   type: string;
   required: boolean;
   default: string | number | boolean | null;
+  auto?: boolean;
 }
 
 /** 完整的笔记本 Schema */

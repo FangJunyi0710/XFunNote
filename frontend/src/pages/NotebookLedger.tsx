@@ -1,5 +1,6 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
+import { Timestamp } from '@/components/ui/Timestamp';
 import { registerCard } from '@/components/notebook/notebookCards';
 import { useCurrentNotebookData } from '@/stores/notebookStore';
 import { asEntry } from '@/lib/type-guards';
@@ -10,7 +11,7 @@ const LedgerCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => 
   const e = asEntry('ledger', entry, schema);
   return (
     <div className="space-y-1">
-      <div className="text-xs text-muted-foreground">{e.date}</div>
+      <div className="text-xs text-muted-foreground"><Timestamp date={e.date} from="year" to="day" showTimezone={false} /></div>
       {e.account && <div className="text-xs text-muted-foreground">账户：{e.account}</div>}
       <div className="font-mono text-sm">
         {e.amount_cents !== undefined && e.amount_cents !== null ? (

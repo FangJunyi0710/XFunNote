@@ -99,10 +99,6 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     store.setCurrentType(notetype);
   }, [notetype]);
 
-  const handleSubmit = useCallback(async (data: Record<string, unknown>) => {
-    await store.addEntries([data]);
-  }, [store]);
-
   const handleEdit = useCallback((entry: Record<string, unknown>) => {
     navigate(`/notebooks/${notetype}/edit/${entry.id}`);
   }, [navigate, notetype]);

@@ -1,5 +1,6 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
+import { Timestamp } from '@/components/ui/Timestamp';
 import { registerCard } from '@/components/notebook/notebookCards';
 import { useCurrentNotebookData } from '@/stores/notebookStore';
 import { asEntry } from '@/lib/type-guards';
@@ -23,14 +24,13 @@ const TimelineCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) =
     return mins > 0 ? `${hours}h ${mins}min` : `${hours}h`;
   };
 
-  const duration = e.start_time && e.end_time ? formatDuration(e.start_time, e.end_time) : null;
 
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        {e.start_time && <span>{e.start_time}</span>}
-        {e.end_time && <span>→ {e.end_time}</span>}
-        {duration && <span>({duration})</span>}
+        {e.start_time && <Timestamp date={e.start_time} from="hour" to="minute" showTimezone={false} />}
+        {e.end_time && <span> → </span>}
+        {e.end_time && <Timestamp date={e.end_time} from="hour" to="minute" showTimezone={false} />}
       </div>
       {e.content && (
         <p className="text-sm line-clamp-2">{e.content}</p>
