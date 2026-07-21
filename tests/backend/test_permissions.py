@@ -42,22 +42,32 @@ class TestCreatePermission:
         resp = client.post(
             "/api/v0/permissions",
             json={
-                "id": "new-perm",
                 "name": "新权限",
                 "description": "测试",
-                "read_view": self.SAMPLE_VIEW,
-                "write_view": self.SAMPLE_VIEW,
+                "read_view": json.dumps(self.SAMPLE_VIEW),
+                "write_view": json.dumps(self.SAMPLE_VIEW),
             },
         )
         assert resp.status_code == 201
         data = resp.json()
-        # id 字段 auto=True，会生成带前缀的 id
-        assert data["id"].startswith("_permission-") or data["id"] == "new-perm"
         assert data["name"] == "新权限"
 
 class TestUpdatePermission:
     """PUT /api/v0/permissions/{permission_id}"""
-
+    SAMPLE_VIEW = {"plan": [{"columns": ["content"], "filter": []}]}
+    def test_create(self, client):
+        resp = client.post(
+            "/api/v0/permissions",
+            json={
+                "name": "新权限",
+                "description": "测试",
+                "read_view": json.dumps(self.SAMPLE_VIEW),
+                "write_view": json.dumps(self.SAMPLE_VIEW),
+            },
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["name"] == "新权限"
     def test_update_name(self, client, demo_perm):
         resp = client.put(
             f"/api/v0/permissions/{demo_perm['id']}",

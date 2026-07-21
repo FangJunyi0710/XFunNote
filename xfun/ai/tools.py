@@ -58,6 +58,7 @@ def _with_write_tool(db: DB, impl) -> dict:
     except XFunError as e:
         return {"error": str(e)}
 
+# TODO 明确 DB 归属
 
 # ---- 工具工厂 ----
 

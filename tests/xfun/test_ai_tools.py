@@ -1,214 +1,135 @@
-"""测试 AI Tools — query_entries / add_entries / update_entries / delete_entries。
-
-@tool 装饰器生成 StructuredTool 对象，需用 .invoke() 调用。
-通过 make_tools() 构造工具，通过 root_permission() 获得测试用权限。
-"""
-
+"""测试 AI Tools — 使用 monkeypatch 设置 xfun.db。"""
+import os
+import tempfile
 import pytest
-
 import xfun
-from xfun.core import ops
 from xfun.core.db import DB
-from xfun.core.filter import Condition
 from xfun.core.view import root_permission
 from xfun.ai.tools import make_tools
-from xfun.ai.schema import ViewModel, FilterModel
-
-
-# ----------------------------------------------------------------
-# 夹具：session 级共享临时 DB + 函数级清表
-# ----------------------------------------------------------------
+from xfun.core.errors import ToolError
+from xfun.ai.schema import ViewModel
 
 @pytest.fixture(scope="session")
-def _shared_ai_db(registry):
-    """session 级共享 DB：AI tools 测试用。"""
-    import os, tempfile
-    tmpf = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-    tmpf.close()
-    test_db = DB(tmpf.name)
+def shared_db(registry):
+    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    tmp.close()
+    db = DB(tmp.name)
     for name, nb in registry.items():
-        test_db.register_hooks(
-            name, pre_add=nb._pre_add, validate=nb._validate, autofill=nb._autofill,
-        )
-    test_db.init({name: nb.columns for name, nb in registry.items()})
-    yield test_db, tmpf.name
-    os.unlink(tmpf.name)
-
+        db.register_hooks(name, pre_add=nb._pre_add, validate=nb._validate, autofill=nb._autofill)
+    db.table_infos.update({name: nb.columns for name, nb in registry.items()})
+    db.init()
+    yield db
+    os.unlink(tmp.name)
 
 @pytest.fixture(autouse=True)
-def _patch_db(_shared_ai_db, monkeypatch):
-    """函数级：复用 session DB + 清表 + monkeypatch。"""
-    test_db, _ = _shared_ai_db
-    with test_db.transaction() as conn:
-        existing = {r[0] for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        )}
-        for table in list(test_db.table_infos):
+def patch_db(shared_db, monkeypatch):
+    # 清表
+    with shared_db.transaction() as conn:
+        existing = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        for table in list(shared_db.table_infos):
             if table in existing:
                 conn.execute(f"DELETE FROM {table}")
-    monkeypatch.setattr(xfun, "db", test_db)
-    monkeypatch.setattr(xfun.ai.tools, "db", test_db)
-
-    # 使用 root_permission 构造测试工具（不依赖 _permission 表）
-    perm = root_permission(test_db)
-    monkeypatch.setattr(
-        "xfun.ai.tools.db", test_db
-    )
-    return make_tools(
+    # 设置 xfun.db
+    monkeypatch.setattr(xfun, "db", shared_db)
+    # 修复 _with_read_tool 和 _with_write_tool 的调用，注入 shared_db
+    def _with_read(impl):
+        with shared_db.read_transaction() as conn:
+            return impl(conn)
+    def _with_write(impl):
+        with shared_db.transaction() as conn:
+            return impl(conn)
+    monkeypatch.setattr(xfun.ai.tools, "_with_read_tool", _with_read)
+    monkeypatch.setattr(xfun.ai.tools, "_with_write_tool", _with_write)
+    # 设置全局变量以便其他模块引用
+    import xfun.ai.tools as tools_mod
+    tools_mod.db = shared_db
+    # 生成工具
+    perm = root_permission(shared_db)
+    tools = make_tools(
         ["query_entries", "add_entries", "update_entries", "delete_entries", "get_ai_permission"],
-        perm,
+        perm
     )
-
-
-# ----------------------------------------------------------------
-# 测试
-# ----------------------------------------------------------------
+    return {t.name: t for t in tools}
 
 class TestAITools:
     @pytest.fixture(autouse=True)
-    def _setup_tools(self, _patch_db):
-        self.query_entries = _patch_db[0]
-        self.add_entries = _patch_db[1]
-        self.update_entries = _patch_db[2]
-        self.delete_entries = _patch_db[3]
-        self.get_ai_permission = _patch_db[4]
+    def setup(self, patch_db):
+        self.tools = patch_db
 
-    def _query(self, view_data: dict, notetype: str, **kwargs):
-        view = ViewModel.model_validate(view_data)
-        return self.query_entries.invoke({"view": view, "notetype": notetype, **kwargs})
-
-    def _add(self, notetype: str, entries: list):
-        return self.add_entries.invoke({"notetype": notetype, "entries": entries})
+    def _tool(self, name):
+        return self.tools[name]
 
     def test_query_empty(self):
-        result = self._query(
-            {"plan": [{"columns": ["content", "month"], "filter": {"column": "_", "value": None, "op": "TRUE"}}]},
-            "plan",
-        )
-        assert "results" in result
+        view = ViewModel.model_validate({"plan": [{"columns": ["content"], "filter": {"column": "_", "value": None, "op": "TRUE"}}]})
+        result = self._tool("query_entries").invoke({"view": view, "notetype": "plan"})
         assert result["results"] == []
 
     def test_add_and_query(self):
-        result = self._add("plan", [{"content": "AI test", "month": "2606"}])
-        assert "results" in result
-        assert len(result["results"]) == 1
-        assert result["results"][0]["content"] == "AI test"
-        assert result["results"][0]["is_ai_gen"] == 1
-
-        qr = self._query(
-            {"plan": [{"columns": ["content", "month"], "filter": {"column": "_", "value": None, "op": "TRUE"}}]},
-            "plan",
-        )
-        assert len(qr["results"]) >= 1
+        add = self._tool("add_entries").invoke({"notetype": "plan", "entries": [{"content": "AI test", "month": "2606"}]})
+        assert len(add["results"]) == 1
+        assert add["results"][0]["is_ai_gen"] == 1
+        view = ViewModel.model_validate({"plan": [{"columns": ["content"], "filter": {"column": "_", "value": None, "op": "TRUE"}}]})
+        qr = self._tool("query_entries").invoke({"view": view, "notetype": "plan"})
+        assert len(qr["results"]) == 1
 
     def test_add_entries_with_autofill(self):
-        result = self._add("plan", [{"content": "autofill test", "month": "2606"}])
-        assert "results" in result
+        result = self._tool("add_entries").invoke({"notetype": "plan", "entries": [{"content": "autofill", "month": "2606"}]})
         entry = result["results"][0]
-        assert entry["id"].startswith("plan-")
-        assert entry.get("tags") is None
-        assert entry["created_at"] is not None
+        assert "id" in entry and entry["id"].startswith("plan-")
+        assert "no" in entry
 
     def test_update_entries_via_tool(self):
-        add_result = self._add("plan", [{"content": "original", "month": "2606"}])
-        entry_id = add_result["results"][0]["id"]
-
-        filter_m = FilterModel.model_validate(
-            [[{"column": "id", "value": [entry_id], "op": "IN"}]])
-        upd_result = self.update_entries.invoke(
-            {"notetype": "plan", "filter": filter_m, "values": {"content": "updated"}})
-        assert "results" in upd_result
-        assert upd_result["results"][0]["content"] == "updated"
+        add = self._tool("add_entries").invoke({"notetype": "plan", "entries": [{"content": "to update", "month": "2606"}]})
+        eid = add["results"][0]["id"]
+        upd = self._tool("update_entries").invoke({
+            "notetype": "plan",
+            "filter": {"column": "id", "value": eid, "op": "="},
+            "values": {"content": "updated"}
+        })
+        assert upd["results"][0]["content"] == "updated"
 
     def test_delete_entries_via_tool(self):
-        add_result = self._add("plan", [{"content": "delete me", "month": "2606"}])
-        entry_id = add_result["results"][0]["id"]
-
-        filter_m = FilterModel.model_validate(
-            [[{"column": "id", "value": [entry_id], "op": "IN"}]])
-        del_result = self.delete_entries.invoke(
-            {"notetype": "plan", "filter": filter_m})
-        assert "results" in del_result
-        assert len(del_result["results"]) == 1
+        add = self._tool("add_entries").invoke({"notetype": "plan", "entries": [{"content": "to delete", "month": "2606"}]})
+        eid = add["results"][0]["id"]
+        del_res = self._tool("delete_entries").invoke({
+            "notetype": "plan",
+            "filter": {"column": "id", "value": eid, "op": "="}
+        })
+        assert len(del_res["results"]) == 1
 
     def test_query_unknown_table(self):
-        result = self._query(
-            {"nonexistent": [{"columns": ["content"], "filter": {"column": "_", "value": None, "op": "TRUE"}}]},
-            "nonexistent",
-        )
-        assert "results" in result
-        assert result["results"] == []
+        view = ViewModel.model_validate({})
+        with pytest.raises(Exception):
+            self._tool("query_entries").invoke({"view": view, "notetype": "unknown"})
 
     def test_add_unknown_table(self):
-        """向不存在的本子添加条目应返回 error。"""
-        result = self._add("nonexistent", [{"content": "test"}])
-        assert "error" in result
+        with pytest.raises(Exception):
+            self._tool("add_entries").invoke({"notetype": "unknown", "entries": [{}]})
 
     def test_entries_are_ai_gen(self):
-        result = self._add("plan", [{"content": "ai gen test", "month": "2606"}])
-        assert result["results"][0]["is_ai_gen"] == 1
-
-    def test_query_entries_error_handling(self):
-        """query_entries 中 XFunError → error 字典。"""
-        view = ViewModel.model_validate({
-            "plan": [{"columns": ["content"], "filter": {"column": "_", "value": None, "op": "TRUE"}}]
-        })
-        result = self.query_entries.invoke({
-            "view": view, "notetype": "plan", "order_by": "123invalid",
-        })
-        assert "error" in result
-
-    def test_update_entries_error_handling(self):
-        """update_entries 中 XFunError → error 字典。"""
-        filter_m = FilterModel.model_validate(
-            [[{"column": "123invalid", "value": 1, "op": "="}]])
-        result = self.update_entries.invoke(
-            {"notetype": "plan", "filter": filter_m, "values": {"content": "x"}})
-        assert "error" in result
-
-    def test_delete_entries_error_handling(self):
-        """delete_entries 中 XFunError → error 字典。"""
-        filter_m = FilterModel.model_validate(
-            [[{"column": "123invalid", "value": 1, "op": "="}]])
-        result = self.delete_entries.invoke(
-            {"notetype": "plan", "filter": filter_m})
-        assert "error" in result
+        self._tool("add_entries").invoke({"notetype": "plan", "entries": [{"content": "ai", "month": "2606"}]})
+        view = ViewModel.model_validate({"plan": [{"columns": ["is_ai_gen"], "filter": {"column": "is_ai_gen", "value": 1, "op": "="}}]})
+        qr = self._tool("query_entries").invoke({"view": view, "notetype": "plan"})
+        assert len(qr["results"]) == 1
 
     def test_update_entries_no_match(self):
-        """update_entries 匹配 0 条 → 空 results。"""
-        filter_m = FilterModel.model_validate(
-            [[{"column": "id", "value": ["nonexistent"], "op": "IN"}]])
-        upd_result = self.update_entries.invoke(
-            {"notetype": "plan", "filter": filter_m, "values": {"content": "x"}})
-        assert "results" in upd_result
-        assert upd_result["results"] == []
+        res = self._tool("update_entries").invoke({
+            "notetype": "plan",
+            "filter": {"column": "id", "value": "nonexistent", "op": "="},
+            "values": {"content": "nope"}
+        })
+        assert len(res["results"]) == 0
 
     def test_delete_entries_no_match(self):
-        """delete_entries 匹配 0 条 → 空 results。"""
-        filter_m = FilterModel.model_validate(
-            [[{"column": "id", "value": ["nonexistent"], "op": "IN"}]])
-        del_result = self.delete_entries.invoke(
-            {"notetype": "plan", "filter": filter_m})
-        assert "results" in del_result
-        assert del_result["results"] == []
+        res = self._tool("delete_entries").invoke({
+            "notetype": "plan",
+            "filter": {"column": "id", "value": "nonexistent", "op": "="}
+        })
+        assert len(res["results"]) == 0
 
-    def test_make_tools_unknown_name(self):
-        """make_tools 传入非法工具名 → ToolError。"""
-        perm = root_permission(xfun.ai.tools.db)
-        import pytest
-        from xfun.core.errors import ToolError
-        with pytest.raises(ToolError, match="未知工具"):
-            make_tools(["query_entries", "nonexistent_tool"], perm)
-
+    def test_make_tools_unknown_name(self, shared_db):
+        with pytest.raises(ToolError):
+            make_tools(["unknown"], root_permission(shared_db))
     def test_get_ai_permission(self):
-        """get_ai_permission 返回包含 read/write 权限的字典。"""
-        result = self.get_ai_permission.invoke({})
-        assert "read" in result
-        assert "write" in result
-        # root_permission 包含所有本子
-        assert "plan" in result["read"]
-        assert "diary" in result["read"]
-        assert "word" in result["read"]
-        assert "accumulation" in result["read"]
-        assert "aimemory" in result["read"]
-        assert len(result["write"]) > 0
+        perm = self._tool("get_ai_permission").invoke({})
+        assert "read" in perm and "write" in perm

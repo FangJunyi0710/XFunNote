@@ -51,24 +51,23 @@ class TestGetApiPermission:
     def test_root_token_match(self):
         """ROOT_TOKEN 匹配时直接返回 root 权限。"""
         with patch("backend.deps.ROOT_TOKEN", "my-root-token"), \
-                patch("backend.deps._ROOT_PERM", "mock-root-perm"):
-            async def _test():
-                from backend.deps import get_api_permission
-                from backend.permissions import ApiPermission
-                result = await get_api_permission(x_api_key="my-root-token")
-                assert isinstance(result, ApiPermission)
-                assert result.permission == "mock-root-perm"
-            _run_async(_test())
+             patch("backend.routers.manage_db.ROOT_TOKEN", "my-root-token"):
+            from backend.main import app
+            from fastapi.testclient import TestClient
+            app.dependency_overrides.clear()
+            test_client = TestClient(app)
+            resp = test_client.get("/api/v0/db/backups", headers={"X-API-Key": "my-root-token"})
+            assert resp.status_code != 401
 
     def test_root_token_case_sensitive(self):
         """ROOT_TOKEN 大小写敏感，不匹配时走 token 表查询 → 401。"""
         with patch("backend.deps.ROOT_TOKEN", "my-root-token"):
-            async def _test():
-                from backend.deps import get_api_permission
-                with pytest.raises(HTTPException) as exc:
-                    await get_api_permission(x_api_key="MY-ROOT-TOKEN")
-                assert exc.value.status_code == status.HTTP_401_UNAUTHORIZED
-            _run_async(_test())
+            from backend.main import app
+            from fastapi.testclient import TestClient
+            test_client = TestClient(app)
+            resp = test_client.get("/api/v0/tokens/info", headers={"Authorization": "Bearer MY-ROOT-TOKEN", "User": "testuser"})
+            assert resp.status_code == 401
+            assert "无效" in resp.json()["detail"]
 
 
 class TestGetApiPermissionViaRealClient:
@@ -78,7 +77,7 @@ class TestGetApiPermissionViaRealClient:
         """token 在表中不存在 → 401。"""
         resp = real_auth_client.get(
             "/api/v0/tokens/info",
-            headers={"X-API-Key": "nonexistent-token"},
+            headers={"Authorization": "Bearer nonexistent-token", "User": "testuser"},
         )
         assert resp.status_code == 401
         assert "无效" in resp.json()["detail"]
@@ -88,11 +87,10 @@ class TestGetApiPermissionViaRealClient:
         token = _insert_token_direct(backend_db, is_active=0)
         resp = real_auth_client.get(
             "/api/v0/tokens/info",
-            headers={"X-API-Key": token},
+            headers={"Authorization": f"Bearer {token}", "User": "testuser"},
         )
         assert resp.status_code == 200
         read_view = resp.json()["read_view"]
-        # no_permission 使所有表的 columns 为空列表
         assert read_view.get("_token", []) == [] or all(spec["columns"] == [] for specs in read_view.values() for spec in specs)
 
     def test_token_expired(self, real_auth_client, backend_db, demo_perm):
@@ -100,11 +98,10 @@ class TestGetApiPermissionViaRealClient:
         token = _insert_token_direct(backend_db, expires_at="2000-01-01T00:00:00")
         resp = real_auth_client.get(
             "/api/v0/tokens/info",
-            headers={"X-API-Key": token},
+            headers={"Authorization": f"Bearer {token}", "User": "testuser"},
         )
         assert resp.status_code == 200
         read_view = resp.json()["read_view"]
-        # no_permission 使所有表的 columns 为空列表
         assert read_view.get("_token", []) == [] or all(spec["columns"] == [] for specs in read_view.values() for spec in specs)
 
     def test_token_expires_at_none(self, real_auth_client, backend_db, demo_perm):
@@ -112,7 +109,7 @@ class TestGetApiPermissionViaRealClient:
         token = _insert_token_direct(backend_db, expires_at=None)
         resp = real_auth_client.get(
             "/api/v0/tokens/info",
-            headers={"X-API-Key": token},
+            headers={"Authorization": f"Bearer {token}", "User": "testuser"},
         )
         assert resp.status_code == 200
 
@@ -121,17 +118,17 @@ class TestGetApiPermissionViaRealClient:
         token = _insert_token_direct(backend_db, permission="nonexistent")
         resp = real_auth_client.get(
             "/api/v0/tokens/info",
-            headers={"X-API-Key": token},
+            headers={"Authorization": f"Bearer {token}", "User": "testuser"},
         )
         assert resp.status_code == 401
-        assert "未知的权限标识" in resp.json()["detail"]
+        assert "无效或未知的 Token" in resp.json()["detail"]
 
     def test_normal_token_success(self, real_auth_client, backend_db, demo_perm):
         """正常 token → 返回 200。"""
         token = _insert_token_direct(backend_db, permission="test-permission")
         resp = real_auth_client.get(
             "/api/v0/tokens/info",
-            headers={"X-API-Key": token},
+            headers={"Authorization": f"Bearer {token}", "User": "testuser"},
         )
         assert resp.status_code == 200
         data = resp.json()

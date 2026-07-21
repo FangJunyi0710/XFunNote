@@ -40,7 +40,7 @@ class TestSaveFilter:
     def test_create(self, client):
         resp = client.put(
             "/api/v0/filters/new-filter",
-            json={"conditions": [{"field": "content", "op": "contains", "value": "test"}]},
+            json={"conditions": [{"column": "content", "op": "contains", "value": "test"}]},
         )
         assert resp.status_code == 200
         assert "已保存" in resp.json()["message"]
@@ -48,7 +48,7 @@ class TestSaveFilter:
     def test_update(self, client, demo_filter):
         resp = client.put(
             f"/api/v0/filters/{demo_filter['name']}",
-            json={"conditions": [{"field": "month", "op": "=", "value": "2607"}]},
+            json={"conditions": [{"column": "month", "op": "=", "value": "2607"}]},
         )
         assert resp.status_code == 200
 

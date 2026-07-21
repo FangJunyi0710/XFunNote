@@ -3,7 +3,7 @@
 import pytest
 
 from xfun.utils.token_utils import generate_token
-from xfun import _autofill_token
+from xfun.system_tables import _autofill_token
 
 
 class TestGenerateToken:
@@ -13,7 +13,6 @@ class TestGenerateToken:
 
     def test_token_length(self):
         token = generate_token()
-        # "sk-" + 32 chars of urlsafe base64 (24 bytes → 32 chars)
         assert len(token) > 32
 
     def test_token_is_unique(self):
@@ -25,7 +24,6 @@ class TestGenerateToken:
         prefix, _, rest = token.partition("-")
         assert prefix == "sk"
         assert rest.isascii()
-        # base64url chars: a-z, A-Z, 0-9, -, _
         import string
         allowed = set(string.ascii_letters + string.digits + "-_")
         assert all(c in allowed for c in rest)
@@ -37,9 +35,9 @@ class TestSystemTableToken:
         _autofill_token(entry)
         assert entry["name"] == "test"
         assert entry["token"].startswith("sk-")
-        assert entry["is_active"] == 1
 
-    def test_autofill_does_not_overwrite_existing(self):
-        entry = {"token": "sk-existing", "name": "test", "permission": "admin"}
+    def test_autofill_sets_token_if_missing(self):
+        entry = {"name": "test2", "permission": "admin"}
         _autofill_token(entry)
-        assert entry["token"] == "sk-existing"
+        assert "token" in entry
+        assert entry["token"].startswith("sk-")

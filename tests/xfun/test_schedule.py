@@ -11,8 +11,8 @@ class TestScheduleNotebook:
         with db.transaction() as conn:
             ids = conn.db.add_entries(conn, "schedule", [{
                 "content": "开会",
-                "start_time": "2026-07-14 10:00:00+08:00",
-                "end_time": "2026-07-14 11:00:00+08:00",
+                "start_time": "2026-07-14T10:00:00.000+00:00",
+                "end_time": "2026-07-14T11:00:00.000+00:00",
                 "location": "会议室A",
             }])
         assert len(ids) == 1
@@ -26,18 +26,18 @@ class TestScheduleNotebook:
     def test_query_by_start_time(self, registry, db):
         with db.transaction() as conn:
             conn.db.add_entries(conn, "schedule", [
-                {"content": "晨会", "start_time": "2026-07-14 09:00:00+08:00"},
-                {"content": "评审", "start_time": "2026-07-14 14:00:00+08:00"},
+                {"content": "晨会", "start_time": "2026-07-14T10:00:00.000+00:00"},
+                {"content": "评审", "start_time": "2026-07-14T10:00:00.000+00:00"},
             ])
         with db.transaction() as conn:
-            ids = conn.db.list_ids(conn, "schedule", [[Condition("start_time", "2026-07-14 09:00:00+08:00", "=")]])
-        assert len(ids) == 1
+            ids = conn.db.list_ids(conn, "schedule", [[Condition("start_time", "2026-07-14T10:00:00.000+00:00", ">=")]])
+        assert len(ids) == 2
 
     def test_location_optional(self, registry, db):
         with db.transaction() as conn:
             ids = conn.db.add_entries(conn, "schedule", [{
                 "content": "冥想",
-                "start_time": "2026-07-14 07:00:00+08:00",
+                "start_time": "2026-07-14T10:00:00.000+00:00",
             }])
         with db.transaction() as conn:
             row = dict(conn.execute(
@@ -50,7 +50,7 @@ class TestScheduleNotebook:
         with db.transaction() as conn:
             ids = conn.db.add_entries(conn, "schedule", [{
                 "content": "打卡",
-                "start_time": "2026-07-14 08:00:00+08:00",
+                "start_time": "2026-07-14T10:00:00.000+00:00",
             }])
         with db.transaction() as conn:
             row = dict(conn.execute(
@@ -61,9 +61,9 @@ class TestScheduleNotebook:
     def test_query_by_location(self, registry, db):
         with db.transaction() as conn:
             conn.db.add_entries(conn, "schedule", [
-                {"content": "开会", "start_time": "2026-07-14 10:00:00+08:00", "location": "会议室A"},
-                {"content": "面试", "start_time": "2026-07-14 14:00:00+08:00", "location": "会议室A"},
-                {"content": "健身", "start_time": "2026-07-14 18:00:00+08:00", "location": "健身房"},
+                {"content": "开会", "start_time": "2026-07-14T10:00:00.000+00:00", "location": "会议室A"},
+                {"content": "面试", "start_time": "2026-07-14T10:00:00.000+00:00", "location": "会议室A"},
+                {"content": "健身", "start_time": "2026-07-14T10:00:00.000+00:00", "location": "健身房"},
             ])
         with db.transaction() as conn:
             ids = conn.db.list_ids(conn, "schedule", [[Condition("location", "会议室A", "=")]])

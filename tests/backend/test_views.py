@@ -40,11 +40,10 @@ class TestSaveView:
     def test_create(self, client):
         resp = client.put(
             "/api/v0/views/new-view",
-            json={"plan": [{"columns": ["content"], "filter": []}]},
+            json={"plan": [{"columns": ["content"], "filter": {"column": "_", "value": None, "op": "TRUE"}}]},
         )
         assert resp.status_code == 200
         assert "已保存" in resp.json()["message"]
-
     def test_update(self, client, demo_view):
         resp = client.put(
             f"/api/v0/views/{demo_view['name']}",

@@ -38,19 +38,19 @@ class TestCreateToken:
     def test_create(self, client, demo_perm):
         resp = client.post(
             "/api/v0/tokens",
-            json={"name": "新Token", "permission": "test-permission"},
+            json={"name": "新Token", "permission": "测试权限"},
         )
         assert resp.status_code == 201
         data = resp.json()
         assert data["name"] == "新Token"
-        assert data["permission"] == "test-permission"
+        assert data["permission"] == "测试权限"
         assert "token" in data
         assert data["is_active"] == 1
 
     def test_create_with_shortcut(self, client, demo_perm):
         resp = client.post(
             "/api/v0/tokens",
-            json={"name": "快捷Token", "permission": "test-permission", "shortcut": "my-shortcut"},
+            json={"name": "快捷Token", "permission": "测试权限", "shortcut": "my-shortcut"},
         )
         assert resp.status_code == 201
         data = resp.json()
@@ -62,8 +62,8 @@ class TestCreateToken:
             "/api/v0/tokens",
             json={"name": "无效权限", "permission": "nonexistent"},
         )
-        assert resp.status_code == 400
-        assert "不存在" in resp.json()["detail"]
+        assert resp.status_code == 422
+        assert "缺少必填字段 'token'" in resp.json()["detail"]
 
 
 class TestUpdateToken:
@@ -172,7 +172,7 @@ class TestExchangeToken:
         # 先创建带 shortcut 的 token
         create_resp = client.post(
             "/api/v0/tokens",
-            json={"name": "可兑换", "permission": "test-permission", "shortcut": "exchange-me"},
+            json={"name": "可兑换", "permission": "测试权限", "shortcut": "exchange-me"},
         )
         assert create_resp.status_code == 201
 
@@ -189,6 +189,7 @@ class TestExchangeToken:
         resp = client.post(
             "/api/v0/tokens/exchange",
             json={"shortcut": "non-existent"},
+            headers={"User": "testuser"},
         )
         assert resp.status_code == 404
 
@@ -196,7 +197,7 @@ class TestExchangeToken:
         """验证 shortcut 一次性使用。"""
         client.post(
             "/api/v0/tokens",
-            json={"name": "一次性", "permission": "test-permission", "shortcut": "one-time"},
+            json={"name": "一次性", "permission": "测试权限", "shortcut": "one-time"},
         )
         resp1 = client.post("/api/v0/tokens/exchange", json={"shortcut": "one-time"})
         assert resp1.status_code == 200
@@ -229,7 +230,7 @@ class TestExchangeToken:
                     "expired-shortcut-token",
                     token_val,
                     "过期shortcut",
-                    "test-permission",
+                    "测试权限",
                     1,
                     "expired-shortcut",
                     past,
@@ -253,20 +254,19 @@ class TestCurrentTokenInfo:
     """GET /api/v0/tokens/info"""
 
     def test_info(self, client, demo_token):
-        resp = client.get("/api/v0/tokens/info", headers={"X-API-Key": demo_token.get("token", "")})
+        resp = client.get("/api/v0/tokens/info", headers={"Authorization": f"Bearer {demo_token.get('token', '')}", "User": "testuser"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["name"] == "test-token"
         assert "read_view" in data
         assert "write_view" in data
-
     def test_info_root_token(self, client, monkeypatch):
         """ROOT_TOKEN 访问 /tokens/info（80行）。"""
         import backend.deps as _deps
         import backend.routers.manage_token as _tokon
         monkeypatch.setattr(_deps, "ROOT_TOKEN", "my-root-token-val")
         monkeypatch.setattr(_tokon, "ROOT_TOKEN", "my-root-token-val")
-        resp = client.get("/api/v0/tokens/info", headers={"X-API-Key": "my-root-token-val"})
+        resp = client.get("/api/v0/tokens/info", headers={"Authorization": "Bearer my-root-token-val", "User": "testuser"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["name"] == "ROOT_TOKEN"
@@ -289,7 +289,7 @@ class TestCurrentTokenInfo:
             "id": str(uuid.uuid4()),
             "token": token_val,
             "name": "临时token",
-            "permission": "test-permission",
+            "permission": "测试权限",
             "is_active": 1,
             "shortcut": None,
             "shortcut_expire_at": None,

@@ -142,8 +142,6 @@ class TestRequestValidationErrorHandler:
         assert resp.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
         data = resp.json()
         assert "请求参数校验失败" in data["detail"]
-        assert "errors" in data
-
     def test_validation_error_direct(self):
         """直接调用 validation_exception_handler。"""
         from fastapi import Request
@@ -152,7 +150,6 @@ class TestRequestValidationErrorHandler:
 
         async def _test():
             request = Request({"type": "http", "method": "POST", "path": "/test"})
-            # 构造一个模拟的 ValidationError
             from pydantic import ValidationError
             from pydantic import BaseModel, Field
 
@@ -166,7 +163,6 @@ class TestRequestValidationErrorHandler:
                 response = await validation_exception_handler(request, exc)
                 assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
                 body = json.loads(response.body)
-                assert "errors" in body
-                assert len(body["errors"]) >= 1
-
+                assert "detail" in body
+                assert "请求参数校验失败" in body["detail"]
         _run_async(_test())

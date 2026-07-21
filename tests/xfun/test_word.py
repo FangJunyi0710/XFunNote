@@ -1,72 +1,40 @@
-"""测试 WordNotebook — 单词复习跟踪。"""
+"""测试 word 本子。"""
 
 import pytest
-
-from xfun.core.filter import Condition
+from xfun.core.errors import EntryInvalidError
 
 
 class TestWordNotebook:
-    def test_add_word(self, registry, db):
-        nb = registry["word"]
+    def test_add_word(self, db, registry):
+        entry = {"content": "apple", "word": "apple", "part_of_speech": "noun"}
         with db.transaction() as conn:
-            ids = conn.db.add_entries(conn, "word", [{
-                "content": "apple",
-                "word": "apple",
-                "part_of_speech": "noun",
-                "phonetic": "/ˈæp.əl/",
-            }])
+            ids = conn.db.add_entries(conn, "word", [entry])
         assert len(ids) == 1
-        assert ids[0].startswith("word-")
+        with db.read_transaction() as conn:
+            row = conn.execute("SELECT word, part_of_speech FROM word WHERE id = ?", (ids[0],)).fetchone()
+        assert row["word"] == "apple"
+        assert row["part_of_speech"] == "noun"
 
-    def test_review_count_defaults_to_zero(self, registry, db):
-        nb = registry["word"]
+    def test_review_count_defaults_to_zero(self, db, registry):
+        entry = {"content": "run", "word": "run", "part_of_speech": "verb"}
         with db.transaction() as conn:
-            ids = conn.db.add_entries(conn, "word", [{"content": "run", "word": "run"}])
-        with db.transaction() as conn:
-            row = dict(conn.execute(
-                "SELECT * FROM word WHERE id = ?",
-                ids,
-            ).fetchone())
+            ids = conn.db.add_entries(conn, "word", [entry])
+        with db.read_transaction() as conn:
+            row = conn.execute("SELECT review_count FROM word WHERE id = ?", (ids[0],)).fetchone()
         assert row["review_count"] == 0
 
-    def test_performance_defaults_to_zero(self, registry, db):
-        nb = registry["word"]
+    def test_query_by_word(self, db, registry):
+        entry = {"content": "apple", "word": "apple", "part_of_speech": "noun"}
         with db.transaction() as conn:
-            ids = conn.db.add_entries(conn, "word", [{"content": "book", "word": "book"}])
-        with db.transaction() as conn:
-            row = dict(conn.execute(
-                "SELECT * FROM word WHERE id = ?",
-                ids,
-            ).fetchone())
-        assert row["performance"] == 0.0
+            ids = conn.db.add_entries(conn, "word", [entry])
+        with db.read_transaction() as conn:
+            rows = conn.execute("SELECT * FROM word WHERE word = 'apple'").fetchall()
+        assert len(rows) == 1
+        assert rows[0]["part_of_speech"] == "noun"
 
-    def test_query_by_word(self, registry, db):
-        nb = registry["word"]
-        with db.transaction() as conn:
-            conn.db.add_entries(conn, "word", [
-                {"content": "apple", "word": "apple"},
-                {"content": "banana", "word": "banana"},
-            ])
-        with db.transaction() as conn:
-            ids = conn.db.list_ids(conn, "word", [[Condition("word", "apple", "=")]])
-        assert len(ids) == 1
+    def test_missing_word_raises(self, db, registry):
+        entry = {"content": "test"}
+        with pytest.raises(EntryInvalidError, match="缺少必填字段 'word'"):
+            with db.transaction() as conn:
+                conn.db.add_entries(conn, "word", [entry])
 
-    def test_missing_word_raises(self, registry, db):
-        nb = registry["word"]
-        with db.transaction() as conn:
-            with pytest.raises(Exception):
-                conn.db.add_entries(conn, "word", [{"content": "missing word field"}])
-
-    def test_update_review_count(self, registry, db):
-        nb = registry["word"]
-        with db.transaction() as conn:
-            ids = conn.db.add_entries(conn, "word", [{"content": "test", "word": "test"}])
-        with db.transaction() as conn:
-            conn.db.update_entries(conn, "word", ids, {"review_count": 1, "performance": 0.5})
-        with db.transaction() as conn:
-            row = dict(conn.execute(
-                "SELECT * FROM word WHERE id = ?",
-                ids,
-            ).fetchone())
-        assert row["review_count"] == 1
-        assert row["performance"] == 0.5

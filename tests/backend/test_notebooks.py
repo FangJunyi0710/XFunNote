@@ -68,7 +68,7 @@ class TestQueryEntriesNoView:
     """直接调用 query_entries 不传 view 参数（覆盖默认视图分支）。"""
 
     def test_query_entries_no_view(self, backend_db, root_perm):
-        results, total = query_entries("plan", root_perm.permission, view=None, limit=-1)
+        results, total = query_entries(db=backend_db, notetype="plan", view=None, limit=-1, permission=root_perm.permission)
         assert isinstance(results, list)
         assert isinstance(total, int)
         assert total >= 0

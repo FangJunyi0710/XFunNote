@@ -59,7 +59,7 @@ class TestNotebookCRUD:
         db.register_hooks(
             nb.name, pre_add=nb._pre_add, validate=nb._validate, autofill=nb._autofill,
         )
-        db.init({nb.name: nb.columns})
+        db.table_infos.update({nb.name: nb.columns}); db.table_infos.update(); db.init()
         return nb
 
     def _add_test_entries(self, nb, db, entries):

@@ -1,256 +1,188 @@
-"""
-Backend 测试共享夹具。
-
-策略：
-- 使用 FastAPI TestClient + dependency_overrides 注入 root 权限绕过鉴权
-- DB 用临时文件隔离，与 tests/conftest.py 的 db 夹具独立
-- 自动初始化系统表（_token、_permission、_view、_filter）
-"""
-
+"""Backend 测试共享夹具 — 适配当前 API。"""
 from __future__ import annotations
-
 import os
 import tempfile
-
+import uuid
+import json
 import pytest
 from fastapi.testclient import TestClient
-
 from xfun import registry
-from xfun.core.db import DB
-from xfun.core.view import root_permission
+from xfun.core.db import DB, Column
+from xfun.core.view import root_permission, full_view, view_to_json
+from xfun.core import ops
+from xfun.core.filter import Condition
 from backend.deps import get_api_permission, ApiPermission
 from backend.main import app
 from backend.routers import manage_db as _manage_db
-
 import xfun as _xfun_module
-from xfun.core import ops as _ops
-from xfun.core.filter import Condition
+import xfun
 
-
-# ---- 系统表初始化 ----
-
-_SYSTEM_TABLE_COLS: dict[str, list[dict]] = {
+# 系统表定义（适配当前列）
+_SYSTEM_COLS = {
     "_token": [
-        {"name": "id", "col_type": "TEXT", "nullable": False, "primary_key": True, "auto": True},
-        {"name": "token", "col_type": "TEXT", "nullable": False, "unique": True, "auto": True},
-        {"name": "name", "col_type": "TEXT", "nullable": False},
-        {"name": "permission", "col_type": "TEXT", "nullable": False},
-        {"name": "is_active", "col_type": "INTEGER", "nullable": False, "auto": True},
-        {"name": "shortcut", "col_type": "TEXT", "nullable": True, "unique": True},
-        {"name": "shortcut_expire_at", "col_type": "TEXT", "nullable": True},
-        {"name": "expires_at", "col_type": "TEXT", "nullable": True},
-        {"name": "created_at", "col_type": "TEXT", "nullable": False, "auto": True},
-        {"name": "updated_at", "col_type": "TEXT", "nullable": False, "auto": True},
+        Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
+        Column("token", "TEXT", nullable=False, unique=True),
+        Column("name", "TEXT", nullable=False),
+        Column("permission", "TEXT", nullable=False),
+        Column("is_active", "INTEGER", nullable=False),
+        Column("shortcut", "TEXT", nullable=True, unique=True),
+        Column("shortcut_expire_at", "TEXT", nullable=True),
+        Column("expires_at", "TEXT", nullable=True),
+        Column("created_at", "TEXT", nullable=False),
+        Column("updated_at", "TEXT", nullable=False),
     ],
     "_permission": [
-        {"name": "id", "col_type": "TEXT", "nullable": False, "primary_key": True, "auto": True},
-        {"name": "name", "col_type": "TEXT", "nullable": False, "unique": True},
-        {"name": "description", "col_type": "TEXT", "nullable": True},
-        {"name": "read_view", "col_type": "TEXT", "nullable": False},
-        {"name": "write_view", "col_type": "TEXT", "nullable": False},
-        {"name": "created_at", "col_type": "TEXT", "nullable": False, "auto": True},
-        {"name": "updated_at", "col_type": "TEXT", "nullable": False, "auto": True},
+        Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
+        Column("uuid", "TEXT", unique=True, nullable=False, auto=True),
+        Column("name", "TEXT", nullable=False, unique=True),
+        Column("description", "TEXT", nullable=True),
+        Column("read_view", "TEXT", nullable=False),
+        Column("write_view", "TEXT", nullable=False),
+        Column("created_at", "TEXT", nullable=False, auto=True),
+        Column("updated_at", "TEXT", nullable=False, auto=True),
     ],
     "_view": [
-        {"name": "id", "col_type": "TEXT", "nullable": False, "primary_key": True, "auto": True},
-        {"name": "name", "col_type": "TEXT", "nullable": False, "unique": True},
-        {"name": "data", "col_type": "TEXT", "nullable": False},
-        {"name": "created_at", "col_type": "TEXT", "nullable": False, "auto": True},
-        {"name": "updated_at", "col_type": "TEXT", "nullable": False, "auto": True},
+        Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
+        Column("name", "TEXT", nullable=False, unique=True),
+        Column("data", "TEXT", nullable=False),
+        Column("created_at", "TEXT", nullable=False, auto=True),
+        Column("updated_at", "TEXT", nullable=False, auto=True),
     ],
     "_filter": [
-        {"name": "id", "col_type": "TEXT", "nullable": False, "primary_key": True, "auto": True},
-        {"name": "name", "col_type": "TEXT", "nullable": False, "unique": True},
-        {"name": "data", "col_type": "TEXT", "nullable": False},
-        {"name": "created_at", "col_type": "TEXT", "nullable": False, "auto": True},
-        {"name": "updated_at", "col_type": "TEXT", "nullable": False, "auto": True},
+        Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
+        Column("name", "TEXT", nullable=False, unique=True),
+        Column("data", "TEXT", nullable=False),
+        Column("created_at", "TEXT", nullable=False, auto=True),
+        Column("updated_at", "TEXT", nullable=False, auto=True),
     ],
 }
 
+def _autofill_token(entry):
+    from xfun.utils.token_utils import generate_token
+    entry.setdefault("token", generate_token())
+    entry.setdefault("is_active", 1)
+
+def _autofill_permission(entry):
+    entry.setdefault("uuid", str(uuid.uuid4()))
 
 @pytest.fixture(scope="session")
 def backend_db():
-    """session 级临时 DB，初始化所有 notebook 表 + 系统表。"""
-    tmpf = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-    tmpf.close()
-    _db_instance = DB(tmpf.name)
-
-    # 注册 notebook 钩子
+    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    tmp.close()
+    db = DB(tmp.name)
     for name, nb in registry.items():
-        _db_instance.register_hooks(
-            name,
-            pre_add=nb._pre_add,
-            validate=nb._validate,
-            autofill=nb._autofill,
-        )
-
-    # 注册系统表钩子
-    def _autofill_token(entry: dict) -> None:
-        from xfun.utils.token_utils import generate_token
-        entry.setdefault("token", generate_token())
-        entry.setdefault("is_active", 1)
-
-    _db_instance.register_hooks("_token", autofill=_autofill_token)
-
+        db.register_hooks(name, pre_add=nb._pre_add, validate=nb._validate, autofill=nb._autofill)
+    db.register_hooks("_token", autofill=_autofill_token)
+    db.register_hooks("_permission", autofill=_autofill_permission)
     # 初始化 notebook 表
-    _db_instance.init({name: nb.columns for name, nb in registry.items()})
+    db.table_infos.update({name: nb.columns for name, nb in registry.items()})
+    db.init()
     # 初始化系统表
-    from xfun.core.db import Column
-    system_tables: dict[str, list[Column]] = {}
-    for tbl_name, col_dicts in _SYSTEM_TABLE_COLS.items():
-        system_tables[tbl_name] = [Column(**c) for c in col_dicts]
-    _db_instance.init(system_tables)
+    db.table_infos.update(_SYSTEM_COLS)
+    db.init()
+    yield db
+    os.unlink(tmp.name)
 
-    yield _db_instance
-
-    os.unlink(tmpf.name)
-
-
-@pytest.fixture(autouse=True)
-def _clean_tables(backend_db):
-    """自动清理所有表数据（函数级隔离），使用 backend_db.transaction() 确保 WAL 可见性。"""
-    with backend_db.transaction() as conn:
-        conn.execute("PRAGMA foreign_keys = OFF")
-        existing = {r[0] for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        )}
-        to_delete = [t for t in list(backend_db.table_infos) if t in existing]
-        for table in to_delete:
-            conn.execute(f"DELETE FROM {table}")
-        # 验证删除效果
-        for table in to_delete:
-            cnt = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-            assert cnt == 0, f"[_clean_tables] FAIL: {table} still has {cnt} rows after DELETE"
-    yield
-
-
-@pytest.fixture
-def root_perm(backend_db) -> ApiPermission:
-    """root 权限对象。"""
-    return ApiPermission(root_permission(backend_db))
-
-
-@pytest.fixture
-def client(backend_db) -> TestClient:
-    """FastAPI TestClient，注入 root 权限绕过鉴权。"""
-    _setup_test_db(backend_db)
-    app.dependency_overrides[get_api_permission] = lambda: ApiPermission(
-        root_permission(backend_db)
-    )
-
-    # 设置 manage_db 路由的 ROOT_TOKEN，使 require_root_token 通过
-    _manage_db.ROOT_TOKEN = "test-root-token"
-
-    yield TestClient(app)
-    app.dependency_overrides.clear()
-    _manage_db.ROOT_TOKEN = ""
-
-
-def _setup_test_db(backend_db):
-    """替换模块级 db 为测试实例。"""
-    _xfun_module.db = backend_db
+def _setup_db(db):
+    """设置全局 db 引用。"""
+    _xfun_module.db = db
+    xfun.db = db
     import sys
     for mod_name, mod in list(sys.modules.items()):
         if mod_name.startswith(('backend.', 'xfun.')):
             for attr in ('db', '_db'):
                 if hasattr(mod, attr) and hasattr(getattr(mod, attr), 'db_path'):
-                    setattr(mod, attr, backend_db)
+                    setattr(mod, attr, db)
 
+@pytest.fixture(autouse=True)
+def clean_tables(backend_db):
+    with backend_db.transaction() as conn:
+        existing = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        for table in list(backend_db.table_infos):
+            if table in existing:
+                conn.execute(f"DELETE FROM {table}")
+    yield
 
 @pytest.fixture
-def real_auth_client(backend_db) -> TestClient:
-    """FastAPI TestClient，不覆盖 get_api_permission，使用真实鉴权。"""
-    _setup_test_db(backend_db)
+def root_perm(backend_db):
+    return ApiPermission("root", backend_db, root_permission(backend_db))
+
+@pytest.fixture
+def client(backend_db):
+    _setup_db(backend_db)
+    import xfun.config
+    import backend.deps; backend.deps.ROOT_TOKEN = "test-root-token"
+    xfun.config.ROOT_TOKEN = "test-root-token"
     _manage_db.ROOT_TOKEN = "test-root-token"
+    app.dependency_overrides[get_api_permission] = lambda: ApiPermission("test-root-token", backend_db, root_permission(backend_db))
     yield TestClient(app)
+    app.dependency_overrides.clear()
+    xfun.config.ROOT_TOKEN = ""
     _manage_db.ROOT_TOKEN = ""
 
+@pytest.fixture
+def real_auth_client(backend_db):
+    _setup_db(backend_db)
+    import xfun.config
+    import backend.deps; backend.deps.ROOT_TOKEN = "test-root-token"
+    xfun.config.ROOT_TOKEN = "test-root-token"
+    _manage_db.ROOT_TOKEN = "test-root-token"
+    yield TestClient(app)
+    xfun.config.ROOT_TOKEN = ""
+    _manage_db.ROOT_TOKEN = ""
 
 @pytest.fixture
-def demo_perm(backend_db) -> dict:
-    """创建一个预置权限，返回完整行。"""
-    from xfun.core.view import full_view, view_to_json
-    from xfun.core.db import Column
-    from xfun.utils.time_utils import now_str
-
-    read_view = full_view(backend_db)
-    write_view = full_view(backend_db)
-
-    import json
-    now = now_str()
+def demo_perm(backend_db):
+    now = _xfun_module.utils.time_utils.now_str()
+    fv = json.dumps(view_to_json(full_view(backend_db)))
     entry = {
-        "id": "test-permission",
         "name": "测试权限",
-        "description": "测试用",
-        "read_view": json.dumps(view_to_json(read_view), ensure_ascii=False),
-        "write_view": json.dumps(view_to_json(write_view), ensure_ascii=False),
+        "description": "测试",
+        "read_view": fv,
+        "write_view": fv,
         "created_at": now,
         "updated_at": now,
     }
     with backend_db.transaction() as conn:
-        conn.execute(
-            "INSERT INTO _permission (id, name, description, read_view, write_view, created_at, updated_at) "
-            "VALUES (:id, :name, :description, :read_view, :write_view, :created_at, :updated_at)",
-            entry,
-        )
-
-    return entry
-
+        ids = ops.add(conn, root_permission(backend_db), "_permission", [entry])
+    with backend_db.read_transaction() as conn:
+        cols = [c.name for c in backend_db.table_infos["_permission"]]
+        rows = ops.query(conn, root_permission(backend_db), "_permission",
+                         {"_permission": [(cols, Condition("id", ids[0]["id"], "="))]})
+    return dict(rows[0]) if rows else {}
 
 @pytest.fixture
-def demo_token(backend_db, demo_perm) -> dict:
-    """创建一个预置 Token，返回完整行（含明文 token）。"""
-    perm = root_permission(backend_db)
-    entry = {
-        "name": "test-token",
-        "permission": "test-permission",
-    }
+def demo_token(backend_db, demo_perm):
+    from xfun.utils.token_utils import generate_token
+    entry = {"name": "test-token", "permission": demo_perm["name"], "token": generate_token()}
     with backend_db.transaction() as conn:
-        ids = conn.db.add_entries(conn, "_token", [entry])
-        # 查询完整的行
-        from xfun.core.db import Column
+        ids = ops.add(conn, root_permission(backend_db), "_token", [entry])
+    with backend_db.read_transaction() as conn:
         cols = [c.name for c in backend_db.table_infos["_token"]]
-        results = _ops.query(
-            conn, perm, "_token",
-            {"_token": [(cols, Condition("id", ids[0], "="))]},
-            limit=1,
-        )
-    return dict(results[0]) if results else {}
-
+        rows = ops.query(conn, root_permission(backend_db), "_token",
+                         {"_token": [(cols, Condition("id", ids[0]["id"], "="))]})
+    return dict(rows[0]) if rows else {}
 
 @pytest.fixture
-def demo_view(backend_db) -> dict:
-    """创建一个预置视图（包含 id 字段）。"""
-    perm = root_permission(backend_db)
-    import json
-    data = json.dumps({"plan": [{"columns": ["content"], "filter": []}]}, ensure_ascii=False)
-    entry = {"id": "test-view", "name": "test-view", "data": data}
+def demo_view(backend_db):
+    data = json.dumps({"plan": [{"columns": ["content"], "filter": []}]})
+    entry = {"name": "test-view", "data": data}
     with backend_db.transaction() as conn:
-        ids = conn.db.add_entries(conn, "_view", [entry])
-        from xfun.core.db import Column
+        ids = ops.add(conn, root_permission(backend_db), "_view", [entry])
+    with backend_db.read_transaction() as conn:
         cols = [c.name for c in backend_db.table_infos["_view"]]
-        results = _ops.query(
-            conn, perm, "_view",
-            {"_view": [(cols, Condition("id", ids[0], "="))]},
-            limit=1,
-        )
-    return dict(results[0]) if results else {}
-
+        rows = ops.query(conn, root_permission(backend_db), "_view",
+                         {"_view": [(cols, Condition("id", ids[0]["id"], "="))]})
+    return dict(rows[0]) if rows else {}
 
 @pytest.fixture
-def demo_filter(backend_db) -> dict:
-    """创建一个预置筛选条件（包含 id 字段）。"""
-    perm = root_permission(backend_db)
-    import json
-    data = json.dumps({"conditions": []}, ensure_ascii=False)
-    entry = {"id": "test-filter", "name": "test-filter", "data": data}
+def demo_filter(backend_db):
+    data = json.dumps({"conditions": []})
+    entry = {"name": "test-filter", "data": data}
     with backend_db.transaction() as conn:
-        ids = conn.db.add_entries(conn, "_filter", [entry])
-        from xfun.core.db import Column
+        ids = ops.add(conn, root_permission(backend_db), "_filter", [entry])
+    with backend_db.read_transaction() as conn:
         cols = [c.name for c in backend_db.table_infos["_filter"]]
-        results = _ops.query(
-            conn, perm, "_filter",
-            {"_filter": [(cols, Condition("id", ids[0], "="))]},
-            limit=1,
-        )
-    return dict(results[0]) if results else {}
+        rows = ops.query(conn, root_permission(backend_db), "_filter",
+                         {"_filter": [(cols, Condition("id", ids[0]["id"], "="))]})
+    return dict(rows[0]) if rows else {}

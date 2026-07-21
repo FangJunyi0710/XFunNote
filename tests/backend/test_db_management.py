@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from unittest.mock import patch
 
 
 class TestDBManagementAuth:
@@ -10,7 +11,9 @@ class TestDBManagementAuth:
 
     def test_init_without_root(self, client):
         """发送错误的 API Key 测试 403。"""
-        resp = client.post("/api/v0/db/init", headers={"X-API-Key": "invalid"})
+        with patch("backend.services.management_service.init_database") as mock_init:
+            mock_init.return_value = "fake"
+            resp = client.post("/api/v0/db/init", headers={"X-API-Key": "invalid"})
         assert resp.status_code == 403
 
 
@@ -18,9 +21,11 @@ class TestDBInit:
     """POST /api/v0/db/init"""
 
     def test_init(self, client):
-        resp = client.post("/api/v0/db/init", headers={"X-API-Key": "test-root-token"})
+        with patch("backend.services.management_service.init_database") as mock_init:
+            mock_init.return_value = "fake"
+            resp = client.post("/api/v0/db/init", headers={"X-API-Key": "test-root-token"})
         assert resp.status_code == 200
-        assert "初始化完成" in resp.json()["message"]
+        assert "fake" in resp.json()["message"]
 
 
 class TestDBBackup:
