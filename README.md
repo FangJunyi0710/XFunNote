@@ -325,6 +325,7 @@ XFunNote/
 │   │   │       ├── switch.tsx
 │   │   │       ├── tabs.tsx
 │   │   │       ├── textarea.tsx
+│   │   │       ├── Timestamp.tsx
 │   │   │       ├── Toast.tsx
 │   │   │       └── TokenValueDisplay.tsx
 │   │   ├── config/
@@ -454,7 +455,8 @@ XFunNote/
 │   │   ├── time_utils.py
 │   │   └── token_utils.py
 │   ├── __init__.py
-│   └── config.py
+│   ├── config.py
+│   └── system_tables.py
 ├── .env.example
 ├── .gitattributes
 ├── .gitignore
@@ -550,6 +552,7 @@ graph LR
     subgraph xfun[xfun]
         xfun___init__(__init__)
         xfun_config(config)
+        xfun_system_tables(system_tables)
     end
     style xfun fill:#d6eaf8,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun_ai[xfun/ai]
@@ -627,6 +630,7 @@ graph LR
     backend_routers_manage_permission --> xfun_core_ops
     backend_routers_manage_permission --> xfun_core_view
     backend_routers_manage_token --> backend_deps
+    backend_routers_manage_token --> xfun___init__
     backend_routers_manage_token --> xfun_config
     backend_routers_manage_token --> xfun_core___init__
     backend_routers_manage_token --> xfun_core_db
@@ -665,6 +669,7 @@ graph LR
     cli --> xfun_core_filter
     cli --> xfun_core_ops
     cli --> xfun_core_view
+    cli --> xfun_system_tables
     cli --> xfun_utils_file_utils
     tests_backend_conftest --> backend_deps
     tests_backend_conftest --> backend_main
@@ -758,7 +763,7 @@ graph LR
     xfun___init__ --> xfun_notebooks_schedule
     xfun___init__ --> xfun_notebooks_timeline
     xfun___init__ --> xfun_notebooks_word
-    xfun___init__ --> xfun_utils_token_utils
+    xfun___init__ --> xfun_system_tables
     xfun_ai_agent --> xfun_config
     xfun_ai_agent --> xfun_core_errors
     xfun_ai_prompts --> xfun___init__
@@ -783,28 +788,49 @@ graph LR
     xfun_core_filter --> xfun_core_db
     xfun_core_filter --> xfun_core_errors
     xfun_core_filter --> xfun_core_extras
+    xfun_core_filter --> xfun_core_filter
     xfun_core_notebook --> xfun_core_db
+    xfun_core_notebook --> xfun_core_errors
     xfun_core_ops --> xfun_core_db
     xfun_core_ops --> xfun_core_filter
     xfun_core_ops --> xfun_core_view
     xfun_core_view --> xfun_core_db
+    xfun_core_view --> xfun_core_errors
     xfun_core_view --> xfun_core_filter
     xfun_notebooks_accumulation --> xfun_core_db
     xfun_notebooks_accumulation --> xfun_core_notebook
     xfun_notebooks_aimemory --> xfun_core_db
     xfun_notebooks_aimemory --> xfun_core_notebook
     xfun_notebooks_diary --> xfun_core_db
+    xfun_notebooks_diary --> xfun_core_errors
     xfun_notebooks_diary --> xfun_core_notebook
+    xfun_notebooks_diary --> xfun_utils_time_utils
     xfun_notebooks_ledger --> xfun_core_db
+    xfun_notebooks_ledger --> xfun_core_errors
     xfun_notebooks_ledger --> xfun_core_notebook
+    xfun_notebooks_ledger --> xfun_utils_time_utils
     xfun_notebooks_plan --> xfun_core_db
+    xfun_notebooks_plan --> xfun_core_errors
     xfun_notebooks_plan --> xfun_core_notebook
+    xfun_notebooks_plan --> xfun_utils_time_utils
     xfun_notebooks_schedule --> xfun_core_db
+    xfun_notebooks_schedule --> xfun_core_errors
     xfun_notebooks_schedule --> xfun_core_notebook
+    xfun_notebooks_schedule --> xfun_utils_time_utils
     xfun_notebooks_timeline --> xfun_core_db
+    xfun_notebooks_timeline --> xfun_core_errors
     xfun_notebooks_timeline --> xfun_core_notebook
+    xfun_notebooks_timeline --> xfun_utils_time_utils
     xfun_notebooks_word --> xfun_core_db
+    xfun_notebooks_word --> xfun_core_errors
     xfun_notebooks_word --> xfun_core_notebook
+    xfun_notebooks_word --> xfun_utils_time_utils
+    xfun_system_tables --> xfun_core_db
+    xfun_system_tables --> xfun_core_errors
+    xfun_system_tables --> xfun_core_filter
+    xfun_system_tables --> xfun_core_view
+    xfun_system_tables --> xfun_utils_time_utils
+    xfun_system_tables --> xfun_utils_token_utils
     xfun_utils_file_utils --> xfun_config
     xfun_utils_file_utils --> xfun_core_errors
 ```

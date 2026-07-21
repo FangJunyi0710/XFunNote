@@ -5,6 +5,8 @@ ledger 本：记录收支流水，每笔包含日期和金额。
 """
 
 from typing import Any
+
+from xfun.utils.time_utils import validate_date
 from ..core.db import Column
 from ..core.notebook import Notebook
 from ..core.errors import EntryInvalidError
@@ -13,13 +15,13 @@ from ..core.errors import EntryInvalidError
 class LedgerNotebook(Notebook):
     name = "ledger"
     _extra_columns = [
-        Column("date", "TEXT", nullable=False, index=True),
-        Column("amount_cents", "INTEGER", nullable=False),
+        Column("date", "TEXT", index=True),
+        Column("amount_cents", "INTEGER"),
         Column("account", "TEXT", nullable=True),
     ]
 
     def _validate(self, entry: dict[str, Any]) -> None:
-        from xfun.utils.time_utils import validate_date
+        super()._validate(entry)
         if "date" in entry and entry["date"] is not None:
             if not validate_date(str(entry["date"])):
                 raise EntryInvalidError("ledger", f"date 格式错误，应为 YYYY-MM-DD，实际: {entry['date']}")

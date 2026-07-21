@@ -10,40 +10,40 @@ from xfun.core.filter import validate_filter
 # ---- 系统表定义 ----
 SYSTEM_TABLES: dict[str, list[Column]] = {
     "_token": [
-        Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
-        Column("token", "TEXT", nullable=False, auto=True, unique=True),
-        Column("name", "TEXT", nullable=False),
-        Column("permission", "TEXT", nullable=False),
-        Column("is_active", "INTEGER", nullable=False, auto=True),
+        Column("id", "TEXT", primary_key=True, auto=True),
+        Column("token", "TEXT", auto=True, unique=True),
+        Column("name", "TEXT", unique=True),
+        Column("permission", "TEXT"),
+        Column("is_active", "INTEGER", default=0),
         Column("shortcut", "TEXT", nullable=True, unique=True),
         Column("shortcut_expire_at", "TEXT", nullable=True),
         Column("expires_at", "TEXT", nullable=True),
-        Column("created_at", "TEXT", nullable=False, auto=True),
-        Column("updated_at", "TEXT", nullable=False, auto=True),
+        Column("created_at", "TEXT", auto=True),
+        Column("updated_at", "TEXT", auto=True),
     ],
     "_view": [
-        Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
-        Column("name", "TEXT", nullable=False, unique=True),
-        Column("data", "TEXT", nullable=False),
-        Column("created_at", "TEXT", nullable=False, auto=True),
-        Column("updated_at", "TEXT", nullable=False, auto=True),
+        Column("id", "TEXT", primary_key=True, auto=True),
+        Column("name", "TEXT", unique=True),
+        Column("data", "TEXT"),
+        Column("created_at", "TEXT", auto=True),
+        Column("updated_at", "TEXT", auto=True),
     ],
     "_filter": [
-        Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
-        Column("name", "TEXT", nullable=False, unique=True),
-        Column("data", "TEXT", nullable=False),
-        Column("created_at", "TEXT", nullable=False, auto=True),
-        Column("updated_at", "TEXT", nullable=False, auto=True),
+        Column("id", "TEXT", primary_key=True, auto=True),
+        Column("name", "TEXT", unique=True),
+        Column("data", "TEXT"),
+        Column("created_at", "TEXT", auto=True),
+        Column("updated_at", "TEXT", auto=True),
     ],
     "_permission": [
-        Column("id", "TEXT", primary_key=True, nullable=False, auto=True),
-        Column("uuid", "TEXT", nullable=False, auto=True, unique=True),
-        Column("name", "TEXT", nullable=False, unique=True),
+        Column("id", "TEXT", primary_key=True, auto=True),
+        Column("uuid", "TEXT", auto=True, unique=True),
+        Column("name", "TEXT", unique=True),
         Column("description", "TEXT", nullable=True),
-        Column("read_view", "TEXT", nullable=False),
-        Column("write_view", "TEXT", nullable=False),
-        Column("created_at", "TEXT", nullable=False, auto=True),
-        Column("updated_at", "TEXT", nullable=False, auto=True),
+        Column("read_view", "TEXT"),
+        Column("write_view", "TEXT"),
+        Column("created_at", "TEXT", auto=True),
+        Column("updated_at", "TEXT", auto=True),
     ],
 }
 # TODO token 改为 permission uuid 列表
@@ -82,10 +82,9 @@ def _validate_filter(entry: dict) -> None:
 def _autofill_token(entry: dict) -> None:
     """_token 自动填充钩子：自动生成 token。"""
     entry["token"] = generate_token()
-    entry.setdefault("is_active", 1)
 
 def _autofill_permission(entry: dict) -> None:
-    entry["uuid"] = uuid.uuid4()
+    entry["uuid"] = str(uuid.uuid4())
 
 def register_system_hooks(db: DB) -> None:
     db.register_hooks("_token", autofill=_autofill_token, validate=_validate_token)

@@ -14,6 +14,6 @@ from ..core.notebook import Notebook
 class AIMemoryNotebook(Notebook):
     name = "aimemory"
     _extra_columns = [
-        Column("title",     "TEXT", nullable=False, index=True),
-        Column("source",    "TEXT", nullable=True),
+        Column("title",     "TEXT", index=True),
+        Column("source",    "TEXT"),
     ]

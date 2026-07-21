@@ -7,6 +7,8 @@ plan 本：以月份为分组，管理待办事项 / 目标条目。
 from collections import defaultdict
 from typing import Any
 
+from xfun.utils.time_utils import validate_yymm
+
 from ..core.errors import EntryInvalidError
 
 from ..core.db import Column
@@ -26,10 +28,10 @@ def _seq_to_letter(seq: int) -> str:
 class PlanNotebook(Notebook):
     name = "plan"
     _extra_columns = [
-        Column("no",    "TEXT", nullable=False, auto=True, unique=True),
-        Column("seq",    "INTEGER", nullable=False, auto=True),
-        Column("month", "TEXT",    nullable=False, index=True),
-        Column("done",  "INTEGER", nullable=False, auto=True),
+        Column("no",    "TEXT", auto=True, unique=True),
+        Column("seq",    "INTEGER", auto=True),
+        Column("month", "TEXT", index=True),
+        Column("done",  "INTEGER", default=0),
     ]
 
     # ---- 钩子 ----
@@ -54,10 +56,9 @@ class PlanNotebook(Notebook):
         """自动填充 plan 特有字段：no、done。"""
         super()._autofill(entry)
         entry["no"] = f"{entry['month']}{_seq_to_letter(entry['seq'])}"
-        entry.setdefault("done", 0)
 
     def _validate(self, entry: dict[str, Any]) -> None:
-        from xfun.utils.time_utils import validate_yymm
+        super()._validate(entry)
         if "month" in entry and entry["month"] is not None:
             if not validate_yymm(str(entry["month"])):
                 raise EntryInvalidError("plan", f"month 格式错误，应为 YYMM，实际: {entry['month']}")

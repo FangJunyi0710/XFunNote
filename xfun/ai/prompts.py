@@ -82,6 +82,8 @@ _FIELD_DESC: dict[str, dict[str, tuple[str, str]]] = {
 def _format_column_info(c: Column):
     return f"`{c.name}`({c.col_type}{", 必填" if not c.nullable and not c.auto else "，可空" if c.nullable else "，自动"})"
 
+# TODO 更新提示词字段描述
+
 def _notebook_infos() -> str:
     """遍历 registry 中的 Notebook，生成可读的数据结构描述。"""
     lines = [f"- 各本子共有字段：{", ".join(_format_column_info(c) for c in BASE_COLUMNS)}"]

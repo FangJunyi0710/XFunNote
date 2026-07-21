@@ -3,6 +3,8 @@
 accumulation 本：记录知识积累、摘录、灵感等，按分类管理。
 """
 
+from typing import Any
+
 from ..core.db import Column
 from ..core.notebook import Notebook
 
@@ -12,3 +14,6 @@ class AccumulationNotebook(Notebook):
     _extra_columns = [
         Column("source",   "TEXT", nullable=True),
     ]
+
+    def _validate(self, entry: dict[str, Any]) -> None:
+        super()._validate(entry)

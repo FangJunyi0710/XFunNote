@@ -8,7 +8,7 @@ from fsrs import Card, Rating, Scheduler
 from datetime import datetime
 scheduler = Scheduler()
 
-from ..utils.time_utils import format_datetime, now_str
+from ..utils.time_utils import format_datetime, now_str, validate_datetime
 from ..core.db import Column
 from ..core.notebook import Notebook
 from ..core.errors import EntryInvalidError
@@ -16,23 +16,23 @@ from ..core.errors import EntryInvalidError
 class WordNotebook(Notebook):
     name = "word"
     _extra_columns = [
-        Column("word",           "TEXT",    nullable=False, unique=True),
+        Column("word",           "TEXT",    unique=True),
         Column("part_of_speech", "TEXT",    nullable=True),
         Column("phonetic",       "TEXT",    nullable=True),
         Column("example",        "TEXT",    nullable=True),
         Column("related_words",  "TEXT",    nullable=True),
 
         # ---- FSRS 核心状态字段 ----
-        Column("stability",      "REAL",    nullable=False, auto=True),   # 稳定性（天）
-        Column("difficulty",     "REAL",    nullable=False, auto=True),   # 难度
-        Column("state",          "INTEGER", nullable=False, auto=True),     # 卡片状态: 0=新, 1=学习中, 2=复习中, 3=重新学习
-        Column("lapses",         "INTEGER", nullable=False, auto=True),     # 遗忘次数
-        Column("step",           "INTEGER", nullable=False, auto=True),     # 学习/重学步骤索引
+        Column("stability",      "REAL",    auto=True),   # 稳定性（天）
+        Column("difficulty",     "REAL",    auto=True),   # 难度
+        Column("state",          "INTEGER", auto=True),     # 卡片状态: 0=新, 1=学习中, 2=复习中, 3=重新学习
+        Column("lapses",         "INTEGER", auto=True),     # 遗忘次数
+        Column("step",           "INTEGER", auto=True),     # 学习/重学步骤索引
 
         # ---- 复习记录 ----
-        Column("review_count",   "INTEGER", nullable=False, auto=True),     # 总复习次数（对应 FSRS 的 reps）
-        Column("next_review",    "TEXT",    nullable=False, auto=True),     # 下次复习时间（ISO 8601 字符串）
-        Column("last_review",    "TEXT",    nullable=True),                 # 上次复习时间
+        Column("review_count",   "INTEGER", auto=True),     # 总复习次数（对应 FSRS 的 reps）
+        Column("next_review",    "TEXT",    auto=True),     # 下次复习时间（ISO 8601 字符串）
+        Column("last_review",    "TEXT",    nullable=True, auto=True), # 上次复习时间
     ]
 
     # ---- 校验 & 自动填充 ----
@@ -48,8 +48,8 @@ class WordNotebook(Notebook):
 
     def _validate(self, entry: dict[str, Any]) -> None:
         """校验 word 特有字段（仅校验已存在的字段）。"""
-        from ..utils.time_utils import validate_datetime
-
+        super()._validate(entry)
+        
         # ---- FSRS 核心状态字段 ----
         if "stability" in entry and entry["stability"] is not None:
             try:

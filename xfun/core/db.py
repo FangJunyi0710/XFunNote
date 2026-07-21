@@ -28,20 +28,21 @@ class Column:
     col_type : str
         SQLite 类型：TEXT / INTEGER / REAL / BLOB。
     nullable : bool
-        是否允许 NULL，默认 True。
+        是否允许 NULL，默认 False。
     primary_key : bool
         是否主键，默认 False。
     index : bool
         是否建索引，默认 False。
     auto : bool
-        是否由系统自动填充，默认 False。
+        是否由系统全权托管，默认 False。
     """
     name: str
     col_type: str
-    nullable: bool = True
+    nullable: bool = False
     primary_key: bool = False
     unique: bool = False
     index: bool = False
+    default: Any = None
     auto: bool = False
 
     # 所有拼接到sql中的列名需满足此
@@ -72,7 +73,7 @@ class Column:
                 raise SQLInvalidError(part[1])
 
     @property
-    def sql(self) -> str:
+    def _sql(self) -> str:
         """生成 CREATE TABLE 用的列定义片段。"""
         self.check(self.name)
         parts = [self.name, self.col_type]
@@ -210,7 +211,7 @@ class DB:
     @staticmethod
     def _create_table(conn: _ConnWrapper, table_name: str, cols: list[Column]) -> None:
         """创建新表。"""
-        cols_sql = ", ".join(col.sql for col in cols)
+        cols_sql = ", ".join(col._sql for col in cols)
         # 只会被 init 调用，其已检查表名
         conn.execute(f"CREATE TABLE {table_name} ({cols_sql})")
     
@@ -242,7 +243,7 @@ class DB:
             existing_info = existing_cols.get(col.name)
             if existing_info is None:
                 _check_addition_column(col)
-                conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {col.sql}")
+                conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {col._sql}")
             else:
                 _check_existing_column(col, existing_info, table_name)
 
@@ -403,7 +404,7 @@ class DB:
     def _validate_entry(self, table_name: str, entry: dict) -> None:
         """基础校验：检查非空非自动字段是否存在。"""
         for col in self.table_infos[table_name]:
-            if not col.nullable and not col.auto:
+            if not col.nullable and col.default is None and not col.auto:
                 if col.name not in entry:
                     raise EntryInvalidError(
                         table_name, f"缺少必填字段 '{col.name}'"
@@ -421,6 +422,8 @@ class DB:
             entry["updated_at"] = now_str()
 
         for col in self.table_infos[table_name]:
+            if col.default is not None:
+                entry.setdefault(col.name, col.default() if callable(col.default) else col.default)
             if col.nullable and col.name not in entry:
                 entry[col.name] = None
 
