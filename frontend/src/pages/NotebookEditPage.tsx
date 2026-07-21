@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { NotebookForm } from '@/components/notebook/notebookForms/defaultForm';
 import { useNotebookStore, useCurrentNotebookData } from '@/stores/notebookStore';
 import * as notebookApi from '@/api/notebooks';
 import { TYPE_LABELS } from '@/config/notebook';
 import { handleError } from '@/lib/error';
-import { ReplyIcon } from '@/components/ui/icons';
 import type { NotebookType } from '@/config/notebook';
 
 export type PageMode = 'create' | 'edit' | 'batch-update';
@@ -43,17 +41,20 @@ export const NotebookEditPage: React.FC = () => {
     const load = async () => {
       try {
         setLoading(true);
-        if (!userData?.schema || userData.currentType !== type) {
+        if (!userData || userData.currentType !== type) {
           await store.setCurrentType(type);
         }
         if (mode === 'edit' && id) {
           let found = userData?.entries?.find((e) => e.id === id) as Record<string, unknown> | undefined;
           if (!found) {
+            if (!userData?.schema){
+              return;
+            }
             const res = await notebookApi.queryEntries(type, {
               filter: JSON.stringify({ column: 'id', op: '=', value: id }),
               offset: 0,
               limit: 1,
-              columns: [],
+              columns: userData?.schema?.columns?.map(col => col.name) ?? [],
             });
             found = res.entries[0] || null;
           }
@@ -68,7 +69,7 @@ export const NotebookEditPage: React.FC = () => {
         }
       } catch (e: unknown) {
         handleError(e, '加载失败');
-        navigate(`/notebooks/${type}`);
+        navigate(`/notebooks/${type}`, { replace: true });
       } finally {
         setLoading(false);
       }
