@@ -1,5 +1,6 @@
 // 基础 HTTP 客户端
 import pkg from '../../package.json';
+import { useTokenStore } from '@/stores/tokenStore';
 
 const API_VERSION = pkg.version.split('.')[0];
 const BASE_URL = `/api/v${API_VERSION}`;
@@ -50,7 +51,6 @@ async function request<T>(
   };
 
   // 从 store 获取当前用户和 Token
-  const { useTokenStore } = await import('@/stores/tokenStore');
   const state = useTokenStore.getState();
   const userName = state.activeUserName;
   const apiKey = state.getActiveTokenKey();
