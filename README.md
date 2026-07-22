@@ -676,19 +676,17 @@ graph LR
     tests_backend_conftest --> backend_routers___init__
     tests_backend_conftest --> backend_routers_manage_db
     tests_backend_conftest --> xfun___init__
+    tests_backend_conftest --> xfun_config
     tests_backend_conftest --> xfun_core___init__
     tests_backend_conftest --> xfun_core_db
     tests_backend_conftest --> xfun_core_filter
     tests_backend_conftest --> xfun_core_ops
     tests_backend_conftest --> xfun_core_view
-    tests_backend_conftest --> xfun_utils_time_utils
     tests_backend_conftest --> xfun_utils_token_utils
-    tests_backend_test_ai --> backend_services_ai_service
     tests_backend_test_ai --> xfun___init__
     tests_backend_test_ai --> xfun_core_view
     tests_backend_test_ai --> xfun_utils_time_utils
-    tests_backend_test_deps --> backend___init__
-    tests_backend_test_deps --> backend_deps
+    tests_backend_test_deps --> backend_main
     tests_backend_test_deps --> xfun_utils_time_utils
     tests_backend_test_main --> backend_main
     tests_backend_test_notebooks --> backend_services_notebook_service
@@ -720,12 +718,10 @@ graph LR
     tests_xfun_test_ai_tools --> xfun___init__
     tests_xfun_test_ai_tools --> xfun_ai_schema
     tests_xfun_test_ai_tools --> xfun_ai_tools
-    tests_xfun_test_ai_tools --> xfun_core___init__
     tests_xfun_test_ai_tools --> xfun_core_db
     tests_xfun_test_ai_tools --> xfun_core_errors
-    tests_xfun_test_ai_tools --> xfun_core_filter
-    tests_xfun_test_ai_tools --> xfun_core_ops
     tests_xfun_test_ai_tools --> xfun_core_view
+    tests_xfun_test_aimemory --> xfun_core_errors
     tests_xfun_test_aimemory --> xfun_core_filter
     tests_xfun_test_db --> xfun_core_db
     tests_xfun_test_db --> xfun_core_errors
@@ -743,16 +739,15 @@ graph LR
     tests_xfun_test_plan --> xfun_core_filter
     tests_xfun_test_plan --> xfun_notebooks_plan
     tests_xfun_test_registry --> xfun___init__
-    tests_xfun_test_registry --> xfun_config
     tests_xfun_test_registry --> xfun_utils_time_utils
     tests_xfun_test_schedule --> xfun_core_filter
     tests_xfun_test_time_utils --> xfun_utils_time_utils
     tests_xfun_test_timeline --> xfun_core_filter
-    tests_xfun_test_token --> xfun___init__
+    tests_xfun_test_token --> xfun_system_tables
     tests_xfun_test_token --> xfun_utils_token_utils
     tests_xfun_test_view --> xfun_core_filter
     tests_xfun_test_view --> xfun_core_view
-    tests_xfun_test_word --> xfun_core_filter
+    tests_xfun_test_word --> xfun_core_errors
     xfun___init__ --> xfun_core_db
     xfun___init__ --> xfun_core_notebook
     xfun___init__ --> xfun_notebooks_accumulation

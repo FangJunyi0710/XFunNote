@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ColumnDef, NotebookSchema } from '@/types/notebook';
 import { ReplyIcon, SubmitIcon } from '@/components/ui/icons';
 import { ChevronRightIcon, ChevronUpIcon } from '@/components/ui/icons';
-import { COLUMN_RENDERER_TYPES } from "@/config/notebook";
+import { COLUMN_RENDERER_TYPES, getFieldLabel, toDisplay, toStorage, FIELD_TRANSFORMS } from "@/config/notebook";
 
 // ---------------------------------------------------------------------------
 // 注册表：按 col.type 分发渲染器
@@ -24,23 +24,73 @@ const FieldLabel: React.FC<{ name: string; required?: boolean }> = ({
   name,
   required,
 }) => (
-  <label className="text-sm font-medium">
-    {name}
+  <label className="text-base font-medium">
+    {getFieldLabel(name)}
     {required && <span className="ml-0.5 text-destructive">*</span>}
   </label>
 );
 
-const renderTextField: FieldRenderer = (col, value, onChange, disableRequired) => (
-  <div key={col.name} className="space-y-1">
-    <FieldLabel name={col.name} required={col.required} />
-    <Input
-      value={value as string}
-      onChange={(e) => onChange(e.target.value)}
-      required={!disableRequired && col.required}
-      placeholder={col.name}
-    />
-  </div>
-);
+/** 带转换的输入框组件：保留本地输入状态，避免实时格式化 */
+const InputWithTransform: React.FC<{
+  col: ColumnDef;
+  value: unknown;
+  onChange: (v: unknown) => void;
+  disableRequired?: boolean;
+  type?: 'text' | 'number';
+  step?: string;
+}> = ({ col, value, onChange, disableRequired, type = 'text', step }) => {
+  const [inputValue, setInputValue] = useState(() => {
+    const displayed = toDisplay(col.name, value);
+    return displayed !== null && displayed !== undefined ? String(displayed) : '';
+  });
+
+  useEffect(() => {
+    const displayed = toDisplay(col.name, value);
+    const newVal = displayed !== null && displayed !== undefined ? String(displayed) : '';
+    setInputValue(newVal);
+  }, [col.name, value]);
+
+  const handleBlur = () => {
+    const storage = toStorage(col.name, inputValue);
+    onChange(storage);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value);
+  };
+
+  return (
+    <div key={col.name} className="space-y-1">
+      <FieldLabel name={col.name} required={col.required} />
+      <Input
+        type={type}
+        step={step}
+        value={inputValue}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        required={!disableRequired && col.required}
+        placeholder="输入内容..."
+      />
+    </div>
+  );
+};
+const renderTextField: FieldRenderer = (col, value, onChange, disableRequired) => {
+  if (FIELD_TRANSFORMS[col.name]) {
+    return <InputWithTransform key={col.name} col={col} value={value} onChange={onChange} disableRequired={disableRequired} />;
+  }
+  const display = toDisplay(col.name, value) as string;
+  return (
+    <div key={col.name} className="space-y-1">
+      <FieldLabel name={col.name} required={col.required} />
+      <Input
+        value={display}
+        onChange={(e) => onChange(toStorage(col.name, e.target.value))}
+        required={!disableRequired && col.required}
+        placeholder="输入内容..."
+      />
+    </div>
+  );
+};
 
 /** 日期字段渲染为原生 date 选择器 */
 const renderDateField: FieldRenderer = (col, value, onChange, disableRequired) => {
@@ -73,6 +123,7 @@ const renderDateField: FieldRenderer = (col, value, onChange, disableRequired) =
         value={formatValue(value)}
         onChange={handleChange}
         required={!disableRequired && col.required}
+        placeholder="输入内容..."
       />
     </div>
   );
@@ -115,6 +166,7 @@ const renderDateTimeField: FieldRenderer = (col, value, onChange, disableRequire
         value={formatValue(value)}
         onChange={handleChange}
         required={!disableRequired && col.required}
+        placeholder="输入内容..."
       />
     </div>
   );
@@ -128,6 +180,7 @@ const renderTextareaField: FieldRenderer = (col, value, onChange, disableRequire
       onChange={(e) => onChange(e.target.value)}
       rows={col.name === 'content' ? 4 : 2}
       required={!disableRequired && col.required}
+      placeholder="输入内容..."
     />
   </div>
 );
@@ -138,33 +191,77 @@ const renderBooleanField: FieldRenderer = (col, value, onChange) => {
     onChange(v ? 1 : 0);
   };
   return (
-    <div key={col.name} className="flex items-center gap-2">
-      <label htmlFor={col.name} className="text-sm font-medium">
-        {col.name}
-      </label>
-      <Checkbox
-        id={col.name}
-        checked={checked}
-        onCheckedChange={(v) => handleChange(v)}
-      />
+    <div key={col.name} className="space-y-1">
+      <FieldLabel name={col.name} required={col.required} />
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id={col.name}
+          checked={checked}
+          onCheckedChange={(v) => handleChange(v)}
+        />
+        <label htmlFor={col.name} className="text-sm font-medium">
+          {toDisplay(col.name, value) as string}
+        </label>
+      </div>
     </div>
   );
 };
 
 const createNumberRenderer = (step?: string): FieldRenderer => 
-  (col, value, onChange, disableRequired) => (
+  (col, value, onChange, disableRequired) => {
+    if (FIELD_TRANSFORMS[col.name]) {
+      return <InputWithTransform key={col.name} col={col} value={value} onChange={onChange} disableRequired={disableRequired} type="number" step={step} />;
+    }
+    const display = toDisplay(col.name, value) as string;
+    return (
+      <div key={col.name} className="space-y-1">
+        <FieldLabel name={col.name} required={col.required} />
+        <Input
+          type="number"
+          step={step}
+          value={display}
+          onChange={(e) => onChange(toStorage(col.name, e.target.value))}
+          required={!disableRequired && col.required}
+          placeholder="输入内容..."
+        />
+      </div>
+    );
+  };
+
+/** 选择器字段（用于 state 等枚举字段） */
+const renderSelectField: FieldRenderer = (col, value, onChange, disableRequired) => {
+  const transform = FIELD_TRANSFORMS[col.name];
+  if (!transform?.options) {
+    return renderTextField(col, value, onChange, disableRequired);
+  }
+  const currentDisplay = toDisplay(col.name, value) as string;
+  return (
     <div key={col.name} className="space-y-1">
       <FieldLabel name={col.name} required={col.required} />
-      <Input
-        type="number"
-        step={step}
-        value={value as number ?? ''}
-        onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
+      <select
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        value={currentDisplay}
+        onChange={(e) => {
+          const display = e.target.value;
+          if (display === '') {
+            onChange(null);
+            return;
+          }
+          const storage = toStorage(col.name, display);
+          onChange(storage);
+        }}
         required={!disableRequired && col.required}
-        placeholder={col.name}
-      />
+      >
+        <option value="">未选择</option>
+        {Object.entries(transform.options).map(([storage, display]) => (
+          <option key={storage} value={display}>
+            {display}
+          </option>
+        ))}
+      </select>
     </div>
   );
+};
 
 
 /** 类型名 → 渲染器映射 */
@@ -176,9 +273,8 @@ const typeRenderers: Record<string, FieldRenderer> = {
   Boolean: renderBooleanField,
   Date: renderDateField,
   DateTime: renderDateTimeField,
+  Select: renderSelectField,
 };
-// TODO 下一步：做字段名与值的双向自动转换优化用户体验
-
 
 // ---------------------------------------------------------------------------
 // 组件

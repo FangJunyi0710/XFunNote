@@ -275,4 +275,116 @@ export const COLUMN_RENDERER_TYPES: Record<string, string> = {
   end_time: 'DateTime',
   next_review: 'DateTime',
   last_review: 'DateTime',
+  state: 'Select',
 };
+
+// ── 字段名 ↔ 显示标签 双向映射 ───────────────────────────────
+
+export const FIELD_LABEL_MAP: Record<string, string> = {
+  // 通用字段 (BASE_COLUMNS)
+  id: 'ID',
+  content: '内容',
+  created_at: '创建时间',
+  updated_at: '更新时间',
+  tags: '标签',
+  note: '备注',
+  is_ai_gen: 'AI 生成',
+  ai_tags: 'AI 标签',
+  ai_note: 'AI 备注',
+
+  // Plan 笔记本特有
+  no: '编号',
+  seq: '序号',
+  month: '月份',
+  done: '完成情况',
+
+  // Diary 笔记本特有
+  date: '日期',
+  mood: '心情',
+  weather: '天气',
+
+  // Word 笔记本特有
+  word: '单词',
+  part_of_speech: '词性',
+  phonetic: '音标',
+  example: '例句',
+  review_count: '复习次数',
+  stability: '稳定度',
+  difficulty: '难度',
+  state: '状态',
+  lapses: '遗忘次数',
+  step: '学习步数',
+  next_review: '下次复习',
+  last_review: '上次复习',
+  related_words: '相关词',
+
+  // Accumulation 笔记本特有
+  source: '来源',
+
+  // Aimemory 笔记本特有
+  title: '标题',
+
+  // Timeline / Schedule 笔记本特有
+  start_time: '开始时间',
+  end_time: '结束时间',
+  location: '地点',
+
+  // Ledger 笔记本特有
+  amount_cents: '金额',
+  account: '账户',
+
+  // 其他可能出现的字段
+  expires_at: '过期时间',
+  shortcut_expires_at: '快捷码过期时间',
+};
+
+export function getFieldLabel(fieldName: string): string {
+  return FIELD_LABEL_MAP[fieldName] ?? fieldName;
+}
+
+
+// ── 字段值转换（存储 ↔ 显示） ───────────────────────────────
+
+/** 创建枚举类型字段的转换器 */
+function makeEnumTransform<T extends Record<string, string>>(options: T) {
+  return {
+    options,
+    toDisplay: (v: unknown) => v === null || v === undefined ? '' : options[v as string] ?? String(v),
+    toStorage: (v: unknown) => {
+      if (v === '' || v === null || v === undefined) return null;
+      const entry = Object.entries(options).find(([, display]) => display === v);
+      if (entry) {
+        const key = entry[0];
+        return isNaN(Number(key)) ? key : Number(key);
+      }
+      const num = Number(v); 
+      return isNaN(num) ? null : num;
+    }
+  };
+}
+
+export const FIELD_TRANSFORMS: Record<string, {
+  toDisplay: (v: unknown) => unknown;
+  toStorage: (v: unknown) => unknown;
+  options?: Record<number | string, string>;
+}> = {
+  // 金额：分 ↔ 元，无枚举选项
+  amount_cents: {
+    toDisplay: (v) => v !== null && v !== undefined && v !== '' ? (Number(v) / 100).toFixed(2) : '',
+    toStorage: (v) => {
+      if (v === '' || v === null || v === undefined) return null;
+      const num = parseFloat(String(v));
+      return isNaN(num) ? null : Math.round(num * 100);
+    },
+  },
+  // 枚举字段：仅需定义映射表
+  done: makeEnumTransform({ 0: '未完成', 1: '已完成' }),
+  is_ai_gen: makeEnumTransform({ 0: '否', 1: '是' }),
+  state: makeEnumTransform({ 0: '全新', 1: '学习', 2: '复习', 3: '重学' }),
+};
+
+export const toDisplay = (field: string, v: unknown) =>
+  FIELD_TRANSFORMS[field]?.toDisplay(v) ?? v;
+
+export const toStorage = (field: string, v: unknown) =>
+  FIELD_TRANSFORMS[field]?.toStorage(v) ?? v;
