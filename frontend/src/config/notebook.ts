@@ -258,3 +258,21 @@ export const NOTEBOOK_PAGES: Record<NotebookType, NotebookPageComponent> = {
   schedule: NotebookSchedule,
   ledger: NotebookLedger,
 };
+
+// -------------------------------------------------------
+// 列名 → 渲染器类型映射（用于表单字段特殊渲染）
+// -------------------------------------------------------
+export const COLUMN_RENDERER_TYPES: Record<string, string> = {
+  content: 'Textarea',
+  done: 'Boolean',
+  is_ai_gen: 'Boolean',
+  date: 'Date',
+  created_at: 'DateTime',
+  updated_at: 'DateTime',
+  expires_at: 'DateTime',
+  shortcut_expires_at: 'DateTime',
+  start_time: 'DateTime',
+  end_time: 'DateTime',
+  next_review: 'DateTime',
+  last_review: 'DateTime',
+};

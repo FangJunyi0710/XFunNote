@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ColumnDef, NotebookSchema } from '@/types/notebook';
 import { ReplyIcon, SubmitIcon } from '@/components/ui/icons';
 import { ChevronRightIcon, ChevronUpIcon } from '@/components/ui/icons';
-import { handleError } from '@/lib/error';
+import { COLUMN_RENDERER_TYPES } from "@/config/notebook";
 
 // ---------------------------------------------------------------------------
 // 注册表：按 col.type 分发渲染器
@@ -151,59 +151,33 @@ const renderBooleanField: FieldRenderer = (col, value, onChange) => {
   );
 };
 
-/** 整数类型渲染：数字输入框 */
-const renderIntegerField: FieldRenderer = (col, value, onChange, disableRequired) => {
-  return (
+const createNumberRenderer = (step?: string): FieldRenderer => 
+  (col, value, onChange, disableRequired) => (
     <div key={col.name} className="space-y-1">
       <FieldLabel name={col.name} required={col.required} />
       <Input
         type="number"
-        value={value as number || ''}
+        step={step}
+        value={value as number ?? ''}
         onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
         required={!disableRequired && col.required}
         placeholder={col.name}
       />
     </div>
   );
-};
 
-/** 浮点数类型渲染 */
-const renderNumberField: FieldRenderer = (col, value, onChange, disableRequired) => (
-  <div key={col.name} className="space-y-1">
-    <FieldLabel name={col.name} required={col.required} />
-    <Input
-      type="number"
-      step="any"
-      value={value as number || ''}
-      onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
-      required={!disableRequired && col.required}
-      placeholder={col.name}
-    />
-  </div>
-);
 
-/** 按列名和类型查找渲染器的注册表 */
-const FIELD_RENDERERS: Record<string, FieldRenderer> = {
+/** 类型名 → 渲染器映射 */
+const typeRenderers: Record<string, FieldRenderer> = {
   TEXT: renderTextField,
-  INTEGER: renderIntegerField,
-  REAL: renderNumberField,
-
-  content: renderTextareaField,
-
-  done: renderBooleanField,
-  is_ai_gen: renderBooleanField,
-
-  date: renderDateField,
-
-  created_at: renderDateTimeField,
-  updated_at: renderDateTimeField,
-  expires_at: renderDateTimeField,
-  shortcut_expires_at: renderDateTimeField,
-  start_time: renderDateTimeField,
-  end_time: renderDateTimeField,
-  next_review: renderDateTimeField,
-  last_review: renderDateTimeField,
+  INTEGER: createNumberRenderer("1"),
+  REAL: createNumberRenderer("any"),
+  Textarea: renderTextareaField,
+  Boolean: renderBooleanField,
+  Date: renderDateField,
+  DateTime: renderDateTimeField,
 };
+// TODO 下一步：做字段名与值的双向自动转换优化用户体验
 
 
 // ---------------------------------------------------------------------------
@@ -277,8 +251,7 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
   const renderField = (col: ColumnDef) => {
     const value = formData[col.name] ?? '';
     const onChange = (v: unknown) => handleChange(col.name, v);
-
-    const renderer = FIELD_RENDERERS[col.name] ?? FIELD_RENDERERS[col.type] ?? renderTextField;
+    const renderer = typeRenderers[COLUMN_RENDERER_TYPES[col.name] || col.type] || renderTextField;
     return renderer(col, value, onChange, disableRequired);
   };
 
