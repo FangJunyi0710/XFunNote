@@ -86,10 +86,6 @@ def get_current_token_info(api_perm: ApiPermission = Depends(partial(get_api_per
     read_view = view_to_json(api_perm.permission[0])
     write_view = view_to_json(api_perm.permission[1])
 
-    if not row.get("is_active", True):
-        row["shortcut"] = None
-        row["shortcut_expire_at"] = None
-
     return TokenInfoResponse(
         name=row.get("name", "ROOT_TOKEN"),
         shortcut=row.get("shortcut"),
