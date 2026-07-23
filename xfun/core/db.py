@@ -294,12 +294,11 @@ class DB:
         """
         dst = Path(self.db_path).parent / "backups" / f"{Path(self.db_path).stem}.backup.{timestamp_str()}"
         src_conn = self._connect()
-        dest_conn = DB(str(dst))._connect()
-        try:
-            src_conn.backup(dest_conn)
-        finally:
-            src_conn.close()
-            dest_conn.close()
+        with DB(str(dst)).transaction() as dest_conn:
+            try:
+                src_conn.backup(dest_conn)
+            finally:
+                src_conn.close()
         return str(dst)
 
     def restore(self, backup_path: str) -> str:
@@ -336,13 +335,12 @@ class DB:
             f.unlink(missing_ok=True)
 
         # 反向备份 API：备份文件 → 当前数据库
-        dest_conn = self._connect()
         src_conn = DB(str(src))._connect()
         try:
-            src_conn.backup(dest_conn)
+            with self.transaction() as dest_conn:
+                src_conn.backup(dest_conn)
         finally:
             src_conn.close()
-            dest_conn.close()
 
         return str(src)
 
@@ -570,7 +568,7 @@ class _TransactionContext:
 
 
 class _ReadTransactionContext:
-    """只读事务上下文管理器：普通 BEGIN，不阻塞写入者（WAL 模式下）。"""
+    """只读事务上下文管理器：BEGIN READONLY，不阻塞写入者（WAL 模式下）。"""
 
     def __init__(self, db: DB):
         self.db = db
@@ -578,7 +576,8 @@ class _ReadTransactionContext:
 
     def __enter__(self) -> _ConnWrapper:
         self.conn = self.db._connect()
-        self.conn.execute("BEGIN")  # 不加 IMMEDIATE，不阻塞写入
+        self.conn.execute("PRAGMA query_only = ON") 
+        self.conn.execute("BEGIN")
         return _ConnWrapper(self.conn, self.db)
 
     def __exit__(self, exc_type, exc_val, tb) -> None:
