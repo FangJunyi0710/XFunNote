@@ -42,3 +42,7 @@ frontend/.vite/
 *.tmp*
 
 certs/
+
+# patch 命令
+*.orig
+*.rej

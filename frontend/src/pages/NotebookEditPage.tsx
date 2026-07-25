@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { NotebookForm } from '@/components/notebook/notebookForms/defaultForm';
+import { NotebookForm } from '@/components/notebook/NotebookForm';
 import { useNotebookStore, useCurrentNotebookData } from '@/stores/notebookStore';
 import * as notebookApi from '@/api/notebooks';
 import { TYPE_LABELS } from '@/config/notebook';
