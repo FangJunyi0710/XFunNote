@@ -35,10 +35,10 @@ export function defaultRenderEntryDisplay(props: DefaultRenderEntryDisplayProps)
       <div className="space-y-3">
         {entries.map((entry) => (
           <NotebookCard
-            key={entry.id as string}
+            key={entry['id'] as string}
             type={type}
             entry={entry}
-            selected={selectedIds?.has(entry.id as string) || false}
+            selected={selectedIds?.has(entry['id'] as string) || false}
             onSelect={onToggleSelect}
           />
         ))}

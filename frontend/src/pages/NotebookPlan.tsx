@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { useCurrentNotebookData } from '@/stores/notebookStore';
 import { asEntry } from '@/lib/type-guards';
-import type { PlanEntry } from '@/config/notebook';
 
 const PlanCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
   const userData = useCurrentNotebookData();

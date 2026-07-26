@@ -21,9 +21,14 @@ export const Layout: React.FC = () => {
   useEffect(() => {
     const handleTouchStart = (e: TouchEvent) => {
       ignoreTouch.current = false;
-      touchStartX.current = e.touches[0].clientX;
-      touchStartY.current = e.touches[0].clientY;
-      // 每次触摸时获取 sidebar 元素的实际宽度
+      const touch = e.touches[0];
+      if (!touch) {
+        ignoreTouch.current = true;
+        return;
+      }
+      touchStartX.current = touch.clientX;
+      touchStartY.current = touch.clientY;
+      // 获取 sidebar 元素的实际宽度
       const el = document.querySelector('aside');
       if (el) {
         sidebarWidth.current = el.offsetWidth;
@@ -32,9 +37,13 @@ export const Layout: React.FC = () => {
 
     const handleTouchMove = (e: TouchEvent) => {
       if (ignoreTouch.current) return;
-
-      const diffX = e.touches[0].clientX - touchStartX.current;
-      const diffY = e.touches[0].clientY - touchStartY.current;
+      const touch = e.touches[0];
+      if (!touch) {
+        ignoreTouch.current = true;
+        return;
+      }
+      const diffX = touch.clientX - touchStartX.current;
+      const diffY = touch.clientY - touchStartY.current;
       const w = sidebarWidth.current;
 
       // 竖直偏移超过水平偏移的 x 倍，此次触摸忽略
@@ -63,7 +72,7 @@ export const Layout: React.FC = () => {
         return;
       }
 
-      const { dragOffset } = useSidebarStore.getState();
+      const { dragOffset = 0 } = useSidebarStore.getState();
       const w = sidebarWidth.current;
 
       if (isCollapsed && dragOffset > w * 0.3) {

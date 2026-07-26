@@ -25,8 +25,8 @@ export const NotebookCard: React.FC<NotebookCardProps> = React.memo(({
   const Renderer = getCardRenderer(type);
   const styles = getNotebookStyles(type as NotebookType);
 
-  const created = entry.created_at as string | undefined;
-  const updated = entry.updated_at as string | undefined;
+  const created = entry['created_at'] as string | undefined;
+  const updated = entry['updated_at'] as string | undefined;
   const showUpdated = updated && updated !== created;
 
   return (
@@ -34,7 +34,7 @@ export const NotebookCard: React.FC<NotebookCardProps> = React.memo(({
       className={`border-2 border-border cursor-pointer transition-all hover:shadow-md ${
         selected ? `ring-2 ${styles.ring} !bg-accent` : ''
       }`}
-      onClick={() => onSelect?.(entry.id as string)}
+      onClick={() => onSelect?.(entry['id'] as string)}
     >
       <CardContent className="p-4">
         {Renderer ? (
@@ -51,7 +51,7 @@ export const NotebookCard: React.FC<NotebookCardProps> = React.memo(({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate(`/notebooks/${type}/edit/${entry.id as string}`)}
+              onClick={() => navigate(`/notebooks/${type}/edit/${entry['id'] as string}`)}
             >
               <EditIcon />
             </Button>

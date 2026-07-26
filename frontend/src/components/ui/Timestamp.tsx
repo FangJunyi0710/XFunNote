@@ -44,12 +44,14 @@ export const Timestamp: React.FC<TimestampProps> = ({
   const fromIdx = UNIT_ORDER.indexOf(from);
   const toIdx = UNIT_ORDER.indexOf(to);
   const options: Intl.DateTimeFormatOptions = {};
-  for (let i = fromIdx; i <= toIdx; i++) {
-    Object.assign(options, UNIT_OPTIONS[UNIT_ORDER[i]]);
+  for (let i = fromIdx; i <= toIdx && i < UNIT_ORDER.length; i++) {
+    const unit = UNIT_ORDER[i];
+    if (!unit) continue;
+    Object.assign(options, UNIT_OPTIONS[unit] ?? {});
   }
 
   const timeStr = d.toLocaleString('zh-CN', options);
-  const tz = getTimezoneOffsetStr();
+  const tz = getTimezoneOffsetStr() || '';
 
   return (
     <span className={`relative inline-block ${className}`}>

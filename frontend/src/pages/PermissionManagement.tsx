@@ -87,7 +87,7 @@ export const PermissionManagement: React.FC = () => {
         await permissionsApi.createPermission({
           id: form.id.trim(),
           name: form.name.trim(),
-          description: form.description.trim() || undefined,
+          description: form.description.trim() || '',
           read_view: readViewObj,
           write_view: writeViewObj,
         });
@@ -95,7 +95,7 @@ export const PermissionManagement: React.FC = () => {
       } else if (selectedId) {
         await permissionsApi.updatePermission(selectedId, {
           name: form.name.trim(),
-          description: form.description.trim() || undefined,
+          description: form.description.trim() || '',
           read_view: readViewObj,
           write_view: writeViewObj,
         });

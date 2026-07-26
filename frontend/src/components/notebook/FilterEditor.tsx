@@ -153,7 +153,7 @@ function serializeDNF(groups: ConditionGroup[]): string | null {
 interface ValueEditorProps {
   op: FilterOp;
   value: string;
-  columnType?: string;
+  columnType: string;
   onChange: (value: string) => void;
 }
 
@@ -308,7 +308,7 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({
     );
   };
 
-  const removeRow = (gid: string, rid: string) => {
+  const removeRow = (_gid: string, rid: string) => {
     setGroups((prev) =>
       prev
         .map((g) => ({
@@ -417,7 +417,7 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({
                 <ValueEditor
                   op={row.op}
                   value={row.value}
-                  columnType={columns.find((c) => c.name === row.column)?.type}
+                  columnType={columns.find((c) => c.name === row.column)?.type ?? 'text'}
                   onChange={(val) => updateRow(group.id, row.id, { value: val })}
                 />
 

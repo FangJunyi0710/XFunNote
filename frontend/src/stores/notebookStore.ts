@@ -22,7 +22,11 @@ async function getCachedSchema(type: NotebookType): Promise<NotebookSchema> {
   for (const s of all) {
     schemaCache[s.table_name] = s;
   }
-  return schemaCache[type];
+  const result = schemaCache[type];
+  if (!result) {
+    throw new Error(`Schema not found for type: ${type}`);
+  }
+  return result;
 }
 
 // ── 按用户分页持久化 ──────────────────────────────────────────────────
@@ -73,7 +77,7 @@ interface UserNotebookData {
 
 interface NotebookState {
   users: Record<string, UserNotebookData>;
-  loading: boolean; // 全局加载状态
+  loading: boolean;
   setCurrentType: (type: NotebookType) => Promise<void>;
   fetchEntries: () => Promise<void>;
   setOffset: (offset: number) => void;
@@ -104,7 +108,6 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   users: {},
   loading: false,
 
-  // 确保当前用户存在
   ensureUser: () => {
     const userName = getCurrentUserName();
     if (!userName) return null;
@@ -123,40 +126,50 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
       handleError(new Error('未选择用户'), '加载失败');
       return;
     }
-    // 确保用户存在
     if (!get().users[userName]) {
       set((state) => ({ users: { ...state.users, [userName]: defaultUserData() } }));
     }
 
     try {
-      // 从持久化记录中恢复分页
       const { offset, limit } = loadPagination(userName, type);
-      set((state) => ({
-        users: {
-          ...state.users,
-          [userName]: {
-            ...state.users[userName],
-            currentType: type,
-            offset,
-            limit,
-            entries: [],
-            schema: null,
-            filterJson: null,
+      set((state) => {
+        const existing = state.users[userName];
+        return {
+          users: {
+            ...state.users,
+            [userName]: existing
+              ? {
+                  ...existing,
+                  currentType: type,
+                  offset,
+                  limit,
+                  entries: [],
+                  schema: null,
+                  filterJson: null,
+                }
+              : {
+                  ...defaultUserData(),
+                  currentType: type,
+                  offset,
+                  limit,
+                },
           },
-        },
-        loading: true,
-      }));
+          loading: true,
+        };
+      });
 
       const schema = await getCachedSchema(type);
-      set((state) => ({
-        users: {
-          ...state.users,
-          [userName]: {
-            ...state.users[userName],
-            schema,
+      set((state) => {
+        const existing = state.users[userName];
+        return {
+          users: {
+            ...state.users,
+            [userName]: existing
+              ? { ...existing, schema }
+              : { ...defaultUserData(), schema, currentType: type },
           },
-        },
-      }));
+        };
+      });
 
       await get().fetchEntries();
     } catch (e: unknown) {
@@ -174,24 +187,36 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
     const { currentType, schema, offset, limit, filterJson, orderBy, orderDir } = userData;
     try {
       set({ loading: true });
-      const res: QueryResponse = await notebookApi.queryEntries(currentType, {
-        filter: filterJson || undefined,
+      const queryParams: Parameters<typeof notebookApi.queryEntries>[1] = {
         offset,
         limit,
         order_by: orderBy,
         order_dir: orderDir,
         columns: schema?.display_order ?? [],
-      });
-      set((state) => ({
-        users: {
-          ...state.users,
-          [userName]: {
-            ...state.users[userName],
-            entries: castEntries(res.entries as Record<string, unknown>[], schema?.columns ?? []),
-            total: res.total,
+      };
+      if (filterJson !== null && filterJson !== undefined) {
+        queryParams.filter = filterJson;
+      }
+      const res: QueryResponse = await notebookApi.queryEntries(currentType, queryParams);
+      set((state) => {
+        const existing = state.users[userName];
+        return {
+          users: {
+            ...state.users,
+            [userName]: existing
+              ? {
+                  ...existing,
+                  entries: castEntries(res.entries as Record<string, unknown>[], schema?.columns ?? []),
+                  total: res.total,
+                }
+              : {
+                  ...defaultUserData(),
+                  entries: castEntries(res.entries as Record<string, unknown>[], schema?.columns ?? []),
+                  total: res.total,
+                },
           },
-        },
-      }));
+        };
+      });
     } catch (e: unknown) {
       handleError(e, '查询失败');
     } finally {
@@ -205,15 +230,15 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
     const userData = get().users[userName];
     if (!userData) return;
     const { currentType, limit } = userData;
-    set((state) => ({
-      users: {
-        ...state.users,
-        [userName]: {
-          ...state.users[userName],
-          offset,
+    set((state) => {
+      const existing = state.users[userName];
+      return {
+        users: {
+          ...state.users,
+          [userName]: existing ? { ...existing, offset } : { ...defaultUserData(), offset },
         },
-      },
-    }));
+      };
+    });
     if (currentType) {
       savePagination(userName, currentType, offset, limit);
     }
@@ -226,15 +251,15 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
     const userData = get().users[userName];
     if (!userData) return;
     const { currentType, offset } = userData;
-    set((state) => ({
-      users: {
-        ...state.users,
-        [userName]: {
-          ...state.users[userName],
-          limit,
+    set((state) => {
+      const existing = state.users[userName];
+      return {
+        users: {
+          ...state.users,
+          [userName]: existing ? { ...existing, limit } : { ...defaultUserData(), limit },
         },
-      },
-    }));
+      };
+    });
     if (currentType) {
       savePagination(userName, currentType, offset, limit);
     }
@@ -244,32 +269,34 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   setFilter: (filter: string | null) => {
     const userName = getCurrentUserName();
     if (!userName) return;
-    set((state) => ({
-      users: {
-        ...state.users,
-        [userName]: {
-          ...state.users[userName],
-          filterJson: filter,
-          offset: 0,
+    set((state) => {
+      const existing = state.users[userName];
+      return {
+        users: {
+          ...state.users,
+          [userName]: existing
+            ? { ...existing, filterJson: filter, offset: 0 }
+            : { ...defaultUserData(), filterJson: filter, offset: 0 },
         },
-      },
-    }));
+      };
+    });
     get().fetchEntries();
   },
 
   setOrder: (by: string, dir: 'asc' | 'desc') => {
     const userName = getCurrentUserName();
     if (!userName) return;
-    set((state) => ({
-      users: {
-        ...state.users,
-        [userName]: {
-          ...state.users[userName],
-          orderBy: by,
-          orderDir: dir,
+    set((state) => {
+      const existing = state.users[userName];
+      return {
+        users: {
+          ...state.users,
+          [userName]: existing
+            ? { ...existing, orderBy: by, orderDir: dir }
+            : { ...defaultUserData(), orderBy: by, orderDir: dir },
         },
-      },
-    }));
+      };
+    });
     get().fetchEntries();
   },
 
@@ -330,9 +357,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   },
 }));
 
-// ── 自定义 hook：获取当前用户的数据 ──────────────────────────────
-
 export const useCurrentNotebookData = () => {
   const userName = useTokenStore((s) => s.activeUserName);
-  return useNotebookStore((s) => userName ? s.users[userName] : null);
+  return useNotebookStore((s) => (userName ? s.users[userName] : null));
 };

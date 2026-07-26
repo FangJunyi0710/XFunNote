@@ -5,7 +5,7 @@
  * 并将转换后的 Record 通过类型断言还原为具体条目类型。
  */
 
-import type { ColumnDef, NotebookSchema } from '@/types/notebook';
+import type { ColumnDef } from '@/types/notebook';
 import type {
   NotebookType,
   PlanEntry,
@@ -84,7 +84,7 @@ export interface EntryTypeMap {
  * e.no // 类型推断为 string ✓
  */
 export function asEntry<T extends NotebookType>(
-  type: T,
+  _type: T,
   raw: Record<string, unknown>,
   columns: ColumnDef[],
 ): EntryTypeMap[T] {

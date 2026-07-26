@@ -4,7 +4,6 @@ import { Timestamp } from '@/components/ui/Timestamp';
 import { registerCard } from '@/components/notebook/notebookCards';
 import { useCurrentNotebookData } from '@/stores/notebookStore';
 import { asEntry } from '@/lib/type-guards';
-import type { WordEntry } from '@/config/notebook';
 
 const WordCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
   const userData = useCurrentNotebookData();

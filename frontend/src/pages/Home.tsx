@@ -65,6 +65,7 @@ export const Home: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {visibleNotebooks.map((nb) => {
               const route = NOTEBOOK_ROUTES[nb.table_name];
+              if (!route) return null;
               const styles = getNotebookStyles(nb.table_name as NotebookType);
               return (
                 <Link key={nb.table_name} to={route.path}>

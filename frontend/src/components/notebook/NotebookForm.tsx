@@ -16,7 +16,7 @@ type FieldRenderer = (
   col: ColumnDef,
   value: unknown,
   onChange: (v: unknown) => void,
-  disableRequired?: boolean,
+  disableRequired: boolean,
 ) => React.ReactNode;
 
 /** 带红色 * 的标签 */
@@ -35,7 +35,7 @@ const InputWithTransform: React.FC<{
   col: ColumnDef;
   value: unknown;
   onChange: (v: unknown) => void;
-  disableRequired?: boolean;
+  disableRequired: boolean;
   type?: 'text' | 'number';
   step?: string;
 }> = ({ col, value, onChange, disableRequired, type = 'text', step }) => {
@@ -64,7 +64,7 @@ const InputWithTransform: React.FC<{
       <FieldLabel name={col.name} required={col.required} />
       <Input
         type={type}
-        step={step}
+        step={step ?? undefined}
         value={inputValue}
         onChange={handleChange}
         onBlur={handleBlur}
@@ -100,7 +100,9 @@ const renderDateField: FieldRenderer = (col, value, onChange, disableRequired) =
     const d = typeof val === 'string' ? new Date(val) : val;
     if (d instanceof Date && !isNaN(d.getTime())) {
       // date: YYYY-MM-DD
-      return d.toISOString().split('T')[0];
+      const parts = d.toISOString().split('T');
+      const datePart = parts[0];
+      return datePart ?? '';
     }
     return '';
   };
@@ -210,7 +212,8 @@ const renderBooleanField: FieldRenderer = (col, value, onChange) => {
 const createNumberRenderer = (step?: string): FieldRenderer => 
   (col, value, onChange, disableRequired) => {
     if (FIELD_TRANSFORMS[col.name]) {
-      return <InputWithTransform key={col.name} col={col} value={value} onChange={onChange} disableRequired={disableRequired} type="number" step={step} />;
+      const stepProps = step !== undefined ? { step } : {};
+      return <InputWithTransform key={col.name} col={col} value={value} onChange={onChange} disableRequired={disableRequired} type="number" {...stepProps} />;
     }
     const display = toDisplay(col.name, value) as string;
     return (
@@ -281,7 +284,7 @@ const typeRenderers: Record<string, FieldRenderer> = {
 // ---------------------------------------------------------------------------
 interface NotebookFormProps {
   schema: NotebookSchema;
-  initialData?: Record<string, unknown>;
+  initialData?: Record<string, unknown> | undefined;
   onSubmit: (data: Record<string, unknown>) => Promise<void>;
   onCancel: () => void;
   title?: string;
@@ -313,20 +316,6 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
         }
         return { ...initialData };
       });
-    } else {
-      const defaults: Record<string, unknown> = {};
-      schema.columns.forEach((col) => {
-        if (autoFieldNames.has(col.name)) return;
-        defaults[col.name] = col.default !== undefined ? col.default : '';
-      });
-      setFormData((prev) => {
-        // 防止重复设置相同默认值
-        if (Object.keys(prev).length === Object.keys(defaults).length &&
-            Object.keys(prev).every(k => prev[k] === defaults[k])) {
-          return prev;
-        }
-        return defaults;
-      });
     }
   }, [initialData]);
 
@@ -348,7 +337,7 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
     const value = formData[col.name] ?? '';
     const onChange = (v: unknown) => handleChange(col.name, v);
     const renderer = typeRenderers[COLUMN_RENDERER_TYPES[col.name] || col.type] || renderTextField;
-    return renderer(col, value, onChange, disableRequired);
+    return renderer(col, value, onChange, disableRequired ?? false);
   };
 
   return (

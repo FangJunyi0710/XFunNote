@@ -1,8 +1,6 @@
 // 笔记本核心类型
 // 对应 backend/schemas.py 中的 Pydantic 模型
 
-import type { NotebookType } from '@/config/notebook';
-
 // ── Schema 相关 ────────────────────────────────────────────
 
 /** Schema 中单个列的描述 */
@@ -10,8 +8,7 @@ export interface ColumnDef {
   name: string;
   type: string;
   required: boolean;
-  default: string | number | boolean | null;
-  auto?: boolean;
+  auto: boolean;
 }
 
 /** 完整的笔记本 Schema */

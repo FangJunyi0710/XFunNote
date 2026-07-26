@@ -13,7 +13,7 @@ export interface MarkdownRendererProps {
 /** code 组件的 props 类型（补充 inline 属性） */
 interface CodeProps extends React.ClassAttributes<HTMLElement>, React.HTMLAttributes<HTMLElement> {
   inline?: boolean;
-  className?: string;
+  className?: string | undefined;
   children?: React.ReactNode;
 }
 
@@ -59,7 +59,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             </a>
           ),
           // 代码块/行内代码渲染
-          code: ({ inline, className, children, ...props }: CodeProps) => {
+          code: ({ inline, className = '', children, ...props }: CodeProps) => {
             if (inline) {
               return (
                 <code className="bg-muted px-1 py-0.5 rounded text-sm" {...props}>

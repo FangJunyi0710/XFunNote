@@ -16,8 +16,7 @@ interface RawColumn {
   name: string;
   col_type: string;
   nullable: boolean;
-  default: string | number | boolean | null;
-  auto?: boolean;
+  auto: boolean;
 }
 
 interface RawNotebookSchema {
@@ -34,7 +33,6 @@ export async function listNotebooks(): Promise<NotebookSchema[]> {
       name: col.name,
       type: col.col_type,
       required: !col.nullable,
-      default: col.default,
       auto: col.auto,
     }));
     return {
@@ -54,7 +52,6 @@ export async function getSchema(type: NotebookType): Promise<NotebookSchema> {
     name: col.name,
     type: col.col_type,
     required: !col.nullable,
-    default: col.default,
     auto: col.auto,
   }));
   const info = NOTEBOOK_INFO[type] || { label: type, description: '' };
@@ -104,16 +101,16 @@ export async function queryEntries(
   params.offset = params.offset ?? 0
   const offset = Math.max(0, params.offset);
   const limit = params.limit + params.offset - offset;
-  queryParams.offset = String(offset);
-  queryParams.limit = String(limit);
+  queryParams['offset'] = String(offset);
+  queryParams['limit'] = String(limit);
 
   // 参数映射：前端 order_by + order_dir → 后端 order_by
   if (params.order_by) {
-    queryParams.order_by = `${params.order_by} ${(params.order_dir || 'asc').toUpperCase()}`.trim();
+    queryParams['order_by'] = `${params.order_by} ${(params.order_dir || 'asc').toUpperCase()}`.trim();
   }
 
   // view 是后端必填参数，自动生成默认视图
-  queryParams.view = buildDefaultView(type, params.columns, params.filter);
+  queryParams['view'] = buildDefaultView(type, params.columns, params.filter);
 
   // 响应映射：后端 { count, results } → 前端 { total, entries, offset, limit }
   const res = await api.get<{ count: number; results: Record<string, unknown>[] }>(

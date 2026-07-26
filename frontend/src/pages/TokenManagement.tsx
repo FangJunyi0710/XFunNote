@@ -80,7 +80,7 @@ export const TokenManagement: React.FC = () => {
     setIsCreating(true);
     setForm({
       name: '',
-      permission: permissions.length > 0 ? permissions[0].uuid : '',
+      permission: permissions.length > 0 ? (permissions[0]?.uuid ?? '') : '',
       is_active: true,
       expires_at: '',
       enable_shortcut: true,
@@ -101,12 +101,20 @@ export const TokenManagement: React.FC = () => {
     try {
       setLoading(true);
       if (isCreating) {
-        const created = await tokensApi.createToken({
+        const createData: {
+          name: string;
+          permission: string;
+          shortcut: string;
+          shortcut_ttl?: number;
+        } = {
           name: form.name.trim(),
           permission: form.permission,
-          shortcut: form.enable_shortcut ? form.shortcut || undefined : undefined,
-          shortcut_ttl: form.enable_shortcut ? form.shortcut_ttl : undefined,
-        });
+          shortcut: form.enable_shortcut ? (form.shortcut || '') : '',
+        };
+        if (form.enable_shortcut && form.shortcut_ttl !== undefined) {
+          createData.shortcut_ttl = form.shortcut_ttl;
+        }
+        const created = await tokensApi.createToken(createData);
         handleSuccess('Token 创建成功');
         setIsCreating(false);
         setSelectedId(created.id);
@@ -311,7 +319,8 @@ export const TokenManagement: React.FC = () => {
 
                 {!isCreating && selectedId && (() => {
                   const t = tokens.find((tk) => tk.id === selectedId);
-                  return t ? (
+                  if (!t) return null;
+                  return (
                     <div className="space-y-2">
                       <TokenValueDisplay
                         value={t.token}
@@ -346,7 +355,7 @@ export const TokenManagement: React.FC = () => {
                         </div>
                       )}
                     </div>
-                  ) : null;
+                  );
                 })()}
 
                 <div className="flex gap-2 justify-end">

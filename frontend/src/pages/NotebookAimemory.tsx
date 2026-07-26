@@ -4,7 +4,6 @@ import { registerCard } from '@/components/notebook/notebookCards';
 import { useCurrentNotebookData } from '@/stores/notebookStore';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { asEntry } from '@/lib/type-guards';
-import type { AimemoryEntry } from '@/config/notebook';
 
 const AimemoryCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
   const userData = useCurrentNotebookData();

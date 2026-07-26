@@ -87,6 +87,7 @@ export const useTokenStore = create<TokenStoreState>()(
         let added = false;
         set((state) => {
           const user = state.users[activeUserName];
+          if (!user) return state;
           if (user.tokens.some((t) => t.key === key)) {
             return state;
           }
@@ -112,6 +113,7 @@ export const useTokenStore = create<TokenStoreState>()(
         if (!activeUserName || !users[activeUserName]) return;
         set((state) => {
           const user = state.users[activeUserName];
+          if (!user) return state;
           return {
             users: {
               ...state.users,
@@ -128,15 +130,19 @@ export const useTokenStore = create<TokenStoreState>()(
       setActiveToken: (id: string | null) => {
         const { users, activeUserName } = get();
         if (!activeUserName || !users[activeUserName]) return;
-        set((state) => ({
-          users: {
-            ...state.users,
-            [activeUserName]: {
-              ...state.users[activeUserName],
-              activeTokenId: id,
+        set((state) => {
+          const user = state.users[activeUserName];
+          if (!user) return state;
+          return {
+            users: {
+              ...state.users,
+              [activeUserName]: {
+                ...user,
+                activeTokenId: id,
+              },
             },
-          },
-        }));
+          };
+        });
       },
 
       updateTokenKey: (id: string, key: string) => {
@@ -144,6 +150,7 @@ export const useTokenStore = create<TokenStoreState>()(
         if (!activeUserName || !users[activeUserName]) return;
         set((state) => {
           const user = state.users[activeUserName];
+          if (!user) return state;
           return {
             users: {
               ...state.users,

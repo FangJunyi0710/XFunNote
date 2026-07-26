@@ -58,7 +58,7 @@ export const NotebookFilter: React.FC = () => {
   const handleLoad = async (name: string) => {
     try {
       const data = await filterApi.getFilter(name);
-      setCurrentFilter((data.data as string | undefined) ?? null);
+      setCurrentFilter((data['data'] as string | undefined) ?? null);
       setSelectedFilterName(name);
     } catch (e: unknown) {
       handleError(e, '加载 filter 失败');

@@ -95,15 +95,19 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
 
   const handleSelectAll = useCallback(async () => {
     try {
-      const res = await notebookApi.queryEntries(notetype, {
-        filter: userData?.filterJson || undefined,
+      const queryParams: Parameters<typeof notebookApi.queryEntries>[1] = {
         offset: 0,
         limit: userData?.total || 0,
         order_by: userData?.orderBy || 'id',
         order_dir: userData?.orderDir || 'desc',
         columns: userData?.schema?.display_order || [],
-      });
-      setSelectedIds(new Set(res.entries.map((e: Record<string, unknown>) => e.id as string)));
+      };
+      const filterJson = userData?.filterJson;
+      if (filterJson !== null && filterJson !== undefined) {
+        queryParams.filter = filterJson;
+      }
+      const res = await notebookApi.queryEntries(notetype, queryParams);
+      setSelectedIds(new Set(res.entries.map((e: Record<string, unknown>) => e['id'] as string)));
     } catch {
       // ignore
     }
@@ -132,7 +136,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
   }, [notetype]);
 
   const handleEdit = useCallback((entry: Record<string, unknown>) => {
-    navigate(`/notebooks/${notetype}/edit/${entry.id}`);
+    navigate(`/notebooks/${notetype}/edit/${entry['id']}`);
   }, [navigate, notetype]);
 
   const handleDelete = useCallback((id: string) => {

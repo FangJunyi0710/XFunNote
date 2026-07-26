@@ -59,7 +59,7 @@ export const DatabaseManagement: React.FC = () => {
       if (res.backups.length === 0) {
         handleError(new Error('没有找到备份文件'), '还原');
       } else {
-        setSelectedBackup(res.backups[0]);
+        setSelectedBackup(res.backups[0] ?? '');
         setRestoreDialogOpen(true);
       }
     } catch (e: unknown) {

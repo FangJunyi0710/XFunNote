@@ -5,7 +5,6 @@ import { registerCard } from '@/components/notebook/notebookCards';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { useCurrentNotebookData } from '@/stores/notebookStore';
 import { asEntry } from '@/lib/type-guards';
-import type { DiaryEntry } from '@/config/notebook';
 
 const DiaryCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
   const userData = useCurrentNotebookData();
