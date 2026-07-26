@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { defaultRenderEntryDisplay } from '@/components/notebook/notebookCards/NotebookCardList';
+import { renderEntryDisplay } from '@/components/notebook/notebookCards/NotebookCardList';
 import { PlusIcon, FilterIcon, BatchEditIcon, DeleteIcon, SelectAllIcon, DeselectAllIcon, ChevronUpIcon } from '@/components/ui/icons';
 import { useNotebookStore, useCurrentNotebookData } from '@/stores/notebookStore';
 import * as notebookApi from '@/api/notebooks';
@@ -13,20 +13,10 @@ import { useTokenStore } from '@/stores/tokenStore';
 
 interface NotebookLayoutProps {
   notetype: NotebookType;
-  renderEntryDisplay?: (props: {
-    entries: Record<string, unknown>[];
-    onEdit: (entry: Record<string, unknown>) => void;
-    onDelete: (id: string) => void;
-    selectedIds: Set<string>;
-    onToggleSelect: (id: string) => void;
-    onSelectAll: () => void;
-    onDeselectAll: () => void;
-  }) => { stickySlot?: React.ReactNode; content: React.ReactNode };
 }
 
 export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
-  notetype,
-  renderEntryDisplay,
+  notetype
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -156,9 +146,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
 
   const entryList = useMemo(() => {
     if (store.loading || !userData || userData.entries.length === 0) return null;
-    const rendered = renderEntryDisplay
-      ? renderEntryDisplay({ entries: userData.entries, onEdit: handleEdit, onDelete: handleDelete, selectedIds, onToggleSelect: toggleSelect, onSelectAll: handleSelectAll, onDeselectAll: handleDeselectAll })
-      : defaultRenderEntryDisplay({
+    const rendered = renderEntryDisplay({
           type: notetype,
           entries: userData.entries,
           selectedIds,
@@ -181,7 +169,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
         {content}
       </>
     );
-  }, [renderEntryDisplay, userData, notetype, selectedIds, toggleSelect, handleSelectAll, handleDeselectAll, handleEdit, handleDelete, store.loading, store.setOffset, store.setLimit]);
+  }, [userData, notetype, selectedIds, toggleSelect, handleSelectAll, handleDeselectAll, handleEdit, handleDelete, store.loading, store.setOffset, store.setLimit]);
 
   const label = TYPE_LABELS[notetype];
 

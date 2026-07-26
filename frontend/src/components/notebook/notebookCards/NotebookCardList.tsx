@@ -2,7 +2,7 @@ import { NotebookCard } from '@/components/notebook/notebookCards/NotebookCard';
 import { Pagination } from '@/components/notebook/Pagination';
 import type { NotebookType } from '@/config/notebook';
 
-interface DefaultRenderEntryDisplayProps {
+interface renderEntryDisplayProps {
   type: NotebookType;
   entries: Record<string, unknown>[];
   selectedIds: Set<string>;
@@ -14,7 +14,7 @@ interface DefaultRenderEntryDisplayProps {
   onLimitChange: (limit: number) => void;
 }
 
-export function defaultRenderEntryDisplay(props: DefaultRenderEntryDisplayProps) {
+export function renderEntryDisplay(props: renderEntryDisplayProps) {
   const {
     type, entries,
     selectedIds, onToggleSelect,
