@@ -2,6 +2,7 @@ import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { registerCard } from '@/components/notebook/notebookCards';
 import { useCurrentNotebookData } from '@/stores/notebookStore';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { asEntry } from '@/lib/type-guards';
 import type { AccumulationEntry } from '@/config/notebook';
 
@@ -11,7 +12,7 @@ const AccumulationCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry 
   const e = asEntry('accumulation', entry, schema);
   return (
     <div className="space-y-1">
-      <p className="text-sm text-muted-foreground line-clamp-2">{e.content}</p>
+      <MarkdownRenderer className="text-sm text-muted-foreground line-clamp-2">{e.content}</MarkdownRenderer>
       {e.source && (
         <p className="text-xs text-muted-foreground">来源: {e.source}</p>
       )}

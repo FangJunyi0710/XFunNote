@@ -2,6 +2,7 @@ import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { Timestamp } from '@/components/ui/Timestamp';
 import { registerCard } from '@/components/notebook/notebookCards';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { useCurrentNotebookData } from '@/stores/notebookStore';
 import { asEntry } from '@/lib/type-guards';
 import type { ScheduleEntry } from '@/config/notebook';
@@ -18,7 +19,7 @@ const ScheduleCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) =
         {e.end_time && <Timestamp date={e.end_time} from="hour" to="minute" showTimezone={false} />}
       </div>
       {e.content && (
-        <p className="text-sm font-medium line-clamp-2">{e.content}</p>
+        <MarkdownRenderer className="text-sm font-medium line-clamp-2">{e.content}</MarkdownRenderer>
       )}
       {e.location && (
         <p className="text-xs text-muted-foreground">{e.location}</p>

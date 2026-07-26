@@ -2,6 +2,7 @@ import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { registerCard } from '@/components/notebook/notebookCards';
 import { Badge } from '@/components/ui/badge';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { useCurrentNotebookData } from '@/stores/notebookStore';
 import { asEntry } from '@/lib/type-guards';
 import type { PlanEntry } from '@/config/notebook';
@@ -22,7 +23,7 @@ const PlanCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
         )}
       </div>
       {e.content && (
-        <p className="text-sm font-medium line-clamp-3">{e.content}</p>
+        <MarkdownRenderer className="text-sm font-medium line-clamp-3">{e.content}</MarkdownRenderer>
       )}
     </div>
   );

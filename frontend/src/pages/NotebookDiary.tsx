@@ -2,6 +2,7 @@ import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { Timestamp } from '@/components/ui/Timestamp';
 import { registerCard } from '@/components/notebook/notebookCards';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { useCurrentNotebookData } from '@/stores/notebookStore';
 import { asEntry } from '@/lib/type-guards';
 import type { DiaryEntry } from '@/config/notebook';
@@ -20,7 +21,7 @@ const DiaryCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
           {e.weather && `天气: ${e.weather}`}
         </div>
       )}
-      <p className="text-sm line-clamp-3">{e.content || '(空)'}</p>
+      <MarkdownRenderer className="text-sm line-clamp-3">{e.content || '(空)'}</MarkdownRenderer>
     </div>
   );
 };
