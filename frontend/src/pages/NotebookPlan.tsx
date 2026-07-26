@@ -1,6 +1,6 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
-import { registerCard } from '@/components/notebook/notebookCards';
+import { registerCard } from '@/components/notebook/NotebookCard';
 import { Badge } from '@/components/ui/badge';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { useCurrentNotebookData } from '@/stores/notebookStore';

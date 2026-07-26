@@ -299,11 +299,8 @@ XFunNote/
 │   │   │   │   ├── Layout.tsx
 │   │   │   │   └── Sidebar.tsx
 │   │   │   ├── notebook/
-│   │   │   │   ├── notebookCards/
-│   │   │   │   │   ├── index.ts
-│   │   │   │   │   ├── NotebookCard.tsx
-│   │   │   │   │   └── NotebookCardList.tsx
 │   │   │   │   ├── FilterEditor.tsx
+│   │   │   │   ├── NotebookCard.tsx
 │   │   │   │   ├── NotebookForm.tsx
 │   │   │   │   ├── NotebookLayout.tsx
 │   │   │   │   └── Pagination.tsx

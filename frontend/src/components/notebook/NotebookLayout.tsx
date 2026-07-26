@@ -2,7 +2,8 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { renderEntryDisplay } from '@/components/notebook/notebookCards/NotebookCardList';
+import { NotebookCard } from '@/components/notebook/NotebookCard';
+import { Pagination } from '@/components/notebook/Pagination';
 import { PlusIcon, FilterIcon, BatchEditIcon, DeleteIcon, SelectAllIcon, DeselectAllIcon, ChevronUpIcon } from '@/components/ui/icons';
 import { useNotebookStore, useCurrentNotebookData } from '@/stores/notebookStore';
 import * as notebookApi from '@/api/notebooks';
@@ -125,15 +126,6 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     store.setCurrentType(notetype);
   }, [notetype]);
 
-  const handleEdit = useCallback((entry: Record<string, unknown>) => {
-    navigate(`/notebooks/${notetype}/edit/${entry['id']}`);
-  }, [navigate, notetype]);
-
-  const handleDelete = useCallback((id: string) => {
-    confirmDeleteRef.current = [id];
-    setConfirmDeleteOpen(true);
-  }, []);
-
   const executeDelete = useCallback(async () => {
     const ids = confirmDeleteRef.current;
     if (ids.length === 0) return;
@@ -146,30 +138,34 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
 
   const entryList = useMemo(() => {
     if (store.loading || !userData || userData.entries.length === 0) return null;
-    const rendered = renderEntryDisplay({
-          type: notetype,
-          entries: userData.entries,
-          selectedIds,
-          onToggleSelect: toggleSelect,
-          offset: userData.offset,
-          limit: userData.limit,
-          total: userData.total,
-          onOffsetChange: store.setOffset,
-          onLimitChange: store.setLimit,
-        });
-
-    const { stickySlot, content } = rendered;
+    const { entries, offset, limit, total } = userData;
     return (
       <>
-        {stickySlot && (
-          <div className="sticky top-12 z-10 bg-background py-2 border-b -mx-6 px-6">
-            {stickySlot}
-          </div>
-        )}
-        {content}
+        <div className="sticky top-12 z-10 bg-background py-2 border-b -mx-6 px-6">
+          {entries.length > 0 && offset !== undefined && store.setOffset ? (
+            <Pagination
+              offset={offset}
+              limit={limit}
+              total={total!}
+              onOffsetChange={store.setOffset}
+              onLimitChange={store.setLimit}
+            />
+          ) : undefined}
+        </div>
+        <div className="space-y-3">
+          {entries.map((entry) => (
+            <NotebookCard
+              key={entry['id'] as string}
+              type={notetype}
+              entry={entry}
+              selected={selectedIds?.has(entry['id'] as string) || false}
+              onSelect={toggleSelect}
+            />
+          ))}
+        </div>
       </>
     );
-  }, [userData, notetype, selectedIds, toggleSelect, handleSelectAll, handleDeselectAll, handleEdit, handleDelete, store.loading, store.setOffset, store.setLimit]);
+  }, [userData, notetype, selectedIds, toggleSelect, store.loading, store.setOffset, store.setLimit]);
 
   const label = TYPE_LABELS[notetype];
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
-import { registerCard } from '@/components/notebook/notebookCards';
+import { registerCard } from '@/components/notebook/NotebookCard';
 import { useCurrentNotebookData } from '@/stores/notebookStore';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { asEntry } from '@/lib/type-guards';

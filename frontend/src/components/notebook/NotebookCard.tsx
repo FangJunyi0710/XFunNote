@@ -3,10 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Timestamp } from '@/components/ui/Timestamp';
-import { getCardRenderer } from '@/components/notebook/notebookCards';
 import { getNotebookStyles } from '@/config/notebook';
 import type { NotebookType } from '@/config/notebook';
 import { EditIcon } from '@/components/ui/icons';
+
+export type CardRenderer = React.FC<{ entry: Record<string, unknown> }>;
+
+const registry = new Map<string, CardRenderer>();
+
+export function registerCard(type: NotebookType, renderer: CardRenderer): void {
+  registry.set(type, renderer);
+}
+
+export function getCardRenderer(type: string): CardRenderer | undefined {
+  return registry.get(type);
+}
 
 interface NotebookCardProps {
   type: string;
