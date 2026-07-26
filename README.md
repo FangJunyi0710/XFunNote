@@ -318,6 +318,7 @@ XFunNote/
 │   │   │       ├── icons.tsx
 │   │   │       ├── input.tsx
 │   │   │       ├── label.tsx
+│   │   │       ├── MarkdownRenderer.tsx
 │   │   │       ├── select.tsx
 │   │   │       ├── separator.tsx
 │   │   │       ├── switch.tsx
