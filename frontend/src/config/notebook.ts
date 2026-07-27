@@ -230,6 +230,7 @@ export interface LedgerEntry extends EntryBase {
   date: string;
   amount_cents: number;
   account: string | null;
+  transaction_id: string;
 }
 
 // Schedule 笔记本扩展字段
@@ -332,6 +333,7 @@ export const FIELD_LABEL_MAP: Record<string, string> = {
   // Ledger 笔记本特有
   amount_cents: '金额',
   account: '账户',
+  transaction_id: '交易ID',
 
   // 其他可能出现的字段
   expires_at: '过期时间',

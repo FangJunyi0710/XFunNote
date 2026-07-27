@@ -6,6 +6,7 @@ ledger 本：记录收支流水，每笔包含日期和金额。
 
 from typing import Any
 
+from future_uuid import uuid7
 from xfun.utils.time_utils import validate_date
 from ..core.db import Column
 from ..core.notebook import Notebook
@@ -18,6 +19,7 @@ class LedgerNotebook(Notebook):
         Column("date", "TEXT", index=True),
         Column("amount_cents", "INTEGER"),
         Column("account", "TEXT", nullable=True),
+        Column("transaction_id", "TEXT", index=True, nullable=False, default=lambda: str(uuid7())),
     ]
 
     def _validate(self, entry: dict[str, Any]) -> None:

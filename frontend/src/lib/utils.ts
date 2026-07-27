@@ -76,3 +76,36 @@ export function getTimezoneOffsetStr(): string {
   const minutes = Math.abs((offset - hours) * 60);
   return (hours >= 0 ? '+' : '') + hours + ':' + String(minutes).padStart(2, '0');
 }
+
+function generate64ColorPalette(): string[] {
+  // 8 种感知差异最大的核心色相（跳过相近区间，均匀分布）
+  const hues = [0, 25, 50, 160, 200, 260, 310, 340];
+  // 8 种不同的“质感”：[饱和度%, 明度%]
+  const variants: [number, number][] = [
+    [90, 45], // 鲜艳深色
+    [70, 65], // 柔和中性
+    [50, 35], // 暗淡深色（高级灰）
+    [85, 75], // 鲜艳浅色
+    [60, 55], // 柔和中深
+    [95, 70], // 极致鲜艳明亮
+    [40, 50], // 低饱和中明度（莫兰迪）
+    [80, 85], // 鲜艳极浅（粉蜡笔）
+  ];
+  const colors: string[] = [];
+  for (const hue of hues) {
+    for (const [sat, light] of variants) {
+      colors.push(`hsl(${hue}, ${sat}%, ${light}%)`);
+    }
+  }
+  return colors;
+}
+
+const PALETTE_64 = generate64ColorPalette();
+
+export function getColorFromString(str: string): string {
+  let hash = 0;
+  for (const ch of str) {
+    hash = (hash * 31 + ch.charCodeAt(0)) | 0;
+  }
+  return PALETTE_64[Math.abs(hash) % PALETTE_64.length]!;
+}
