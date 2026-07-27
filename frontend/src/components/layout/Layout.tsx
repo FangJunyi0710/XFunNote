@@ -4,8 +4,7 @@ import { Sidebar } from './Sidebar';
 import { useSidebarStore } from '@/stores/sidebarStore';
 
 export const Layout: React.FC = () => {
-  const { isCollapsed, setWindowWidth, toggleCollapsed, setDragOffset } =
-    useSidebarStore();
+  const { isCollapsed, setWindowWidth, toggleCollapsed, setDragOffset, dragOffset, isMobile } = useSidebarStore();
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
   const sidebarWidth = useRef(0);
@@ -96,10 +95,20 @@ export const Layout: React.FC = () => {
   }, [isCollapsed, toggleCollapsed, setDragOffset]);
 
   return (
-    <div className="h-screen overflow-hidden bg-background">
+    <div className="h-screen overflow-hidden bg-background relative">
       <Sidebar />
-      <main id="main-scroll-container" className="h-full overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-6 py-6">
+      <main id="main-scroll-container" className="h-full overflow-y-auto absolute"
+        style={isMobile ? {
+          width: '100%',
+          marginLeft: Math.max(0, (isCollapsed ? 0 : 224) + (dragOffset || 0)) + 'px',
+          transition: dragOffset === 0 ? 'margin-left 0.3s ease' : 'none',
+        }:{
+          left: Math.max(0, (isCollapsed ? 0 : 224) + (dragOffset || 0)) + 'px',
+          right: 0,
+          transition: dragOffset === 0 ? 'left 0.3s ease' : 'none',
+        }}
+      >
+        <div className="max-w-7xl mx-auto px-6 py-6">
           <Outlet />
         </div>
       </main>

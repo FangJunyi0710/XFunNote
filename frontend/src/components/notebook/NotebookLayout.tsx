@@ -152,7 +152,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
             />
           ) : undefined}
         </div>
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           {entries.map((entry) => (
             <NotebookCard
               key={entry['id'] as string}

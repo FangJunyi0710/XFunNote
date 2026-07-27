@@ -39,7 +39,7 @@ function navLinkClass(isActive: boolean, extra = '') {
 
 export const Sidebar: React.FC = () => {
   const { mode, toggle } = useThemeStore();
-  const { isCollapsed, toggleCollapsed, dragOffset, isMobile } = useSidebarStore();
+  const { isCollapsed, toggleCollapsed, dragOffset, isMobile, touchDetected } = useSidebarStore();
   const [notebookOpen, setNotebookOpen] = useState(true);
   const handleNavClick = () => {
     if (isMobile) {
@@ -50,7 +50,7 @@ export const Sidebar: React.FC = () => {
   return (
     <>
       {/* 折叠态浮动按钮（移动端隐藏，靠触摸滑出） */}
-      {!isMobile && isCollapsed && (
+      {!touchDetected && isCollapsed && (
         <button
           onClick={toggleCollapsed}
           className="fixed left-3 top-3 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-transparent transition-colors text-muted-foreground"
@@ -70,7 +70,7 @@ export const Sidebar: React.FC = () => {
 
       <aside
         className={cn(
-          'fixed left-0 top-0 z-40 h-screen border-r bg-card flex flex-col w-56',
+          'absolute left-0 top-0 z-40 h-screen border-r bg-card flex flex-col w-56',
         )}
         style={{
           transform: isCollapsed

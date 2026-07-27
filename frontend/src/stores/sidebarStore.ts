@@ -7,6 +7,7 @@ interface SidebarState {
   windowWidth: number;
   dragOffset: number;
   isMobile: boolean;
+  touchDetected: boolean;
   toggleCollapsed: () => void;
   setWindowWidth: (width: number) => void;
   setDragOffset: (offset: number) => void;
@@ -26,6 +27,7 @@ export const useSidebarStore = create<SidebarState>((set) => ({
   windowWidth: typeof window !== 'undefined' ? window.innerWidth : 1200,
   dragOffset: 0,
   isMobile: typeof window !== 'undefined' ? window.innerWidth < MOBILE_BREAKPOINT : false,
+  touchDetected: false,
 
   toggleCollapsed: () =>
     set((state) => {
@@ -35,17 +37,19 @@ export const useSidebarStore = create<SidebarState>((set) => ({
       } catch {
         // ignore
       }
-      return { isCollapsed: next, dragOffset: 0 };
+      return { isCollapsed: next, dragOffset: 0, touchDetected: false };
     }),
 
   setWindowWidth: (width: number) =>
     set(() => ({
       windowWidth: width,
       isMobile: width < MOBILE_BREAKPOINT,
+      isCollapsed: width < MOBILE_BREAKPOINT,
     })),
 
   setDragOffset: (offset: number) =>
     set(() => ({
       dragOffset: offset,
+      touchDetected: true
     })),
 }));
