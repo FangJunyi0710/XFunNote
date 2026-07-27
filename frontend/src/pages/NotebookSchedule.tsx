@@ -13,15 +13,12 @@ const ScheduleCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) =
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        {e.start_time && <Timestamp date={e.start_time} from="hour" to="minute" showTimezone={false} />}
-        {e.end_time && <span> → </span>}
-        {e.end_time && <Timestamp date={e.end_time} from="hour" to="minute" showTimezone={false} />}
+        {e.start_time && <Timestamp date={e.start_time} from="month" to="minute" showTimezone={false} />}
+        {e.end_time && <><span> - </span><Timestamp date={e.end_time} from="hour" to="minute" showTimezone={false} /></>}
+        <p className="text-xs text-muted-foreground">{e.location}</p>
       </div>
       {e.content && (
         <MarkdownRenderer className="text-sm font-medium line-clamp-2">{e.content}</MarkdownRenderer>
-      )}
-      {e.location && (
-        <p className="text-xs text-muted-foreground">{e.location}</p>
       )}
     </div>
   );

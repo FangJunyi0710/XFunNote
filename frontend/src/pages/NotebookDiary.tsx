@@ -12,15 +12,12 @@ const DiaryCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
   const e = asEntry('diary', entry, schema);
   return (
     <div className="space-y-1">
-      <div className="text-xs text-muted-foreground"><Timestamp date={e.date} from="year" to="day" showTimezone={false} /></div>
-      {(e.mood || e.weather) && (
-        <div className="text-xs text-muted-foreground">
-          {e.mood && `心情: ${e.mood}`}
-          {e.mood && e.weather && ' · '}
-          {e.weather && `天气: ${e.weather}`}
-        </div>
-      )}
-      <MarkdownRenderer className="text-sm line-clamp-3">{e.content || '(空)'}</MarkdownRenderer>
+      <div className="text-xs text-muted-foreground gap-2 items-center flex">
+        <Timestamp date={e.date} from="year" to="day" showTimezone={false} />
+        <span>{e.weather}</span>
+        <span>{e.mood}</span>
+      </div>
+      <MarkdownRenderer className="text-sm line-clamp-4">{e.content || '(空)'}</MarkdownRenderer>
     </div>
   );
 };

@@ -11,12 +11,9 @@ const AccumulationCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry 
   const e = asEntry('accumulation', entry, schema);
   return (
     <div className="space-y-1">
-      <MarkdownRenderer className="text-sm text-muted-foreground line-clamp-2">{e.content}</MarkdownRenderer>
+      <MarkdownRenderer className="text-sm line-clamp-4">{e.content}</MarkdownRenderer>
       {e.source && (
         <p className="text-xs text-muted-foreground">来源: {e.source}</p>
-      )}
-      {e.note && (
-        <p className="text-xs text-muted-foreground">备注: {e.note}</p>
       )}
     </div>
   );

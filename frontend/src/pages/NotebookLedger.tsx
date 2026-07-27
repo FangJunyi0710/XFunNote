@@ -24,10 +24,10 @@ const LedgerCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => 
           {transactionId}
         </span>
       )}
-      <div className="text-xs text-muted-foreground">
+      <div className="text-xs text-muted-foreground gap-2 items-center flex">
         <Timestamp date={e.date} from="year" to="day" showTimezone={false} />
-        {e.account && <span className="text-xs text-muted-foreground ml-2">{e.account}</span>}
-        <span className="font-mono text-sm ml-2">
+        {e.account && <span className="text-xs text-muted-foreground">{e.account}</span>}
+        <span className="font-mono text-sm">
           {e.amount_cents !== undefined && e.amount_cents !== null ? (
             <span className={e.amount_cents >= 0 ? 'text-green-600' : 'text-red-600'}>
               {e.amount_cents > 0 ? '+' : ''}{(e.amount_cents / 100).toFixed(2)}

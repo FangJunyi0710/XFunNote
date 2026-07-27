@@ -11,11 +11,14 @@ const AimemoryCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) =
   const e = asEntry('aimemory', entry, schema);
   return (
     <div className="space-y-1">
-      <span className="font-medium">{e.title || '(无标题)'}</span>
+      <div className="flex items-center gap-2">
+        <span className="font-medium">{e.title || '(无标题)'}</span>
+        {e.source && (
+          <span className="text-xs text-muted-foreground">来源: {e.source}</span>
+        )}
+      </div>
       <MarkdownRenderer className="text-sm text-muted-foreground line-clamp-2">{e.content}</MarkdownRenderer>
-      {e.source && (
-        <p className="text-xs text-muted-foreground">来源: {e.source}</p>
-      )}
+
     </div>
   );
 };

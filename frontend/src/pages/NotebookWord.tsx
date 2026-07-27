@@ -17,11 +17,11 @@ const WordCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
           <span className="text-sm text-muted-foreground">/{e.phonetic}/</span>
         )}
         {e.part_of_speech && (
-          <span className="text-xs text-muted-foreground">({e.part_of_speech})</span>
+          <span className="text-xs text-muted-foreground">{e.part_of_speech}</span>
         )}
       </div>
       {e.example && (
-        <p className="text-xs text-muted-foreground line-clamp-1 italic">"{e.example}"</p>
+        <p className="text-xs text-muted-foreground line-clamp-2">{e.example}</p>
       )}
       <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
         <span>复习 {e.review_count ?? 0} 次</span>
@@ -31,7 +31,7 @@ const WordCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
         {e.difficulty !== undefined && e.difficulty !== null && (
           <span>难度 {e.difficulty.toFixed(1)}</span>
         )}
-        {e.next_review && <span>下次: <Timestamp date={e.next_review} from="year" to="day" /></span>}
+        {e.next_review && <span>下次: <Timestamp date={e.next_review} from="year" to="day" showTimezone={false} /></span>}
       </div>
       {e.related_words && (
         <p className="text-xs text-muted-foreground">关联: {e.related_words}</p>
