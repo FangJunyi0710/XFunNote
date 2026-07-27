@@ -1,7 +1,6 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { registerCard } from '@/components/notebook/NotebookCard';
-import { Badge } from '@/components/ui/badge';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { useCurrentNotebookData } from '@/stores/notebookStore';
 import { asEntry } from '@/lib/type-guards';
@@ -14,11 +13,10 @@ const PlanCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
     <div className="space-y-1">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         {e.no && <span className="font-mono">{e.no}</span>}
-        <span>{e.month}</span>
         {e.done ? (
-          <Badge variant="success" className="text-[10px]">已完成</Badge>
+          <span className="text-[10px] text-green-600 font-medium">已完成</span>
         ) : (
-          <Badge variant="secondary" className="text-[10px]">未完成</Badge>
+          <span className="text-[10px] text-gray-500">未完成</span>
         )}
       </div>
       {e.content && (

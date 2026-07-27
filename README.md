@@ -305,7 +305,6 @@ XFunNote/
 │   │   │   │   ├── NotebookLayout.tsx
 │   │   │   │   └── Pagination.tsx
 │   │   │   └── ui/
-│   │   │       ├── badge.tsx
 │   │   │       ├── button.tsx
 │   │   │       ├── card.tsx
 │   │   │       ├── checkbox.tsx

@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { TokenValueDisplay } from '@/components/ui/TokenValueDisplay';
 import { CloseIcon, DeleteIcon, PlusIcon, SubmitIcon } from '@/components/ui/icons';
@@ -189,13 +188,13 @@ export const TokenManagement: React.FC = () => {
                   <div className="truncate flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="font-medium truncate">{t.name}</span>
-                      <Badge variant={t.is_active ? 'success' : 'secondary'} className="shrink-0">
-                        {t.is_active ? '启用' : '停用'}
-                      </Badge>
+                      {t.is_active ? (
+                        <span className="text-[10px] text-green-600 font-medium shrink-0">启用</span>
+                      ) : (
+                        <span className="text-[10px] text-gray-500 shrink-0">停用</span>
+                      )}
                       {t.shortcut && (
-                        <Badge variant="secondary" className="shrink-0 text-[10px]">
-                          Shortcut
-                        </Badge>
+                        <span className="text-[10px] text-blue-500 font-medium shrink-0">Shortcut</span>
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground truncate">

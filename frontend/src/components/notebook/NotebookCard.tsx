@@ -47,13 +47,13 @@ export const NotebookCard: React.FC<NotebookCardProps> = React.memo(({
       }`}
       onClick={() => onSelect?.(entry['id'] as string)}
     >
-      <CardContent className="p-4">
+      <CardContent>
         {Renderer ? (
           <Renderer entry={entry} />
         ) : (
           <pre className="text-xs">{JSON.stringify(entry, null, 2)}</pre>
         )}
-        <div className="flex justify-between items-center mt-2 pt-2 border-t border-border/30">
+        <div className="flex justify-between items-center border-t border-border/30 -mb-5">
           <div className="flex flex-col text-xs text-muted-foreground space-y-0.5">
             <Timestamp date={created} />
             {showUpdated && <Timestamp date={updated} />}
