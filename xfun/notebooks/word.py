@@ -23,28 +23,17 @@ class WordNotebook(Notebook):
         Column("related_words",  "TEXT",    nullable=True),
 
         # ---- FSRS 核心状态字段 ----
-        Column("stability",      "REAL",    auto=True),   # 稳定性（天）
-        Column("difficulty",     "REAL",    auto=True),   # 难度
-        Column("state",          "INTEGER", auto=True),     # 卡片状态: 0=新, 1=学习中, 2=复习中, 3=重新学习
-        Column("lapses",         "INTEGER", auto=True),     # 遗忘次数
-        Column("step",           "INTEGER", auto=True),     # 学习/重学步骤索引
+        Column("stability",      "REAL",    auto=True, default=2.5),   # 稳定性（天）
+        Column("difficulty",     "REAL",    auto=True, default=5.0),   # 难度
+        Column("state",          "INTEGER", auto=True, default=0),     # 卡片状态: 0=新, 1=学习中, 2=复习中, 3=重新学习
+        Column("lapses",         "INTEGER", auto=True, default=0),     # 遗忘次数
+        Column("step",           "INTEGER", auto=True, default=0),     # 学习/重学步骤索引
 
         # ---- 复习记录 ----
-        Column("review_count",   "INTEGER", auto=True),     # 总复习次数（对应 FSRS 的 reps）
-        Column("next_review",    "TEXT",    auto=True),     # 下次复习时间（ISO 8601 字符串）
+        Column("review_count",   "INTEGER", auto=True, default=0),     # 总复习次数（对应 FSRS 的 reps）
+        Column("next_review",    "TEXT",    auto=True, default=now_str),     # 下次复习时间（ISO 8601 字符串）
         Column("last_review",    "TEXT",    nullable=True, auto=True), # 上次复习时间
     ]
-
-    # ---- 校验 & 自动填充 ----
-    def _autofill(self, entry: dict[str, Any]) -> None:
-        super()._autofill(entry)
-        entry.setdefault("review_count", 0)
-        entry.setdefault("stability", 2.5)      # FSRS 默认初始稳定性
-        entry.setdefault("difficulty", 5.0)     # 中等难度
-        entry.setdefault("state", 0)            # 新卡片
-        entry.setdefault("lapses", 0)
-        entry.setdefault("step", 0)
-        entry.setdefault("next_review", now_str())
 
     def _validate(self, entry: dict[str, Any]) -> None:
         """校验 word 特有字段（仅校验已存在的字段）。"""

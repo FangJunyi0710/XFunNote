@@ -11,7 +11,7 @@ from xfun.core.filter import validate_filter
 SYSTEM_TABLES: dict[str, list[Column]] = {
     "_token": [
         Column("id", "TEXT", primary_key=True, auto=True),
-        Column("token", "TEXT", auto=True, unique=True),
+        Column("token", "TEXT", default=generate_token, auto=True, unique=True),
         Column("name", "TEXT", unique=True),
         Column("permission", "TEXT"),
         Column("is_active", "INTEGER", default=0),
@@ -37,7 +37,7 @@ SYSTEM_TABLES: dict[str, list[Column]] = {
     ],
     "_permission": [
         Column("id", "TEXT", primary_key=True, auto=True),
-        Column("uuid", "TEXT", auto=True, unique=True),
+        Column("uuid", "TEXT", default=lambda: str(uuid.uuid4()), auto=True, unique=True),
         Column("name", "TEXT", unique=True),
         Column("description", "TEXT", nullable=True),
         Column("read_view", "TEXT"),
@@ -79,15 +79,8 @@ def _validate_filter(entry: dict) -> None:
     if "data" in entry and entry["data"] is not None:
         validate_filter(entry["data"])
 
-def _autofill_token(entry: dict) -> None:
-    """_token 自动填充钩子：自动生成 token。"""
-    entry["token"] = generate_token()
-
-def _autofill_permission(entry: dict) -> None:
-    entry["uuid"] = str(uuid.uuid4())
-
 def register_system_hooks(db: DB) -> None:
-    db.register_hooks("_token", autofill=_autofill_token, validate=_validate_token)
-    db.register_hooks("_permission", validate=_validate_permission, autofill=_autofill_permission)
+    db.register_hooks("_token", validate=_validate_token)
+    db.register_hooks("_permission", validate=_validate_permission)
     db.register_hooks("_view", validate=_validate_view)
     db.register_hooks("_filter", validate=_validate_filter)
