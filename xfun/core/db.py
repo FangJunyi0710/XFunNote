@@ -294,11 +294,12 @@ class DB:
         """
         dst = Path(self.db_path).parent / "backups" / f"{Path(self.db_path).stem}.backup.{timestamp_str()}"
         src_conn = self._connect()
-        with DB(str(dst)).transaction() as dest_conn:
-            try:
-                src_conn.backup(dest_conn)
-            finally:
-                src_conn.close()
+        dest_conn = DB(str(dst))._connect()
+        try:
+            src_conn.backup(dest_conn)
+        finally:
+            src_conn.close()
+            dest_conn.close()
         return str(dst)
 
     def restore(self, backup_path: str) -> str:
@@ -335,13 +336,13 @@ class DB:
             f.unlink(missing_ok=True)
 
         # 反向备份 API：备份文件 → 当前数据库
+        dest_conn = self._connect()
         src_conn = DB(str(src))._connect()
         try:
-            with self.transaction() as dest_conn:
-                src_conn.backup(dest_conn)
+            src_conn.backup(dest_conn)
         finally:
             src_conn.close()
-
+            dest_conn.close()
         return str(src)
 
     def reset(self) -> None:
