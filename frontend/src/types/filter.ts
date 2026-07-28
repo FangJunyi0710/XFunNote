@@ -1,7 +1,7 @@
 // 筛选 DSL 类型
 // 对应 xfun/core/filter.py 中的 Filter DNF 结构
 
-export type FilterOp = 'eq' | 'neq' | 'lt' | 'le' | 'gt' | 'ge' | 'like' | 'in' | 'not_like' | 'not_in' | 'between' | 'text_search';
+export type FilterOp = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN' | 'BETWEEN' | 'TEXT_SEARCH';
 
 export interface Condition {
   column: string;
@@ -29,3 +29,36 @@ export interface FilterGroup {
   rows: FilterRow[];
   conjunction: 'AND' | 'OR';
 }
+
+export interface ConditionRow {
+  id: string;
+  column: string;
+  op: FilterOp;
+  value: string;
+}
+
+export interface ConditionGroup {
+  id: string;
+  rows: ConditionRow[];
+}
+
+export type DNFGroup = {
+  column: string;
+  op: string;
+  value: string | number[] | string[]
+}[];
+
+export type DNF = DNFGroup[];
+
+export const FILTER_OPS_LABEL: Record<FilterOp, string> = {
+  '=': '=',
+  '!=': '!=',
+  '>': '>',
+  '>=': '>=',
+  '<': '<',
+  '<=': '<=',
+  LIKE: 'like', 
+  IN: 'in',
+  BETWEEN: 'between',
+  TEXT_SEARCH: 'contains',
+};
