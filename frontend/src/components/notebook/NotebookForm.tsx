@@ -226,11 +226,11 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
     }
   };
 
-  const renderField = (col: ColumnDef) => {
+  const renderField = (col: ColumnDef, disableRequiredInner?: boolean) => {
     const value = formData[col.name] ?? '';
     const onChange = (v: unknown) => handleChange(col.name, v);
     const renderer = typeRenderers[COLUMN_RENDERER_TYPES[col.name] || col.type] || createInputRenderer();
-    return renderer(col, value, onChange, disableRequired ?? false);
+    return renderer(col, value, onChange, (disableRequired || disableRequiredInner) ?? false);
   };
 
   return (
@@ -268,7 +268,7 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
                   <span>系统自动字段（{autoCols.length} 个）</span>
                   <span className="text-[10px] text-muted-foreground/60">不建议手动修改</span>
                 </button>
-                {!autoFieldsCollapsed && autoCols.map((col) => renderField(col))}
+                {!autoFieldsCollapsed && autoCols.map((col) => renderField(col, true))}
               </div>
             );
           })()}
