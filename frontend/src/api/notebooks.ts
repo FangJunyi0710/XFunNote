@@ -16,6 +16,7 @@ interface RawColumn {
   name: string;
   col_type: string;
   nullable: boolean;
+  default: boolean;
   auto: boolean;
 }
 
@@ -32,7 +33,7 @@ export async function listNotebooks(): Promise<NotebookSchema[]> {
     const columns: ColumnDef[] = raw.columns.map((col) => ({
       name: col.name,
       type: col.col_type,
-      required: !col.nullable,
+      required: !col.nullable && (col.default === null) && !col.auto,
       auto: col.auto,
     }));
     return {

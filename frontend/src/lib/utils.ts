@@ -5,32 +5,6 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * 格式化日期为友好的显示格式
- */
-export function formatDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-}
-
-/**
- * 格式化日期时间为完整的日期+时间
- */
-export function formatDateTime(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-/**
  * 生成唯一 ID
  */
 export function genId(): string {
@@ -44,24 +18,6 @@ export function maskKey(key: string): string {
   if (!key) return '';
   if (key.length <= 6) return key;
   return key.slice(0, 6) + '...';
-}
-
-/**
- * 安全获取条目显示值，处理 undefined/null
- */
-export function safeValue(obj: unknown, key: string, fallback = '-'): string {
-  const v = (obj as Record<string, unknown>)?.[key];
-  if (v === null || v === undefined || v === '') return fallback;
-  return String(v);
-}
-
-/**
- * 校验用户名是否合法（与后端保持一致：^[a-zA-Z0-9\-_]{1,64}$）
- */
-export function isValidUsername(username: string): boolean {
-  if (!username) return false;
-  const USERNAME_PATTERN = /^[a-zA-Z0-9\-_]{1,64}$/;
-  return USERNAME_PATTERN.test(username);
 }
 
 /**
@@ -108,4 +64,14 @@ export function getColorFromString(str: string): string {
     hash = (hash * 31 + ch.charCodeAt(0)) | 0;
   }
   return PALETTE_64[Math.abs(hash) % PALETTE_64.length]!;
+}
+
+/**
+ * 判断给定日期所在周（周日~周六）的归属月份
+ * 规则：统计该周7天分别属于哪个月份，取天数最多的月份
+ */
+export function getMajorityMonthForWeek(date: Date): {year: number, month: number} {
+    const wednesday = new Date(date);
+    wednesday.setDate(wednesday.getDate() - wednesday.getDay() + 3);
+    return {year: wednesday.getFullYear(), month: wednesday.getMonth() + 1};
 }

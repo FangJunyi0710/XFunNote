@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ColumnDef, NotebookSchema } from '@/types/notebook';
 import { ReplyIcon, SubmitIcon } from '@/components/ui/icons';
 import { ChevronRightIcon, ChevronUpIcon } from '@/components/ui/icons';
-import { COLUMN_RENDERER_TYPES, getFieldLabel, toDisplay, toStorage, FIELD_TRANSFORMS, getFieldPriority } from "@/config/notebook";
+import { COLUMN_TYPES, getFieldLabel, toDisplay, toStorage, FIELD_TRANSFORMS, getFieldPriority, getFieldDefault } from "@/config/notebook";
 
 // ---------------------------------------------------------------------------
 // 注册表：按 col.type 分发渲染器
@@ -214,8 +214,26 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
         }
         return { ...initialData };
       });
+    } else if (!disableRequired) {
+      // 新建模式：自动填充默认值（跳过 auto 字段）
+      const defaults: Record<string, unknown> = {};
+      schema.columns.forEach(col => {
+        if (col.auto) return; // 后端自动生成的字段不预填
+        const val = getFieldDefault(col.name);
+        if (val !== null && val !== undefined) {
+          defaults[col.name] = val;
+        }
+      });
+      setFormData((prev) => {
+        // 如果已有数据（如页面复用时），不覆盖
+        if (Object.keys(prev).length > 0) return prev;
+        return defaults;
+      });
+    } else {
+      // 批量更新模式：不自动填充
+      setFormData({});
     }
-  }, [initialData]);
+  }, [initialData, schema, disableRequired]);
 
   const handleChange = (name: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -231,11 +249,11 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
     }
   };
 
-  const renderField = (col: ColumnDef, disableRequiredInner?: boolean) => {
+  const renderField = (col: ColumnDef) => {
     const value = formData[col.name] ?? '';
     const onChange = (v: unknown) => handleChange(col.name, v);
-    const renderer = typeRenderers[COLUMN_RENDERER_TYPES[col.name] || col.type] || createInputRenderer();
-    return renderer(col, value, onChange, (disableRequired || disableRequiredInner) ?? false);
+    const renderer = typeRenderers[COLUMN_TYPES[col.name] || col.type] || createInputRenderer();
+    return renderer(col, value, onChange, disableRequired ?? false);
   };
 
   return (
@@ -273,7 +291,7 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
                   <span>系统自动字段（{autoCols.length} 个）</span>
                   <span className="text-[10px] text-muted-foreground/60">不建议手动修改</span>
                 </button>
-                {!autoFieldsCollapsed && autoCols.map((col) => renderField(col, true))}
+                {!autoFieldsCollapsed && autoCols.map((col) => renderField(col))}
               </div>
             );
           })()}

@@ -18,8 +18,8 @@ class LedgerNotebook(Notebook):
     _extra_columns = [
         Column("date", "TEXT", index=True),
         Column("amount_cents", "INTEGER"),
-        Column("account", "TEXT", nullable=True),
-        Column("transaction_id", "TEXT", index=True, nullable=False, default=lambda: str(uuid7())),
+        Column("account", "TEXT"),
+        Column("transaction_id", "TEXT", index=True, default=lambda: str(uuid7())),
     ]
 
     def _validate(self, entry: dict[str, Any]) -> None:

@@ -6,6 +6,7 @@ import { NotebookAimemory } from '@/pages/NotebookAimemory';
 import { NotebookTimeline } from '@/pages/NotebookTimeline';
 import { NotebookSchedule } from '@/pages/NotebookSchedule';
 import { NotebookLedger } from '@/pages/NotebookLedger';
+import { getMajorityMonthForWeek } from '@/lib/utils';
 
 // ============================================================
 // 笔记本类型配置 — 单一数据源 (SSOT)
@@ -140,9 +141,6 @@ export function getNotebookStyles(type: NotebookType): NotebookStyles {
 }
 
 // -------------------------------------------------------
-// 向下兼容导出（旧代码可直接替换 import 来源）
-// -------------------------------------------------------
-// -------------------------------------------------------
 // 路由配置
 // -------------------------------------------------------
 export const NOTEBOOK_ROUTES: Record<string, { path: string; label: string }> = {
@@ -263,7 +261,7 @@ export const NOTEBOOK_PAGES: Record<NotebookType, NotebookPageComponent> = {
 // -------------------------------------------------------
 // 列名 → 渲染器类型映射（用于表单字段特殊渲染）
 // -------------------------------------------------------
-export const COLUMN_RENDERER_TYPES: Record<string, string> = {
+export const COLUMN_TYPES: Record<string, string> = {
   content: 'Textarea',
   done: 'Boolean',
   is_ai_gen: 'Boolean',
@@ -295,7 +293,7 @@ export const FIELD_LABEL_MAP: Record<string, { label: string; priority: number }
   ai_tags: { label: 'AI 标签', priority: 1 },
 
   // Plan 笔记本特有
-  month: { label: '月份', priority: 90 },
+  month: { label: '月份', priority: 110 },
   done: { label: '完成情况', priority: 50 },
 
   no: { label: '编号', priority: 100 },
@@ -370,19 +368,10 @@ function makeEnumTransform<T extends Record<string, string>>(options: T) {
 }
 
 const dateToDisplay = (val: unknown): string => {
-  if (!val) return '';
-  const d = typeof val === 'string' ? new Date(val) : val;
-  if (d instanceof Date && !isNaN(d.getTime())) {
-    // date: YYYY-MM-DD
-    const parts = d.toISOString().split('T');
-    const datePart = parts[0];
-    return datePart ?? '';
-  }
-  return '';
+  return datetimeToDisplay(val).split('T')[0] ?? '';
 }
 
 const datetimeToDisplay = (val: unknown): string => {
-  if (!val) return '';
   const d = typeof val === 'string' ? new Date(val) : val;
   if (d instanceof Date && !isNaN(d.getTime())) {
     const year = d.getFullYear();
@@ -435,7 +424,28 @@ const TYPE_TRANSFORMS: Record<string, {
 }
 
 export const toDisplay = (field: string, v: unknown) =>
-  FIELD_TRANSFORMS[field]?.toDisplay?.(v) ?? TYPE_TRANSFORMS[COLUMN_RENDERER_TYPES[field] ?? '']?.toDisplay?.(v) ?? v;
+  FIELD_TRANSFORMS[field]?.toDisplay?.(v) ?? TYPE_TRANSFORMS[COLUMN_TYPES[field] ?? '']?.toDisplay?.(v) ?? v;
 
 export const toStorage = (field: string, v: unknown) =>
-  FIELD_TRANSFORMS[field]?.toStorage?.(v) ?? TYPE_TRANSFORMS[COLUMN_RENDERER_TYPES[field] ?? '']?.toStorage?.(v) ?? v;
+  FIELD_TRANSFORMS[field]?.toStorage?.(v) ?? TYPE_TRANSFORMS[COLUMN_TYPES[field] ?? '']?.toStorage?.(v) ?? v;
+
+/** 字段名级别默认值生成器（优先匹配） */
+const FIELD_DEFAULTS: Record<string, () => unknown> = {
+  month: () => {
+    const { year, month } = getMajorityMonthForWeek(new Date);
+    return `${String(year).slice(-2)}${String(month).padStart(2, '0')}`;
+  }
+};
+
+/** 渲染器类型级别默认值生成器（字段名未匹配时使用） */
+const TYPE_DEFAULTS: Record<string, () => unknown> = {
+  Date: () => dateToDisplay(new Date()),
+  DateTime: () => new Date().toISOString(),
+  Boolean: () => 0,
+};
+
+/** 根据字段名获取存储格式的默认值。 */
+export function getFieldDefault(field: string): unknown {
+  return FIELD_DEFAULTS[field]?.() ?? TYPE_DEFAULTS[COLUMN_TYPES[field] ?? '']?.() ?? null;
+}
+
