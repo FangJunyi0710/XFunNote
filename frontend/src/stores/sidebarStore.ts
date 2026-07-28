@@ -22,12 +22,16 @@ function loadCollapsed(): boolean {
   return val === 'true';
 }
 
+function loadTouched(): boolean {
+  return sessionStorage.getItem('xfun-sidebar-touched') === 'true';
+}
+
 export const useSidebarStore = create<SidebarState>((set) => ({
   isCollapsed: loadCollapsed(),
   windowWidth: typeof window !== 'undefined' ? window.innerWidth : 1200,
   dragOffset: 0,
   isMobile: typeof window !== 'undefined' ? window.innerWidth < MOBILE_BREAKPOINT : false,
-  touchDetected: false,
+  touchDetected: loadTouched(),
 
   toggleCollapsed: () =>
     set((state) => {
@@ -48,8 +52,12 @@ export const useSidebarStore = create<SidebarState>((set) => ({
     })),
 
   setDragOffset: (offset: number) =>
-    set(() => ({
-      dragOffset: offset,
-      touchDetected: true
-    })),
+    set(() => {
+      try {
+        sessionStorage.setItem('xfun-sidebar-touched', String(true));
+      } catch {
+        // ignore
+      }
+      return { dragOffset: offset, touchDetected: true };
+    }),
 }));
