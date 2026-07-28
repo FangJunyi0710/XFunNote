@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ColumnDef, NotebookSchema } from '@/types/notebook';
 import { ReplyIcon, SubmitIcon } from '@/components/ui/icons';
 import { ChevronRightIcon, ChevronUpIcon } from '@/components/ui/icons';
-import { COLUMN_RENDERER_TYPES, getFieldLabel, toDisplay, toStorage, FIELD_TRANSFORMS } from "@/config/notebook";
+import { COLUMN_RENDERER_TYPES, getFieldLabel, toDisplay, toStorage, FIELD_TRANSFORMS, getFieldPriority } from "@/config/notebook";
 
 // ---------------------------------------------------------------------------
 // 注册表：按 col.type 分发渲染器
@@ -199,6 +199,11 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
 
   const autoFieldNames = useMemo(() => new Set(schema.columns.filter((c) => c.auto === true).map((c) => c.name)), [schema.columns]);
 
+  // 按 FIELD_LABEL_MAP 中定义的优先级排序
+  const sortedColumns = useMemo(() => {
+    return [...schema.columns].sort((a, b) => getFieldPriority(b.name) - getFieldPriority(a.name));
+  }, [schema.columns]);
+
   useEffect(() => {
     if (initialData) {
       setFormData((prev) => {
@@ -251,11 +256,11 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
         </CardHeader>
         <CardContent>
           {/* 可编辑字段 */}
-          {schema.columns.filter((c) => !autoFieldNames.has(c.name)).map((col) => renderField(col))}
+          {sortedColumns.filter((c) => !autoFieldNames.has(c.name)).map((col) => renderField(col))}
 
           {/* 自动字段折叠面板 */}
           {(() => {
-            const autoCols = schema.columns.filter((c) => autoFieldNames.has(c.name));
+            const autoCols = sortedColumns.filter((c) => autoFieldNames.has(c.name));
             if (autoCols.length === 0) return null;
             return (
               <div className="mt-4 pt-4 border-t border-border/50">

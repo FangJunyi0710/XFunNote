@@ -281,67 +281,71 @@ export const COLUMN_RENDERER_TYPES: Record<string, string> = {
 
 // ── 字段名 ↔ 显示标签 双向映射 ───────────────────────────────
 
-export const FIELD_LABEL_MAP: Record<string, string> = {
+export const FIELD_LABEL_MAP: Record<string, { label: string; priority: number }> = {
   // 通用字段 (BASE_COLUMNS)
-  id: 'ID',
-  content: '内容',
-  created_at: '创建时间',
-  updated_at: '更新时间',
-  tags: '标签',
-  note: '备注',
-  is_ai_gen: 'AI 生成',
-  ai_tags: 'AI 标签',
-  ai_note: 'AI 备注',
+  content: { label: '内容', priority: 100 },
+  note: { label: '备注', priority: 11 },
+  tags: { label: '标签', priority: 10 },
+
+  id: { label: 'ID', priority: 1000 },
+  created_at: { label: '创建时间', priority: 910 },
+  updated_at: { label: '更新时间', priority: 900 },
+  is_ai_gen: { label: 'AI 生成', priority: 3 },
+  ai_note: { label: 'AI 备注', priority: 2 },
+  ai_tags: { label: 'AI 标签', priority: 1 },
 
   // Plan 笔记本特有
-  no: '编号',
-  seq: '序号',
-  month: '月份',
-  done: '完成情况',
+  month: { label: '月份', priority: 90 },
+  done: { label: '完成情况', priority: 50 },
+
+  no: { label: '编号', priority: 100 },
+  seq: { label: '序号', priority: 80 },
 
   // Diary 笔记本特有
-  date: '日期',
-  mood: '心情',
-  weather: '天气',
+  date: { label: '日期', priority: 150 },
+  weather: { label: '天气', priority: 90 },
+  mood: { label: '心情', priority: 80 },
 
   // Word 笔记本特有
-  word: '单词',
-  part_of_speech: '词性',
-  phonetic: '音标',
-  example: '例句',
-  review_count: '复习次数',
-  stability: '稳定度',
-  difficulty: '难度',
-  state: '状态',
-  lapses: '遗忘次数',
-  step: '学习步数',
-  next_review: '下次复习',
-  last_review: '上次复习',
-  related_words: '相关词',
+  word: { label: '单词', priority: 150 },
+  phonetic: { label: '音标', priority: 140 },
+  part_of_speech: { label: '词性', priority: 130 },
+  example: { label: '例句', priority: 90 },
+  related_words: { label: '相关词', priority: 80 },
+
+  state: { label: '状态', priority: 500 },
+  next_review: { label: '下次复习', priority: 490 },
+  last_review: { label: '上次复习', priority: 480 },
+  difficulty: { label: '难度', priority: 410 },
+  stability: { label: '稳定度', priority: 400 },
+  review_count: { label: '复习次数', priority: 310 },
+  lapses: { label: '遗忘次数', priority: 300 },
+  step: { label: '学习步数', priority: 90 },
 
   // Accumulation 笔记本特有
-  source: '来源',
+  source: { label: '来源', priority: 90 },
 
   // Aimemory 笔记本特有
-  title: '标题',
+  title: { label: '标题', priority: 150 },
 
   // Timeline / Schedule 笔记本特有
-  start_time: '开始时间',
-  end_time: '结束时间',
-  location: '地点',
+  start_time: { label: '开始时间', priority: 150 },
+  end_time: { label: '结束时间', priority: 140 },
+  location: { label: '地点', priority: 90 },
 
   // Ledger 笔记本特有
-  amount_cents: '金额',
-  account: '账户',
-  transaction_id: '交易ID',
-
-  // 其他可能出现的字段
-  expires_at: '过期时间',
-  shortcut_expires_at: '快捷码过期时间',
+  transaction_id: { label: '交易ID', priority: 130 },
+  account: { label: '账户', priority: 120 },
+  amount_cents: { label: '金额', priority: 110 },
 };
 
 export function getFieldLabel(fieldName: string): string {
-  return FIELD_LABEL_MAP[fieldName] ?? fieldName;
+  return FIELD_LABEL_MAP[fieldName]?.label ?? fieldName;
+}
+
+export function getFieldPriority(fieldName: string): number {
+  const entry = FIELD_LABEL_MAP[fieldName];
+  return entry?.priority ?? -1;
 }
 
 
