@@ -37,7 +37,7 @@ export const useSidebarStore = create<SidebarState>((set) => ({
       } catch {
         // ignore
       }
-      return { isCollapsed: next, dragOffset: 0, touchDetected: false };
+      return { isCollapsed: next, dragOffset: 0 };
     }),
 
   setWindowWidth: (width: number) =>
