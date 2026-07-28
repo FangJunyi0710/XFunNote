@@ -202,3 +202,5 @@ if __name__ == "__main__":
 # TODO 前端将所有AI相关数据移入AI部分
 # TODO 前端添加标签编辑器、AI note等的移入移出等
 # TODO 前端放适当信息在 url 内：思考多标签页和分享
+# TODO 简化 notebookform
+# TODO 实现 bff 连接池等
