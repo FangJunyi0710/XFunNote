@@ -365,9 +365,46 @@ function makeEnumTransform<T extends Record<string, string>>(options: T) {
   };
 }
 
+const dateToDisplay = (val: unknown): string => {
+  if (!val) return '';
+  const d = typeof val === 'string' ? new Date(val) : val;
+  if (d instanceof Date && !isNaN(d.getTime())) {
+    // date: YYYY-MM-DD
+    const parts = d.toISOString().split('T');
+    const datePart = parts[0];
+    return datePart ?? '';
+  }
+  return '';
+}
+
+const datetimeToDisplay = (val: unknown): string => {
+  if (!val) return '';
+  const d = typeof val === 'string' ? new Date(val) : val;
+  if (d instanceof Date && !isNaN(d.getTime())) {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+  return '';
+};
+
+const datetimeToStorage = (val: unknown): string | null => {
+  if(typeof val !== 'string') {
+    return null;
+  }
+  const d = new Date(val);
+  if (!isNaN(d.getTime())) {
+    return d.toISOString();
+  }
+  return null;
+}
+
 export const FIELD_TRANSFORMS: Record<string, {
-  toDisplay: (v: unknown) => unknown;
-  toStorage: (v: unknown) => unknown;
+  toDisplay?: (v: unknown) => unknown;
+  toStorage?: (v: unknown) => unknown;
   options?: Record<number | string, string>;
 }> = {
   // 金额：分 ↔ 元，无枚举选项
@@ -385,8 +422,16 @@ export const FIELD_TRANSFORMS: Record<string, {
   state: makeEnumTransform({ 0: '全新', 1: '学习', 2: '复习', 3: '重学' }),
 };
 
+const TYPE_TRANSFORMS: Record<string, {
+  toDisplay?: (v: unknown) => unknown;
+  toStorage?: (v: unknown) => unknown;
+}> = {
+  Date: { toDisplay: dateToDisplay },
+  DateTime: { toDisplay: datetimeToDisplay, toStorage: datetimeToStorage }
+}
+
 export const toDisplay = (field: string, v: unknown) =>
-  FIELD_TRANSFORMS[field]?.toDisplay(v) ?? v;
+  FIELD_TRANSFORMS[field]?.toDisplay?.(v) ?? TYPE_TRANSFORMS[COLUMN_RENDERER_TYPES[field] ?? '']?.toDisplay?.(v) ?? v;
 
 export const toStorage = (field: string, v: unknown) =>
-  FIELD_TRANSFORMS[field]?.toStorage(v) ?? v;
+  FIELD_TRANSFORMS[field]?.toStorage?.(v) ?? TYPE_TRANSFORMS[COLUMN_RENDERER_TYPES[field] ?? '']?.toStorage?.(v) ?? v;

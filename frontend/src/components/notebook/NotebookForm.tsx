@@ -31,14 +31,15 @@ const FieldLabel: React.FC<{ name: string; required?: boolean }> = ({
 );
 
 /** 带转换的输入框组件：保留本地输入状态，避免实时格式化 */
+// 新建一个组件，在组件内部使用 Hook
 const InputWithTransform: React.FC<{
   col: ColumnDef;
   value: unknown;
   onChange: (v: unknown) => void;
   disableRequired: boolean;
-  type?: 'text' | 'number';
-  step?: string;
-}> = ({ col, value, onChange, disableRequired, type = 'text', step }) => {
+  type: string;
+  step?: string | undefined;
+}> = ({ col, value, onChange, disableRequired, type, step }) => {
   const [inputValue, setInputValue] = useState(() => {
     const displayed = toDisplay(col.name, value);
     return displayed !== null && displayed !== undefined ? String(displayed) : '';
@@ -74,105 +75,19 @@ const InputWithTransform: React.FC<{
     </div>
   );
 };
-const renderTextField: FieldRenderer = (col, value, onChange, disableRequired) => {
-  if (FIELD_TRANSFORMS[col.name]) {
-    return <InputWithTransform key={col.name} col={col} value={value} onChange={onChange} disableRequired={disableRequired} />;
-  }
-  const display = toDisplay(col.name, value) as string;
-  return (
-    <div key={col.name} className="space-y-1">
-      <FieldLabel name={col.name} required={col.required} />
-      <Input
-        value={display}
-        onChange={(e) => onChange(toStorage(col.name, e.target.value))}
-        required={!disableRequired && col.required}
-        placeholder="输入内容..."
-      />
-    </div>
+
+const createInputRenderer = (type?: string, step?: string): FieldRenderer => 
+  (col, value, onChange, disableRequired) => (
+    <InputWithTransform
+      key={col.name}
+      col={col}
+      value={value}
+      onChange={onChange}
+      disableRequired={disableRequired}
+      type={type ?? 'text'}
+      step={step}
+    />
   );
-};
-
-/** 日期字段渲染为原生 date 选择器 */
-const renderDateField: FieldRenderer = (col, value, onChange, disableRequired) => {
-  // 将后端日期字符串转换为输入框所需格式 (YYYY-MM-DD)
-  const formatValue = (val: unknown): string => {
-    if (!val) return '';
-    const d = typeof val === 'string' ? new Date(val) : val;
-    if (d instanceof Date && !isNaN(d.getTime())) {
-      // date: YYYY-MM-DD
-      const parts = d.toISOString().split('T');
-      const datePart = parts[0];
-      return datePart ?? '';
-    }
-    return '';
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
-    if (!raw) {
-      onChange(null);
-      return;
-    }
-    // date: 直接传递 YYYY-MM-DD
-    onChange(raw);
-  };
-
-  return (
-    <div key={col.name} className="space-y-1">
-      <FieldLabel name={col.name} required={col.required} />
-      <Input
-        type="date"
-        value={formatValue(value)}
-        onChange={handleChange}
-        required={!disableRequired && col.required}
-        placeholder="输入内容..."
-      />
-    </div>
-  );
-};
-
-/** 日期时间字段渲染为原生 datetime-local 选择器 */
-const renderDateTimeField: FieldRenderer = (col, value, onChange, disableRequired) => {
-  // 将存储的 UTC 时间转为本地时间字符串用于显示（格式：YYYY-MM-DDTHH:mm）
-  const formatValue = (val: unknown): string => {
-    if (!val) return '';
-    const d = typeof val === 'string' ? new Date(val) : val;
-    if (d instanceof Date && !isNaN(d.getTime())) {
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const hours = String(d.getHours()).padStart(2, '0');
-      const minutes = String(d.getMinutes()).padStart(2, '0');
-      return `${year}-${month}-${day}T${hours}:${minutes}`;
-    }
-    return '';
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
-    if (!raw) {
-      onChange(null);
-      return;
-    }
-    const d = new Date(raw);
-    if (!isNaN(d.getTime())) {
-      onChange(d.toISOString());
-    }
-  };
-
-  return (
-    <div key={col.name} className="space-y-1">
-      <FieldLabel name={col.name} required={col.required} />
-      <Input
-        type="datetime-local"
-        value={formatValue(value)}
-        onChange={handleChange}
-        required={!disableRequired && col.required}
-        placeholder="输入内容..."
-      />
-    </div>
-  );
-};
 
 const renderTextareaField: FieldRenderer = (col, value, onChange, disableRequired) => (
   <div key={col.name} className="space-y-1">
@@ -209,33 +124,11 @@ const renderBooleanField: FieldRenderer = (col, value, onChange) => {
   );
 };
 
-const createNumberRenderer = (step?: string): FieldRenderer => 
-  (col, value, onChange, disableRequired) => {
-    if (FIELD_TRANSFORMS[col.name]) {
-      const stepProps = step !== undefined ? { step } : {};
-      return <InputWithTransform key={col.name} col={col} value={value} onChange={onChange} disableRequired={disableRequired} type="number" {...stepProps} />;
-    }
-    const display = toDisplay(col.name, value) as string;
-    return (
-      <div key={col.name} className="space-y-1">
-        <FieldLabel name={col.name} required={col.required} />
-        <Input
-          type="number"
-          step={step}
-          value={display}
-          onChange={(e) => onChange(toStorage(col.name, e.target.value))}
-          required={!disableRequired && col.required}
-          placeholder="输入内容..."
-        />
-      </div>
-    );
-  };
-
 /** 选择器字段（用于 state 等枚举字段） */
 const renderSelectField: FieldRenderer = (col, value, onChange, disableRequired) => {
   const transform = FIELD_TRANSFORMS[col.name];
   if (!transform?.options) {
-    return renderTextField(col, value, onChange, disableRequired);
+    return createInputRenderer()(col, value, onChange, disableRequired);
   }
   const currentDisplay = toDisplay(col.name, value) as string;
   return (
@@ -269,13 +162,13 @@ const renderSelectField: FieldRenderer = (col, value, onChange, disableRequired)
 
 /** 类型名 → 渲染器映射 */
 const typeRenderers: Record<string, FieldRenderer> = {
-  TEXT: renderTextField,
-  INTEGER: createNumberRenderer("1"),
-  REAL: createNumberRenderer("any"),
+  TEXT: createInputRenderer(),
+  INTEGER: createInputRenderer('number', '1'),
+  REAL: createInputRenderer('number', 'any'),
   Textarea: renderTextareaField,
   Boolean: renderBooleanField,
-  Date: renderDateField,
-  DateTime: renderDateTimeField,
+  Date: createInputRenderer('date'),
+  DateTime: createInputRenderer('datetime-local'),
   Select: renderSelectField,
 };
 
@@ -336,7 +229,7 @@ export const NotebookForm: React.FC<NotebookFormProps> = ({
   const renderField = (col: ColumnDef) => {
     const value = formData[col.name] ?? '';
     const onChange = (v: unknown) => handleChange(col.name, v);
-    const renderer = typeRenderers[COLUMN_RENDERER_TYPES[col.name] || col.type] || renderTextField;
+    const renderer = typeRenderers[COLUMN_RENDERER_TYPES[col.name] || col.type] || createInputRenderer();
     return renderer(col, value, onChange, disableRequired ?? false);
   };
 
