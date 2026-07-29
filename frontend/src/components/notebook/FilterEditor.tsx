@@ -93,6 +93,14 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({ columns, initialFilt
   const addRow = (gid: string) => setGroups(prev => prev.map(g => g.id === gid ? { ...g, rows: [...g.rows, { id: genId(), column: columns[0]?.name || '', op: '=' as FilterOp, value: '' }] } : g));
   const updateRow = (gid: string, rid: string, patch: Partial<ConditionRow>) => setGroups(prev => prev.map(g => g.id === gid ? { ...g, rows: g.rows.map(r => r.id === rid ? { ...r, ...patch } : r) } : g));
   const removeRow = (_gid: string, rid: string) => setGroups(prev => prev.map(g => ({ ...g, rows: g.rows.filter(r => r.id !== rid) })).filter(g => g.rows.length > 0));
+  
+  // ─── 辅助：IN 列表项操作 ──────────────────────────────────────────────
+  const splitInValues = (value: string): string[] => value.split(',').map(s => s.trim()).filter(Boolean);
+  const joinInValues = (items: string[]): string => items.join(', ');
+
+  const addInItem = (gid: string, rid: string) => setGroups(prev => prev.map(g => g.id === gid ? { ...g, rows: g.rows.map(r => r.id === rid ? { ...r, value: joinInValues([...splitInValues(r.value), '']) } : r)} : g));
+  const removeInItem = (gid: string, rid: string, index: number) => setGroups(prev => prev.map(g => g.id !== gid ? g : { ...g, rows: g.rows.map(r => r.id !== rid ? r : ((items) => items.length <= 1 ? r : { ...r, value: joinInValues(items.filter((_, i) => i !== index)) })(splitInValues(r.value))) }));
+  
   const handleApply = () => onApply(serializeDNF(groups));
   const handleClear = () => setGroups([]);
 
@@ -123,61 +131,102 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({ columns, initialFilt
       updateRow(groupId, row.id, { value: strVal });
     };
 
-    let valueEditor: React.ReactNode;
+    const handleInItemChange = (index: number, newVal: string) => {
+      const items = splitInValues(row.value);
+      items[index] = newVal;
+      updateRow(groupId, row.id, { value: joinInValues(items) });
+    };
 
-    if (row.op === 'BETWEEN') {
-      const parts = row.value.split(',').map((s) => s.trim());
-      const min = parts[0] || '';
-      const max = parts[1] || '';
-      valueEditor = (
-        <div className="flex items-center gap-1 flex-1">
-          <Input
-            value={min}
-            onChange={(e) => handleValueChange(`${e.target.value},${max}`)}
-            placeholder="最小值"
-            className="flex-1"
-          />
-          <span className="text-muted-foreground">~</span>
-          <Input
-            value={max}
-            onChange={(e) => handleValueChange(`${min},${e.target.value}`)}
-            placeholder="最大值"
-            className="flex-1"
-          />
+    // ── 查找表：运算符 → 值区域渲染函数 ──
+    const opRenderers: Record<FilterOp, (row: ConditionRow) => React.ReactNode> = {
+      '=': (r) => <ValueEditor col={colDef} value={r.value} onChange={handleValueChange} className="flex-1" />,
+      '!=': (r) => <ValueEditor col={colDef} value={r.value} onChange={handleValueChange} className="flex-1" />,
+      '>': (r) => <ValueEditor col={colDef} value={r.value} onChange={handleValueChange} className="flex-1" />,
+      '<': (r) => <ValueEditor col={colDef} value={r.value} onChange={handleValueChange} className="flex-1" />,
+      '>=': (r) => <ValueEditor col={colDef} value={r.value} onChange={handleValueChange} className="flex-1" />,
+      '<=': (r) => <ValueEditor col={colDef} value={r.value} onChange={handleValueChange} className="flex-1" />,
+      'LIKE': (r) => <ValueEditor col={colDef} value={r.value} onChange={handleValueChange} className="flex-1" />,
+      'TEXT_SEARCH': (r) => <ValueEditor col={colDef} value={r.value} onChange={handleValueChange} className="flex-1" />,
+      'BETWEEN': (r) => {
+        const parts = r.value.split(',').map((s) => s.trim());
+        const min = parts[0] || '';
+        const max = parts[1] || '';
+        return (
+          <div className="flex items-center gap-1 flex-1">
+            <Input
+              value={min}
+              onChange={(e) => handleValueChange(`${e.target.value},${max}`)}
+              placeholder="最小值"
+              className="flex-1"
+            />
+            <span className="text-muted-foreground">~</span>
+            <Input
+              value={max}
+              onChange={(e) => handleValueChange(`${min},${e.target.value}`)}
+              placeholder="最大值"
+              className="flex-1"
+            />
+          </div>
+        );
+      },
+      'IN': (r) => {
+        const items = splitInValues(r.value);
+        return (
+          <div className="flex-1 space-y-1">
+            {items.map((item, idx) => (
+              <div key={idx} className="flex items-center gap-1">
+                <Input
+                  value={item}
+                  onChange={(e) => handleInItemChange(idx, e.target.value)}
+                  placeholder={`项 ${idx + 1}`}
+                  className="flex-1"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeInItem(groupId, row.id, idx)}
+                  className="text-destructive h-7 w-7 p-0"
+                  disabled={items.length <= 1}
+                >
+                  ×
+                </Button>
+              </div>
+            ))}
+          </div>
+        );
+      },
+    };
+
+    // 根据运算符获取渲染函数
+    const renderValueArea = opRenderers[row.op];
+
+    const renderTopRow = () => {
+      const isInOp = row.op === 'IN';
+      return (
+        <div className="flex items-center gap-2">
+          <Select value={row.column} onChange={e => updateRow(groupId, row.id, { column: e.target.value })} className="w-36">
+            {columns.map(col => <option key={col.name} value={col.name}>{col.name}</option>)}
+          </Select>
+          <Select value={row.op} onChange={e => updateRow(groupId, row.id, { op: e.target.value as FilterOp, value: '' })} className="w-24">
+            {Object.entries(FILTER_OPS_LABEL).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </Select>
+          <div className="flex-1" />
+          {isInOp && (
+            <Button variant="outline" size="sm" onClick={() => addInItem(groupId, row.id)}>
+              + 添加项
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={() => removeRow(groupId, row.id)} className="text-destructive">×</Button>
         </div>
       );
-    } else if (row.op === 'IN') {
-      valueEditor = (
-        <Input
-          value={row.value}
-          onChange={(e) => handleValueChange(e.target.value)}
-          placeholder="多个值用逗号分隔"
-          className="flex-1"
-        />
-      );
-    } else {
-      valueEditor = (
-        <ValueEditor
-          col={colDef}
-          value={row.value}
-          onChange={handleValueChange}
-          className="flex-1"
-        />
-      );
-    }
+    };
 
     return (
-      <div key={row.id} className="flex items-center gap-2">
-        <Select value={row.column} onChange={e => updateRow(groupId, row.id, { column: e.target.value })} className="w-36">
-          {columns.map(col => <option key={col.name} value={col.name}>{col.name}</option>)}
-        </Select>
-        <Select value={row.op} onChange={e => updateRow(groupId, row.id, { op: e.target.value as FilterOp, value: '' })} className="w-24">
-          {Object.entries(FILTER_OPS_LABEL).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </Select>
-        {valueEditor}
-        <Button variant="ghost" size="sm" onClick={() => removeRow(groupId, row.id)} className="text-destructive">×</Button>
+      <div key={row.id} className="space-y-1">
+        {renderTopRow()}
+        {renderValueArea(row)}
       </div>
     );
   };
