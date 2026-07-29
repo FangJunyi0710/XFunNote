@@ -71,24 +71,83 @@ function serializeDNF(groups: ConditionGroup[]): string | null {
   return JSON.stringify(dnf);
 }
 
-interface ValueEditorProps { op: FilterOp; value: string; columnType: string; onChange: (value: string) => void; }
+interface ValueEditorProps {
+  op: FilterOp;
+  value: string;
+  columnType: string;
+  onChange: (value: string) => void;
+}
 const ValueEditor: React.FC<ValueEditorProps> = ({ op, value, columnType, onChange }) => {
-  if (op === 'BETWEEN') {
-    const parts = value.split(',').map(s => s.trim());
-    const [min, max] = [parts[0] || '', parts[1] || ''];
+  // 默认渲染函数（用于 '=', '!=', '>', '<', '>=', '<='）
+  const defaultInput = () => {
+    const isNumeric = columnType === 'integer' || columnType === 'float' || columnType === 'number';
     return (
-      <div className="flex items-center gap-1 flex-1">
-        <Input value={min} onChange={e => onChange(`${e.target.value},${max}`)} placeholder="最小值" className="flex-1" />
-        <span className="text-muted-foreground">~</span>
-        <Input value={max} onChange={e => onChange(`${min},${e.target.value}`)} placeholder="最大值" className="flex-1" />
-      </div>
+      <Input
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder="值"
+        inputMode={isNumeric ? 'decimal' : 'text'}
+        className="flex-1"
+      />
     );
-  }
-  if (op === 'IN') return <Input value={value} onChange={e => onChange(e.target.value)} placeholder="多个值用逗号分隔" className="flex-1" />;
-  if (op === 'LIKE') return <Input value={value} onChange={e => onChange(e.target.value)} placeholder="%通配符%" className="flex-1" />;
-  if (op === 'TEXT_SEARCH') return <Input value={value} onChange={e => onChange(e.target.value)} placeholder="搜索关键词" className="flex-1" />;
-  const isNumeric = columnType === 'integer' || columnType === 'float' || columnType === 'number';
-  return <Input value={value} onChange={e => onChange(e.target.value)} placeholder="值" inputMode={isNumeric ? 'decimal' : 'text'} className="flex-1" />;
+  };
+
+  // 操作符 → 渲染函数映射表
+  const renderers: Record<FilterOp, () => JSX.Element> = {
+    'BETWEEN': () => {
+      const parts = value.split(',').map(s => s.trim());
+      const [min, max] = [parts[0] || '', parts[1] || ''];
+      return (
+        <div className="flex items-center gap-1 flex-1">
+          <Input
+            value={min}
+            onChange={e => onChange(`${e.target.value},${max}`)}
+            placeholder="最小值"
+            className="flex-1"
+          />
+          <span className="text-muted-foreground">~</span>
+          <Input
+            value={max}
+            onChange={e => onChange(`${min},${e.target.value}`)}
+            placeholder="最大值"
+            className="flex-1"
+          />
+        </div>
+      );
+    },
+    'IN': () => (
+      <Input
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder="多个值用逗号分隔"
+        className="flex-1"
+      />
+    ),
+    'LIKE': () => (
+      <Input
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder="%通配符%"
+        className="flex-1"
+      />
+    ),
+    'TEXT_SEARCH': () => (
+      <Input
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder="搜索关键词"
+        className="flex-1"
+      />
+    ),
+    '=': defaultInput,
+    '!=': defaultInput,
+    '>': defaultInput,
+    '<': defaultInput,
+    '>=': defaultInput,
+    '<=': defaultInput,
+  };
+
+  return renderers[op]();
 };
 
 interface FilterEditorProps {
@@ -106,9 +165,9 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({ columns, initialFilt
 
   useEffect(() => { onChange?.(serializeDNF(groups)); }, [groups]);
 
-  const addGroup = () => setGroups(prev => [...prev, { id: genId(), rows: [{ id: genId(), column: columns[0]?.name || '', op: 'eq' as FilterOp, value: '' }] }]);
+  const addGroup = () => setGroups(prev => [...prev, { id: genId(), rows: [{ id: genId(), column: columns[0]?.name || '', op: '=' as FilterOp, value: '' }] }]);
   const removeGroup = (gid: string) => setGroups(prev => prev.filter(g => g.id !== gid));
-  const addRow = (gid: string) => setGroups(prev => prev.map(g => g.id === gid ? { ...g, rows: [...g.rows, { id: genId(), column: columns[0]?.name || '', op: 'eq' as FilterOp, value: '' }] } : g));
+  const addRow = (gid: string) => setGroups(prev => prev.map(g => g.id === gid ? { ...g, rows: [...g.rows, { id: genId(), column: columns[0]?.name || '', op: '=' as FilterOp, value: '' }] } : g));
   const updateRow = (gid: string, rid: string, patch: Partial<ConditionRow>) => setGroups(prev => prev.map(g => g.id === gid ? { ...g, rows: g.rows.map(r => r.id === rid ? { ...r, ...patch } : r) } : g));
   const removeRow = (_gid: string, rid: string) => setGroups(prev => prev.map(g => ({ ...g, rows: g.rows.filter(r => r.id !== rid) })).filter(g => g.rows.length > 0));
   const handleApply = () => onApply(serializeDNF(groups));
