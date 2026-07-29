@@ -303,7 +303,8 @@ XFunNote/
 │   │   │   │   ├── NotebookCard.tsx
 │   │   │   │   ├── NotebookForm.tsx
 │   │   │   │   ├── NotebookLayout.tsx
-│   │   │   │   └── Pagination.tsx
+│   │   │   │   ├── Pagination.tsx
+│   │   │   │   └── ValueEditor.tsx
 │   │   │   └── ui/
 │   │   │       ├── button.tsx
 │   │   │       ├── card.tsx

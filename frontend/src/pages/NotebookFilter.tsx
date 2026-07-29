@@ -35,8 +35,7 @@ export const NotebookFilter: React.FC = () => {
     filterApi.listFilters().then(setSavedFilters).catch(() => {});
   }, []);
 
-  const columns =
-    userData?.schema?.columns.map((c) => ({ name: c.name, type: c.type })) || [];
+  const columns = userData?.schema?.columns ?? [];
 
   const handleApply = (filterJson: string | null) => {
     store.setFilter(filterJson);

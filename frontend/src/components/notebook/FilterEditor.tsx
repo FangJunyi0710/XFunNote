@@ -6,6 +6,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { genId } from '@/lib/utils';
 import { FILTER_OPS_LABEL, type ConditionGroup, type ConditionRow, type DNF, type FilterOp } from '@/types/filter';
 import { CloseIcon, SubmitIcon } from '@/components/ui/icons';
+import { ValueEditor } from './ValueEditor';
+import type { ColumnDef } from '@/types/notebook';
 
 function tryParseNumber(s: string): string | number {
   const n = Number(s);
@@ -71,87 +73,8 @@ function serializeDNF(groups: ConditionGroup[]): string | null {
   return JSON.stringify(dnf);
 }
 
-interface ValueEditorProps {
-  op: FilterOp;
-  value: string;
-  columnType: string;
-  onChange: (value: string) => void;
-}
-const ValueEditor: React.FC<ValueEditorProps> = ({ op, value, columnType, onChange }) => {
-  // 默认渲染函数（用于 '=', '!=', '>', '<', '>=', '<='）
-  const defaultInput = () => {
-    const isNumeric = columnType === 'integer' || columnType === 'float' || columnType === 'number';
-    return (
-      <Input
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder="值"
-        inputMode={isNumeric ? 'decimal' : 'text'}
-        className="flex-1"
-      />
-    );
-  };
-
-  // 操作符 → 渲染函数映射表
-  const renderers: Record<FilterOp, () => JSX.Element> = {
-    'BETWEEN': () => {
-      const parts = value.split(',').map(s => s.trim());
-      const [min, max] = [parts[0] || '', parts[1] || ''];
-      return (
-        <div className="flex items-center gap-1 flex-1">
-          <Input
-            value={min}
-            onChange={e => onChange(`${e.target.value},${max}`)}
-            placeholder="最小值"
-            className="flex-1"
-          />
-          <span className="text-muted-foreground">~</span>
-          <Input
-            value={max}
-            onChange={e => onChange(`${min},${e.target.value}`)}
-            placeholder="最大值"
-            className="flex-1"
-          />
-        </div>
-      );
-    },
-    'IN': () => (
-      <Input
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder="多个值用逗号分隔"
-        className="flex-1"
-      />
-    ),
-    'LIKE': () => (
-      <Input
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder="%通配符%"
-        className="flex-1"
-      />
-    ),
-    'TEXT_SEARCH': () => (
-      <Input
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder="搜索关键词"
-        className="flex-1"
-      />
-    ),
-    '=': defaultInput,
-    '!=': defaultInput,
-    '>': defaultInput,
-    '<': defaultInput,
-    '>=': defaultInput,
-    '<=': defaultInput,
-  };
-
-  return renderers[op]();
-};
-
 interface FilterEditorProps {
-  columns: { name: string; type: string }[];
+  columns: ColumnDef[];
   initialFilter?: string | null;
   onApply: (filterJson: string | null) => void;
   onChange?: (filterJson: string | null) => void;
@@ -192,20 +115,72 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({ columns, initialFilt
     </div>
   );
 
-  const renderRow = (row: ConditionRow, groupId: string) => (
-    <div key={row.id} className="flex items-center gap-2">
-      <Select value={row.column} onChange={e => updateRow(groupId, row.id, { column: e.target.value })} className="w-36">
-        {columns.map(col => <option key={col.name} value={col.name}>{col.name}</option>)}
-      </Select>
-      <Select value={row.op} onChange={e => updateRow(groupId, row.id, { op: e.target.value as FilterOp, value: '' })} className="w-24">
-        {Object.entries(FILTER_OPS_LABEL).map(([value, label]) => (
-          <option key={value} value={value}>{label}</option>
-        ))}
-      </Select>
-      <ValueEditor op={row.op} value={row.value} columnType={columns.find(c => c.name === row.column)?.type ?? 'text'} onChange={val => updateRow(groupId, row.id, { value: val })} />
-      <Button variant="ghost" size="sm" onClick={() => removeRow(groupId, row.id)} className="text-destructive">×</Button>
-    </div>
-  );
+  const renderRow = (row: ConditionRow, groupId: string) => {
+    const colDef = columns.find((c) => c.name === row.column)!;
+
+    const handleValueChange = (newVal: unknown) => {
+      const strVal = newVal === null || newVal === undefined ? '' : String(newVal);
+      updateRow(groupId, row.id, { value: strVal });
+    };
+
+    let valueEditor: React.ReactNode;
+
+    if (row.op === 'BETWEEN') {
+      const parts = row.value.split(',').map((s) => s.trim());
+      const min = parts[0] || '';
+      const max = parts[1] || '';
+      valueEditor = (
+        <div className="flex items-center gap-1 flex-1">
+          <Input
+            value={min}
+            onChange={(e) => handleValueChange(`${e.target.value},${max}`)}
+            placeholder="最小值"
+            className="flex-1"
+          />
+          <span className="text-muted-foreground">~</span>
+          <Input
+            value={max}
+            onChange={(e) => handleValueChange(`${min},${e.target.value}`)}
+            placeholder="最大值"
+            className="flex-1"
+          />
+        </div>
+      );
+    } else if (row.op === 'IN') {
+      valueEditor = (
+        <Input
+          value={row.value}
+          onChange={(e) => handleValueChange(e.target.value)}
+          placeholder="多个值用逗号分隔"
+          className="flex-1"
+        />
+      );
+    } else {
+      valueEditor = (
+        <ValueEditor
+          col={colDef}
+          value={row.value}
+          onChange={handleValueChange}
+          className="flex-1"
+        />
+      );
+    }
+
+    return (
+      <div key={row.id} className="flex items-center gap-2">
+        <Select value={row.column} onChange={e => updateRow(groupId, row.id, { column: e.target.value })} className="w-36">
+          {columns.map(col => <option key={col.name} value={col.name}>{col.name}</option>)}
+        </Select>
+        <Select value={row.op} onChange={e => updateRow(groupId, row.id, { op: e.target.value as FilterOp, value: '' })} className="w-24">
+          {Object.entries(FILTER_OPS_LABEL).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </Select>
+        {valueEditor}
+        <Button variant="ghost" size="sm" onClick={() => removeRow(groupId, row.id)} className="text-destructive">×</Button>
+      </div>
+    );
+  };
 
   const renderGroup = (group: ConditionGroup, index: number) => (
     <div key={group.id} className="space-y-2">
