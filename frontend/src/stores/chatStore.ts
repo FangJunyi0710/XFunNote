@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { ChatMessage } from '@/types/api';
 import { chat } from '@/api/ai';
 import { handleError } from '@/lib/error';
-import { useTokenStore } from './tokenStore';
+import { useTokenStore } from '@/stores/tokenStore';
 
 interface UserChatData {
   messages: ChatMessage[];

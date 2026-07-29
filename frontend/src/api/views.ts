@@ -1,4 +1,4 @@
-import { api } from './client';
+import { api } from '@/api/client';
 import type { ViewFile, ViewData } from '@/types/view';
 
 export async function listViews(): Promise<ViewFile[]> {

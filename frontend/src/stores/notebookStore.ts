@@ -5,7 +5,7 @@ import type { QueryResponse } from '@/types/notebook';
 import * as notebookApi from '@/api/notebooks';
 import { castEntries } from '@/lib/type-guards';
 import { handleError } from '@/lib/error';
-import { useTokenStore } from './tokenStore';
+import { useTokenStore } from '@/stores/tokenStore';
 
 // ── 默认分页大小 ──────────────────────────────────────────────────────
 const DEFAULT_PAGE_LIMIT = 20;

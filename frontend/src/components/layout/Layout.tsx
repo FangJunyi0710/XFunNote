@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Outlet } from 'react-router-dom';
-import { Sidebar } from './Sidebar';
+import { Sidebar } from '@/components/layout/Sidebar';
 import { useSidebarStore } from '@/stores/sidebarStore';
 
 export const Layout: React.FC = () => {

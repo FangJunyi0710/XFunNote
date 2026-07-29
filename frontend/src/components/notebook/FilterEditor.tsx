@@ -5,7 +5,7 @@ import { Select } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { genId } from '@/lib/utils';
 import { FILTER_OPS_LABEL, type ConditionGroup, type ConditionRow, type DNF, type FilterOp } from '@/types/filter';
-import { CloseIcon, SubmitIcon } from '../ui/icons';
+import { CloseIcon, SubmitIcon } from '@/components/ui/icons';
 
 function tryParseNumber(s: string): string | number {
   const n = Number(s);

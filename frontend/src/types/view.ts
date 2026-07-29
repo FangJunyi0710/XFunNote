@@ -1,6 +1,6 @@
 // 视图（View） 类型
 // 对应 xfun/core/view.py 中的 View / TableSpec
-import type { FilterClause, Condition } from './filter';
+import type { FilterClause, Condition } from '@/types/filter';
 
 export interface TableSpec {
   table: string;
