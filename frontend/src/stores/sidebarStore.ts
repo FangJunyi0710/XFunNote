@@ -13,7 +13,7 @@ interface SidebarState {
   setDragOffset: (offset: number) => void;
 }
 
-function loadCollapsed(): boolean {
+const loadCollapsed = (): boolean => {
   const val = sessionStorage.getItem('xfun-sidebar-collapsed');
   if (val === null) {
     // 没有缓存时：移动端默认折叠，PC 端默认展开
@@ -22,9 +22,7 @@ function loadCollapsed(): boolean {
   return val === 'true';
 }
 
-function loadTouched(): boolean {
-  return sessionStorage.getItem('xfun-sidebar-touched') === 'true';
-}
+const loadTouched = (): boolean => sessionStorage.getItem('xfun-sidebar-touched') === 'true';
 
 export const useSidebarStore = create<SidebarState>((set) => ({
   isCollapsed: loadCollapsed(),

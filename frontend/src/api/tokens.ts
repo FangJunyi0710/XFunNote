@@ -13,30 +13,23 @@ export interface TokenInfo {
   is_active: boolean;
 }
 
-export async function listTokens(): Promise<Token[]> {
-  return api.get<Token[]>('/tokens');
-}
+export const listTokens = async (): Promise<Token[]> =>
+  api.get<Token[]>('/tokens');
 
-export async function getToken(id: string): Promise<Token> {
-  return api.get<Token>(`/tokens/${id}`);
-}
+export const getToken = async (id: string): Promise<Token> =>
+  api.get<Token>(`/tokens/${id}`);
 
-export async function getTokenInfo(): Promise<TokenInfo> {
-  return api.get<TokenInfo>('/tokens/info');
-}
+export const getTokenInfo = async (): Promise<TokenInfo> =>
+  api.get<TokenInfo>('/tokens/info');
 
-export async function createToken(data: TokenCreateRequest): Promise<Token> {
-  return api.post<Token>('/tokens', data);
-}
+export const createToken = async (data: TokenCreateRequest): Promise<Token> =>
+  api.post<Token>('/tokens', data);
 
-export async function updateToken(id: string, data: TokenUpdateRequest): Promise<Token> {
-  return api.put<Token>(`/tokens/${id}`, data);
-}
+export const updateToken = async (id: string, data: TokenUpdateRequest): Promise<Token> =>
+  api.put<Token>(`/tokens/${id}`, data);
 
-export async function deleteToken(id: string): Promise<void> {
-  return api.delete<void>(`/tokens/${id}`);
-}
+export const deleteToken = async (id: string): Promise<void> =>
+  api.delete<void>(`/tokens/${id}`);
 
-export async function exchangeTokenByShortcut(data: ShortcutExchangeRequest): Promise<ShortcutExchangeResponse> {
-  return api.post<ShortcutExchangeResponse>('/tokens/exchange', data);
-}
+export const exchangeTokenByShortcut = async (data: ShortcutExchangeRequest): Promise<ShortcutExchangeResponse> =>
+  api.post<ShortcutExchangeResponse>('/tokens/exchange', data);

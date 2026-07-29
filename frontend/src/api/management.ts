@@ -1,22 +1,17 @@
 import { api } from '@/api/client';
 import type { InitDbResponse, BackupDbResponse, ResetDbResponse, RestoreDbResponse, ListBackupsResponse } from '@/types/api';
 
-export async function initDb(): Promise<InitDbResponse> {
-  return api.post<InitDbResponse>('/db/init');
-}
+export const initDb = async (): Promise<InitDbResponse> =>
+  api.post<InitDbResponse>('/db/init');
 
-export async function backupDb(): Promise<BackupDbResponse> {
-  return api.post<BackupDbResponse>('/db/backup');
-}
+export const backupDb = async (): Promise<BackupDbResponse> =>
+  api.post<BackupDbResponse>('/db/backup');
 
-export async function resetDb(): Promise<ResetDbResponse> {
-  return api.post<ResetDbResponse>('/db/reset');
-}
+export const resetDb = async (): Promise<ResetDbResponse> =>
+  api.post<ResetDbResponse>('/db/reset');
 
-export async function restoreDb(backupPath: string): Promise<RestoreDbResponse> {
-  return api.post<RestoreDbResponse>('/db/restore', { backup_path: backupPath });
-}
+export const restoreDb = async (backupPath: string): Promise<RestoreDbResponse> =>
+  api.post<RestoreDbResponse>('/db/restore', { backup_path: backupPath });
 
-export async function listBackups(): Promise<ListBackupsResponse> {
-  return api.get<ListBackupsResponse>('/db/backups');
-}
+export const listBackups = async (): Promise<ListBackupsResponse> =>
+  api.get<ListBackupsResponse>('/db/backups');

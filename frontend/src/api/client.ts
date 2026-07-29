@@ -16,7 +16,7 @@ export class ApiError extends Error {
   }
 }
 
-async function handleResponse<T>(res: Response): Promise<T> {
+const handleResponse = async <T>(res: Response): Promise<T> => {
   if (!res.ok) {
     let detail = `HTTP ${res.status}`;
     try {
@@ -32,12 +32,12 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json();
 }
 
-async function request<T>(
+const request = async<T>(
   method: string,
   path: string,
   body?: unknown,
   params?: Record<string, string>,
-): Promise<T> {
+): Promise<T> => {
   const url = new URL(`${BASE_URL}${path}`, window.location.origin);
   if (params) {
     Object.entries(params).forEach(([k, v]) => {

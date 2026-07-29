@@ -1,22 +1,17 @@
 import { api } from '@/api/client';
 import type { Permission, PermissionCreateRequest, PermissionUpdateRequest } from '@/types/permission';
 
-export async function listPermissions(): Promise<Permission[]> {
-  return api.get<Permission[]>('/permissions');
-}
+export const listPermissions = async (): Promise<Permission[]> =>
+  api.get<Permission[]>('/permissions');
 
-export async function getPermission(id: string): Promise<Permission> {
-  return api.get<Permission>(`/permissions/${id}`);
-}
+export const getPermission = async (id: string): Promise<Permission> =>
+  api.get<Permission>(`/permissions/${id}`);
 
-export async function createPermission(data: PermissionCreateRequest): Promise<Permission> {
-  return api.post<Permission>('/permissions', data);
-}
+export const createPermission = async (data: PermissionCreateRequest): Promise<Permission> =>
+  api.post<Permission>('/permissions', data);
 
-export async function updatePermission(id: string, data: PermissionUpdateRequest): Promise<Permission> {
-  return api.put<Permission>(`/permissions/${id}`, data);
-}
+export const updatePermission = async (id: string, data: PermissionUpdateRequest): Promise<Permission> =>
+  api.put<Permission>(`/permissions/${id}`, data);
 
-export async function deletePermission(id: string): Promise<void> {
-  return api.delete<void>(`/permissions/${id}`);
-}
+export const deletePermission = async (id: string): Promise<void> =>
+  api.delete<void>(`/permissions/${id}`);

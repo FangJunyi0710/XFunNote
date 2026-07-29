@@ -25,7 +25,7 @@ export const BACKEND_PORT = parseInt(process.env.BACKEND_PORT || '8000', 10);
  * 优先使用环境变量 SSL_CERT_PATH / SSL_KEY_PATH（相对项目根目录）
  * 若未设置则回退到 frontend/certs/ 目录下的 cert.pem / key.pem
  */
-function loadHttpsConfig(): ServerOptions['https'] {
+const loadHttpsConfig = (): ServerOptions['https'] => {
   const certPathEnv = process.env.SSL_CERT_PATH;
   const keyPathEnv = process.env.SSL_KEY_PATH;
 
@@ -54,67 +54,65 @@ const httpsConfig = loadHttpsConfig();
 const isHttps = !!httpsConfig;
 
 // 自定义插件：仅在 HTTPS 模式下启动 HTTP → HTTPS 重定向服务
-const redirectPlugin = isHttps
-  ? {
-      name: 'redirect-server',
-      configureServer(server: ViteDevServer) {
-        const redirectPort = VITE_HTTP_PORT;
-        const httpsPort = VITE_HTTPS_PORT;
-        const httpsHost = VITE_HOST;
+const redirectPlugin = isHttps ? {
+  name: 'redirect-server',
+  configureServer(server: ViteDevServer) {
+    const redirectPort = VITE_HTTP_PORT;
+    const httpsPort = VITE_HTTPS_PORT;
+    const httpsHost = VITE_HOST;
 
-        const redirectServer = http.createServer((req, res) => {
-          const httpsUrl = `https://${httpsHost}:${httpsPort}${req.url}`;
-          res.writeHead(301, { Location: httpsUrl, Connection: 'close' });
-          res.end();
-        });
+    const redirectServer = http.createServer((req, res) => {
+      const httpsUrl = `https://${httpsHost}:${httpsPort}${req.url}`;
+      res.writeHead(301, { Location: httpsUrl, Connection: 'close' });
+      res.end();
+    });
 
-        redirectServer.listen(redirectPort, '0.0.0.0', () => {
-          console.log(
-            `[redirect] HTTP 重定向服务启动于 http://0.0.0.0:${redirectPort} -> https://${httpsHost}:${httpsPort}`
-          );
-        });
+    redirectServer.listen(redirectPort, '0.0.0.0', () => {
+      console.log(
+        `[redirect] HTTP 重定向服务启动于 http://0.0.0.0:${redirectPort} -> https://${httpsHost}:${httpsPort}`
+      );
+    });
 
-        const closeServer = (serverInstance: { close: (cb: (err?: Error) => void) => void } | null) =>
-          new Promise<string>((resolve, reject) => {
-            if (!serverInstance) {
-              resolve('no server');
-              return;
-            }
-            serverInstance.close((err?: Error) => {
-              if (err) reject(err);
-              else resolve('closed');
-            });
-          });
-
-        const shutdown = async () => {
-          console.log('[vite] 收到关闭信号，正在关闭...');
-          try {
-            await Promise.all([
-              closeServer(server.httpServer),
-              closeServer(redirectServer),
-            ]);
-            console.log('[vite] 所有服务器已关闭');
-            process.exit(0);
-          } catch (err) {
-            console.error('[vite] 关闭服务器时出错:', err);
-            process.exit(1);
-          }
-        };
-
-        process.once('SIGINT', shutdown);
-        process.once('SIGTERM', shutdown);
-
-        if (server.httpServer) {
-          server.httpServer.once('close', () => {
-            console.log('[vite] Vite 服务器已关闭');
-          });
-          redirectServer.once('close', () => {
-            console.log('[redirect] HTTP 重定向服务已关闭');
-          });
+    const closeServer = (serverInstance: { close: (cb: (err?: Error) => void) => void } | null) =>
+      new Promise<string>((resolve, reject) => {
+        if (!serverInstance) {
+          resolve('no server');
+          return;
         }
-      },
+        serverInstance.close((err?: Error) => {
+          if (err) reject(err);
+          else resolve('closed');
+        });
+      });
+
+    const shutdown = async () => {
+      console.log('[vite] 收到关闭信号，正在关闭...');
+      try {
+        await Promise.all([
+          closeServer(server.httpServer),
+          closeServer(redirectServer),
+        ]);
+        console.log('[vite] 所有服务器已关闭');
+        process.exit(0);
+      } catch (err) {
+        console.error('[vite] 关闭服务器时出错:', err);
+        process.exit(1);
+      }
+    };
+
+    process.once('SIGINT', shutdown);
+    process.once('SIGTERM', shutdown);
+
+    if (server.httpServer) {
+      server.httpServer.once('close', () => {
+        console.log('[vite] Vite 服务器已关闭');
+      });
+      redirectServer.once('close', () => {
+        console.log('[redirect] HTTP 重定向服务已关闭');
+      });
     }
-  : null;
+  },
+} : null;
 
 export default defineConfig({
   plugins: [

@@ -10,18 +10,14 @@ export interface FilterFile {
 
 export type FilterData = Record<string, unknown>;
 
-export async function listFilters(): Promise<FilterFile[]> {
-  return api.get<FilterFile[]>('/filters');
-}
+export const listFilters = async (): Promise<FilterFile[]> =>
+  api.get<FilterFile[]>('/filters');
 
-export async function getFilter(name: string): Promise<FilterData> {
-  return api.get<FilterData>(`/filters/${name}`);
-}
+export const getFilter = async (name: string): Promise<FilterData> =>
+  api.get<FilterData>(`/filters/${name}`);
 
-export async function saveFilter(name: string, data: FilterData): Promise<{ message: string }> {
-  return api.put<{ message: string }>(`/filters/${name}`, data);
-}
+export const saveFilter = async (name: string, data: FilterData): Promise<{ message: string }> =>
+  api.put<{ message: string }>(`/filters/${name}`, data);
 
-export async function deleteFilter(name: string): Promise<{ message: string }> {
-  return api.delete<{ message: string }>(`/filters/${name}`);
-}
+export const deleteFilter = async (name: string): Promise<{ message: string }> =>
+  api.delete<{ message: string }>(`/filters/${name}`);

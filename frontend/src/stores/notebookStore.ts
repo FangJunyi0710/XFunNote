@@ -13,7 +13,7 @@ const DEFAULT_PAGE_LIMIT = 20;
 // ── 全局 schema 缓存（所有用户共享） ──────────────────────────────────
 let schemaCache: Record<string, NotebookSchema> | null = null;
 
-async function getCachedSchema(type: NotebookType): Promise<NotebookSchema> {
+const getCachedSchema = async (type: NotebookType): Promise<NotebookSchema> => {
   if (schemaCache?.[type]) {
     return schemaCache[type];
   }
@@ -30,16 +30,14 @@ async function getCachedSchema(type: NotebookType): Promise<NotebookSchema> {
 }
 
 // ── 按用户分页持久化 ──────────────────────────────────────────────────
-function getPaginationKey(userName: string): string {
-  return `xfun-notebook-pagination-${userName}`;
-}
+const getPaginationKey = (userName: string): string => `xfun-notebook-pagination-${userName}`;
 
 interface PaginationCache {
   offset: number;
   limit: number;
 }
 
-function loadPagination(userName: string, type: NotebookType): PaginationCache {
+const loadPagination = (userName: string, type: NotebookType): PaginationCache => {
   try {
     const raw = localStorage.getItem(getPaginationKey(userName));
     if (!raw) return { offset: 0, limit: DEFAULT_PAGE_LIMIT };
@@ -50,7 +48,7 @@ function loadPagination(userName: string, type: NotebookType): PaginationCache {
   }
 }
 
-function savePagination(userName: string, type: NotebookType, offset: number, limit: number) {
+const savePagination = (userName: string, type: NotebookType, offset: number, limit: number) => {
   try {
     const key = getPaginationKey(userName);
     const raw = localStorage.getItem(key);

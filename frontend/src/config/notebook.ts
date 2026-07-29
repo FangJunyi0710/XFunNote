@@ -131,14 +131,12 @@ export interface NotebookStyles {
  * 根据笔记本类型获取所有样式类名。
  * 各组件通过此工厂函数派生样式，无需再自行维护颜色映射。
  */
-export function getNotebookStyles(type: NotebookType): NotebookStyles {
-  return {
-    border: TYPE_COLORS[type] || '',
-    ring: TYPE_RING_COLORS[type] || '',
-    bg: TYPE_BG_COLORS[type] || '',
-    text: TYPE_TEXT_COLORS[type] || '',
-  };
-}
+export const getNotebookStyles = (type: NotebookType): NotebookStyles => ({
+  border: TYPE_COLORS[type] || '',
+  ring: TYPE_RING_COLORS[type] || '',
+  bg: TYPE_BG_COLORS[type] || '',
+  text: TYPE_TEXT_COLORS[type] || '',
+})
 
 // -------------------------------------------------------
 // 路由配置
@@ -337,20 +335,14 @@ export const FIELD_LABEL_MAP: Record<string, { label: string; priority: number }
   amount_cents: { label: '金额', priority: 110 },
 };
 
-export function getFieldLabel(fieldName: string): string {
-  return FIELD_LABEL_MAP[fieldName]?.label ?? fieldName;
-}
+export const getFieldLabel = (fieldName: string): string => FIELD_LABEL_MAP[fieldName]?.label ?? fieldName;
 
-export function getFieldPriority(fieldName: string): number {
-  const entry = FIELD_LABEL_MAP[fieldName];
-  return entry?.priority ?? -1;
-}
-
+export const getFieldPriority = (fieldName: string): number => FIELD_LABEL_MAP[fieldName]?.priority ?? -1;
 
 // ── 字段值转换（存储 ↔ 显示） ───────────────────────────────
 
 /** 创建枚举类型字段的转换器 */
-function makeEnumTransform<T extends Record<string, string>>(options: T) {
+const makeEnumTransform = <T extends Record<string, string>>(options: T) => {
   return {
     options,
     toDisplay: (v: unknown) => v === null || v === undefined ? '' : options[v as string] ?? String(v),
@@ -445,7 +437,6 @@ const TYPE_DEFAULTS: Record<string, () => unknown> = {
 };
 
 /** 根据字段名获取存储格式的默认值。 */
-export function getFieldDefault(field: string): unknown {
-  return FIELD_DEFAULTS[field]?.() ?? TYPE_DEFAULTS[COLUMN_TYPES[field] ?? '']?.() ?? null;
-}
+export const getFieldDefault = (field: string): unknown =>
+  FIELD_DEFAULTS[field]?.() ?? TYPE_DEFAULTS[COLUMN_TYPES[field] ?? '']?.() ?? null;
 

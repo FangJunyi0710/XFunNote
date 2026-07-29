@@ -32,10 +32,10 @@ export const SQLITE_TYPE_PARSERS: Record<string, (v: unknown) => unknown> = {
  * 将单条原始记录按 ColumnDef[] 进行字段类型转换。
  * 只转换 columns 中声明的字段，额外字段透传。
  */
-export function castEntry(
+export const castEntry = (
   raw: Record<string, unknown>,
   columns: ColumnDef[],
-): Record<string, unknown> {
+): Record<string, unknown> => {
   const result: Record<string, unknown> = {};
   for (const col of columns) {
     const rawValue = raw[col.name];
@@ -50,12 +50,10 @@ export function castEntry(
 }
 
 /** 批量转换 */
-export function castEntries(
+export const castEntries = (
   rawList: Record<string, unknown>[],
   columns: ColumnDef[],
-): Record<string, unknown>[] {
-  return rawList.map((raw) => castEntry(raw, columns));
-}
+): Record<string, unknown>[] => rawList.map((raw) => castEntry(raw, columns));
 
 // ── 条目类型守卫（运行时类型断言 + 缺失字段警告） ──────────
 
@@ -83,11 +81,11 @@ export interface EntryTypeMap {
  * const e = asEntry('plan', castEntry(raw, schema.columns), schema.columns);
  * e.no // 类型推断为 string ✓
  */
-export function asEntry<T extends NotebookType>(
+export const asEntry = <T extends NotebookType>(
   _type: T,
   raw: Record<string, unknown>,
   columns: ColumnDef[],
-): EntryTypeMap[T] {
+): EntryTypeMap[T] => {
   // 开发环境下警告必填字段缺失
   if (import.meta.env.DEV) {
     for (const col of columns) {
@@ -97,15 +95,4 @@ export function asEntry<T extends NotebookType>(
     }
   }
   return raw as unknown as EntryTypeMap[T];
-}
-
-/**
- * 便捷函数：先 cast 再 asEntry
- */
-export function castAndAsEntry<T extends NotebookType>(
-  type: T,
-  raw: Record<string, unknown>,
-  columns: ColumnDef[],
-): EntryTypeMap[T] {
-  return asEntry(type, castEntry(raw, columns), columns);
 }

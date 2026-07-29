@@ -26,7 +26,7 @@ interface RawNotebookSchema {
 }
 
 /** 获取笔记本列表（后端一次返回所有 schema，前端组装为 NotebookSchema[]） */
-export async function listNotebooks(): Promise<NotebookSchema[]> {
+export const listNotebooks = async (): Promise<NotebookSchema[]> => {
   const rawList = await api.get<RawNotebookSchema[]>('/notebooks');
   return rawList.map((raw) => {
     const info = NOTEBOOK_INFO[raw.table_name] || { label: raw.table_name, description: '' };
@@ -46,7 +46,7 @@ export async function listNotebooks(): Promise<NotebookSchema[]> {
 }
 
 /** 获取笔记本 Schema（后端返回列定义，前端组装为完整 NotebookSchema） */
-export async function getSchema(type: NotebookType): Promise<NotebookSchema> {
+export const getSchema = async (type: NotebookType): Promise<NotebookSchema> => {
   // 后端 Column.asdict() 返回字段：name, col_type, nullable, primary_key, unique, index, auto
   const rawColumns = await api.get<RawColumn[]>(`/notebooks/${type}/schema`);
   const columns: ColumnDef[] = rawColumns.map((col) => ({
@@ -70,7 +70,7 @@ export async function getSchema(type: NotebookType): Promise<NotebookSchema> {
  * filter 格式：单个 Condition: {column, op, value} 或 DNF: [[{column, op, value}, ...], ...]
  * @param columns 完整列名列表。传入时使用实际列名。
  */
-function buildDefaultView(type: NotebookType, columns: string[], filter?: string): string {
+const buildDefaultView = (type: NotebookType, columns: string[], filter?: string): string => {
   const tableName = type;
   let filterJson: unknown;
   if (filter) {
@@ -85,7 +85,7 @@ function buildDefaultView(type: NotebookType, columns: string[], filter?: string
   });
 }
 
-export async function queryEntries(
+export const queryEntries = async(
   type: NotebookType,
   params: {
     filter?: string;
@@ -95,7 +95,7 @@ export async function queryEntries(
     order_dir?: string;
     columns: string[];
   },
-): Promise<QueryResponse> {
+): Promise<QueryResponse> => {
   const queryParams: Record<string, string> = {};
 
   // 参数映射：前端 offset/limit → 后端 offset/limit
@@ -126,43 +126,39 @@ export async function queryEntries(
   };
 }
 
-export async function addEntries(
+export const addEntries = async(
   type: NotebookType,
   data: { entries: Record<string, unknown>[] },
-): Promise<{ count: number; results: Record<string, unknown>[] }> {
-  return api.post(`/notebooks/${type}/entries`, data);
-}
+): Promise<{ count: number; results: Record<string, unknown>[] }> =>
+  api.post(`/notebooks/${type}/entries`, data);
 
-export async function updateEntry(
+export const updateEntry = async(
   type: NotebookType,
   data: UpdateRequest,
-): Promise<{ count: number; results: Record<string, unknown>[] }> {
+): Promise<{ count: number; results: Record<string, unknown>[] }> =>
   // 前端格式 { id, updates } → 后端格式 { filter: [[{column, op, value}]], values }
-  return api.put(`/notebooks/${type}/entries`, {
+  api.put(`/notebooks/${type}/entries`, {
     filter: [[{ column: 'id', op: '=', value: data.id }]],
     values: data.updates,
   });
-}
 
 /** 批量更新条目（按 ID 列表 + 统一的值） */
-export async function batchUpdateEntries(
+export const batchUpdateEntries = async(
   type: NotebookType,
   ids: string[],
   values: Record<string, unknown>,
-): Promise<{ count: number; results: Record<string, unknown>[] }> {
-  return api.put(`/notebooks/${type}/entries`, {
+): Promise<{ count: number; results: Record<string, unknown>[] }> =>
+  api.put(`/notebooks/${type}/entries`, {
     filter: [[{ column: 'id', op: 'IN', value: ids }]],
     values,
   });
-}
 
-export async function deleteEntries(
+export const deleteEntries = async(
   type: NotebookType,
   ids: string[],
-): Promise<DeleteResponse> {
+): Promise<DeleteResponse> =>
   // 前端 ids 列表 → 后端 filter: [[{column, op, value}]]
-  return api.delete<DeleteResponse>(
+  api.delete<DeleteResponse>(
     `/notebooks/${type}/entries`,
     { filter: [[{ column: 'id', op: 'IN', value: ids }]] },
   );
-}

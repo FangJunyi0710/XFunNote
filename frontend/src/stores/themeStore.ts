@@ -8,15 +8,11 @@ interface ThemeState {
   toggle: () => void;
 }
 
-function getSystemTheme(): ThemeMode {
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
+const getSystemTheme = (): ThemeMode => window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 
-function applyTheme(resolved: ThemeMode) {
-  document.documentElement.classList.toggle('dark', resolved === 'dark');
-}
+const applyTheme = (resolved: ThemeMode) => document.documentElement.classList.toggle('dark', resolved === 'dark');
 
-function loadStoredMode(): ThemeMode {
+const loadStoredMode = (): ThemeMode => {
   const stored = localStorage.getItem('xfun-theme');
   return stored === 'light' || stored === 'dark' ? stored : getSystemTheme();
 }

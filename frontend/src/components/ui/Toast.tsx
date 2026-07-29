@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { cn } from '@/lib/utils';
+import { cn, genId } from '@/lib/utils';
 
 // ── 类型定义 ───────────────────────────────────────
 
@@ -20,9 +20,7 @@ type ToastListener = (toast: Omit<ToastItem, 'id' | 'pinned' | 'exiting'>) => vo
 
 let listener: ToastListener | null = null;
 
-export function showToast(message: string, type: 'error' | 'success' = 'error') {
-  listener?.({ message, type });
-}
+export const showToast = (message: string, type: 'error' | 'success' = 'error') => listener?.({ message, type });
 
 export const toast = {
   error: (msg: string) => showToast(msg, 'error'),
@@ -42,7 +40,7 @@ export const ToastContainer: React.FC = () => {
   // 订阅全局通知
   useEffect(() => {
     listener = (t) => {
-      const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const id = genId();
       const newItem: ToastItem = { ...t, id, pinned: false, exiting: false };
       setItems((prev) => [...prev, newItem]);
     };

@@ -27,15 +27,13 @@ const bottomNav: NavItem[] = [
 
 
 
-function navLinkClass(isActive: boolean, extra = '') {
-  return cn(
+const navLinkClass = (isActive: boolean, extra = '') => cn(
     'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
     isActive
       ? 'bg-primary/10 text-primary font-medium'
       : 'text-foreground/70 hover:bg-accent hover:text-accent-foreground',
     extra,
   );
-}
 
 export const Sidebar: React.FC = () => {
   const { mode, toggle } = useThemeStore();

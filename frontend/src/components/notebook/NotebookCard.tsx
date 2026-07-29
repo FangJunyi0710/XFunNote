@@ -11,13 +11,11 @@ export type CardRenderer = React.FC<{ entry: Record<string, unknown> }>;
 
 const registry = new Map<string, CardRenderer>();
 
-export function registerCard(type: NotebookType, renderer: CardRenderer): void {
+export const registerCard = (type: NotebookType, renderer: CardRenderer): void => {
   registry.set(type, renderer);
 }
 
-export function getCardRenderer(type: string): CardRenderer | undefined {
-  return registry.get(type);
-}
+export const getCardRenderer = (type: string): CardRenderer | undefined => registry.get(type);
 
 interface NotebookCardProps {
   type: string;
