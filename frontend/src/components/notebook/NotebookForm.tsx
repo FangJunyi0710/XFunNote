@@ -99,7 +99,10 @@ export const NotebookForm: React.FC<{
     const onChange = (v: unknown) => handleChange(col.name, v);
     return <div key={col.name} className="space-y-1">
       <FieldLabel name={col.name} required={!disableRequired && col.required} />
-      <ValueEditor col={col} value={value} onChange={onChange} enableRequired={!disableRequired}/>
+      <ValueEditor col={col} value={value} onChange={onChange}
+        required={!disableRequired && col.required}
+        placeholder={initialData ? '编辑内容' : disableRequired ? '修改字段' : '输入内容'}
+      />
     </div>;
   };
 
