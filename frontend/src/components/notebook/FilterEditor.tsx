@@ -4,74 +4,25 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { genId } from '@/lib/utils';
-import { FILTER_OPS_LABEL, type ConditionGroup, type ConditionRow, type DNF, type FilterOp } from '@/types/filter';
+import { FILTER_OPS_LABEL, type Condition, type ConditionGroup, type ConditionRow, type Filter, type FilterOp } from '@/types/filter';
 import { CloseIcon, SubmitIcon } from '@/components/ui/icons';
 import { ValueEditor } from './ValueEditor';
 import type { ColumnDef } from '@/types/notebook';
 
-function tryParseNumber(s: string): string | number {
-  const n = Number(s);
-  return !isNaN(n) && s.trim() !== '' ? n : s;
-}
-
-function serializeValue(op: FilterOp, display: string): string | number[] | string[] {
-  if (op === 'IN') {
-    return display.split(',').map(s => s.trim()).filter(Boolean);
-  }
-  if (op === 'BETWEEN') {
-    const parts = display.split(',').map(s => s.trim());
-    return parts.length !== 2 ? '' : parts.map(tryParseNumber).filter((v): v is number => typeof v === 'number');
-  }
-  return display;
-}
-
-function deserializeValue(op: FilterOp, raw: string | number[] | string[]): string {
-  if (Array.isArray(raw)){
-    return raw.join(', ');
-  }
-  if (op === 'IN') {
-    try {
-      const arr = JSON.parse(raw);
-      if (Array.isArray(arr)){
-        return arr.join(', ');
-      }
-    } catch {}
-    return raw;
-  }
-  return raw;
-}
-
-function parseDNF(json: string | null): ConditionGroup[] {
+// ─── 解析后端 JSON（Filter）为内部状态（ConditionGroup[]） ──────
+const parseDNF = (json: string | null): ConditionGroup[] => {
   if (!json) return [];
   try {
-    const dnf: DNF = JSON.parse(json);
-    return dnf.map(group => ({
-      id: genId(),
-      rows: group.map(cond => {
-        return {
-          id: genId(),
-          column: cond.column,
-          op: cond.op as FilterOp,
-          value: deserializeValue(cond.op as FilterOp, cond.value)
-        };
-      }),
-    }));
-  } catch { return []; }
-}
-function serializeDNF(groups: ConditionGroup[]): string | null {
-  const valid = groups.map(g => g.rows.filter(r => r.value.trim() !== '')).filter(rows => rows.length > 0);
-  if (valid.length === 0){
-    return null;
+    const filter: Filter = JSON.parse(json);
+    return filter.map(group => ({ id: genId(), rows: group.map(cond => ({ id: genId(), cond: cond })) }));
+  } catch {
+    return [];
   }
-  const dnf: DNF = valid.map(rows =>
-    rows.map(r => ({
-      column: r.column,
-      op: r.op,
-      value: serializeValue(r.op, r.value)
-    }))
-  );
-  return JSON.stringify(dnf);
 }
+
+// ─── 序列化内部状态为 JSON 字符串（Filter） ──────────────────────
+const serializeDNF = (groups: ConditionGroup[]): string => JSON.stringify(groups.map(g => g.rows.map(r => r.cond)));
+
 
 interface FilterEditorProps {
   columns: ColumnDef[];
@@ -88,19 +39,23 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({ columns, initialFilt
 
   useEffect(() => { onChange?.(serializeDNF(groups)); }, [groups]);
 
-  const addGroup = () => setGroups(prev => [...prev, { id: genId(), rows: [{ id: genId(), column: columns[0]?.name || '', op: '=' as FilterOp, value: '' }] }]);
-  const removeGroup = (gid: string) => setGroups(prev => prev.filter(g => g.id !== gid));
-  const addRow = (gid: string) => setGroups(prev => prev.map(g => g.id === gid ? { ...g, rows: [...g.rows, { id: genId(), column: columns[0]?.name || '', op: '=' as FilterOp, value: '' }] } : g));
-  const updateRow = (gid: string, rid: string, patch: Partial<ConditionRow>) => setGroups(prev => prev.map(g => g.id === gid ? { ...g, rows: g.rows.map(r => r.id === rid ? { ...r, ...patch } : r) } : g));
-  const removeRow = (_gid: string, rid: string) => setGroups(prev => prev.map(g => ({ ...g, rows: g.rows.filter(r => r.id !== rid) })).filter(g => g.rows.length > 0));
-  
-  // ─── 辅助：IN 列表项操作 ──────────────────────────────────────────────
-  const splitInValues = (value: string): string[] => value.split(',').map(s => s.trim()).filter(Boolean);
-  const joinInValues = (items: string[]): string => items.join(', ');
+  // ─── 默认值工厂 ──────────────────────────────────────────────────────
+  const getDefaultValue = (op: FilterOp): unknown => {
+    if (op === 'IN') return [''];
+    if (op === 'BETWEEN') return ['', ''];
+    return '';
+  };
 
-  const addInItem = (gid: string, rid: string) => setGroups(prev => prev.map(g => g.id === gid ? { ...g, rows: g.rows.map(r => r.id === rid ? { ...r, value: joinInValues([...splitInValues(r.value), '']) } : r)} : g));
-  const removeInItem = (gid: string, rid: string, index: number) => setGroups(prev => prev.map(g => g.id !== gid ? g : { ...g, rows: g.rows.map(r => r.id !== rid ? r : ((items) => items.length <= 1 ? r : { ...r, value: joinInValues(items.filter((_, i) => i !== index)) })(splitInValues(r.value))) }));
-  
+  const addGroup = () => setGroups(prev => [...prev, { id: genId(), rows: [{ id: genId(), cond: { column: columns[0]?.name || '', op: '=' as FilterOp, value: '' } }] }]);
+  const removeGroup = (gid: string) => setGroups(prev => prev.filter(g => g.id !== gid));
+  const addRow = (gid: string) => setGroups(prev => prev.map(g => g.id === gid ? { ...g, rows: [...g.rows, { id: genId(), cond: { column: columns[0]?.name || '', op: '=' as FilterOp, value: '' } }] } : g));
+  const updateRow = (gid: string, rid: string, patch: Partial<Condition>) => setGroups(prev => prev.map(g => g.id === gid ? { ...g, rows: g.rows.map(r => r.id === rid ? { ...r, cond: { ...r.cond, ...patch } } : r) } : g));
+  const removeRow = (_gid: string, rid: string) => setGroups(prev => prev.map(g => ({ ...g, rows: g.rows.filter(r => r.id !== rid) })).filter(g => g.rows.length > 0));
+
+  // ─── 辅助：IN 列表项操作（直接操作数组） ──────────────────────────
+  const addInItem = (gid: string, rid: string) => setGroups(prev => prev.map(g => g.id === gid ? { ...g, rows: g.rows.map(r => r.id === rid ? { ...r, cond: { ...r.cond, value: [...(Array.isArray(r.cond.value) ? r.cond.value : []), ''] } } : r) } : g));
+  const removeInItem = (gid: string, rid: string, index: number) => setGroups(prev => prev.map(g => g.id !== gid ? g : { ...g, rows: g.rows.map(r => r.id !== rid ? r : { ...r, cond: { ...r.cond, value: (Array.isArray(r.cond.value) ? r.cond.value : []).filter((_, i) => i !== index) } }) }));
+
   const handleApply = () => onApply(serializeDNF(groups));
   const handleClear = () => setGroups([]);
 
@@ -124,45 +79,44 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({ columns, initialFilt
   );
 
   const renderRow = (row: ConditionRow, groupId: string) => {
-    const colDef = columns.find((c) => c.name === row.column)!;
+    const colDef = columns.find((c) => c.name === row.cond.column)!;
 
     const handleValueChange = (newVal: unknown) => {
-      const strVal = newVal === null || newVal === undefined ? '' : String(newVal);
-      updateRow(groupId, row.id, { value: strVal });
-    };
-
-    const handleInItemChange = (index: number, newVal: string) => {
-      const items = splitInValues(row.value);
-      items[index] = newVal;
-      updateRow(groupId, row.id, { value: joinInValues(items) });
+      updateRow(groupId, row.id, { value: newVal });
     };
 
     // ── 查找表：运算符 → 值区域渲染函数 ──
     const opRenderers: Record<FilterOp, (row: ConditionRow) => React.ReactNode> = {
-      '=': (r) => <ValueEditor col={colDef} value={r.value} onChange={handleValueChange} className="flex-1" />,
-      '!=': (r) => <ValueEditor col={colDef} value={r.value} onChange={handleValueChange} className="flex-1" />,
-      '>': (r) => <ValueEditor col={colDef} value={r.value} onChange={handleValueChange} className="flex-1" />,
-      '<': (r) => <ValueEditor col={colDef} value={r.value} onChange={handleValueChange} className="flex-1" />,
-      '>=': (r) => <ValueEditor col={colDef} value={r.value} onChange={handleValueChange} className="flex-1" />,
-      '<=': (r) => <ValueEditor col={colDef} value={r.value} onChange={handleValueChange} className="flex-1" />,
-      'LIKE': (r) => <ValueEditor col={colDef} value={r.value} onChange={handleValueChange} className="flex-1" />,
-      'TEXT_SEARCH': (r) => <ValueEditor col={colDef} value={r.value} onChange={handleValueChange} className="flex-1" />,
+      '=': (r) => <ValueEditor col={colDef} value={r.cond.value} onChange={handleValueChange} className="flex-1" />,
+      '!=': (r) => <ValueEditor col={colDef} value={r.cond.value} onChange={handleValueChange} className="flex-1" />,
+      '>': (r) => <ValueEditor col={colDef} value={r.cond.value} onChange={handleValueChange} className="flex-1" />,
+      '<': (r) => <ValueEditor col={colDef} value={r.cond.value} onChange={handleValueChange} className="flex-1" />,
+      '>=': (r) => <ValueEditor col={colDef} value={r.cond.value} onChange={handleValueChange} className="flex-1" />,
+      '<=': (r) => <ValueEditor col={colDef} value={r.cond.value} onChange={handleValueChange} className="flex-1" />,
+      'LIKE': (r) => <ValueEditor col={colDef} value={r.cond.value} onChange={handleValueChange} className="flex-1" />,
+      'TEXT_SEARCH': (r) => <ValueEditor col={colDef} value={r.cond.value} onChange={handleValueChange} className="flex-1" />,
       'BETWEEN': (r) => {
-        const parts = r.value.split(',').map((s) => s.trim());
-        const min = parts[0] || '';
-        const max = parts[1] || '';
+        const arr = Array.isArray(r.cond.value) ? r.cond.value : ['', ''];
+        const min = arr[0] ?? '';
+        const max = arr[1] ?? '';
         return (
           <div className="flex items-center gap-1 flex-1">
             <Input
               value={min}
-              onChange={(e) => handleValueChange(`${e.target.value},${max}`)}
+              onChange={(e) => {
+                const newArr = [e.target.value, max];
+                updateRow(groupId, row.id, { value: newArr });
+              }}
               placeholder="最小值"
               className="flex-1"
             />
             <span className="text-muted-foreground">~</span>
             <Input
               value={max}
-              onChange={(e) => handleValueChange(`${min},${e.target.value}`)}
+              onChange={(e) => {
+                const newArr = [min, e.target.value];
+                updateRow(groupId, row.id, { value: newArr });
+              }}
               placeholder="最大值"
               className="flex-1"
             />
@@ -170,14 +124,18 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({ columns, initialFilt
         );
       },
       'IN': (r) => {
-        const items = splitInValues(r.value);
+        const items = Array.isArray(r.cond.value) ? r.cond.value : [];
         return (
           <div className="flex-1 space-y-1">
             {items.map((item, idx) => (
               <div key={idx} className="flex items-center gap-1">
                 <Input
-                  value={item}
-                  onChange={(e) => handleInItemChange(idx, e.target.value)}
+                  value={String(item)}
+                  onChange={(e) => {
+                    const newItems = [...items];
+                    newItems[idx] = e.target.value;
+                    updateRow(groupId, row.id, { value: newItems });
+                  }}
                   placeholder={`项 ${idx + 1}`}
                   className="flex-1"
                 />
@@ -198,16 +156,21 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({ columns, initialFilt
     };
 
     // 根据运算符获取渲染函数
-    const renderValueArea = opRenderers[row.op];
+    const renderValueArea = opRenderers[row.cond.op];
 
     const renderTopRow = () => {
-      const isInOp = row.op === 'IN';
+      const isInOp = row.cond.op === 'IN';
+      const handleOpChange = (newOp: string) => {
+        const op = newOp as FilterOp;
+        const defaultValue = getDefaultValue(op);
+        updateRow(groupId, row.id, { op, value: defaultValue });
+      };
       return (
         <div className="flex items-center gap-2">
-          <Select value={row.column} onChange={e => updateRow(groupId, row.id, { column: e.target.value })} className="w-36">
+          <Select value={row.cond.column} onChange={e => updateRow(groupId, row.id, { column: e.target.value })} className="w-36">
             {columns.map(col => <option key={col.name} value={col.name}>{col.name}</option>)}
           </Select>
-          <Select value={row.op} onChange={e => updateRow(groupId, row.id, { op: e.target.value as FilterOp, value: '' })} className="w-24">
+          <Select value={row.cond.op} onChange={e => handleOpChange(e.target.value)} className="w-24">
             {Object.entries(FILTER_OPS_LABEL).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
