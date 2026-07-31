@@ -1,5 +1,4 @@
 // 基础 HTTP 客户端
-import { handleError } from '@/lib/error';
 import pkg from '../../package.json';
 import { useTokenStore } from '@/stores/tokenStore';
 
