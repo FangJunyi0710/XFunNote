@@ -5,7 +5,6 @@ from xfun.utils.time_utils import validate_datetime
 from xfun.utils.token_utils import generate_token, validate_token
 from xfun.core.errors import EntryInvalidError
 from xfun.core.view import validate_view
-from xfun.core.filter import validate_filter
 
 # ---- 系统表定义 ----
 SYSTEM_TABLES: dict[str, list[Column]] = {
@@ -22,13 +21,6 @@ SYSTEM_TABLES: dict[str, list[Column]] = {
         Column("updated_at", "TEXT", auto=True),
     ],
     "_view": [
-        Column("id", "TEXT", primary_key=True, auto=True),
-        Column("name", "TEXT", unique=True),
-        Column("data", "TEXT"),
-        Column("created_at", "TEXT", auto=True),
-        Column("updated_at", "TEXT", auto=True),
-    ],
-    "_filter": [
         Column("id", "TEXT", primary_key=True, auto=True),
         Column("name", "TEXT", unique=True),
         Column("data", "TEXT"),
@@ -75,12 +67,7 @@ def _validate_view(entry: dict) -> None:
     if "data" in entry and entry["data"] is not None:
         validate_view(entry["data"])
 
-def _validate_filter(entry: dict) -> None:
-    if "data" in entry and entry["data"] is not None:
-        validate_filter(entry["data"])
-
 def register_system_hooks(db: DB) -> None:
     db.register_hooks("_token", validate=_validate_token)
     db.register_hooks("_permission", validate=_validate_permission)
     db.register_hooks("_view", validate=_validate_view)
-    db.register_hooks("_filter", validate=_validate_filter)
