@@ -33,3 +33,5 @@ def init_db(db: DB):
     # 注册钩子后才初始化表（init 内部自管理事务）
     db.table_infos.update({name: nb.columns for name, nb in registry.items()})
     db.table_infos.update(SYSTEM_TABLES)
+
+# TODO 增加导入导出功能

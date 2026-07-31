@@ -249,3 +249,8 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     </div>
   );
 };
+// TODO 前端增加卡片详情页
+// TODO 前端添加标签编辑器、AI note等的移入移出等
+// TODO 前端添加排序设置页面
+// TODO 前端选择时应提供筛选出仅选择条目的视图便于更好呈现
+// TODO 前端分各个本子做精致的数据呈现：点击本子进入仪表盘页面，再点击进入条目列表页面

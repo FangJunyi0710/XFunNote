@@ -45,3 +45,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+// TODO 前端放适当信息在 url 内：思考多标签页和分享
+// TODO 支持未来添加虚拟本子临时以本子形态展示数据
+// TODO 给网站加图标
+// TODO 检查pub asset等文件夹是否正确。

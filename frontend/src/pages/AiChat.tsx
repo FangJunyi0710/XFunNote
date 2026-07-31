@@ -118,3 +118,5 @@ export const AiChat: React.FC = () => {
     </div>
   );
 };
+// TODO 前端 AI 对话添加历史对话、Agent选择与编辑等页面
+// TODO 前端将所有AI相关数据移入AI部分

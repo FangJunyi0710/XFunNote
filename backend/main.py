@@ -167,6 +167,9 @@ app.include_router(manage_view.router, prefix=API_PREFIX)
 app.include_router(manage_token.router, prefix=API_PREFIX)
 app.include_router(manage_permission.router, prefix=API_PREFIX)
 app.include_router(manage_filter.router, prefix=API_PREFIX)
+# TODO 添加流式返回 AI 结果的路由及前端支持
+# TODO 添加 SSE 事件驱动的后端避免轮询
+# TODO 提供获取预定义 permission 的接口
 
 if __name__ == "__main__":
     uvicorn.run(
@@ -176,31 +179,12 @@ if __name__ == "__main__":
         reload=UVICORN_RELOAD,
     )
 
-# TODO 前端在权限被拒时根据 ops 返回值提示
-# TODO 增加导入导出功能
-# TODO 实现完整的 filter 编辑器
-# TODO 前端实现真正的视图筛选
-# TODO 添加流式返回 AI 结果的路由及前端支持
-# TODO 前端分各个本子做精致的数据呈现：点击本子进入仪表盘页面，再点击进入条目列表页面
-# TODO 前端 AI 对话添加历史对话、Agent选择与编辑等页面
-# TODO 前端添加排序设置页面
-# TODO 前端添加 .env 编辑管理页面
 # TODO Docker 化方案与快速部署 Termux 到手机、apk 打包等
-# TODO QQ 机器人推送与定时任务：自动定期备份等
-# TODO pyproject.toml 内容很少（缺少项目元数据、依赖声明等）
-# TODO CI/CD 配置
-# TODO 前端选择时应提供筛选出仅选择条目的视图便于更好呈现
-# TODO 提供获取预定义 permission 的接口
-# TODO 添加 SSE 事件驱动的后端避免轮询
-# TODO 添加前端 shortcut 兑换确认页面，且未被兑换的 token 状态为停用以增强安全
 # TODO 部署时注意 HSTS 等安全机制
-# TODO 前端编辑条目提供更合适的文本框，带记忆功能。
-# TODO 前端表单将大部分信息自动填充
-# TODO 前端增加卡片详情页
-# TODO 前端添加操作日志等历史记录
-# TODO 支持未来添加虚拟本子临时以本子形态展示数据
-# TODO 前端将所有AI相关数据移入AI部分
-# TODO 前端添加标签编辑器、AI note等的移入移出等
-# TODO 前端放适当信息在 url 内：思考多标签页和分享
+# TODO CI/CD 配置
+
+# TODO pyproject.toml 内容很少（缺少项目元数据、依赖声明等）
+# TODO 变异测试 mutmut
+
 # TODO 实现 bff 连接池等
-# TODO 批量更新改为可以清空某些字段：使用复选框明确所更新项
+# TODO 保证添加的幂等性

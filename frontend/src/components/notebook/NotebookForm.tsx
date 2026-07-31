@@ -150,3 +150,6 @@ export const NotebookForm: React.FC<{
     </Card>
   );
 };
+// TODO 前端编辑条目提供更合适的文本框，带记忆功能
+// TODO 前端表单将大部分信息自动填充
+// TODO 批量更新改为可以清空某些字段：使用复选框明确所更新项

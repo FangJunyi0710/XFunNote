@@ -385,3 +385,4 @@ export const TokenManagement: React.FC = () => {
     </div>
   );
 };
+// TODO 添加前端 shortcut 兑换确认页面，且未被兑换的 token 状态为停用以增强安全

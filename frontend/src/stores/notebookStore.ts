@@ -72,6 +72,7 @@ interface UserNotebookData {
   orderBy: string;
   orderDir: 'asc' | 'desc';
 }
+// TODO 前端实现真正的视图筛选
 
 interface NotebookState {
   users: Record<string, UserNotebookData>;
@@ -354,6 +355,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
     }
   },
 }));
+// TODO 前端在权限被拒时根据 ops 返回值提示
 
 export const useCurrentNotebookData = () => {
   const userName = useTokenStore((s) => s.activeUserName);
