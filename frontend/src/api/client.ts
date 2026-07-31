@@ -1,4 +1,5 @@
 // 基础 HTTP 客户端
+import { handleError } from '@/lib/error';
 import pkg from '../../package.json';
 import { useTokenStore } from '@/stores/tokenStore';
 
@@ -60,6 +61,8 @@ const request = async<T>(
       'Authorization': `Bearer ${apiKey}`,
       'User': userName,
     };
+  } else {
+    throw new Error("未设置用户名");
   }
 
   if (body !== undefined) {
