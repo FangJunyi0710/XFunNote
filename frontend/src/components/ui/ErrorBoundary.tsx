@@ -8,16 +8,17 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  expanded: boolean
 }
 
 export class ErrorBoundary extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, expanded: false };
   }
 
   static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+    return { hasError: true, error, expanded: false };
   }
 
   override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
@@ -27,7 +28,6 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   handleReset = () => {
     this.setState({ hasError: false, error: null });
-    window.location.reload();
   };
 
   override render() {
@@ -39,13 +39,32 @@ export class ErrorBoundary extends React.Component<Props, State> {
         <div className="error-boundary-fallback">
           <div className="error-boundary-card">
             <h1 className="error-boundary-title">Oops 页面出错了</h1>
-            <p className="error-boundary-desc">应用遇到了一个意外错误，请尝试刷新页面。</p>
-            <button className="error-boundary-button" onClick={this.handleReset}>
-              刷新页面
-            </button>
-            <p className="error-boundary-desc mt-4">
-              {this.state.error && this.state.error.message}
-            </p>
+            <div className="error-boundary-actions" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <button className="error-boundary-button" onClick={() => { this.handleReset(); window.history.back() }}>
+                后退一页
+              </button>
+              <button className="error-boundary-button" onClick={() => { this.handleReset(); window.location.href = '/' }}>
+                返回首页
+              </button>
+            </div>
+            <div style={{ marginTop: '20px', textAlign: 'center' }}>
+              <button
+                onClick={() => this.setState(prev => ({ expanded: !prev.expanded }))}
+                style={{
+                  border: '1px solid',
+                  borderRadius: '4px',
+                  padding: '2px 12px',
+                  marginBottom: '12px'
+                }}
+              >
+                <pre>{this.state.error && this.state.error.message || '未知错误'}</pre>
+              </button>
+              {this.state.expanded && this.state.error?.stack && (
+                <pre style={{ fontSize: '10px' }}>
+                  {this.state.error.stack}
+                </pre>
+              )}
+            </div>
           </div>
         </div>
       );
