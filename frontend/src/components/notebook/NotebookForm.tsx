@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ColumnDef, NotebookSchema } from '@/types/notebook';
 import { ReplyIcon, SubmitIcon } from '@/components/ui/icons';
 import { ChevronRightIcon, ChevronUpIcon } from '@/components/ui/icons';
-import { getFieldPriority, getFieldDefault, getFieldLabel } from "@/config/notebook";
+import { getFieldDefault, getFieldLabel, sortColumns } from "@/config/notebook";
 import { ValueEditor } from '@/components/notebook/ValueEditor';
 
 // ---------------------------------------------------------------------------
@@ -44,10 +44,7 @@ export const NotebookForm: React.FC<{
 
   const autoFieldNames = useMemo(() => new Set(schema.columns.filter((c) => c.auto === true).map((c) => c.name)), [schema.columns]);
 
-  // 按 FIELD_LABEL_MAP 中定义的优先级排序
-  const sortedColumns = useMemo(() => {
-    return [...schema.columns].sort((a, b) => getFieldPriority(b.name) - getFieldPriority(a.name));
-  }, [schema.columns]);
+  const sortedColumns = useMemo(() => sortColumns(schema.columns), [schema.columns]);
 
   useEffect(() => {
     if (initialData) {
@@ -152,4 +149,5 @@ export const NotebookForm: React.FC<{
 };
 // TODO 前端编辑条目提供更合适的文本框，带记忆功能
 // TODO 前端表单将大部分信息自动填充
+// TODO 表单允许填空值
 // TODO 批量更新改为可以清空某些字段：使用复选框明确所更新项

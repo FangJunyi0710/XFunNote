@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
@@ -7,7 +7,7 @@ import { FILTER_OPS_LABEL, type Condition, type ConditionGroup, type ConditionRo
 import { CloseIcon, DeleteIcon, PlusIcon, SubmitIcon } from '@/components/ui/icons';
 import { ValueEditor } from './ValueEditor';
 import type { ColumnDef } from '@/types/notebook';
-import { getFieldLabel } from '@/config/notebook';
+import { getFieldLabel, sortColumns } from '@/config/notebook';
 
 // ─── 解析后端 JSON（Filter）为内部状态（ConditionGroup[]） ──────
 const parseDNF = (json: string | null): ConditionGroup[] => {
@@ -32,7 +32,8 @@ export const FilterEditor: React.FC<{
   if (!columns[0]?.name) {
     return null;
   }
-  const defaultCond: Condition = {column: columns[0]?.name, op: '=' as FilterOp, value: null};
+  const sortedColumns = useMemo(() => sortColumns(columns), [columns]);
+  const defaultCond: Condition = {column: sortedColumns[0]?.name!, op: 'GLOB' as FilterOp, value: null};
   const [groups, setGroups] = useState<ConditionGroup[]>(() => {
     const parsed = parseDNF(initialFilter ?? null);
     return parsed.length > 0 ? parsed : [{id: genId(), rows: [{id: genId(), cond: defaultCond}]}];
@@ -74,7 +75,6 @@ export const FilterEditor: React.FC<{
 
   const renderRow = (row: ConditionRow, groupId: string) => {
     const colDef = columns.find((c) => c.name === row.cond.column)!;
-
     const handleValueChange = (newVal: unknown) => {
       updateRow(groupId, row.id, { value: newVal });
     };
@@ -134,7 +134,7 @@ export const FilterEditor: React.FC<{
       return (
         <div className="flex items-center gap-2">
           <Select value={row.cond.column} onChange={e => updateRow(groupId, row.id, { column: e.target.value })} className="w-36">
-            {columns.map(col => <option key={col.name} value={col.name}>{getFieldLabel(col.name)}</option>)}
+            {sortedColumns.map(col => <option key={col.name} value={col.name}>{getFieldLabel(col.name)}</option>)}
           </Select>
           <Select value={row.cond.op} onChange={e => updateRow(groupId, row.id, { op: e.target.value as FilterOp })} className="w-24">
             {Object.entries(FILTER_OPS_LABEL).map(([value, label]) => (
@@ -180,4 +180,4 @@ export const FilterEditor: React.FC<{
     </Card>
   );
 };
-// TODO 实现完整的 filter 编辑器
+// TODO 实现完整的 filter 编辑器 含双重取反、均列表、引用等

@@ -4,15 +4,15 @@
 export type FilterOp = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'IN' | 'BETWEEN' | 'GLOB';
 
 export const FILTER_OPS_LABEL: Record<FilterOp, string> = {
+  GLOB: '匹配通配符', 
+  BETWEEN: '介于两值间',
   '=': '=',
-  '!=': '!=',
-  '>': '>',
+  '<=': '<=',
   '>=': '>=',
   '<': '<',
-  '<=': '<=',
-  GLOB: '匹配通配符', 
+  '>': '>',
+  '!=': '!=',
   IN: '包含于列表',
-  BETWEEN: '介于两值间',
 };
 
 

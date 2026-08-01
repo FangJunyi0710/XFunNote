@@ -7,6 +7,7 @@ import { NotebookTimeline } from '@/pages/NotebookTimeline';
 import { NotebookSchedule } from '@/pages/NotebookSchedule';
 import { NotebookLedger } from '@/pages/NotebookLedger';
 import { getMajorityMonthForWeek } from '@/lib/utils';
+import type { ColumnDef } from '@/types/notebook';
 
 // ============================================================
 // 笔记本类型配置 — 单一数据源 (SSOT)
@@ -279,65 +280,65 @@ export const COLUMN_TYPES: Record<string, string> = {
 
 export const FIELD_LABEL_MAP: Record<string, { label: string; priority: number }> = {
   // 通用字段 (BASE_COLUMNS)
-  content: { label: '内容', priority: 100 },
-  note: { label: '备注', priority: 11 },
-  tags: { label: '标签', priority: 10 },
-
-  id: { label: 'ID', priority: 1000 },
-  created_at: { label: '创建时间', priority: 910 },
-  updated_at: { label: '更新时间', priority: 900 },
-  is_ai_gen: { label: 'AI 生成', priority: 3 },
-  ai_note: { label: 'AI 备注', priority: 2 },
-  ai_tags: { label: 'AI 标签', priority: 1 },
+  content: { label: '内容', priority: 1000 },
+  
+  note: { label: '备注', priority: 510 },
+  tags: { label: '标签', priority: 500 },
+  id: { label: 'ID', priority: 100 },
+  created_at: { label: '创建时间', priority: 90 },
+  updated_at: { label: '更新时间', priority: 80 },
+  is_ai_gen: { label: 'AI 生成', priority: 30 },
+  ai_note: { label: 'AI 备注', priority: 20 },
+  ai_tags: { label: 'AI 标签', priority: 10 },
 
   // Plan 笔记本特有
-  month: { label: '月份', priority: 110 },
-  done: { label: '完成情况', priority: 50 },
-
-  no: { label: '编号', priority: 100 },
-  seq: { label: '序号', priority: 80 },
-
+  no: { label: '编号', priority: 1200 },
+  month: { label: '月份', priority: 1110 },
+  seq: { label: '序号', priority: 1100 },
+  done: { label: '完成情况', priority: 900 },
+  
   // Diary 笔记本特有
-  date: { label: '日期', priority: 150 },
-  weather: { label: '天气', priority: 90 },
-  mood: { label: '心情', priority: 80 },
+  date: { label: '日期', priority: 1200 },
+  weather: { label: '天气', priority: 910 },
+  mood: { label: '心情', priority: 900 },
 
   // Word 笔记本特有
-  word: { label: '单词', priority: 150 },
-  phonetic: { label: '音标', priority: 140 },
-  part_of_speech: { label: '词性', priority: 130 },
-  example: { label: '例句', priority: 90 },
-  related_words: { label: '相关词', priority: 80 },
+  word: { label: '单词', priority: 1200 },
+  difficulty: { label: '难度', priority: 1191 },
+  stability: { label: '稳定度', priority: 1190 },
+  state: { label: '状态', priority: 1155 },
+  step: { label: '学习步数', priority: 1154 },
+  review_count: { label: '复习次数', priority: 1153 },
+  lapses: { label: '遗忘次数', priority:1152 },
+  next_review: { label: '下次复习', priority: 1151 },
+  last_review: { label: '上次复习', priority: 1150 },
+  phonetic: { label: '音标', priority: 1110 },
+  part_of_speech: { label: '词性', priority: 1100 },
+  example: { label: '例句', priority: 910 },
+  related_words: { label: '相关词', priority: 900 },
 
-  state: { label: '状态', priority: 500 },
-  next_review: { label: '下次复习', priority: 490 },
-  last_review: { label: '上次复习', priority: 480 },
-  difficulty: { label: '难度', priority: 410 },
-  stability: { label: '稳定度', priority: 400 },
-  review_count: { label: '复习次数', priority: 310 },
-  lapses: { label: '遗忘次数', priority: 300 },
-  step: { label: '学习步数', priority: 90 },
-
-  // Accumulation 笔记本特有
-  source: { label: '来源', priority: 90 },
+  // Accumulation / Aimemory 笔记本特有
+  source: { label: '来源', priority: 900 },
 
   // Aimemory 笔记本特有
-  title: { label: '标题', priority: 150 },
+  title: { label: '标题', priority: 1200 },
 
   // Timeline / Schedule 笔记本特有
-  start_time: { label: '开始时间', priority: 150 },
-  end_time: { label: '结束时间', priority: 140 },
-  location: { label: '地点', priority: 90 },
+  start_time: { label: '开始时间', priority: 1200 },
+  end_time: { label: '结束时间', priority: 1100 },
+  location: { label: '地点', priority: 900 },
 
   // Ledger 笔记本特有
-  transaction_id: { label: '交易ID', priority: 130 },
-  account: { label: '账户', priority: 120 },
-  amount_cents: { label: '金额', priority: 110 },
+  transaction_id: { label: '交易ID', priority: 1200 },
+  account: { label: '账户', priority: 1100 },
+  amount_cents: { label: '金额', priority: 1010 },
 };
 
 export const getFieldLabel = (fieldName: string): string => FIELD_LABEL_MAP[fieldName]?.label ?? fieldName;
 
-export const getFieldPriority = (fieldName: string): number => FIELD_LABEL_MAP[fieldName]?.priority ?? -1;
+const getFieldPriority = (fieldName: string): number => FIELD_LABEL_MAP[fieldName]?.priority ?? -1;
+
+export const sortColumns = (cols: ColumnDef[]): ColumnDef[] => [...cols].sort((a, b) => getFieldPriority(b.name) - getFieldPriority(a.name));
 
 // ── 字段值转换（存储 ↔ 显示） ───────────────────────────────
 
