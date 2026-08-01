@@ -366,7 +366,7 @@ const dateToDisplay = (val: unknown): string => {
 const datetimeToDisplay = (val: unknown): string => {
   const d = typeof val === 'string' ? new Date(val) : val;
   if (d instanceof Date && !isNaN(d.getTime())) {
-    const year = d.getFullYear();
+    const year = String(d.getFullYear()).padStart(4, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     const hours = String(d.getHours()).padStart(2, '0');
