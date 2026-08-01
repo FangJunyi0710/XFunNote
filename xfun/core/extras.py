@@ -1,28 +1,5 @@
 from .filter import Condition
 
-
-# ---------------------------------------------------------------------------
-# 文本模糊搜索
-# ---------------------------------------------------------------------------
-
-
-@Condition.register_op("TEXT_SEARCH")
-def _text_search(column: str, value, op: str):
-    """
-    文本模糊搜索 — LIKE 的语义别名，自动包裹 ``%``。
-
-    用法::
-
-        Condition("content", "关键字", "TEXT_SEARCH")
-
-    SQL 生成::
-
-        content LIKE '%关键字%'
-
-    相对于直接使用 LIKE 的好处是语义更清晰，调用方无需手动拼接 ``%``。
-    """
-    return f"{column} LIKE ?", [f"%{value}%"]
-
 @Condition.register_op("TRUE")
 def _true(column: str, value, op: str):
     """

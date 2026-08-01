@@ -69,6 +69,8 @@ class Condition:
 @Condition.register_op("IN")
 @Condition.register_op("NOT IN")
 @Condition.register_op("BETWEEN")
+@Condition.register_op("GLOB")
+@Condition.register_op("NOT GLOB")
 def _builtin_sql(column, value, op) -> tuple[str, list]:
     # --- NULL：只有 = 和 != 可以处理 NULL ---
     if value is None:

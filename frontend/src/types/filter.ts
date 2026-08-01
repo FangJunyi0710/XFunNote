@@ -1,7 +1,7 @@
 // 筛选 DSL 类型
 // 对应 xfun/core/filter.py 中的 Filter DNF 结构
 
-export type FilterOp = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN' | 'BETWEEN' | 'TEXT_SEARCH';
+export type FilterOp = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'IN' | 'BETWEEN' | 'GLOB';
 
 export const FILTER_OPS_LABEL: Record<FilterOp, string> = {
   '=': '=',
@@ -10,10 +10,9 @@ export const FILTER_OPS_LABEL: Record<FilterOp, string> = {
   '>=': '>=',
   '<': '<',
   '<=': '<=',
-  LIKE: 'like', 
-  IN: 'in',
-  BETWEEN: 'between',
-  TEXT_SEARCH: 'contains',
+  GLOB: '匹配通配符', 
+  IN: '包含于列表',
+  BETWEEN: '介于两值间',
 };
 
 
