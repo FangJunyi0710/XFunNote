@@ -29,7 +29,10 @@ export const FilterEditor: React.FC<{
   onApply: (filterJson: string | null) => void;
   onChange?: (filterJson: string | null) => void;
 }> = ({ columns, initialFilter, onApply, onChange }) => {
-  const defaultCond: Condition = {column: columns[0]?.name!, op: '=' as FilterOp, value: null};
+  if (!columns[0]?.name) {
+    return null;
+  }
+  const defaultCond: Condition = {column: columns[0]?.name, op: '=' as FilterOp, value: null};
   const [groups, setGroups] = useState<ConditionGroup[]>(() => {
     const parsed = parseDNF(initialFilter ?? null);
     return parsed.length > 0 ? parsed : [{id: genId(), rows: [{id: genId(), cond: defaultCond}]}];
