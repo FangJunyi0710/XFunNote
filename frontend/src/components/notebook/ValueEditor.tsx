@@ -79,16 +79,18 @@ const renderTextareaField: ValueEditorComponent = ({col, value, onChange, ...pro
 );
 /** 布尔 字段渲染为复选框 */
 const renderBooleanField: ValueEditorComponent = ({col, value, onChange, ...props}) => {
-  const checked = value === 1 || value === true;
   const handleChange = (v: boolean) => {
     onChange(v ? 1 : 0);
   };
+  if (typeof value !== 'number' || value !== 0 && value !== 1) {
+    handleChange(Boolean(value));
+  }
   const id = `checkbox-${col.name}`;
   return <div className="flex items-center gap-2">
     <Checkbox
       id={id}
       key={col.name}
-      checked={checked}
+      checked={Boolean(value)}
       onCheckedChange={(v) => handleChange(v)}
       {...props}
     />
