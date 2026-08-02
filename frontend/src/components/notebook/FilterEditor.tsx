@@ -133,7 +133,7 @@ export const FilterEditor: React.FC<{
     const renderTopRow = () => {
       return (
         <div className="flex items-center gap-2">
-          <Select value={row.cond.column} onChange={e => updateRow(groupId, row.id, { column: e.target.value })} className="w-36">
+          <Select value={row.cond.column} onChange={e => updateRow(groupId, row.id, { column: e.target.value, value: null })} className="w-36">
             {sortedColumns.map(col => <option key={col.name} value={col.name}>{getFieldLabel(col.name)}</option>)}
           </Select>
           <Select value={row.cond.op} onChange={e => updateRow(groupId, row.id, { op: e.target.value as FilterOp })} className="w-24">
@@ -181,3 +181,4 @@ export const FilterEditor: React.FC<{
   );
 };
 // TODO 实现完整的 filter 编辑器 含双重取反、均列表、引用等
+// TODO 添加新组等时，取之前值作为初始值。
