@@ -262,6 +262,8 @@ export const NOTEBOOK_PAGES: Record<NotebookType, NotebookPageComponent> = {
 // -------------------------------------------------------
 export const COLUMN_TYPES: Record<string, string> = {
   content: 'Textarea',
+  note: 'Textarea',
+  ai_note: 'Textarea',
   done: 'Boolean',
   is_ai_gen: 'Boolean',
   date: 'Date',
@@ -435,6 +437,11 @@ const TYPE_DEFAULTS: Record<string, () => unknown> = {
   Date: () => dateToDisplay(new Date()),
   DateTime: () => new Date().toISOString(),
   Boolean: () => 0,
+  TEXT: () => '',
+  INTEGER: () => 0,
+  REAL: () => 0,
+  Textarea: () => '',
+  Select: () => 0,
 };
 
 /** 根据字段名获取存储格式的默认值。 */
