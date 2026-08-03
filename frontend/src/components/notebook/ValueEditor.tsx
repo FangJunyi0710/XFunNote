@@ -146,5 +146,5 @@ const typeRenderers: Record<string, ValueEditorComponent> = {
 
 export const ValueEditor: ValueEditorComponent = ({col, value, onChange, ...props}) => {
   const Editor = typeRenderers[COLUMN_TYPES[col.name] || col.type] || createInputRenderer();
-  return Editor({col, value, onChange, ...props});
+  return <Editor col={col} value={value} onChange={onChange} {...props} />;
 }
