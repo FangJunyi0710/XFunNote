@@ -6,6 +6,7 @@ import { useNotebookStore, useCurrentNotebookData } from '@/stores/notebookStore
 import { TYPE_LABELS } from '@/config/notebook';
 import { FilterIcon, ReplyIcon } from '@/components/ui/icons';
 import type { NotebookType } from '@/config/notebook';
+import type { FilterState } from '@/types/filter';
 
 export const NotebookFilter: React.FC = () => {
   const { notetype } = useParams<{ notetype: string }>();
@@ -14,7 +15,7 @@ export const NotebookFilter: React.FC = () => {
   const userData = useCurrentNotebookData();
   const type = notetype as NotebookType;
 
-  const [currentFilter, setCurrentFilter] = useState<string | null>(null);
+  const [currentFilter, setCurrentFilter] = useState<FilterState>({filter: []});
 
   useEffect(() => {
     if (type && userData?.currentType !== type) {
@@ -39,9 +40,8 @@ export const NotebookFilter: React.FC = () => {
       </div>
       <FilterEditor
         columns={columns}
-        initialFilter={currentFilter}
-        onApply={handleApply}
-        onChange={(json) => setCurrentFilter(json)}
+        value={currentFilter}
+        onChange={(state) => setCurrentFilter(state ?? {filter: []})}
       />
     </div>
   );
