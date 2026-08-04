@@ -43,7 +43,7 @@ export const NotebookFilter: React.FC = () => {
         <span className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-bold"><FilterIcon className="inline-block align-middle" /> 筛选{TYPE_LABELS[type] || ''}</h1>
           <span className="flex gap-2">
-            <Button variant="outline" type="button" onClick={() => navigate(`/notebooks/${type}`)} title="返回">
+            <Button variant="outline" onClick={() => navigate(`/notebooks/${type}`)} title="返回">
               <ReplyIcon />
             </Button>
             <Button type="submit" disabled={applying} title="应用">

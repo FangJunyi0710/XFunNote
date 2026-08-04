@@ -109,7 +109,7 @@ export const NotebookForm: React.FC<{
           <CardTitle className="flex items-center justify-between">
             <span>{title || (initialData ? '编辑条目' : '新建条目')}</span>
             <span className="flex gap-2">
-              <Button type="button" variant="outline" onClick={onCancel} title="返回">
+              <Button variant="outline" onClick={onCancel} title="返回">
                 <ReplyIcon/>
               </Button>
               <Button type="submit" disabled={submitting} title="提交">
@@ -128,15 +128,14 @@ export const NotebookForm: React.FC<{
             if (autoCols.length === 0) return null;
             return (
               <div className="mt-4 pt-4 border-t border-border/50">
-                <button
-                  type="button"
+                <Button
                   onClick={() => setAutoFieldsCollapsed(!autoFieldsCollapsed)}
                   className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors mb-3"
                 >
                   <span>{autoFieldsCollapsed ? <ArrowIcon direction='right' size={12} className="inline-block" /> : <ArrowIcon direction='down' size={12} className="inline-block -rotate-180" />}</span>
                   <span>系统自动字段（{autoCols.length} 个）</span>
                   <span className="text-[10px] text-muted-foreground/60">不建议手动修改</span>
-                </button>
+                </Button>
                 {!autoFieldsCollapsed && autoCols.map((col) => renderField(col))}
               </div>
             );
