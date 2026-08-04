@@ -39,7 +39,10 @@ export class ErrorBoundary extends React.Component<Props, State> {
         <div className="error-boundary-fallback">
           <div className="error-boundary-card">
             <h1 className="error-boundary-title">Oops 页面出错了</h1>
-            <div className="error-boundary-actions gap-3 flex-wrap justify-center">
+            <div className="error-boundary-actions space-x-4 flex-wrap justify-center">
+              <button className="error-boundary-button" onClick={() => { this.handleReset(); window.location.reload() }}>
+                刷新页面
+              </button>
               <button className="error-boundary-button" onClick={() => { this.handleReset(); window.history.back() }}>
                 后退一页
               </button>
