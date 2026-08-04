@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { FilterEditor } from '@/components/notebook/FilterEditor';
+import { FilterEditor, serializeFilter } from '@/components/notebook/FilterEditor';
 import { useNotebookStore, useCurrentNotebookData } from '@/stores/notebookStore';
 import { TYPE_LABELS } from '@/config/notebook';
-import { FilterIcon, ReplyIcon } from '@/components/ui/icons';
+import { FilterIcon, ReplyIcon, SubmitIcon } from '@/components/ui/icons';
 import type { NotebookType } from '@/config/notebook';
 import type { FilterState } from '@/types/filter';
 
@@ -16,6 +16,7 @@ export const NotebookFilter: React.FC = () => {
   const type = notetype as NotebookType;
 
   const [currentFilter, setCurrentFilter] = useState<FilterState>({filter: []});
+  const [applying, setApplying] = useState<boolean>(false);
 
   useEffect(() => {
     if (type && userData?.currentType !== type) {
@@ -25,24 +26,37 @@ export const NotebookFilter: React.FC = () => {
 
   const columns = userData?.schema?.columns ?? [];
 
-  const handleApply = (filterJson: string | null) => {
-    store.setFilter(filterJson);
-    navigate(`/notebooks/${type}`);
+  const handleApply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setApplying(true);
+    try {
+      store.setFilter(serializeFilter(currentFilter));
+      navigate(`/notebooks/${type}`);
+    } finally {
+      setApplying(false);
+    }
   };
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold"><FilterIcon className="inline-block align-middle" /> 筛选{TYPE_LABELS[type] || ''}</h1>
-        <Button variant="outline" onClick={() => navigate(`/notebooks/${type}`)} title="返回">
-          <ReplyIcon />
-        </Button>
-      </div>
-      <FilterEditor
-        columns={columns}
-        value={currentFilter}
-        onChange={(state) => setCurrentFilter(state ?? {filter: []})}
-      />
+      <form onSubmit={handleApply}>
+        <span className="flex items-center justify-between mb-4">
+          <h1 className="text-xl font-bold"><FilterIcon className="inline-block align-middle" /> 筛选{TYPE_LABELS[type] || ''}</h1>
+          <span className="flex gap-2">
+            <Button variant="outline" type="button" onClick={() => navigate(`/notebooks/${type}`)} title="返回">
+              <ReplyIcon />
+            </Button>
+            <Button type="submit" disabled={applying} title="应用">
+              <SubmitIcon />
+            </Button>
+          </span>
+        </span>
+        <FilterEditor
+          columns={columns}
+          value={currentFilter}
+          onChange={(state) => setCurrentFilter(state ?? {filter: []})}
+        />
+      </form>
     </div>
   );
 };
