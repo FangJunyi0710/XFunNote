@@ -115,7 +115,7 @@ export const NotebookEditPage: React.FC = () => {
       {schema && (
         <NotebookForm
           schema={schema}
-          initialData={mode === 'edit' ? entry || undefined : undefined}
+          initialData={mode === 'edit' ? entry || null : null}
           onSubmit={handleSubmit}
           onCancel={() => navigate(`/notebooks/${type}`, { state: { returnIds: batchIds } })}
           title={mode === 'edit' ? `编辑${label}` : mode === 'batch-update' ? `批量更新 ${batchIds.length} 条${label}` : `新建${label}`}

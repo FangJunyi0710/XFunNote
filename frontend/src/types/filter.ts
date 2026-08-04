@@ -36,7 +36,7 @@ export const isDNF = (filter: Filter): filter is Filter[][] =>
 
 export interface FlatFilterState {
   filter: Filter;
-  negate?: boolean | undefined;
+  negate?: boolean;
 }
 
 export interface ConditionRow {
@@ -57,7 +57,7 @@ export const conditionToGroup = (filter: Filter): ConditionGroup =>
 
 export interface DNFFilterState {
   filter: ConditionGroup[];
-  negate?: boolean | undefined;
+  negate?: boolean;
 }
 
 export type FilterState = DNFFilterState | FlatFilterState;
@@ -68,7 +68,7 @@ export const isDNFState = (state: FilterState): state is DNFFilterState =>
 export const toDNFState = (state: FilterState): DNFFilterState => {
   if (isDNFState(state)) return state;
   if (isCondition(state.filter)) {
-    return {filter: [conditionToGroup(state.filter)], negate: state.negate};
+    return {filter: [conditionToGroup(state.filter)], negate: state.negate ?? false};
   }
   if (isDNF(state.filter)) {
     return {filter: state.filter.map((g) => ({id: genId(), rows: g.map((r) => ({id: genId(), leaf: {filter: r}}))}))};
@@ -77,4 +77,4 @@ export const toDNFState = (state: FilterState): DNFFilterState => {
 };
 
 export const toFlatState = (state: FilterState): FlatFilterState =>
-  isDNFState(state) ? {filter: state.filter.map((g) => g.rows.map((r) => r.leaf.negate ? [r.leaf.filter, true] : r.leaf.filter)), negate: state.negate} : state;
+  isDNFState(state) ? {filter: state.filter.map((g) => g.rows.map((r) => r.leaf.negate ? [r.leaf.filter, true] : r.leaf.filter)), negate: state.negate ?? false} : state;

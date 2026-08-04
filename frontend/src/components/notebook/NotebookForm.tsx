@@ -23,7 +23,7 @@ const FieldLabel: React.FC<{ name: string; required?: boolean }> = ({
 
 export const NotebookForm: React.FC<{
   schema: NotebookSchema;
-  initialData?: Record<string, unknown> | undefined;
+  initialData?: Record<string, unknown> | null;
   onSubmit: (data: Record<string, unknown>) => Promise<void>;
   onCancel: () => void;
   title?: string;
