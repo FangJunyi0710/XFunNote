@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { useThemeStore } from '@/stores/themeStore';
 import { useSidebarStore } from '@/stores/sidebarStore';
 import { NOTEBOOK_ROUTES } from '@/config/notebook';
-import { ChevronLeftIcon, ChevronRightIcon, MoonIcon, SunIcon } from '@/components/ui/icons';
+import { ArrowIcon, MoonIcon, SunIcon } from '@/components/ui/icons';
 import pkg from '../../../package.json';
 
 interface NavItem {
@@ -54,7 +54,7 @@ export const Sidebar: React.FC = () => {
           className="fixed left-3 top-3 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-transparent transition-colors text-muted-foreground"
           title="展开侧边栏"
         >
-          <ChevronRightIcon />
+          <ArrowIcon direction='right' />
         </button>
       )}
 
@@ -85,7 +85,7 @@ export const Sidebar: React.FC = () => {
               className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md hover:bg-accent transition-colors text-muted-foreground"
               title="折叠侧边栏"
             >
-              <ChevronLeftIcon />
+              <ArrowIcon direction='left' />
             </button>
 
             <NavLink

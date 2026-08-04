@@ -2,8 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ColumnDef, NotebookSchema } from '@/types/notebook';
-import { ReplyIcon, SubmitIcon } from '@/components/ui/icons';
-import { ChevronRightIcon, ChevronUpIcon } from '@/components/ui/icons';
+import { ArrowIcon, ReplyIcon, SubmitIcon } from '@/components/ui/icons';
 import { getFieldDefault, getFieldLabel, sortColumns } from "@/config/notebook";
 import { ValueEditor } from '@/components/notebook/ValueEditor';
 
@@ -134,7 +133,7 @@ export const NotebookForm: React.FC<{
                   onClick={() => setAutoFieldsCollapsed(!autoFieldsCollapsed)}
                   className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors mb-3"
                 >
-                  <span>{autoFieldsCollapsed ? <ChevronRightIcon size={12} className="inline-block" /> : <ChevronUpIcon size={12} className="inline-block -rotate-180" />}</span>
+                  <span>{autoFieldsCollapsed ? <ArrowIcon direction='right' size={12} className="inline-block" /> : <ArrowIcon direction='down' size={12} className="inline-block -rotate-180" />}</span>
                   <span>系统自动字段（{autoCols.length} 个）</span>
                   <span className="text-[10px] text-muted-foreground/60">不建议手动修改</span>
                 </button>

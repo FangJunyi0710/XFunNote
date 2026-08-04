@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { NotebookCard } from '@/components/notebook/NotebookCard';
 import { Pagination } from '@/components/notebook/Pagination';
-import { PlusIcon, FilterIcon, BatchEditIcon, DeleteIcon, SelectAllIcon, DeselectAllIcon, ChevronUpIcon } from '@/components/ui/icons';
+import { PlusIcon, FilterIcon, BatchEditIcon, DeleteIcon, SelectAllIcon, DeselectAllIcon, ArrowIcon } from '@/components/ui/icons';
 import { useNotebookStore, useCurrentNotebookData } from '@/stores/notebookStore';
 import * as notebookApi from '@/api/notebooks';
 import { TYPE_LABELS } from '@/config/notebook';
@@ -189,7 +189,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
               }}
               title="滚动到顶部"
             >
-              <ChevronUpIcon size={16}/>
+              <ArrowIcon direction='up' />
             </Button>
           )}
         </div>
