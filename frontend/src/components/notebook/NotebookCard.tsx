@@ -6,6 +6,7 @@ import { Timestamp } from '@/components/ui/Timestamp';
 import { getNotebookStyles } from '@/config/notebook';
 import type { NotebookType } from '@/config/notebook';
 import { EditIcon } from '@/components/ui/icons';
+import { cn } from '@/lib/utils';
 
 export type CardRenderer = React.FC<{ entry: Record<string, unknown> }>;
 
@@ -40,9 +41,8 @@ export const NotebookCard: React.FC<NotebookCardProps> = React.memo(({
 
   return (
     <Card
-      className={`border-2 border-border cursor-pointer transition-all hover:shadow-md ${
-        selected ? `ring-2 ${styles.ring} !bg-accent` : ''
-      }`}
+      className={cn('border-2 border-border cursor-pointer transition-all hover:shadow-md',
+        selected && `ring-2 ${styles.ring} !bg-accent`)}
       onClick={() => onSelect?.(entry['id'] as string)}
     >
       <CardContent>

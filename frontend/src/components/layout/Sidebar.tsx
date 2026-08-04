@@ -67,14 +67,11 @@ export const Sidebar: React.FC = () => {
       )}
 
       <aside
-        className={cn(
-          'absolute left-0 top-0 z-40 h-screen border-r bg-card flex flex-col w-56',
-        )}
+        className={cn('absolute left-0 top-0 z-40 h-screen border-r bg-card flex flex-col w-56 transition-transform duration-300 ease-in-out', dragOffset && 'transition-none')}
         style={{
           transform: isCollapsed
             ? `translateX(calc(-100% + ${dragOffset}px))`
             : `translateX(${dragOffset}px)`,
-          transition: dragOffset === 0 ? 'transform 0.3s ease' : 'none',
         }}
       >
         <div className="flex flex-col h-full">
@@ -116,21 +113,13 @@ export const Sidebar: React.FC = () => {
                 onClick={() => setNotebookOpen((v) => !v)}
                 className="flex items-center gap-2 w-full px-3 py-2.5 rounded-md text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
               >
-                <span
-                  className="inline-block transition-transform duration-200 text-xs"
-                  style={{ transform: notebookOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
-                >
-                  ▸
-                </span>
+                <ArrowIcon direction='right' className={cn('transition-transform duration-100 origin-center',
+                  notebookOpen && 'rotate-90'
+                )} />
                 笔记本
               </button>
 
-              <div
-                className="grid transition-all duration-200"
-                style={{
-                  gridTemplateRows: notebookOpen ? '1fr' : '0fr',
-                }}
-              >
+              <div className={cn("grid transition-all duration-200", notebookOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
                 <div className="overflow-hidden min-h-0">
                   <div className="space-y-0.5 pt-1">
                     {notebookNav.map((item) => (

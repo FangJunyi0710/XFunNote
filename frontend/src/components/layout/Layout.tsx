@@ -102,7 +102,7 @@ export const Layout: React.FC = () => {
           width: '100%',
           marginLeft: Math.max(0, (isCollapsed ? 0 : 224) + (dragOffset || 0)) + 'px',
           transition: dragOffset === 0 ? 'margin-left 0.3s ease' : 'none',
-        }:{
+        } : {
           left: Math.max(0, (isCollapsed ? 0 : 224) + (dragOffset || 0)) + 'px',
           right: 0,
           transition: dragOffset === 0 ? 'left 0.3s ease' : 'none',

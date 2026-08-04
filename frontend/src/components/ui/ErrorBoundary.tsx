@@ -39,7 +39,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
         <div className="error-boundary-fallback">
           <div className="error-boundary-card">
             <h1 className="error-boundary-title">Oops 页面出错了</h1>
-            <div className="error-boundary-actions" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <div className="error-boundary-actions gap-3 flex-wrap justify-center">
               <button className="error-boundary-button" onClick={() => { this.handleReset(); window.history.back() }}>
                 后退一页
               </button>
@@ -47,20 +47,15 @@ export class ErrorBoundary extends React.Component<Props, State> {
                 返回首页
               </button>
             </div>
-            <div style={{ marginTop: '20px', textAlign: 'center' }}>
+            <div className="mt-5 text-center">
               <button
                 onClick={() => this.setState(prev => ({ expanded: !prev.expanded }))}
-                style={{
-                  border: '1px solid',
-                  borderRadius: '4px',
-                  padding: '2px 12px',
-                  marginBottom: '12px'
-                }}
+                className='rounded border px-3 py-0.5 mb-3'
               >
                 <pre>{this.state.error && this.state.error.message || '未知错误'}</pre>
               </button>
               {this.state.expanded && this.state.error?.stack && (
-                <pre style={{ fontSize: '10px' }}>
+                <pre className='text-[10px]'>
                   {this.state.error.stack}
                 </pre>
               )}

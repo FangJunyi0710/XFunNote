@@ -11,7 +11,7 @@ import type { TokenInfo } from '@/api/tokens';
 import { Switch } from '@/components/ui/switch';
 import { TokenValueDisplay } from '@/components/ui/TokenValueDisplay';
 import { DeleteIcon, PlusIcon } from '@/components/ui/icons';
-import { maskKey } from '@/lib/utils';
+import { cn, maskKey } from '@/lib/utils';
 import { Timestamp } from '@/components/ui/Timestamp';
 
 const TOKEN_REGEX = /^sk-[-A-Za-z0-9_]{32}$/;
@@ -169,11 +169,11 @@ export const TokenInputPanel: React.FC = () => {
               {userList.map((name) => (
                 <div
                   key={name}
-                  className={`flex items-center justify-between px-3 py-2 rounded-md text-sm border transition-colors ${
+                  className={cn('flex items-center justify-between px-3 py-2 rounded-md text-sm border transition-colors',
                     activeUserName === name
                       ? 'border-primary/50 bg-primary/10'
                       : 'border-transparent hover:bg-accent'
-                  }`}
+                  )}
                 >
                   <span className="font-medium">{name}</span>
                   <div className="flex items-center gap-1">
@@ -222,11 +222,11 @@ export const TokenInputPanel: React.FC = () => {
                 {currentTokens.map((t) => (
                   <div
                     key={t.id}
-                    className={`flex items-center justify-between px-3 py-2 rounded-md text-sm border transition-colors ${
+                    className={cn('flex items-center justify-between px-3 py-2 rounded-md text-sm border transition-colors',
                       activeTokenKey === t.key
                         ? 'border-primary/50 bg-primary/10'
                         : 'border-transparent hover:bg-accent'
-                    }`}
+                    )}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="text-xs text-muted-foreground font-mono">{maskKey(t.key)}</div>
@@ -350,7 +350,7 @@ export const TokenInputPanel: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-muted-foreground">状态：</span>
-                  <span className={`font-medium ${tokenInfo.is_active ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className={cn('font-medium', tokenInfo.is_active ? 'text-green-600' : 'text-red-600')}>
                     {tokenInfo.is_active ? '已启用' : '已停用'}
                   </span>
                 </div>

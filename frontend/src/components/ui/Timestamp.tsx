@@ -1,5 +1,5 @@
 import React from 'react';
-import { getTimezoneOffsetStr } from '@/lib/utils';
+import { cn, getTimezoneOffsetStr } from '@/lib/utils';
 
 type TimeUnit = 'year' | 'month' | 'day' | 'hour' | 'minute';
 
@@ -54,10 +54,10 @@ export const Timestamp: React.FC<TimestampProps> = ({
   const tz = getTimezoneOffsetStr() || '';
 
   return (
-    <span className={`relative inline-block ${className}`}>
+    <span className={cn('relative inline-block', className)}>
       {timeStr}
       {showTimezone && (
-        <sup className={`absolute top-1.5 -right-0 text-[8px] text-muted-foreground translate-x-full ${timezoneClassName}`}>
+        <sup className={cn('absolute top-1.5 -right-0 text-[8px] text-muted-foreground translate-x-full', timezoneClassName)}>
           UTC{tz}
         </sup>
       )}

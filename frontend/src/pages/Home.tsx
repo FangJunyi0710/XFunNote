@@ -7,6 +7,7 @@ import { NOTEBOOK_ROUTES, getNotebookStyles } from '@/config/notebook';
 import type { NotebookType } from '@/config/notebook';
 import { handleError } from '@/lib/error';
 import type { NotebookSchema } from '@/types/notebook';
+import { cn } from '@/lib/utils';
 
 export const Home: React.FC = () => {
   const [notebooks, setNotebooks] = useState<NotebookSchema[]>([]);
@@ -69,7 +70,7 @@ export const Home: React.FC = () => {
               const styles = getNotebookStyles(nb.table_name as NotebookType);
               return (
                 <Link key={nb.table_name} to={route.path}>
-                  <Card className={`hover:shadow-lg hover:border-primary/30 transition-all cursor-pointer h-full group border-l-2 ${styles.border}`}>
+                  <Card className={cn('hover:shadow-lg hover:border-primary/30 transition-all cursor-pointer h-full group border-l-2', styles.border)}>
                     <CardHeader className="p-5 pb-2">
                       <CardTitle className="text-base flex items-center gap-2">
                         <span>{route.label}</span>

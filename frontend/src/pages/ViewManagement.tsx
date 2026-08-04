@@ -7,6 +7,7 @@ import * as viewsApi from '@/api/views';
 import { CloseIcon, DeleteIcon, PlusIcon, SubmitIcon } from '@/components/ui/icons';
 import type { ViewFile, ViewData } from '@/types/view';
 import { handleError, handleSuccess } from '@/lib/error';
+import { cn } from '@/lib/utils';
 
 export const ViewManagement: React.FC = () => {
   const [viewFiles, setViewFiles] = useState<ViewFile[]>([]);
@@ -137,9 +138,9 @@ export const ViewManagement: React.FC = () => {
               {viewFiles.map((vf) => (
                 <div
                   key={vf.name}
-                  className={`flex items-center justify-between px-2 py-1.5 rounded cursor-pointer text-sm hover:bg-accent ${
-                    selectedView === vf.name ? 'bg-accent' : ''
-                  }`}
+                  className={cn('flex items-center justify-between px-2 py-1.5 rounded cursor-pointer text-sm hover:bg-accent',
+                    selectedView === vf.name && 'bg-accent'
+                  )}
                   onClick={() => loadViewContent(vf.name)}
                 >
                   <span className="truncate">{vf.name}</span>

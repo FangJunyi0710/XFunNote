@@ -13,6 +13,7 @@ import * as permissionsApi from '@/api/permissions';
 import { handleError, handleSuccess } from '@/lib/error';
 import type { Token } from '@/types/token';
 import type { Permission } from '@/types/permission';
+import { cn } from '@/lib/utils';
 
 const EMPTY_FORM = {
   name: '',
@@ -180,9 +181,9 @@ export const TokenManagement: React.FC = () => {
               {tokens.map((t) => (
                 <div
                   key={t.id}
-                  className={`flex items-center justify-between px-2 py-1.5 rounded cursor-pointer text-sm hover:bg-accent ${
-                    selectedId === t.id ? 'bg-accent' : ''
-                  }`}
+                  className={cn('flex items-center justify-between px-2 py-1.5 rounded cursor-pointer text-sm hover:bg-accent',
+                    selectedId === t.id && 'bg-accent'
+                  )}
                   onClick={() => selectToken(t.id)}
                 >
                   <div className="truncate flex-1 min-w-0">

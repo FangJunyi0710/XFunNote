@@ -4,6 +4,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { useChatStore, useCurrentChatData } from '@/stores/chatStore';
 import { SendIcon } from '@/components/ui/icons';
+import { cn } from '@/lib/utils';
 
 export const AiChat: React.FC = () => {
   const store = useChatStore();
@@ -55,15 +56,14 @@ export const AiChat: React.FC = () => {
         {messages.map((msg, i) => (
           <div
             key={i}
-            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            className={cn('flex', msg.role === 'user' ? 'justify-end' : 'justify-start')}
           >
             <div
-              className={`max-w-[80%] rounded-lg px-4 py-3 ${
+              className={cn('max-w-[80%] rounded-lg px-4 py-3',
                 msg.role === 'user'
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted'
-              }`}
-            >
+            )}>
               {msg.thinking && (
                 <details className="mb-2 text-xs opacity-70">
                   <summary className="cursor-pointer font-medium">思考过程</summary>

@@ -4,6 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { COLUMN_TYPES, FIELD_TRANSFORMS, toDisplay, toStorage } from "@/config/notebook";
+import { cn } from "@/lib/utils";
 
 
 // ---------------------------------------------------------------------------
@@ -109,7 +110,7 @@ const renderSelectField: ValueEditorComponent = ({col, value, onChange, ...props
   const currentDisplay = toDisplay(col.name, value) as string;
   return <select
     key={col.name}
-    className={`w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${props["className"] ?? ''}`}
+    className={cn('w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2', props["className"] as string | undefined)}
     value={currentDisplay}
     onChange={(e) => {
       const display = e.target.value;

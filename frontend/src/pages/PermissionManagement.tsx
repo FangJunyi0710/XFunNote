@@ -9,6 +9,7 @@ import * as permissionsApi from '@/api/permissions';
 import type { Permission } from '@/types/permission';
 import { handleError, handleSuccess } from '@/lib/error';
 import { CloseIcon, DeleteIcon, PlusIcon, SubmitIcon } from '@/components/ui/icons';
+import { cn } from '@/lib/utils';
 
 const EMPTY_FORM = {
   id: '',
@@ -155,9 +156,9 @@ export const PermissionManagement: React.FC = () => {
               {permissions.map((p) => (
                 <div
                   key={p.id}
-                  className={`flex items-center justify-between px-2 py-1.5 rounded cursor-pointer text-sm hover:bg-accent ${
-                    selectedId === p.id ? 'bg-accent' : ''
-                  }`}
+                  className={cn('flex items-center justify-between px-2 py-1.5 rounded cursor-pointer text-sm hover:bg-accent',
+                    selectedId === p.id && 'bg-accent'
+                  )}
                   onClick={() => selectPermission(p.id)}
                 >
                   <div className="truncate flex-1">
