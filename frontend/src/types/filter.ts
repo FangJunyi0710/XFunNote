@@ -71,10 +71,30 @@ export const toDNFState = (state: FilterState): DNFFilterState => {
     return {filter: [conditionToGroup(state.filter)], negate: state.negate ?? false};
   }
   if (isDNF(state.filter)) {
-    return {filter: state.filter.map((g) => ({id: genId(), rows: g.map((r) => ({id: genId(), leaf: {filter: r}}))}))};
+    return {filter: state.filter.map((g) => ({id: genId(), rows: g.map((r) => ({id: genId(), leaf: {filter: r}}))})), negate: state.negate ?? false};
   }
   return {filter: [conditionToGroup(state.filter[0])], negate: state.filter[1] !== state.negate};
 };
 
+const simplifyFilter = (filter: Filter): Filter => {
+  if (isCondition(filter)) {
+    return filter;
+  }
+  if (isDNF(filter)) {
+    const result = filter.map((g) => g.map((r) => simplifyFilter(r)).filter((r) => !isDNF(r) || r.length)).filter((g) => g.length);
+    if (result.length === 1 && result[0]?.length === 1) {
+      return result[0][0]!;
+    }
+    return result;
+  }
+  const result = simplifyFilter(filter[0]);
+  return filter[1] ? isNegation(result) ? result[0] : [result, true] : result;
+};
+
+const simplifyState = (state: FlatFilterState): FlatFilterState => {
+  const result = simplifyFilter([state.filter, state.negate ?? false]);
+  return isNegation(result) ? {filter: result[0], negate: result[1]} : {filter: result};
+}
+
 export const toFlatState = (state: FilterState): FlatFilterState =>
-  isDNFState(state) ? {filter: state.filter.map((g) => g.rows.map((r) => r.leaf.negate ? [r.leaf.filter, true] : r.leaf.filter)), negate: state.negate ?? false} : state;
+  simplifyState(isDNFState(state) ? {filter: state.filter.map((g) => g.rows.map((r) => r.leaf.negate ? [r.leaf.filter, true] : r.leaf.filter)), negate: state.negate ?? false} : state);
