@@ -24,7 +24,7 @@ const loadCollapsed = (): boolean => {
 
 const loadTouched = (): boolean => sessionStorage.getItem('xfun-sidebar-touched') === 'true';
 
-export const useSidebarStore = create<SidebarState>((set) => ({
+export const useSidebarStore = create<SidebarState>(set => ({
   isCollapsed: loadCollapsed(),
   windowWidth: typeof window !== 'undefined' ? window.innerWidth : 1200,
   dragOffset: 0,
@@ -32,7 +32,7 @@ export const useSidebarStore = create<SidebarState>((set) => ({
   touchDetected: loadTouched(),
 
   toggleCollapsed: () =>
-    set((state) => {
+    set(state => {
       const next = !state.isCollapsed;
       try {
         sessionStorage.setItem('xfun-sidebar-collapsed', String(next));

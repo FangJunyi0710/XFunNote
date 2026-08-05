@@ -38,17 +38,17 @@ export const TokenInputPanel: React.FC = () => {
 
   const currentTokens = getCurrentUserTokens();
   const activeTokenKey = getActiveTokenKey();
-  const activeToken = currentTokens.find((t) => t.key === activeTokenKey);
+  const activeToken = currentTokens.find(t => t.key === activeTokenKey);
 
   useEffect(() => {
     if (activeToken) {
       setInfoLoading(true);
       setTokenInfo(null);
       getTokenInfo()
-        .then((info) => {
+        .then(info => {
           setTokenInfo(info);
         })
-        .catch((e) => {
+        .catch(e => {
           handleError(e, '获取 Token 信息失败');
         })
         .finally(() => {
@@ -166,7 +166,7 @@ export const TokenInputPanel: React.FC = () => {
             <p className="text-sm text-muted-foreground">暂无用户，请添加</p>
           ) : (
             <div className="space-y-1.5">
-              {userList.map((name) => (
+              {userList.map(name => (
                 <div
                   key={name}
                   className={cn('flex items-center justify-between px-3 py-2 rounded-md text-sm border transition-colors',
@@ -198,7 +198,7 @@ export const TokenInputPanel: React.FC = () => {
             <Input
               placeholder="新用户名"
               value={newUserName}
-              onChange={(e) => setNewUserName(e.target.value)}
+              onChange={e => setNewUserName(e.target.value)}
               className="flex-1"
             />
             <Button onClick={handleAddUser} size="sm">
@@ -219,7 +219,7 @@ export const TokenInputPanel: React.FC = () => {
               <p className="text-sm text-muted-foreground">暂无 Token，请添加</p>
             ) : (
               <div className="space-y-1.5">
-                {currentTokens.map((t) => (
+                {currentTokens.map(t => (
                   <div
                     key={t.id}
                     className={cn('flex items-center justify-between px-3 py-2 rounded-md text-sm border transition-colors',
@@ -234,7 +234,7 @@ export const TokenInputPanel: React.FC = () => {
                     <div className="flex items-center gap-1 shrink-0 ml-2">
                       <Switch
                         checked={activeTokenKey === t.key}
-                        onCheckedChange={(checked) => setActiveToken(checked ? t.id : null)}
+                        onCheckedChange={checked => setActiveToken(checked ? t.id : null)}
                       />
                       <Button
                         size="sm"
@@ -271,7 +271,7 @@ export const TokenInputPanel: React.FC = () => {
                   id="token-key"
                   type="text"
                   value={key}
-                  onChange={(e) => setKey(e.target.value)}
+                  onChange={e => setKey(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Token / Shortcut"
                   className="flex-1"

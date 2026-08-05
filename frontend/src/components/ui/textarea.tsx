@@ -41,7 +41,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           autoResize ? 'resize-none overflow-hidden min-h-[60px]' : 'min-h-[60px]',
           className,
         )}
-        onChange={(e) => {
+        onChange={e => {
           onChange?.(e);
           resize();
         }}

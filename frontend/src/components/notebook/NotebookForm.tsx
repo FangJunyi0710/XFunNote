@@ -41,13 +41,13 @@ export const NotebookForm: React.FC<{
   const [submitting, setSubmitting] = useState(false);
   const [autoFieldsCollapsed, setAutoFieldsCollapsed] = useState(true);
 
-  const autoFieldNames = useMemo(() => new Set(schema.columns.filter((c) => c.auto === true).map((c) => c.name)), [schema.columns]);
+  const autoFieldNames = useMemo(() => new Set(schema.columns.filter(c => c.auto === true).map(c => c.name)), [schema.columns]);
 
   const sortedColumns = useMemo(() => sortColumns(schema.columns), [schema.columns]);
 
   useEffect(() => {
     if (initialData) {
-      setFormData((prev) => {
+      setFormData(prev => {
         // 防止重复设置相同数据
         if (Object.keys(prev).length === Object.keys(initialData).length &&
             Object.keys(prev).every(k => prev[k] === initialData[k])) {
@@ -65,7 +65,7 @@ export const NotebookForm: React.FC<{
           defaults[col.name] = val;
         }
       });
-      setFormData((prev) => {
+      setFormData(prev => {
         // 如果已有数据（如页面复用时），不覆盖
         if (Object.keys(prev).length > 0) return prev;
         return defaults;
@@ -77,7 +77,7 @@ export const NotebookForm: React.FC<{
   }, [initialData, schema, disableRequired]);
 
   const handleChange = (name: string, value: unknown) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -120,11 +120,11 @@ export const NotebookForm: React.FC<{
         </CardHeader>
         <CardContent>
           {/* 可编辑字段 */}
-          {sortedColumns.filter((c) => !autoFieldNames.has(c.name)).map((col) => renderField(col))}
+          {sortedColumns.filter(c => !autoFieldNames.has(c.name)).map(col => renderField(col))}
 
           {/* 自动字段折叠面板 */}
           {(() => {
-            const autoCols = sortedColumns.filter((c) => autoFieldNames.has(c.name));
+            const autoCols = sortedColumns.filter(c => autoFieldNames.has(c.name));
             if (autoCols.length === 0) return null;
             return (
               <div className="mt-4 pt-4 border-t border-border/50">
@@ -136,7 +136,7 @@ export const NotebookForm: React.FC<{
                   <span>系统自动字段（{autoCols.length} 个）</span>
                   <span className="text-[10px] text-muted-foreground/60">不建议手动修改</span>
                 </Button>
-                {!autoFieldsCollapsed && autoCols.map((col) => renderField(col))}
+                {!autoFieldsCollapsed && autoCols.map(col => renderField(col))}
               </div>
             );
           })()}

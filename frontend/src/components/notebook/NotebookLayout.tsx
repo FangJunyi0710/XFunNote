@@ -24,7 +24,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
   const store = useNotebookStore();
   const userData = useCurrentNotebookData();
   const { isCollapsed, toggleCollapsed } = useSidebarStore();
-  const activeUserName = useTokenStore((s) => s.activeUserName);
+  const activeUserName = useTokenStore(s => s.activeUserName);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showTopButton, setShowTopButton] = useState(false);
   const getStorageKey = (userName: string) => `xfun-selected-ids-${userName}-${notetype}`;
@@ -64,7 +64,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
   }, []);
 
   const toggleSelect = useCallback((id: string) => {
-    setSelectedIds((prev) => {
+    setSelectedIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -153,7 +153,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
           ) : undefined}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          {entries.map((entry) => (
+          {entries.map(entry => (
             <NotebookCard
               key={entry['id'] as string}
               type={notetype}
@@ -183,7 +183,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={(e) => {
+              onClick={e => {
                 e.stopPropagation();
                 document.getElementById('main-scroll-container')?.scrollTo({ top: 0, behavior: 'smooth' });
               }}

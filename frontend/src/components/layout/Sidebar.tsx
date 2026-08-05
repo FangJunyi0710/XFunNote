@@ -14,7 +14,7 @@ interface NavItem {
 
 const topNav: NavItem[] = [{ label: '首页', path: '/' }];
 
-const notebookNav: NavItem[] = Object.values(NOTEBOOK_ROUTES).map((route) => ({
+const notebookNav: NavItem[] = Object.values(NOTEBOOK_ROUTES).map(route => ({
   label: route.label,
   path: route.path,
 }));
@@ -96,7 +96,7 @@ export const Sidebar: React.FC = () => {
 
           {/* 导航 */}
           <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
-            {topNav.map((item) => (
+            {topNav.map(item => (
               <NavLink
                 key={item.path}
                 to={item.path}
@@ -110,7 +110,7 @@ export const Sidebar: React.FC = () => {
             {/* 本子分组 */}
             <div className="pt-2">
               <button
-                onClick={() => setNotebookOpen((v) => !v)}
+                onClick={() => setNotebookOpen(v => !v)}
                 className="flex items-center gap-2 w-full px-3 py-2.5 rounded-md text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
               >
                 <ArrowIcon direction='right' className={cn('transition-transform duration-100 origin-center',
@@ -122,7 +122,7 @@ export const Sidebar: React.FC = () => {
               <div className={cn("grid transition-all duration-200", notebookOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
                 <div className="overflow-hidden min-h-0">
                   <div className="space-y-0.5 pt-1">
-                    {notebookNav.map((item) => (
+                    {notebookNav.map(item => (
                       <NavLink
                         key={item.path}
                         to={item.path}
@@ -139,7 +139,7 @@ export const Sidebar: React.FC = () => {
 
             {/* 底部固定项 */}
             <div className="pt-2 space-y-0.5">
-              {bottomNav.map((item) => (
+              {bottomNav.map(item => (
                 <NavLink
                   key={item.path}
                   to={item.path}

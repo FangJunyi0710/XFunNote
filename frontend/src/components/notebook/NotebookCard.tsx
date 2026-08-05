@@ -56,7 +56,7 @@ export const NotebookCard: React.FC<NotebookCardProps> = React.memo(({
             <Timestamp date={created} />
             {showUpdated && <Timestamp date={updated} />}
           </div>
-          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+          <div className="flex gap-1" onClick={e => e.stopPropagation()}>
             <Button
               variant="outline"
               size="sm"

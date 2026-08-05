@@ -155,9 +155,9 @@ export const DatabaseManagement: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Select value={selectedBackup} onChange={(e) => setSelectedBackup(e.target.value)}>
+            <Select value={selectedBackup} onChange={e => setSelectedBackup(e.target.value)}>
               <option value="" disabled>选择备份文件</option>
-              {backupFiles.map((f) => (
+              {backupFiles.map(f => (
                 <SelectItem key={f} value={f}>
                   {f}
                 </SelectItem>

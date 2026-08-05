@@ -121,7 +121,7 @@ export const ViewManagement: React.FC = () => {
             <div className="flex gap-2">
               <input
                 value={newViewName}
-                onChange={(e) => setNewViewName(e.target.value)}
+                onChange={e => setNewViewName(e.target.value)}
                 placeholder="新视图名称"
                 className="flex-1 h-8 px-2 text-sm border rounded bg-background text-foreground"
               />
@@ -135,7 +135,7 @@ export const ViewManagement: React.FC = () => {
               {viewFiles.length === 0 && (
                 <p className="text-xs text-muted-foreground">暂无视图文件</p>
               )}
-              {viewFiles.map((vf) => (
+              {viewFiles.map(vf => (
                 <div
                   key={vf.name}
                   className={cn('flex items-center justify-between px-2 py-1.5 rounded cursor-pointer text-sm hover:bg-accent',
@@ -146,7 +146,7 @@ export const ViewManagement: React.FC = () => {
                   <span className="truncate">{vf.name}</span>
                   <button
                     className="text-xs text-destructive hover:underline shrink-0 ml-2"
-                    onClick={(e) => { e.stopPropagation(); deleteView(vf.name); }}
+                    onClick={e => { e.stopPropagation(); deleteView(vf.name); }}
                     title="删除"
                   >
                     <DeleteIcon/>
@@ -169,7 +169,7 @@ export const ViewManagement: React.FC = () => {
               <>
                 <Textarea
                   value={viewContent}
-                  onChange={(e) => setViewContent(e.target.value)}
+                  onChange={e => setViewContent(e.target.value)}
                   rows={20}
                   className="font-mono text-xs"
                 />

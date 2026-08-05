@@ -35,7 +35,7 @@ export const useChatStore = create<ChatState>()(
         const userMsg: ChatMessage = { role: 'user', content };
 
         // 更新当前用户的 messages
-        set((state) => ({
+        set(state => ({
           users: {
             ...state.users,
             [userName]: {
@@ -48,7 +48,7 @@ export const useChatStore = create<ChatState>()(
         try {
           const currentMessages = get().users[userName]?.messages || [];
           const res = await chat({
-            messages: currentMessages.map((m) => ({ role: m.role, content: m.content })),
+            messages: currentMessages.map(m => ({ role: m.role, content: m.content })),
           });
 
           const lastMsg = res.messages?.[res.messages.length - 1];
@@ -57,7 +57,7 @@ export const useChatStore = create<ChatState>()(
             content: lastMsg?.content || '',
           };
 
-          set((state) => ({
+          set(state => ({
             users: {
               ...state.users,
               [userName]: {
@@ -75,7 +75,7 @@ export const useChatStore = create<ChatState>()(
       clearMessages: () => {
         const userName = getCurrentUserName();
         if (!userName) return;
-        set((state) => ({
+        set(state => ({
           users: {
             ...state.users,
             [userName]: { messages: [] },
@@ -85,7 +85,7 @@ export const useChatStore = create<ChatState>()(
     }),
     {
       name: 'xfun-chat-storage',
-      partialize: (state) => ({ users: state.users }), // 仅持久化 messages
+      partialize: state => ({ users: state.users }), // 仅持久化 messages
     }
   )
 );
@@ -93,6 +93,6 @@ export const useChatStore = create<ChatState>()(
 // ── 自定义 hook：获取当前用户的数据 ──────────────────────────────
 
 export const useCurrentChatData = () => {
-  const userName = useTokenStore((s) => s.activeUserName);
-  return useChatStore((s) => userName ? s.users[userName] : null);
+  const userName = useTokenStore(s => s.activeUserName);
+  return useChatStore(s => userName ? s.users[userName] : null);
 };

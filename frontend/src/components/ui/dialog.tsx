@@ -41,7 +41,7 @@ export const DialogTrigger = React.forwardRef<
     <button
       ref={ref}
       className={cn(className)}
-      onClick={(e) => {
+      onClick={e => {
         onOpenChange(true);
         onClick?.(e);
       }}
@@ -79,7 +79,7 @@ export const DialogContent = React.forwardRef<
       <div
         ref={overlayRef}
         className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={(e) => {
+        onClick={e => {
           if (e.target === overlayRef.current) close();
         }}
       />

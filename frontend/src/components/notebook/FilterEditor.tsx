@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { FILTER_OPS_LABEL, isCondition, isDNF, isNegation, toFilter, toState, type Condition, type Filter, type FilterOp, type FilterState } from '@/types/filter';
+import { FILTER_OPS_LABEL, isCondition, isNegation, toFilter, toState, type Condition, type Filter, type FilterOp, type FilterState } from '@/types/filter';
 import { ArrowIcon, CloseIcon, DeleteIcon, PlusIcon } from '@/components/ui/icons';
 import type { ColumnDef } from '@/types/notebook';
 import { cn } from '@/lib/utils';
@@ -39,12 +39,12 @@ const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange
   type Leaf = Condition | [Condition, boolean];
   const isLeaf = (flt: Filter): flt is Leaf => isCondition(flt) || isNegation(flt) && isCondition(flt[0]);
   const getCond = (leaf: Leaf): Condition => isNegation(leaf) ? leaf[0] : leaf;
-  const isSimpleDNF = (flt: Filter[][]): flt is Leaf[][] => flt.every((g) => g.every((r) => isLeaf(r)));
-  const isPureOr = (flt: Leaf[][]): flt is [Leaf][] => flt.every((g) => g.length === 1);
+  const isSimpleDNF = (flt: Filter[][]): flt is Leaf[][] => flt.every(g => g.every(r => isLeaf(r)));
+  const isPureOr = (flt: Leaf[][]): flt is [Leaf][] => flt.every(g => g.length === 1);
   const isPureAnd = (flt: Leaf[][]): flt is [Leaf[]] => flt.length === 1;
   const isSameCond = (a: Condition, b: Condition): boolean => a.column === b.column && a.op === b.op;
   const isSameCondDNF = (flt: Leaf[][]): boolean =>
-    !flt[0]?.[0] || flt.every((g) => g.every((r) => isLeaf(r) && isSameCond(getCond(flt[0]?.[0]!), getCond(r))))
+    !flt[0]?.[0] || flt.every(g => g.every(r => isLeaf(r) && isSameCond(getCond(flt[0]?.[0]!), getCond(r))))
 
   if (!isSimpleDNF(filter)) {
     return serializeFilter(value);
@@ -60,7 +60,7 @@ const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange
   }
 
   if (isCondition(filter)) {
-    const colDef = columns.find((c) => c.name === filter.column)!;
+    const colDef = columns.find(c => c.name === filter.column)!;
     // ── 查找表：运算符 → 值区域渲染函数 ──
     const opRenderers: Partial<Record<FilterOp, () => React.ReactNode>> = {
       'BETWEEN': () => {
@@ -69,13 +69,13 @@ const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange
         const max = arr[1] ?? null;
         return (
           <div className="flex items-center gap-1 flex-1">
-            <ValueEditor col={colDef} value={min} onChange={(e) => {
+            <ValueEditor col={colDef} value={min} onChange={e => {
                 const newArr = [e, max];
                 setFilter(prev => ({...prev, value: newArr}));
               }} placeholder="最小值"
             />
             <span className="text-muted-foreground"> - </span>
-            <ValueEditor col={colDef} value={max} onChange={(e) => {
+            <ValueEditor col={colDef} value={max} onChange={e => {
                 const newArr = [min, e];
                 setFilter(prev => ({...prev, value: newArr}));
               }} placeholder="最大值"
@@ -90,7 +90,7 @@ const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange
             {items.map((item, idx) => (
               <div key={idx} className="flex items-center gap-1">
                 <ValueEditor col={colDef} value={item}
-                  onChange={(e) => {
+                  onChange={e => {
                     const newItems = [...items];
                     newItems[idx] = e;
                     setFilter(prev => ({...prev, value: newItems}));
@@ -110,7 +110,7 @@ const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange
       },
     };
     // 根据运算符获取渲染函数
-    const renderValueArea = opRenderers[filter.op] ?? ((): React.ReactNode => <ValueEditor col={colDef} value={filter.value} onChange={(value) => setFilter(prev => ({...prev, value}))} placeholder={`${getFieldLabel(filter.column)} ${FILTER_OPS_LABEL[filter.op]} 的值`} />);
+    const renderValueArea = opRenderers[filter.op] ?? ((): React.ReactNode => <ValueEditor col={colDef} value={filter.value} onChange={value => setFilter(prev => ({...prev, value}))} placeholder={`${getFieldLabel(filter.column)} ${FILTER_OPS_LABEL[filter.op]} 的值`} />);
     const renderTopRow = () => {
       return (
         <div className="flex items-center gap-2">
@@ -177,7 +177,7 @@ const DNFFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange}
           </div>
           {/** 条件组各条件 */}
           {g.map((r, ridx) => <FilterEditor columns={columns} value={toState(r)}
-            onChange={(state) => state ? updateRow(gidx, ridx, state) : removeRow(gidx, ridx)}
+            onChange={state => state ? updateRow(gidx, ridx, state) : removeRow(gidx, ridx)}
           />)}
         </div>)}
       </CardContent>
@@ -194,7 +194,7 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({ columns, value, onCh
     <Button variant='ghost' className='absolute top-0 -right-10 z-10' onClick={() => setIsDNFMode(prev => !prev)}>
       <ArrowIcon direction="left" className={cn('transition-transform duration-100 origin-center', isDNFMode && '-rotate-90')}/>
     </Button>
-    <Editor columns={columns} value={value} onChange={(state) => onChange(state)} />
+    <Editor columns={columns} value={value} onChange={state => onChange(state)} />
   </div>;
 };
 // TODO 实现完整的 filter 编辑器 含双重取反、均列表、引用等

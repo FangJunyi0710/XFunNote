@@ -178,7 +178,7 @@ export const TokenManagement: React.FC = () => {
               {tokens.length === 0 && (
                 <p className="text-xs text-muted-foreground">暂无 Token</p>
               )}
-              {tokens.map((t) => (
+              {tokens.map(t => (
                 <div
                   key={t.id}
                   className={cn('flex items-center justify-between px-2 py-1.5 rounded cursor-pointer text-sm hover:bg-accent',
@@ -206,7 +206,7 @@ export const TokenManagement: React.FC = () => {
                   </div>
                   <button
                     className="text-xs text-destructive hover:underline shrink-0 ml-2"
-                    onClick={(e) => { e.stopPropagation(); handleDelete(t.id); }}
+                    onClick={e => { e.stopPropagation(); handleDelete(t.id); }}
                     title="删除"
                   >
                     <DeleteIcon/>
@@ -233,7 +233,7 @@ export const TokenManagement: React.FC = () => {
                     <Input
                       id="tname"
                       value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      onChange={e => setForm({ ...form, name: e.target.value })}
                       placeholder="Token 名称"
                     />
                   </div>
@@ -242,12 +242,12 @@ export const TokenManagement: React.FC = () => {
                     <Select
                       id="tperm"
                       value={form.permission}
-                      onChange={(e) => setForm({ ...form, permission: e.target.value })}
+                      onChange={e => setForm({ ...form, permission: e.target.value })}
                     >
                       {permissions.length === 0 && (
                         <option value="">暂无权限，请先创建</option>
                       )}
-                      {permissions.map((p) => (
+                      {permissions.map(p => (
                         <option key={p.id} value={p.uuid}>
                           {p.name} ({p.uuid})
                         </option>
@@ -262,7 +262,7 @@ export const TokenManagement: React.FC = () => {
                     <div className="flex items-center gap-2 pt-1">
                       <Switch
                         checked={form.is_active}
-                        onCheckedChange={(v) => setForm({ ...form, is_active: v })}
+                        onCheckedChange={v => setForm({ ...form, is_active: v })}
                       />
                       <span className="text-sm text-muted-foreground">
                         {form.is_active ? '已启用' : '已停用'}
@@ -275,7 +275,7 @@ export const TokenManagement: React.FC = () => {
                       id="texp"
                       type="datetime-local"
                       value={form.expires_at}
-                      onChange={(e) => setForm({ ...form, expires_at: e.target.value })}
+                      onChange={e => setForm({ ...form, expires_at: e.target.value })}
                     />
                     <p className="text-xs text-muted-foreground">留空表示永不过期</p>
                   </div>
@@ -287,7 +287,7 @@ export const TokenManagement: React.FC = () => {
                     <Label className="font-medium">Shortcut 兑换码</Label>
                     <Switch
                       checked={form.enable_shortcut}
-                      onCheckedChange={(v) => setForm({ ...form, enable_shortcut: v })}
+                      onCheckedChange={v => setForm({ ...form, enable_shortcut: v })}
                     />
                   </div>
                   {form.enable_shortcut && (
@@ -297,7 +297,7 @@ export const TokenManagement: React.FC = () => {
                         <Input
                           id="tshortcut"
                           value={form.shortcut}
-                          onChange={(e) => setForm({ ...form, shortcut: e.target.value })}
+                          onChange={e => setForm({ ...form, shortcut: e.target.value })}
                           placeholder="自定义短码"
                         />
                       </div>
@@ -309,7 +309,7 @@ export const TokenManagement: React.FC = () => {
                           min={10}
                           max={86400}
                           value={form.shortcut_ttl}
-                          onChange={(e) => setForm({ ...form, shortcut_ttl: parseInt(e.target.value) || 120 })}
+                          onChange={e => setForm({ ...form, shortcut_ttl: parseInt(e.target.value) || 120 })}
                         />
                         <p className="text-xs text-muted-foreground">范围 10~86400 秒，默认 120 秒</p>
                       </div>
@@ -318,7 +318,7 @@ export const TokenManagement: React.FC = () => {
                 </div>
 
                 {!isCreating && selectedId && (() => {
-                  const t = tokens.find((tk) => tk.id === selectedId);
+                  const t = tokens.find(tk => tk.id === selectedId);
                   if (!t) return null;
                   return (
                     <div className="space-y-2">

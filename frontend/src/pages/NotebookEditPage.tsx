@@ -45,7 +45,7 @@ export const NotebookEditPage: React.FC = () => {
           await store.setCurrentType(type);
         }
         if (mode === 'edit' && id) {
-          let found = userData?.entries?.find((e) => e['id'] === id) as Record<string, unknown> | undefined;
+          let found = userData?.entries?.find(e => e['id'] === id) as Record<string, unknown> | undefined;
           if (!found) {
             if (!userData?.schema){
               return;

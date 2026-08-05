@@ -22,10 +22,10 @@ import type {
 
 /** SQLite 类型名到运行时解析函数的映射 */
 export const SQLITE_TYPE_PARSERS: Record<string, (v: unknown) => unknown> = {
-  TEXT:    (v) => (v === null || v === undefined ? null : String(v)),
-  INTEGER: (v) => (v === null || v === undefined ? null : Number(v)),
-  REAL:    (v) => (v === null || v === undefined ? null : Number(v)),
-  BLOB:    (v) => (v === null || v === undefined ? null : String(v)),
+  TEXT:    v => (v === null || v === undefined ? null : String(v)),
+  INTEGER: v => (v === null || v === undefined ? null : Number(v)),
+  REAL:    v => (v === null || v === undefined ? null : Number(v)),
+  BLOB:    v => (v === null || v === undefined ? null : String(v)),
 };
 
 /**
@@ -53,7 +53,7 @@ export const castEntry = (
 export const castEntries = (
   rawList: Record<string, unknown>[],
   columns: ColumnDef[],
-): Record<string, unknown>[] => rawList.map((raw) => castEntry(raw, columns));
+): Record<string, unknown>[] => rawList.map(raw => castEntry(raw, columns));
 
 // ── 条目类型守卫（运行时类型断言 + 缺失字段警告） ──────────
 

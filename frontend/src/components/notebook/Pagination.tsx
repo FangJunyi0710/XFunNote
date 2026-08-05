@@ -91,9 +91,9 @@ export const Pagination: React.FC<PaginationProps> = ({
             inputMode="numeric"
             placeholder="每页条数"
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value.replace(/\D/g, ''))}
+            onChange={e => setInputValue(e.target.value.replace(/\D/g, ''))}
             onBlur={handleBlur}
-            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+            onKeyDown={e => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
             className="max-w-20 h-7 text-xs"
           />
         ) : (
@@ -131,7 +131,7 @@ export const Pagination: React.FC<PaginationProps> = ({
               inputMode="numeric"
               placeholder="跳转条目"
               value={jumpInputValue}
-              onChange={(e) => setJumpInputValue(e.target.value.replace(/\D/g, ''))}
+              onChange={e => setJumpInputValue(e.target.value.replace(/\D/g, ''))}
               onBlur={handleJumpBlur}
               onKeyDown={handleJumpKeyDown}
               className="max-w-20 h-7 text-xs"

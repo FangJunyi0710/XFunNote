@@ -54,7 +54,7 @@ export const NotebookFilter: React.FC = () => {
         <FilterEditor
           columns={columns}
           value={currentFilter}
-          onChange={(state) => setCurrentFilter(state ?? {filter: []})}
+          onChange={state => setCurrentFilter(state ?? {filter: []})}
         />
       </form>
     </div>

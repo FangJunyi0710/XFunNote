@@ -74,7 +74,7 @@ const renderTextareaField: ValueEditorComponent = ({col, value, onChange, ...pro
   <Textarea
     key={col.name}
     value={value as string}
-    onChange={(e) => onChange(e.target.value)}
+    onChange={e => onChange(e.target.value)}
     {...props}
   />
 );
@@ -92,7 +92,7 @@ const renderBooleanField: ValueEditorComponent = ({col, value, onChange, ...prop
       id={id}
       key={col.name}
       checked={Boolean(value)}
-      onCheckedChange={(v) => handleChange(v)}
+      onCheckedChange={v => handleChange(v)}
       {...props}
     />
     <label htmlFor={id} className="text-sm font-medium">
@@ -112,7 +112,7 @@ const renderSelectField: ValueEditorComponent = ({col, value, onChange, ...props
     key={col.name}
     className={cn('w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2', props["className"] as string | undefined)}
     value={currentDisplay}
-    onChange={(e) => {
+    onChange={e => {
       const display = e.target.value;
       if (display === '') {
         onChange(null);

@@ -28,9 +28,9 @@ interface RawNotebookSchema {
 /** 获取笔记本列表（后端一次返回所有 schema，前端组装为 NotebookSchema[]） */
 export const listNotebooks = async (): Promise<NotebookSchema[]> => {
   const rawList = await api.get<RawNotebookSchema[]>('/notebooks');
-  return rawList.map((raw) => {
+  return rawList.map(raw => {
     const info = NOTEBOOK_INFO[raw.table_name] || { label: raw.table_name, description: '' };
-    const columns: ColumnDef[] = raw.columns.map((col) => ({
+    const columns: ColumnDef[] = raw.columns.map(col => ({
       name: col.name,
       type: col.col_type,
       required: !col.nullable && (col.default === null) && !col.auto,
@@ -40,7 +40,7 @@ export const listNotebooks = async (): Promise<NotebookSchema[]> => {
       table_name: raw.table_name,
       ...info,
       columns,
-      display_order: columns.map((c) => c.name),
+      display_order: columns.map(c => c.name),
     };
   });
 }
@@ -49,7 +49,7 @@ export const listNotebooks = async (): Promise<NotebookSchema[]> => {
 export const getSchema = async (type: NotebookType): Promise<NotebookSchema> => {
   // 后端 Column.asdict() 返回字段：name, col_type, nullable, primary_key, unique, index, auto
   const rawColumns = await api.get<RawColumn[]>(`/notebooks/${type}/schema`);
-  const columns: ColumnDef[] = rawColumns.map((col) => ({
+  const columns: ColumnDef[] = rawColumns.map(col => ({
     name: col.name,
     type: col.col_type,
     required: !col.nullable,
@@ -60,7 +60,7 @@ export const getSchema = async (type: NotebookType): Promise<NotebookSchema> => 
     table_name: type,
     ...info,
     columns,
-    display_order: columns.map((c) => c.name),
+    display_order: columns.map(c => c.name),
   };
 }
 

@@ -110,7 +110,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   ensureUser: () => {
     const userName = getCurrentUserName();
     if (!userName) return null;
-    set((state) => {
+    set(state => {
       if (!state.users[userName]) {
         return { users: { ...state.users, [userName]: defaultUserData() } };
       }
@@ -126,12 +126,12 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
       return;
     }
     if (!get().users[userName]) {
-      set((state) => ({ users: { ...state.users, [userName]: defaultUserData() } }));
+      set(state => ({ users: { ...state.users, [userName]: defaultUserData() } }));
     }
 
     try {
       const { offset, limit } = loadPagination(userName, type);
-      set((state) => {
+      set(state => {
         const existing = state.users[userName];
         return {
           users: {
@@ -158,7 +158,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
       });
 
       const schema = await getCachedSchema(type);
-      set((state) => {
+      set(state => {
         const existing = state.users[userName];
         return {
           users: {
@@ -197,7 +197,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
         queryParams.filter = filterJson;
       }
       const res: QueryResponse = await notebookApi.queryEntries(currentType, queryParams);
-      set((state) => {
+      set(state => {
         const existing = state.users[userName];
         return {
           users: {
@@ -229,7 +229,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
     const userData = get().users[userName];
     if (!userData) return;
     const { currentType, limit } = userData;
-    set((state) => {
+    set(state => {
       const existing = state.users[userName];
       return {
         users: {
@@ -250,7 +250,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
     const userData = get().users[userName];
     if (!userData) return;
     const { currentType, offset } = userData;
-    set((state) => {
+    set(state => {
       const existing = state.users[userName];
       return {
         users: {
@@ -268,7 +268,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   setFilter: (filter: string | null) => {
     const userName = getCurrentUserName();
     if (!userName) return;
-    set((state) => {
+    set(state => {
       const existing = state.users[userName];
       return {
         users: {
@@ -285,7 +285,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   setOrder: (by: string, dir: 'asc' | 'desc') => {
     const userName = getCurrentUserName();
     if (!userName) return;
-    set((state) => {
+    set(state => {
       const existing = state.users[userName];
       return {
         users: {
@@ -358,6 +358,6 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
 // TODO 前端在权限被拒时根据 ops 返回值提示
 
 export const useCurrentNotebookData = () => {
-  const userName = useTokenStore((s) => s.activeUserName);
-  return useNotebookStore((s) => (userName ? s.users[userName] : null));
+  const userName = useTokenStore(s => s.activeUserName);
+  return useNotebookStore(s => (userName ? s.users[userName] : null));
 };

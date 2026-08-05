@@ -100,7 +100,7 @@ export const AiChat: React.FC = () => {
         <Textarea
           ref={textareaRef}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="输入消息... \nEnter 发送，Shift+Enter 换行。"
           autoResize

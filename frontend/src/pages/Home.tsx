@@ -14,7 +14,7 @@ export const Home: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   // 从 zustand store 读取 API-Key 状态
-  const hasActiveKey = useTokenStore((s) => !!s.getActiveTokenKey());
+  const hasActiveKey = useTokenStore(s => !!s.getActiveTokenKey());
 
   useEffect(() => {
     (async () => {
@@ -29,7 +29,7 @@ export const Home: React.FC = () => {
     })();
   }, []);
 
-  const visibleNotebooks = notebooks.filter((nb) => NOTEBOOK_ROUTES[nb.table_name]);
+  const visibleNotebooks = notebooks.filter(nb => NOTEBOOK_ROUTES[nb.table_name]);
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -64,7 +64,7 @@ export const Home: React.FC = () => {
           </Card>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {visibleNotebooks.map((nb) => {
+            {visibleNotebooks.map(nb => {
               const route = NOTEBOOK_ROUTES[nb.table_name];
               if (!route) return null;
               const styles = getNotebookStyles(nb.table_name as NotebookType);

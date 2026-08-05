@@ -397,8 +397,8 @@ export const FIELD_TRANSFORMS: Record<string, {
 }> = {
   // 金额：分 ↔ 元，无枚举选项
   amount_cents: {
-    toDisplay: (v) => v !== null && v !== undefined && v !== '' ? (Number(v) / 100).toFixed(2) : '',
-    toStorage: (v) => {
+    toDisplay: v => v !== null && v !== undefined && v !== '' ? (Number(v) / 100).toFixed(2) : '',
+    toStorage: v => {
       if (v === '' || v === null || v === undefined) return null;
       const num = parseFloat(String(v));
       return isNaN(num) ? null : Math.round(num * 100);

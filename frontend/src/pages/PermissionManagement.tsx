@@ -153,7 +153,7 @@ export const PermissionManagement: React.FC = () => {
               {permissions.length === 0 && (
                 <p className="text-xs text-muted-foreground">暂无权限</p>
               )}
-              {permissions.map((p) => (
+              {permissions.map(p => (
                 <div
                   key={p.id}
                   className={cn('flex items-center justify-between px-2 py-1.5 rounded cursor-pointer text-sm hover:bg-accent',
@@ -167,7 +167,7 @@ export const PermissionManagement: React.FC = () => {
                   </div>
                   <button
                     className="text-xs text-destructive hover:underline shrink-0 ml-2"
-                    onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
+                    onClick={e => { e.stopPropagation(); handleDelete(p.id); }}
                     title="删除"
                   >
                     <DeleteIcon/>
@@ -194,7 +194,7 @@ export const PermissionManagement: React.FC = () => {
                     <Input
                       id="pid"
                       value={form.id}
-                      onChange={(e) => setForm({ ...form, id: e.target.value })}
+                      onChange={e => setForm({ ...form, id: e.target.value })}
                       placeholder="permission_id"
                       disabled={!isCreating}
                     />
@@ -207,7 +207,7 @@ export const PermissionManagement: React.FC = () => {
                     <Input
                       id="pname"
                       value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      onChange={e => setForm({ ...form, name: e.target.value })}
                       placeholder="权限名称"
                     />
                   </div>
@@ -218,7 +218,7 @@ export const PermissionManagement: React.FC = () => {
                   <Input
                     id="pdesc"
                     value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    onChange={e => setForm({ ...form, description: e.target.value })}
                     placeholder="可选描述"
                   />
                 </div>
@@ -228,7 +228,7 @@ export const PermissionManagement: React.FC = () => {
                   <Textarea
                     id="pread"
                     value={form.read_view}
-                    onChange={(e) => setForm({ ...form, read_view: e.target.value })}
+                    onChange={e => setForm({ ...form, read_view: e.target.value })}
                     rows={8}
                     className="font-mono text-xs"
                     placeholder='{"table_name": {"columns": ["col1", "col2"]}}'
@@ -240,7 +240,7 @@ export const PermissionManagement: React.FC = () => {
                   <Textarea
                     id="pwrite"
                     value={form.write_view}
-                    onChange={(e) => setForm({ ...form, write_view: e.target.value })}
+                    onChange={e => setForm({ ...form, write_view: e.target.value })}
                     rows={8}
                     className="font-mono text-xs"
                     placeholder='{"table_name": {"columns": ["col1", "col2"]}}'

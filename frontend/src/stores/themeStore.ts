@@ -33,7 +33,7 @@ export const useThemeStore = create<ThemeState>((set, get) => {
   return {
     mode: initial,
 
-    setMode: (mode) => {
+    setMode: mode => {
       localStorage.setItem('xfun-theme', mode);
       applyTheme(mode);
       set({ mode });

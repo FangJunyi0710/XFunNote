@@ -42,7 +42,7 @@ const simplifyFilter = (filter: Filter): Filter => {
     return filter;
   }
   if (isDNF(filter)) {
-    const result = filter.map((g) => g.map((r) => simplifyFilter(r)).filter((r) => !isDNF(r) || r.length)).filter((g) => g.length);
+    const result = filter.map(g => g.map(r => simplifyFilter(r)).filter(r => !isDNF(r) || r.length)).filter(g => g.length);
     if (result.length === 1 && result[0]?.length === 1) {
       return result[0][0]!;
     }

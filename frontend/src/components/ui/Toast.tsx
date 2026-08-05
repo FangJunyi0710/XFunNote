@@ -39,10 +39,10 @@ export const ToastContainer: React.FC = () => {
 
   // 订阅全局通知
   useEffect(() => {
-    listener = (t) => {
+    listener = t => {
       const id = genId();
       const newItem: ToastItem = { ...t, id, pinned: false, exiting: false };
-      setItems((prev) => [...prev, newItem]);
+      setItems(prev => [...prev, newItem]);
     };
     return () => { listener = null; };
   }, []);
@@ -52,10 +52,10 @@ export const ToastContainer: React.FC = () => {
     const ms = AUTO_DISMISS_MS;
     const timer = setTimeout(() => {
       // 进入退出动画
-      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, exiting: true } : i));
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, exiting: true } : i));
       // 动画结束后移除
       setTimeout(() => {
-        setItems((prev) => prev.filter((i) => i.id !== item.id));
+        setItems(prev => prev.filter(i => i.id !== item.id));
         timersRef.current.delete(item.id);
       }, DISMISS_ANIM_DURATION_MS);
     }, ms);
@@ -71,22 +71,22 @@ export const ToastContainer: React.FC = () => {
 
   // 用户点击 — 变为不透明且不自动消失
   const handlePin = useCallback((id: string) => {
-    setItems((prev) => prev.map((item) => item.id === id ? { ...item, pinned: true } : item));
+    setItems(prev => prev.map(item => item.id === id ? { ...item, pinned: true } : item));
     clearTimer(id);
   }, [clearTimer]);
 
   // 关闭
   const handleDismiss = useCallback((id: string) => {
     clearTimer(id);
-    setItems((prev) => prev.map((item) => item.id === id ? { ...item, exiting: true } : item));
+    setItems(prev => prev.map(item => item.id === id ? { ...item, exiting: true } : item));
     setTimeout(() => {
-      setItems((prev) => prev.filter((item) => item.id !== id));
+      setItems(prev => prev.filter(item => item.id !== id));
     }, DISMISS_ANIM_DURATION_MS);
   }, [clearTimer]);
 
   // 新加入时启动计时器
   useEffect(() => {
-    items.forEach((item) => {
+    items.forEach(item => {
       if (!item.pinned && !timersRef.current.has(item.id)) {
         startTimer(item);
       }
@@ -97,7 +97,7 @@ export const ToastContainer: React.FC = () => {
 
   return createPortal(
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none">
-      {items.map((item) => (
+      {items.map(item => (
         <div
           key={item.id}
           onClick={() => item.pinned ? handleDismiss(item.id) : handlePin(item.id)}
