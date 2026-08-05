@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { conditionToGroup, conditionToRow, FILTER_OPS_LABEL, isCondition, isDNF, isNegation, toDNFState, toFlatState, type Condition, type ConditionGroup, type DNFFilterState, type Filter, type FilterOp, type FilterState, type FlatFilterState } from '@/types/filter';
+import { FILTER_OPS_LABEL, isCondition, isDNF, isNegation, toDNFState, toFlatState, type Condition, type DNFFilterState, type Filter, type FilterOp, type FilterState, type FlatFilterState } from '@/types/filter';
 import { ArrowIcon, CloseIcon, DeleteIcon, PlusIcon } from '@/components/ui/icons';
 import type { ColumnDef } from '@/types/notebook';
 import { cn } from '@/lib/utils';
@@ -149,16 +149,16 @@ const DNFFilterEditor: React.FC<{
   onChange: (state: DNFFilterState | null) => void;
 }> = ({columns, value, onChange}) => {
   const defaultCond: Condition = {column: columns[0]?.name ?? '', op: 'GLOB' as FilterOp, value: null};
-  const [groups, setGroups] = useState<ConditionGroup[]>(() => value.filter);
+  const [groups, setGroups] = useState<FlatFilterState[][]>(() => value.filter);
   const [negate, setNegate] = useState<boolean>(() => value.negate ?? false)
 
   useEffect(() => { onChange({filter: groups, negate}); }, [groups, negate]);
 
-  const addGroup = () => setGroups(prev => [...prev, conditionToGroup(defaultCond)]);
-  const removeGroup = (gid: string) => setGroups(prev => prev.filter(g => g.id !== gid));
-  const addRow = (gid: string) => setGroups(prev => prev.map(g => g.id === gid ? { ...g, rows: [...g.rows, conditionToRow(defaultCond)] } : g));
-  const updateRow = (gid: string, rid: string, newLeaf: FlatFilterState) => setGroups(prev => prev.map(g => g.id === gid ? { ...g, rows: g.rows.map(r => r.id === rid ? { ...r, leaf: newLeaf } : r) } : g));
-  const removeRow = (_gid: string, rid: string) => setGroups(prev => prev.map(g => ({ ...g, rows: g.rows.filter(r => r.id !== rid) })).filter(g => g.rows.length > 0));
+  const addGroup = () => setGroups(prev => [...prev, [{filter: defaultCond}]]);
+  const removeGroup = (orIndex: number) => setGroups(prev => prev.filter((_, idx) => idx !== orIndex));
+  const addRow = (orIndex: number) => setGroups(prev => prev.map((g, idx) => idx === orIndex ? [ ...g, {filter: defaultCond} ] : g));
+  const updateRow = (orIndex: number, andIndex: number, newLeaf: FlatFilterState) => setGroups(prev => prev.map((g, gidx) => gidx === orIndex ? g.map((r, ridx) => ridx === andIndex ? { ...r, leaf: newLeaf } : r) : g));
+  const removeRow = (orIndex: number, andIndex: number) => setGroups(prev => prev.map((g, gidx) => gidx === orIndex ? g.filter((_, ridx) => ridx !== andIndex) : g).filter(g => g.length > 0));
 
   const handleClear = () => {setGroups([]); setNegate(false); };
 
@@ -176,19 +176,19 @@ const DNFFilterEditor: React.FC<{
           </div>
         </div>
         {/** 渲染条件组 */}
-        {groups.map((group, index) => <div key={group.id} className="space-y-2">
+        {groups.map((g, gidx) => <div className="space-y-2">
           {/** 条件组首行 */}
           <div className="flex items-center justify-between">
-            <span>情况 {index + 1}</span>
+            <span>情况 {gidx + 1}</span>
             <div className="flex-1 border-t-4 ml-3 mr-2 border-primary/50" />
             <div className="flex gap-1">
-              <Button variant="ghost" size="sm" title='添加条件' onClick={() => addRow(group.id)}><PlusIcon/></Button>
-              <Button variant="ghost" size="sm" title='删除该情况' onClick={() => removeGroup(group.id)} className="text-destructive"><DeleteIcon/></Button>
+              <Button variant="ghost" size="sm" title='添加条件' onClick={() => addRow(gidx)}><PlusIcon/></Button>
+              <Button variant="ghost" size="sm" title='删除该情况' onClick={() => removeGroup(gidx)} className="text-destructive"><DeleteIcon/></Button>
             </div>
           </div>
           {/** 条件组各条件 */}
-          {group.rows.map(row => <FilterEditor key={row.id} columns={columns} value={row.leaf}
-            onChange={(state) => state ? updateRow(group.id, row.id, toFlatState(state)) : removeRow(group.id, row.id)}
+          {g.map((r, ridx) => <FilterEditor columns={columns} value={r}
+            onChange={(state) => state ? updateRow(gidx, ridx, toFlatState(state)) : removeRow(gidx, ridx)}
           />)}
         </div>)}
       </CardContent>
