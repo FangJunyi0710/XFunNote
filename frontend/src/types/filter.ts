@@ -32,31 +32,10 @@ export const isNegation = (filter: Filter): filter is [Filter, boolean] =>
 export const isDNF = (filter: Filter): filter is Filter[][] =>
   Array.isArray(filter) && typeof filter[1] !== 'boolean';
 
-export interface FlatFilterState {
-  filter: Filter;
+export interface FilterState {
+  filter: Filter[][];
   negate?: boolean;
 }
-
-export interface DNFFilterState {
-  filter: FlatFilterState[][];
-  negate?: boolean;
-}
-
-export type FilterState = DNFFilterState | FlatFilterState;
-
-export const isDNFState = (state: FilterState): state is DNFFilterState =>
-  Array.isArray(state.filter) && state.filter[0] && 'id' in state.filter[0];
-
-export const toDNFState = (state: FilterState): DNFFilterState => {
-  if (isDNFState(state)) return state;
-  if (isCondition(state.filter)) {
-    return {filter: [[{filter: state.filter}]], negate: state.negate ?? false};
-  }
-  if (isDNF(state.filter)) {
-    return {filter: state.filter.map((g) => ( g.map((r) => ({filter: r})))), negate: state.negate ?? false};
-  }
-  return {filter: [[{filter: state.filter[0]}]], negate: state.filter[1] !== state.negate};
-};
 
 const simplifyFilter = (filter: Filter): Filter => {
   if (isCondition(filter)) {
@@ -73,10 +52,19 @@ const simplifyFilter = (filter: Filter): Filter => {
   return filter[1] ? isNegation(result) ? result[0] : [result, true] : result;
 };
 
-const simplifyState = (state: FlatFilterState): FlatFilterState => {
-  const result = simplifyFilter([state.filter, state.negate ?? false]);
-  return isNegation(result) ? {filter: result[0], negate: result[1]} : {filter: result};
-}
+const toStateInner = (filter: Filter): FilterState => {
+  if (isCondition(filter)) {
+    return {filter: [[filter]]};
+  }
+  if (isDNF(filter)) {
+    return {filter};
+  }
+  const result = toStateInner(filter[0]);
+  return {filter: result.filter, negate: result.negate !== filter[1]};
+};
 
-export const toFlatState = (state: FilterState): FlatFilterState =>
-  simplifyState(isDNFState(state) ? {filter: state.filter.map((g) => g.map((r) => [r.filter, r.negate ?? false])), negate: state.negate ?? false} : state);
+export const toState = (filter: Filter): FilterState =>
+  toStateInner(simplifyFilter(filter));
+
+export const toFilter = (state: FilterState): Filter =>
+  simplifyFilter([state.filter, state.negate ?? false]);
