@@ -83,9 +83,11 @@ const renderBooleanField: ValueEditorComponent = ({col, value, onChange, ...prop
   const handleChange = (v: boolean) => {
     onChange(v ? 1 : 0);
   };
-  if (typeof value !== 'number' || value !== 0 && value !== 1) {
-    handleChange(Boolean(value));
-  }
+  useEffect(() => {
+    if (typeof value !== 'number' || value !== 0 && value !== 1) {
+      handleChange(Boolean(value));
+    }
+  }, []);
   const id = `checkbox-${col.name}`;
   return <div className="flex items-center gap-2">
     <Checkbox
