@@ -1,6 +1,8 @@
 // 筛选 DSL 类型
 // 对应 xfun/core/filter.py 中的 Filter DNF 结构
 
+import { genId } from "@/lib/utils";
+
 export type FilterOp = '=' | '>' | '<' | '>=' | '<=' | 'BETWEEN' | 'GLOB';
 
 export const FILTER_OPS_LABEL: Record<FilterOp, string> = {
@@ -12,7 +14,6 @@ export const FILTER_OPS_LABEL: Record<FilterOp, string> = {
   '<': '<',
   '>': '>',
 };
-
 
 export interface Condition {
   column: string;
@@ -32,12 +33,33 @@ export const isNegation = (filter: Filter): filter is [Filter, boolean] =>
 export const isDNF = (filter: Filter): filter is Filter[][] =>
   Array.isArray(filter) && typeof filter[1] !== 'boolean';
 
-export interface FilterState {
-  filter: Filter[][];
+export interface FilterRow {
+  id: string;
+  filter: Filter;
+}
+export interface FilterGroup {
+  id: string;
+  rows: FilterRow[];
+}
+
+export interface DNFFilterState {
+  groups: FilterGroup[];
   negate?: boolean;
 }
 
-const simplifyFilter = (filter: Filter): Filter => {
+export const filterToRow = (filter: Filter): FilterRow => 
+  ({id: genId(), filter})
+
+export const filterToGroup = (filter: Filter): FilterGroup =>
+  ({id: genId(), rows: [{id: genId(), filter}]})
+
+const DNFToGroups = (filter: Filter[][]): FilterGroup[] =>
+  filter.map(g => ({id: genId(), rows: g.map(r => ({id: genId(), filter: r}))}))
+
+const groupsToDNF = (groups: FilterGroup[]): Filter[][] =>
+  groups.map(g => g.rows.map(r => r.filter))
+
+export const simplifyFilter = (filter: Filter): Filter => {
   if (isCondition(filter)) {
     return filter;
   }
@@ -52,19 +74,31 @@ const simplifyFilter = (filter: Filter): Filter => {
   return filter[1] ? isNegation(result) ? result[0] : [result, true] : result;
 };
 
-const toStateInner = (filter: Filter): FilterState => {
+const toStateInner = (filter: Filter): DNFFilterState => {
   if (isCondition(filter)) {
-    return {filter: [[filter]]};
+    return {groups: [filterToGroup(filter)]};
   }
   if (isDNF(filter)) {
-    return {filter};
+    return {groups: DNFToGroups(filter)};
   }
   const result = toStateInner(filter[0]);
-  return {filter: result.filter, negate: result.negate !== filter[1]};
+  return {groups: result.groups, negate: result.negate !== filter[1]};
 };
 
-export const toState = (filter: Filter): FilterState =>
-  toStateInner(simplifyFilter(filter));
+export const toState = (filter: Filter): DNFFilterState =>
+  toStateInner(filter);
 
-export const toFilter = (state: FilterState): Filter =>
-  simplifyFilter([state.filter, state.negate ?? false]);
+export const toFilter = (state: DNFFilterState): Filter =>
+  [groupsToDNF(state.groups), state.negate ?? false];
+
+export const toStandardFilter = (filter: Filter): [Filter[][], boolean] => {
+  if (isCondition(filter)) {
+    return [[[filter]], false];
+  }
+  if (isDNF(filter)) {
+    return [[[filter]], false];
+  }
+  const result = toStandardFilter(filter[0]);
+  return [result[0], result[1] === filter[1]];
+};
+  
