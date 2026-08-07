@@ -10,31 +10,18 @@ import { ValueEditor } from '@/components/notebook/ValueEditor';
 import { getFieldLabel } from '@/config/notebook';
 import { Select } from '@/components/ui/select';
 
-export const parseFilterJSON = (json: string | null): FilterState => {
-  if (!json) return {filter: []};
-  try {
-    return {filter: JSON.parse(json)};
-  } catch {
-    return {filter: []};
-  }
-}
-
-// ─── 序列化内部状态为 JSON 字符串（Filter） ──────────────────────
-export const serializeFilter = (state: FilterState): string => {
-  return JSON.stringify(state.negate ? [state.filter, true] : state.filter);
-}
-
 interface FilterEditorProps {
   columns: ColumnDef[];
-  value: FilterState;
-  onChange: (state: FilterState | null) => void;
+  value: Filter;
+  onChange: (state: Filter | null) => void;
 }
 
 const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange}) => {
-  const [filter, setFilter] = useState<Filter[][]>(() => value.filter);
-  const [negate, setNegate] = useState<boolean>(() => value.negate ?? false);
+  const state = toState(value);
+  const [filter, setFilter] = useState<Filter[][]>(() => state.filter);
+  const [negate, setNegate] = useState<boolean>(() => state.negate ?? false);
 
-  useEffect(() => { onChange(filter.length ? {filter, negate} : null) }, [filter, negate]);
+  useEffect(() => { onChange(filter.length ? toFilter({filter, negate}) : null) }, [filter, negate]);
 
   type Leaf = Condition | [Condition, boolean];
   const isLeaf = (flt: Filter): flt is Leaf => isCondition(flt) || isNegation(flt) && isCondition(flt[0]);
@@ -47,7 +34,7 @@ const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange
     !flt[0]?.[0] || flt.every(g => g.every(r => isLeaf(r) && isSameCond(getCond(flt[0]?.[0]!), getCond(r))))
 
   if (!isSimpleDNF(filter)) {
-    return serializeFilter(value);
+    return JSON.stringify(toFilter(state));
   }
 
   // const setCond = (orIndex: number, andIndex: number, patch: Partial<Condition>): void => setFilter()
@@ -110,7 +97,7 @@ const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange
       },
     };
     // 根据运算符获取渲染函数
-    const renderValueArea = opRenderers[filter.op] ?? ((): React.ReactNode => <ValueEditor col={colDef} value={filter.value} onChange={value => setFilter(prev => ({...prev, value}))} placeholder={`${getFieldLabel(filter.column)} ${FILTER_OPS_LABEL[filter.op]} 的值`} />);
+    const renderValueArea = opRenderers[filter.op] ?? ((): React.ReactNode => <ValueEditor col={colDef} value={filter.value} onChange={value => 'setFilter(prev => ({...prev, value}))'} placeholder={`${getFieldLabel(filter.column)} ${FILTER_OPS_LABEL[filter.op]} 的值`} />);
     const renderTopRow = () => {
       return (
         <div className="flex items-center gap-2">
@@ -133,20 +120,21 @@ const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange
     </>
   }
 
-  return serializeFilter(value);
+  return JSON.stringify(toFilter(state));
 };
 
 const DNFFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange}) => {
   const defaultCond: Condition = {column: columns[0]?.name ?? '', op: 'GLOB' as FilterOp, value: null};
-  const [groups, setGroups] = useState<Filter[][]>(() => value.filter);
-  const [negate, setNegate] = useState<boolean>(() => value.negate ?? false)
+  const state = toState(value);
+  const [groups, setGroups] = useState<Filter[][]>(() => state.filter);
+  const [negate, setNegate] = useState<boolean>(() => state.negate ?? false)
 
-  useEffect(() => { onChange({filter: groups, negate}); }, [groups, negate]);
+  useEffect(() => { onChange(toFilter({filter: groups, negate})); }, [groups, negate]);
 
   const addGroup = () => setGroups(prev => [...prev, [defaultCond]]);
   const removeGroup = (orIndex: number) => setGroups(prev => prev.filter((_, idx) => idx !== orIndex));
   const addRow = (orIndex: number) => setGroups(prev => prev.map((g, idx) => idx === orIndex ? [ ...g, defaultCond ] : g));
-  const updateRow = (orIndex: number, andIndex: number, newLeaf: FilterState) => setGroups(prev => prev.map((g, gidx) => gidx === orIndex ? g.map((r, ridx) => ridx === andIndex ? toFilter(newLeaf) : r) : g));
+  const updateRow = (orIndex: number, andIndex: number, newLeaf: Filter) => setGroups(prev => prev.map((g, gidx) => gidx === orIndex ? g.map((r, ridx) => ridx === andIndex ? newLeaf : r) : g));
   const removeRow = (orIndex: number, andIndex: number) => setGroups(prev => prev.map((g, gidx) => gidx === orIndex ? g.filter((_, ridx) => ridx !== andIndex) : g).filter(g => g.length > 0));
 
   const handleClear = () => {setGroups([]); setNegate(false); };
@@ -176,8 +164,8 @@ const DNFFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange}
             </div>
           </div>
           {/** 条件组各条件 */}
-          {g.map((r, ridx) => <FilterEditor columns={columns} value={toState(r)}
-            onChange={state => state ? updateRow(gidx, ridx, state) : removeRow(gidx, ridx)}
+          {g.map((r, ridx) => <FilterEditor columns={columns} value={r}
+            onChange={filter => filter ? updateRow(gidx, ridx, filter) : removeRow(gidx, ridx)}
           />)}
         </div>)}
       </CardContent>
@@ -194,7 +182,7 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({ columns, value, onCh
     <Button variant='ghost' className='absolute top-0 -right-10 z-10' onClick={() => setIsDNFMode(prev => !prev)}>
       <ArrowIcon direction="left" className={cn('transition-transform duration-100 origin-center', isDNFMode && '-rotate-90')}/>
     </Button>
-    <Editor columns={columns} value={value} onChange={state => onChange(state)} />
+    <Editor columns={columns} value={value} onChange={filter => onChange(filter)} />
   </div>;
 };
 // TODO 实现完整的 filter 编辑器 含双重取反、均列表、引用等

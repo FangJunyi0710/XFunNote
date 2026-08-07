@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { FilterEditor, serializeFilter } from '@/components/notebook/FilterEditor';
+import { FilterEditor } from '@/components/notebook/FilterEditor';
 import { useNotebookStore, useCurrentNotebookData } from '@/stores/notebookStore';
 import { TYPE_LABELS } from '@/config/notebook';
 import { FilterIcon, ReplyIcon, SubmitIcon } from '@/components/ui/icons';
 import type { NotebookType } from '@/config/notebook';
-import type { FilterState } from '@/types/filter';
+import type { Filter } from '@/types/filter';
 
 export const NotebookFilter: React.FC = () => {
   const { notetype } = useParams<{ notetype: string }>();
@@ -15,7 +15,7 @@ export const NotebookFilter: React.FC = () => {
   const userData = useCurrentNotebookData();
   const type = notetype as NotebookType;
 
-  const [currentFilter, setCurrentFilter] = useState<FilterState>({filter: []});
+  const [currentFilter, setCurrentFilter] = useState<Filter>([]);
   const [applying, setApplying] = useState<boolean>(false);
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export const NotebookFilter: React.FC = () => {
     e.preventDefault();
     setApplying(true);
     try {
-      store.setFilter(serializeFilter(currentFilter));
+      store.setFilter(JSON.stringify(currentFilter));
       navigate(`/notebooks/${type}`);
     } finally {
       setApplying(false);
@@ -54,7 +54,7 @@ export const NotebookFilter: React.FC = () => {
         <FilterEditor
           columns={columns}
           value={currentFilter}
-          onChange={state => setCurrentFilter(state ?? {filter: []})}
+          onChange={state => setCurrentFilter(state ?? [])}
         />
       </form>
     </div>
