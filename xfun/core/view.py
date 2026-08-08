@@ -30,13 +30,7 @@ def view_to_json(view: View) -> dict:
     """将 View 转换为可 JSON 序列化的 Python 对象。"""
     data: dict = {}
     for table_name, specs in view.items():
-        spec_list = []
-        for columns, flt in specs:
-            spec_list.append({
-                "columns": list(columns),
-                "filter": filter_to_json(flt),
-            })
-        data[table_name] = spec_list
+        data[table_name] = [(cols, filter_to_json(flt)) for cols, flt in specs]
     return data
 
 
@@ -44,12 +38,7 @@ def parse_view_json(obj) -> View:
     """将 JSON 筛选条件解析为 View。传入 json.loads(s)。"""
     result: View = {}
     for table_name, specs in obj.items():
-        table_specs: list[TableSpec] = []
-        for spec in specs:
-            columns = spec["columns"]
-            flt = parse_filter_json(spec["filter"])
-            table_specs.append((columns, flt))
-        result[table_name] = table_specs
+        result[table_name] = [(spec[0], parse_filter_json(spec[1])) for spec in specs]
     return result
 
 def view_or(view1: View, view2: View) -> View:
@@ -101,7 +90,7 @@ def view_clean_delete(view: View, table: str, filter: Filter) -> Filter:
     '''有 id 的修改权限，含义为允许删除'''
     if table not in view.keys():
         return FALSE_CONDITION
-    return [[filter, [[flt] for cols, flt in view[table] if "id" in cols]+[[FALSE_CONDITION]]]]
+    return [[filter, [[flt] for cols, flt in view[table] if "id" in cols]]]
 
 def view_clean_update(view: View, table: str, filter: Filter, values: dict[str, Any]) -> list[tuple[Filter, dict[str, Any]]]:
     if table not in view.keys():

@@ -1,5 +1,7 @@
 """本子 CRUD 路由。"""
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import ValidationError
 
@@ -11,7 +13,7 @@ from backend.schemas import (
 )
 from backend.services import notebook_service as svc
 from backend.deps import get_api_permission, ApiPermission
-from xfun.ai.schema import ViewModel
+from xfun.core.view import View, parse_view_json
 
 router = APIRouter(tags=["notebooks"])
 
@@ -26,8 +28,8 @@ def get_schema(name: str, api_perm: ApiPermission = Depends(get_api_permission))
     return svc.get_schema(name)
 
 
-def parse_view_param(view: str = Query(..., description="View JSON 字符串")) -> ViewModel:
-    return ViewModel.model_validate_json(view)
+def parse_view_param(view: str = Query(..., description="View JSON 字符串")) -> View:
+    return parse_view_json(json.loads(view))
 
 
 @router.get("/notebooks/{name}/entries", summary="通用查询条目", response_description="匹配的条目列表（含总数）")
@@ -36,11 +38,10 @@ def query_entries(
     order_by: str = Query("", description="排序，如 `created_at DESC`"),
     limit: int = Query(ge=-1, description="最大返回条数，-1 不限"),
     offset: int = Query(0, ge=0, description="偏移量"),
-    view_model: ViewModel = Depends(parse_view_param),
+    view: View = Depends(parse_view_param),
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    validated_view = view_model.to_view()
-    results, total = svc.query_entries(api_perm.db, name, api_perm.permission, validated_view,
+    results, total = svc.query_entries(api_perm.db, name, api_perm.permission, view,
                                        limit, offset, order_by)
     return EntryBatchResponse(count=total, results=results)
 

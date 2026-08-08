@@ -76,12 +76,11 @@ const buildDefaultView = (type: NotebookType, columns: string[], filter?: string
   if (filter) {
     filterJson = JSON.parse(filter);
   } else {
-    // 无筛选：使用 op=TRUE 作为永真条件
-    filterJson = { column: '_', value: '_', op: 'TRUE' };
+    filterJson = [[]]; // 永真条件
   }
   const viewColumns = columns;
   return JSON.stringify({
-    [tableName]: [{ columns: viewColumns, filter: filterJson }],
+    [tableName]: [[viewColumns, filterJson]],
   });
 }
 

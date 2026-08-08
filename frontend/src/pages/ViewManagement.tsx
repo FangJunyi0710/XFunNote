@@ -5,7 +5,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import * as viewsApi from '@/api/views';
 import { CloseIcon, DeleteIcon, PlusIcon, SubmitIcon } from '@/components/ui/icons';
-import type { ViewFile, ViewData } from '@/types/view';
 import { handleError, handleSuccess } from '@/lib/error';
 import { cn } from '@/lib/utils';
 

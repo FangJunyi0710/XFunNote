@@ -192,6 +192,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
         order_by: orderBy,
         order_dir: orderDir,
         columns: schema?.display_order ?? [],
+        filter: filterJson ?? '[[]]'
       };
       if (filterJson !== null && filterJson !== undefined) {
         queryParams.filter = filterJson;

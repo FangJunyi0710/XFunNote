@@ -29,7 +29,7 @@ const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange
   const isSimpleDNF = (flt: Filter[][]): flt is Leaf[][] => flt.every(g => g.every(r => isLeaf(r)));
   const isPureOr = (flt: Leaf[][]): flt is [Leaf][] => flt.every(g => g.length === 1);
   const isPureAnd = (flt: Leaf[][]): flt is [Leaf[]] => flt.length === 1;
-  const isSameCond = (a: Condition, b: Condition): boolean => a.column === b.column && a.op === b.op;
+  const isSameCond = (a: Condition, b: Condition): boolean => a.col === b.col && a.op === b.op;
   const isSameCondDNF = (flt: Leaf[][]): boolean =>
     !flt[0]?.[0] || flt.every(g => g.every(r => isLeaf(r) && isSameCond(getCond(flt[0]?.[0]!), getCond(r))))
 
@@ -47,11 +47,11 @@ const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange
   }
 
   if (isCondition(filter)) {
-    const colDef = columns.find(c => c.name === filter.column)!;
+    const colDef = columns.find(c => c.name === filter.col)!;
     // ── 查找表：运算符 → 值区域渲染函数 ──
     const opRenderers: Partial<Record<FilterOp, () => React.ReactNode>> = {
       'BETWEEN': () => {
-        const arr = Array.isArray(filter.value) ? filter.value : [null, null];
+        const arr = Array.isArray(filter.val) ? filter.val : [null, null];
         const min = arr[0] ?? null;
         const max = arr[1] ?? null;
         return (
@@ -71,7 +71,7 @@ const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange
         );
       },
       '=': () => {
-        const items = Array.isArray(filter.value) ? filter.value : [null];
+        const items = Array.isArray(filter.val) ? filter.val : [null];
         return (
           <div className="flex-1 space-y-1">
             {items.map((item, idx) => (
@@ -97,12 +97,12 @@ const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange
       },
     };
     // 根据运算符获取渲染函数
-    const renderValueArea = opRenderers[filter.op] ?? ((): React.ReactNode => <ValueEditor col={colDef} value={filter.value} onChange={value => 'setFilter(prev => ({...prev, value}))'} placeholder={`${getFieldLabel(filter.column)} ${FILTER_OPS_LABEL[filter.op]} 的值`} />);
+    const renderValueArea = opRenderers[filter.op] ?? ((): React.ReactNode => <ValueEditor col={colDef} value={filter.val} onChange={value => 'setFilter(prev => ({...prev, value}))'} placeholder={`${getFieldLabel(filter.col)} ${FILTER_OPS_LABEL[filter.op]} 的值`} />);
     const renderTopRow = () => {
       return (
         <div className="flex items-center gap-2">
           <Switch checked={negate} onCheckedChange={() => setNegate(prev => !prev)} />
-          <Select value={filter.column} onChange={e => setFilter(prev => ({ ...prev, column: e.target.value, value: null }))}>
+          <Select value={filter.col} onChange={e => setFilter(prev => ({ ...prev, column: e.target.value, value: null }))}>
             {columns.map(col => <option key={col.name} value={col.name}>{getFieldLabel(col.name)}</option>)}
           </Select>
           <Select value={filter.op} onChange={e => setFilter(prev => ({ ...prev, op: e.target.value as FilterOp }))}>
@@ -124,7 +124,7 @@ const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange
 };
 
 const DNFFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange}) => {
-  const defaultCond: Condition = {column: columns[0]?.name ?? '', op: 'GLOB' as FilterOp, value: null};
+  const defaultCond: Condition = {col: columns[0]?.name ?? '', op: 'GLOB' as FilterOp, val: null};
   const state = toState(value);
   const [groups, setGroups] = useState<FilterGroup[]>(() => state.groups);
   const [negate, setNegate] = useState<boolean>(() => state.negate ?? false)

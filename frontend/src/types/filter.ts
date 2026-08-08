@@ -16,9 +16,9 @@ export const FILTER_OPS_LABEL: Record<FilterOp, string> = {
 };
 
 export interface Condition {
-  column: string;
+  col: string;
   op: FilterOp;
-  value: unknown;
+  val: unknown;
 }
 
 // 递归结构：外层 OR、内层 AND，元素为子树，直至叶子节点，最外层支持 (... , negate) 元组对整个结果取反。
@@ -101,4 +101,3 @@ export const toStandardFilter = (filter: Filter): [Filter[][], boolean] => {
   const result = toStandardFilter(filter[0]);
   return [result[0], result[1] === filter[1]];
 };
-  

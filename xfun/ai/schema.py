@@ -22,11 +22,11 @@ def _inject_op_enum(schema: dict) -> None:
 
 class ConditionModel(BaseModel):
     """单个筛选条件 — 叶子节点。"""
-    column: str = Field(description="列名")
-    value: Any = Field(description="值")
+    col: str = Field(description="列名")
+    val: Any = Field(description="值")
     op: str = Field(
         default="=",
-        description="运算符。其中 TRUE 和 FALSE 的用法是，将 column 和 value 填入任意占位符后，其返回永真或永假。",
+        description="运算符。",
         json_schema_extra=_inject_op_enum,
     )
 
@@ -41,7 +41,7 @@ class ConditionModel(BaseModel):
         return v
 
     def to_condition(self) -> Condition:
-        return Condition(column=self.column, value=self.value, op=self.op)
+        return Condition(col=self.col, val=self.val, op=self.op)
 
 
 # ========== Filter (递归) ==========

@@ -12,8 +12,8 @@ from .errors import FilterInvalidError
 
 @dataclass
 class Condition:
-    column: str
-    value: Any
+    col: str
+    val: Any
     op: str = "="
 
     _op_registry: ClassVar[dict] = {}
@@ -49,13 +49,13 @@ class Condition:
         ------
         FilterInvalidError
         """
-        Column.check(self.column)
+        Column.check(self.col)
 
         handler = self._op_registry.get(self.op)
         if handler is None:
             raise FilterInvalidError(self)
         
-        return handler(self.column, self.value, self.op)
+        return handler(self.col, self.val, self.op)
     
 
 @Condition.register_op("=")
@@ -192,7 +192,7 @@ def filter_to_json(filter: Filter) -> Any:
         可序列化的 Python 对象（dict / list）。
     """
     if isinstance(filter, Condition):
-        return {"column": filter.column, "value": filter.value, "op": filter.op}
+        return {"col": filter.col, "val": filter.val, "op": filter.op}
     if isinstance(filter, tuple):
         inner, negate = filter
         return [filter_to_json(inner), negate]
@@ -200,7 +200,5 @@ def filter_to_json(filter: Filter) -> Any:
     return [[filter_to_json(item) for item in group] for group in filter]
 
 
-TRUE_CONDITION = Condition("_", None, "TRUE")
-FALSE_CONDITION = Condition("_", None, "FALSE")
-
-from . import extras # 完成运算符注册
+TRUE_CONDITION: Filter = [[]]
+FALSE_CONDITION: Filter = []
