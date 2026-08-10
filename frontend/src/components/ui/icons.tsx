@@ -229,3 +229,19 @@ export const EyeOffIcon: React.FC<IconProps> = ({ ...props }) => (
     <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
   </Icon>
 );
+
+/** 包装（中括号）图标 - 单 path 实现 */
+export const WrapperIcon: React.FC<IconProps> = ({ ...props }) => (
+  <Icon {...props}>
+    <path
+      d="
+        M 4 4 L 8 4
+        M 4 4 L 4 20
+        M 4 20 L 8 20
+        M 20 4 L 16 4
+        M 20 4 L 20 20
+        M 20 20 L 16 20
+      "
+    />
+  </Icon>
+);

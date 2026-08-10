@@ -15,7 +15,7 @@ export const NotebookFilter: React.FC = () => {
   const userData = useCurrentNotebookData();
   const type = notetype as NotebookType;
 
-  const [currentFilter, setCurrentFilter] = useState<Filter>([]);
+  const [currentFilter, setCurrentFilter] = useState<Filter>({col: "content", val: null, op: "GLOB"});
   const [applying, setApplying] = useState<boolean>(false);
 
   useEffect(() => {

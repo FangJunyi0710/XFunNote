@@ -2,6 +2,7 @@
 // 对应 xfun/core/filter.py 中的 Filter DNF 结构
 
 import { genId } from "@/lib/utils";
+import { useEffect, useRef, useState } from "react";
 
 export type FilterOp = '=' | '>' | '<' | '>=' | '<=' | 'BETWEEN' | 'GLOB';
 
@@ -33,19 +34,31 @@ export const isNegation = (filter: Filter): filter is [Filter, boolean] =>
 export const isDNF = (filter: Filter): filter is Filter[][] =>
   Array.isArray(filter) && typeof filter[1] !== 'boolean';
 
-export interface FilterRow {
+export type Leaf = Condition | [Condition, boolean];
+export const isLeaf = (flt: Filter): flt is Leaf => isCondition(flt) || isNegation(flt) && isCondition(flt[0]);
+export const getCond = (leaf: Leaf): Condition => isNegation(leaf) ? leaf[0] : leaf;
+export const setCond = (leaf: Leaf, newCond: Condition): Leaf => isNegation(leaf) ? [newCond, leaf[1]] : newCond;
+export const getLeafNegate = (leaf: Leaf): boolean => isNegation(leaf) ? leaf[1] : false;
+export const setLeafNegate = (leaf: Leaf, negate: boolean): Leaf => negate ? [getCond(leaf), true] : getCond(leaf);
+
+export interface FilterRow<T = Filter> {
   id: string;
-  filter: Filter;
+  filter: T;
 }
-export interface FilterGroup {
+export interface FilterGroup<T = Filter> {
   id: string;
-  rows: FilterRow[];
+  rows: FilterRow<T>[];
 }
 
-export interface DNFFilterState {
-  groups: FilterGroup[];
-  negate?: boolean;
+export interface FilterState<T = Filter> {
+  groups: FilterGroup<T>[];
+  negate: boolean;
 }
+
+export const isSimpleDNF = (groups: FilterGroup[]): groups is FilterGroup<Leaf>[] =>
+  groups.every(g => g.rows.every(r => isLeaf(r.filter)));
+export const flattenGroups = (groups: FilterGroup<Leaf>[]): [string, string, Leaf][] =>
+  groups.flatMap(g => g.rows.map(r => [g.id, r.id, r.filter]));
 
 export const filterToRow = (filter: Filter): FilterRow => 
   ({id: genId(), filter})
@@ -59,7 +72,7 @@ const DNFToGroups = (filter: Filter[][]): FilterGroup[] =>
 const groupsToDNF = (groups: FilterGroup[]): Filter[][] =>
   groups.map(g => g.rows.map(r => r.filter))
 
-export const simplifyFilter = (filter: Filter): Filter => {
+const simplifyFilter = (filter: Filter): Filter => {
   if (isCondition(filter)) {
     return filter;
   }
@@ -74,30 +87,51 @@ export const simplifyFilter = (filter: Filter): Filter => {
   return filter[1] ? isNegation(result) ? result[0] : [result, true] : result;
 };
 
-const toStateInner = (filter: Filter): DNFFilterState => {
+export const toState = (filter: Filter): FilterState => {
   if (isCondition(filter)) {
-    return {groups: [filterToGroup(filter)]};
+    return {groups: [filterToGroup(filter)], negate: false};
   }
   if (isDNF(filter)) {
-    return {groups: DNFToGroups(filter)};
+    return {groups: DNFToGroups(filter), negate: false};
   }
-  const result = toStateInner(filter[0]);
+  const result = toState(filter[0]);
   return {groups: result.groups, negate: result.negate !== filter[1]};
 };
 
-export const toState = (filter: Filter): DNFFilterState =>
-  toStateInner(filter);
+export const toFilter = (state: FilterState): Filter =>
+  simplifyFilter([groupsToDNF(state.groups), state.negate]);
 
-export const toFilter = (state: DNFFilterState): Filter =>
-  [groupsToDNF(state.groups), state.negate ?? false];
+export const useFilterState = (value: Filter, onChange: (filter: Filter) => void, defaultCond: () => Condition) => {
+  const [state, setState] = useState<FilterState>(() => toState(value));
+  const setGroups = (action: React.SetStateAction<FilterGroup[]>): void => setState(prev => ({...prev, groups: typeof action === 'function' ? action(prev.groups) : action}));
+  const setNegate = (action: React.SetStateAction<boolean>): void => setState(prev => ({...prev, negate: typeof action === 'function' ? action(prev.negate) : action}));
 
-export const toStandardFilter = (filter: Filter): [Filter[][], boolean] => {
-  if (isCondition(filter)) {
-    return [[[filter]], false];
-  }
-  if (isDNF(filter)) {
-    return [[[filter]], false];
-  }
-  const result = toStandardFilter(filter[0]);
-  return [result[0], result[1] === filter[1]];
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    onChangeRef.current(toFilter(state));
+  }, [state]);
+
+  const addGroup = (cond?: Filter) => setGroups(prev => [...prev, filterToGroup(cond ?? defaultCond())]);
+  const removeGroup = (gid: string) => setGroups(prev => prev.filter(g => g.id !== gid));
+  const addRow = (gid: string, cond?: Filter) => setGroups(prev => prev.map(g => g.id === gid ? {...g, rows: [...g.rows, filterToRow(cond ?? defaultCond())]} : g));
+  const updateRow = (gid: string, rid: string, newLeaf: Filter) => setGroups(prev => prev.map(g => g.id === gid ? {...g, rows: g.rows.map(r => r.id === rid ? {...r, filter: newLeaf} : r)} : g));
+  const removeRow = (gid: string, rid: string) => setGroups(prev => prev.map(g => g.id === gid ? {...g, rows: g.rows.filter(r => r.id !== rid)} : g).filter(g => g.rows.length > 0));
+
+  const clearGroups = () => {setGroups([]); setNegate(false); };
+  return {
+    state,
+    setState,
+    setGroups,
+    setNegate,
+    addGroup,
+    removeGroup,
+    clearGroups,
+    addRow,
+    updateRow,
+    removeRow
+  };
 };
