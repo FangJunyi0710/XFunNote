@@ -70,14 +70,16 @@ const createInputRenderer = (type?: string, extras?: Record<string, unknown>): V
   );
 };
 
-const renderTextareaField: ValueEditorComponent = ({col, value, onChange, ...props}) => (
-  <Textarea
+const renderTextareaField: ValueEditorComponent = ({col, value, onChange, ...props}) => {
+  const [inputText, setInputText] = useState<string>((value ?? '') as string);
+  return <Textarea
     key={col.name}
-    value={value as string}
-    onChange={e => onChange(e.target.value)}
+    value={inputText}
+    onChange={e => setInputText(e.target.value)}
+    onBlur={() => onChange(inputText)}
     {...props}
   />
-);
+};
 /** 布尔 字段渲染为复选框 */
 const renderBooleanField: ValueEditorComponent = ({col, value, onChange, ...props}) => {
   const handleChange = (v: boolean) => {
