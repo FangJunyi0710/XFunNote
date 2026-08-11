@@ -135,3 +135,5 @@ export const useFilterState = (value: Filter, onChange: (filter: Filter) => void
     removeRow
   };
 };
+
+export type View = Record<string, [string[], Filter][]>;

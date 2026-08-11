@@ -1,7 +1,5 @@
 // 笔记本核心类型
-// 对应 backend/schemas.py 中的 Pydantic 模型
-
-// ── Schema 相关 ────────────────────────────────────────────
+import type { EntryTypeMap, NotebookType } from "@/config/notebook";
 
 /** Schema 中单个列的描述 */
 export interface ColumnDef {
@@ -13,37 +11,17 @@ export interface ColumnDef {
 
 /** 完整的笔记本 Schema */
 export interface NotebookSchema {
-  table_name: string;
-  label: string;
-  description: string;
+  name: NotebookType;
   columns: ColumnDef[];
-  display_order: string[];
 }
 
-// ── API 请求/响应 ──────────────────────────────────────────
+export type Entry = Record<string, unknown>;
 
-export interface QueryResponse {
-  entries: Record<string, unknown>[];
-  total: number;
-  offset?: number;
-  limit?: number;
+export const asEntry = <T extends NotebookType>(
+  _type: T,
+  raw: Entry,
+): EntryTypeMap[T] => {
+  return raw as unknown as EntryTypeMap[T];
 }
 
-export interface AddRequest {
-  entries: Record<string, unknown>[];
-}
-
-export interface UpdateRequest {
-  id: string;
-  updates: Record<string, unknown>;
-}
-
-export interface DeletePreview {
-  id: string;
-  summary: string;
-}
-
-export interface DeleteResponse {
-  count: number;
-  results: Record<string, unknown>[];
-}
+export type OrderBy = [string, 'ASC' | 'DESC'][];

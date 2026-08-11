@@ -3,13 +3,10 @@ import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { Timestamp } from '@/components/ui/Timestamp';
 import { registerCard } from '@/components/notebook/NotebookCard';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
-import { useCurrentNotebookData } from '@/stores/notebookStore';
-import { asEntry } from '@/lib/type-guards';
+import { asEntry, type Entry } from '@/types/notebook';
 
-const DiaryCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
-  const userData = useCurrentNotebookData();
-  const schema = userData?.schema?.columns ?? [];
-  const e = asEntry('diary', entry, schema);
+const DiaryCard: React.FC<{ entry: Entry }> = ({ entry }) => {
+  const e = asEntry('diary', entry);
   return (
     <div className="space-y-1">
       <div className="text-xs text-muted-foreground gap-2 items-center flex">

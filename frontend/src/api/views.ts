@@ -1,5 +1,4 @@
 import { api } from '@/api/client';
-import type { ViewFile, ViewData } from '@/types/view';
 
 export const listViews = async (): Promise<ViewFile[]> =>
   api.get<ViewFile[]>('/views');

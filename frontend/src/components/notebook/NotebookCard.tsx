@@ -7,8 +7,9 @@ import { getNotebookStyles } from '@/config/notebook';
 import type { NotebookType } from '@/config/notebook';
 import { EditIcon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
+import type { Entry } from '@/types/notebook';
 
-export type CardRenderer = React.FC<{ entry: Record<string, unknown> }>;
+export type CardRenderer = React.FC<{ entry: Entry }>;
 
 const registry = new Map<string, CardRenderer>();
 
@@ -20,7 +21,7 @@ export const getCardRenderer = (type: string): CardRenderer | undefined => regis
 
 interface NotebookCardProps {
   type: string;
-  entry: Record<string, unknown>;
+  entry: Entry;
   selected?: boolean;
   onSelect?: (id: string) => void;
 }

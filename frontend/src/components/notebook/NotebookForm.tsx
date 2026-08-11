@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { ColumnDef, NotebookSchema } from '@/types/notebook';
+import type { ColumnDef, Entry, NotebookSchema } from '@/types/notebook';
 import { ArrowIcon, ReplyIcon, SubmitIcon } from '@/components/ui/icons';
-import { getFieldDefault, getFieldLabel, sortColumns } from "@/config/notebook";
+import { getFieldDefault, getFieldLabel } from "@/config/notebook";
 import { ValueEditor } from '@/components/notebook/ValueEditor';
 
 // ---------------------------------------------------------------------------
@@ -23,8 +23,8 @@ const FieldLabel: React.FC<{ name: string; required?: boolean }> = ({
 
 export const NotebookForm: React.FC<{
   schema: NotebookSchema;
-  initialData?: Record<string, unknown> | null;
-  onSubmit: (data: Record<string, unknown>) => Promise<void>;
+  initialData?: Entry | null;
+  onSubmit: (data: Entry) => Promise<void>;
   onCancel: () => void;
   title?: string;
   /** 关闭原生 required 校验（批量更新时使用） */
@@ -37,13 +37,11 @@ export const NotebookForm: React.FC<{
   title,
   disableRequired,
 }) => {
-  const [formData, setFormData] = useState<Record<string, unknown>>({});
+  const [formData, setFormData] = useState<Entry>({});
   const [submitting, setSubmitting] = useState(false);
   const [autoFieldsCollapsed, setAutoFieldsCollapsed] = useState(true);
 
   const autoFieldNames = useMemo(() => new Set(schema.columns.filter(c => c.auto === true).map(c => c.name)), [schema.columns]);
-
-  const sortedColumns = useMemo(() => sortColumns(schema.columns), [schema.columns]);
 
   useEffect(() => {
     if (initialData) {
@@ -57,7 +55,7 @@ export const NotebookForm: React.FC<{
       });
     } else if (!disableRequired) {
       // 新建模式：自动填充默认值（跳过 auto 字段）
-      const defaults: Record<string, unknown> = {};
+      const defaults: Entry = {};
       schema.columns.forEach(col => {
         if (col.auto) return; // 后端自动生成的字段不预填
         const val = getFieldDefault(col.name);
@@ -120,11 +118,11 @@ export const NotebookForm: React.FC<{
         </CardHeader>
         <CardContent>
           {/* 可编辑字段 */}
-          {sortedColumns.filter(c => !autoFieldNames.has(c.name)).map(col => renderField(col))}
+          {schema.columns.filter(c => !autoFieldNames.has(c.name)).map(col => renderField(col))}
 
           {/* 自动字段折叠面板 */}
           {(() => {
-            const autoCols = sortedColumns.filter(c => autoFieldNames.has(c.name));
+            const autoCols = schema.columns.filter(c => autoFieldNames.has(c.name));
             if (autoCols.length === 0) return null;
             return (
               <div className="mt-4 pt-4 border-t border-border/50">

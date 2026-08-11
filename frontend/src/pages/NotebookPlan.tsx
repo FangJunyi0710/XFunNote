@@ -2,13 +2,10 @@ import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { registerCard } from '@/components/notebook/NotebookCard';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
-import { useCurrentNotebookData } from '@/stores/notebookStore';
-import { asEntry } from '@/lib/type-guards';
+import { asEntry, type Entry } from '@/types/notebook';
 
-const PlanCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
-  const userData = useCurrentNotebookData();
-  const schema = userData?.schema?.columns ?? [];
-  const e = asEntry('plan', entry, schema);
+const PlanCard: React.FC<{ entry: Entry }> = ({ entry }) => {
+  const e = asEntry('plan', entry);
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">

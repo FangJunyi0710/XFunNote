@@ -1,14 +1,11 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { registerCard } from '@/components/notebook/NotebookCard';
-import { useCurrentNotebookData } from '@/stores/notebookStore';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
-import { asEntry } from '@/lib/type-guards';
+import { asEntry, type Entry } from '@/types/notebook';
 
-const AimemoryCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
-  const userData = useCurrentNotebookData();
-  const schema = userData?.schema?.columns ?? [];
-  const e = asEntry('aimemory', entry, schema);
+const AimemoryCard: React.FC<{ entry: Entry }> = ({ entry }) => {
+  const e = asEntry('aimemory', entry);
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2">

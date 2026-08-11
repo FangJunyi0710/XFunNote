@@ -3,7 +3,7 @@ import type { ColumnDef } from "@/types/notebook";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { COLUMN_TYPES, FIELD_TRANSFORMS, toDisplay, toStorage } from "@/config/notebook";
+import { FIELD_TRANSFORMS, getColumnType, toDisplay, toStorage } from "@/config/notebook";
 import { cn } from "@/lib/utils";
 
 
@@ -150,6 +150,6 @@ const typeRenderers: Record<string, ValueEditorComponent> = {
 };
 
 export const ValueEditor: ValueEditorComponent = ({col, value, onChange, ...props}) => {
-  const Editor = typeRenderers[COLUMN_TYPES[col.name] || col.type] || createInputRenderer();
+  const Editor = typeRenderers[getColumnType(col)] || createInputRenderer();
   return <Editor col={col} value={value} onChange={onChange} {...props} />;
 }

@@ -3,20 +3,16 @@ import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { Timestamp } from '@/components/ui/Timestamp';
 import { registerCard } from '@/components/notebook/NotebookCard';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
-import { useCurrentNotebookData } from '@/stores/notebookStore';
-import { asEntry } from '@/lib/type-guards';
 import { getColorFromString } from '@/lib/utils';
+import { asEntry, type Entry } from '@/types/notebook';
 
-const LedgerCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
+const LedgerCard: React.FC<{ entry: Entry }> = ({ entry }) => {
   const transactionId = entry['transaction_id'] as string | undefined;
   const color = useMemo(
     () => (transactionId ? getColorFromString(transactionId) : undefined),
     [transactionId]
   );
-
-  const userData = useCurrentNotebookData();
-  const schema = userData?.schema?.columns ?? [];
-  const e = asEntry('ledger', entry, schema);
+  const e = asEntry('ledger', entry);
   return (
     <div className="space-y-1">
       {transactionId && (

@@ -178,5 +178,4 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({ columns, value, onCh
     <Editor columns={columns} value={value} onChange={onChange} />
   </div>;
 };
-// TODO 实现完整的 filter 编辑器 含双重取反、均列表、引用等
 // TODO 添加新组等时，取之前值作为初始值。

@@ -6,11 +6,10 @@ import { NotebookCard } from '@/components/notebook/NotebookCard';
 import { Pagination } from '@/components/notebook/Pagination';
 import { PlusIcon, FilterIcon, BatchEditIcon, DeleteIcon, SelectAllIcon, DeselectAllIcon, ArrowIcon } from '@/components/ui/icons';
 import { useNotebookStore, useCurrentNotebookData } from '@/stores/notebookStore';
-import * as notebookApi from '@/api/notebooks';
-import { TYPE_LABELS } from '@/config/notebook';
-import type { NotebookType } from '@/config/notebook';
+import { NOTEBOOK_INFO, type NotebookType } from '@/config/notebook';
 import { useSidebarStore } from '@/stores/sidebarStore';
 import { useTokenStore } from '@/stores/tokenStore';
+import type { Entry } from '@/types/notebook';
 
 interface NotebookLayoutProps {
   notetype: NotebookType;
@@ -84,24 +83,8 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     }
   }, [selectedIds, activeUserName]);
 
-  const handleSelectAll = useCallback(async () => {
-    try {
-      const queryParams: Parameters<typeof notebookApi.queryEntries>[1] = {
-        offset: 0,
-        limit: userData?.total || 0,
-        order_by: userData?.orderBy || 'id',
-        order_dir: userData?.orderDir || 'desc',
-        columns: userData?.schema?.display_order || [],
-      };
-      const filterJson = userData?.filterJson;
-      if (filterJson !== null && filterJson !== undefined) {
-        queryParams.filter = filterJson;
-      }
-      const res = await notebookApi.queryEntries(notetype, queryParams);
-      setSelectedIds(new Set(res.entries.map((e: Record<string, unknown>) => e['id'] as string)));
-    } catch {
-      // ignore
-    }
+  const handleSelectAll = useCallback(() => {
+    setSelectedIds(new Set(userData?.entries.map((e: Entry) => e['id'] as string)));
   }, [notetype, userData]);
 
   const handleDeselectAll = useCallback(() => setSelectedIds(new Set()), []);
@@ -167,7 +150,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     );
   }, [userData, notetype, selectedIds, toggleSelect, store.loading, store.setOffset, store.setLimit]);
 
-  const label = TYPE_LABELS[notetype];
+  const label = NOTEBOOK_INFO[notetype].label;
 
   return (
     <div className="space-y-4 animate-fade-in">

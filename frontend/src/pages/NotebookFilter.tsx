@@ -3,9 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { FilterEditor } from '@/components/notebook/FilterEditor';
 import { useNotebookStore, useCurrentNotebookData } from '@/stores/notebookStore';
-import { TYPE_LABELS } from '@/config/notebook';
 import { FilterIcon, ReplyIcon, SubmitIcon } from '@/components/ui/icons';
-import type { NotebookType } from '@/config/notebook';
+import { NOTEBOOK_INFO, type NotebookType } from '@/config/notebook';
 import type { Filter } from '@/types/filter';
 
 export const NotebookFilter: React.FC = () => {
@@ -19,7 +18,7 @@ export const NotebookFilter: React.FC = () => {
   const [applying, setApplying] = useState<boolean>(false);
 
   useEffect(() => {
-    if (type && userData?.currentType !== type) {
+    if (type && userData?.type !== type) {
       store.setCurrentType(type);
     }
   }, [type, userData, store]);
@@ -30,7 +29,7 @@ export const NotebookFilter: React.FC = () => {
     e.preventDefault();
     setApplying(true);
     try {
-      store.setFilter(JSON.stringify(currentFilter));
+      store.setFilter(currentFilter);
       navigate(`/notebooks/${type}`);
     } finally {
       setApplying(false);
@@ -41,7 +40,7 @@ export const NotebookFilter: React.FC = () => {
     <div className="space-y-4 animate-fade-in">
       <form onSubmit={handleApply}>
         <span className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold"><FilterIcon className="inline-block align-middle" /> 筛选{TYPE_LABELS[type] || ''}</h1>
+          <h1 className="text-xl font-bold"><FilterIcon className="inline-block align-middle" /> 筛选{NOTEBOOK_INFO[type].label || ''}</h1>
           <span className="flex gap-2">
             <Button variant="outline" onClick={() => navigate(`/notebooks/${type}`)} title="返回">
               <ReplyIcon />

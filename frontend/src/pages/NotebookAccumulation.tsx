@@ -1,14 +1,11 @@
 import React from 'react';
 import { NotebookLayout } from '@/components/notebook/NotebookLayout';
 import { registerCard } from '@/components/notebook/NotebookCard';
-import { useCurrentNotebookData } from '@/stores/notebookStore';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
-import { asEntry } from '@/lib/type-guards';
+import { asEntry, type Entry } from '@/types/notebook';
 
-const AccumulationCard: React.FC<{ entry: Record<string, unknown> }> = ({ entry }) => {
-  const userData = useCurrentNotebookData();
-  const schema = userData?.schema?.columns ?? [];
-  const e = asEntry('accumulation', entry, schema);
+const AccumulationCard: React.FC<{ entry: Entry }> = ({ entry }) => {
+  const e = asEntry('accumulation', entry);
   return (
     <div className="space-y-1">
       <MarkdownRenderer className="text-sm line-clamp-4">{e.content}</MarkdownRenderer>

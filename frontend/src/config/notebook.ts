@@ -17,32 +17,8 @@ import type { ColumnDef } from '@/types/notebook';
 /** 笔记本类型标识 */
 export type NotebookType = 'plan' | 'diary' | 'word' | 'accumulation' | 'aimemory' | 'timeline' | 'schedule' | 'ledger';
 
-/** 所有笔记本类型的列表 */
-export const NOTEBOOK_TYPES: NotebookType[] = [
-  'plan',
-  'diary',
-  'word',
-  'accumulation',
-  'aimemory',
-  'timeline',
-  'schedule',
-  'ledger',
-];
-
-/** 中文标签映射 */
-export const TYPE_LABELS: Record<NotebookType, string> = {
-  plan: '计划',
-  diary: '日记',
-  word: '单词',
-  accumulation: '积累',
-  aimemory: 'AI 记忆',
-  timeline: '时间线',
-  schedule: '日程',
-  ledger: '账本',
-};
-
 /** 元信息：标签 + 描述 */
-export const NOTEBOOK_INFO: Record<string, { label: string; description: string }> = {
+export const NOTEBOOK_INFO: Record<NotebookType, { label: string; description: string }> = {
   plan: { label: '计划', description: '管理月度计划与任务' },
   diary: { label: '日记', description: '记录每日生活与感悟' },
   word: { label: '单词', description: '单词学习与复习' },
@@ -105,23 +81,11 @@ const TYPE_TEXT_COLORS: Record<NotebookType, string> = {
   ledger: 'text-notebook-ledger',
 };
 
-/** 颜色名称映射（用于 UI 中的颜色选择器等） */
-export const NOTEBOOK_COLOR_NAMES: Record<NotebookType, string> = {
-  plan: 'plan',
-  diary: 'diary',
-  word: 'word',
-  accumulation: 'accumulation',
-  aimemory: 'aimemory',
-  timeline: 'timeline',
-  schedule: 'schedule',
-  ledger: 'ledger',
-};
-
 // -------------------------------------------------------
 // 工厂函数：根据笔记本类型返回样式类名字典
 // -------------------------------------------------------
 
-export interface NotebookStyles {
+interface NotebookStyles {
   border: string;
   ring: string;
   bg: string;
@@ -153,14 +117,12 @@ export const NOTEBOOK_ROUTES: Record<string, { path: string; label: string }> = 
   ledger: { path: '/notebooks/ledger', label: '账本' },
 };
 
-export { TYPE_COLORS, TYPE_RING_COLORS, TYPE_BG_COLORS, TYPE_TEXT_COLORS };
-
 // -------------------------------------------------------
 // 条目类型定义（各笔记本扩展字段）
 // -------------------------------------------------------
 
 // 通用条目核心字段（对应后端 BASE_COLUMNS）
-export interface EntryBase {
+interface EntryBase {
   id: string;
   content: string;
   tags: string | null;
@@ -173,7 +135,7 @@ export interface EntryBase {
 }
 
 // Plan 笔记本扩展字段（对应 plan.py _extra_columns）
-export interface PlanEntry extends EntryBase {
+interface PlanEntry extends EntryBase {
   no: string;
   seq: number;
   month: string;
@@ -181,14 +143,14 @@ export interface PlanEntry extends EntryBase {
 }
 
 // Diary 笔记本扩展字段（对应 diary.py _extra_columns）
-export interface DiaryEntry extends EntryBase {
+interface DiaryEntry extends EntryBase {
   date: string;
   mood: string | null;
   weather: string | null;
 }
 
 // Word 笔记本扩展字段（对应 word.py _extra_columns）
-export interface WordEntry extends EntryBase {
+interface WordEntry extends EntryBase {
   word: string;
   part_of_speech: string | null;
   phonetic: string | null;
@@ -205,25 +167,25 @@ export interface WordEntry extends EntryBase {
 }
 
 // Accumulation 笔记本扩展字段（对应 accumulation.py _extra_columns）
-export interface AccumulationEntry extends EntryBase {
+interface AccumulationEntry extends EntryBase {
   source: string;
 }
 
 // AI Memory 笔记本扩展字段（对应 aimemory.py _extra_columns）
-export interface AimemoryEntry extends EntryBase {
+interface AimemoryEntry extends EntryBase {
   title: string;
   source: string;
 }
 
 // Timeline 笔记本扩展字段
-export interface TimelineEntry extends EntryBase {
+interface TimelineEntry extends EntryBase {
   start_time: string;
   end_time?: string;
   location?: string;
 }
 
 // Ledger 笔记本扩展字段（对应 ledger.py _extra_columns）
-export interface LedgerEntry extends EntryBase {
+interface LedgerEntry extends EntryBase {
   date: string;
   amount_cents: number;
   account: string | null;
@@ -231,22 +193,28 @@ export interface LedgerEntry extends EntryBase {
 }
 
 // Schedule 笔记本扩展字段
-export interface ScheduleEntry extends EntryBase {
+interface ScheduleEntry extends EntryBase {
   start_time: string;
   end_time?: string;
   location?: string;
 }
 
-// 条目联合类型
-export type AnyEntry = PlanEntry | DiaryEntry | WordEntry | AccumulationEntry | AimemoryEntry | TimelineEntry | ScheduleEntry;
+export interface EntryTypeMap {
+  plan: PlanEntry;
+  diary: DiaryEntry;
+  word: WordEntry;
+  accumulation: AccumulationEntry;
+  aimemory: AimemoryEntry;
+  timeline: TimelineEntry;
+  schedule: ScheduleEntry;
+  ledger: LedgerEntry;
+}
 
 // -------------------------------------------------------
 // 页面组件映射（用于路由动态渲染）
 // -------------------------------------------------------
 
-export type NotebookPageComponent = React.FC;
-
-export const NOTEBOOK_PAGES: Record<NotebookType, NotebookPageComponent> = {
+export const NOTEBOOK_PAGES: Record<NotebookType, React.FC> = {
   plan: NotebookPlan,
   diary: NotebookDiary,
   word: NotebookWord,
@@ -260,7 +228,7 @@ export const NOTEBOOK_PAGES: Record<NotebookType, NotebookPageComponent> = {
 // -------------------------------------------------------
 // 列名 → 渲染器类型映射（用于表单字段特殊渲染）
 // -------------------------------------------------------
-export const COLUMN_TYPES: Record<string, string> = {
+const COLUMN_TYPES: Record<string, string> = {
   content: 'Textarea',
   note: 'Textarea',
   ai_note: 'Textarea',
@@ -277,6 +245,9 @@ export const COLUMN_TYPES: Record<string, string> = {
   last_review: 'DateTime',
   state: 'Select',
 };
+
+export const getColumnType = (col: ColumnDef): string =>
+  COLUMN_TYPES[col.name] ?? col.type;
 
 // ── 字段名 ↔ 显示标签 双向映射 ───────────────────────────────
 

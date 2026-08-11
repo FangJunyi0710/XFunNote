@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { NotebookForm } from '@/components/notebook/NotebookForm';
 import { useNotebookStore, useCurrentNotebookData } from '@/stores/notebookStore';
-import * as notebookApi from '@/api/notebooks';
-import { TYPE_LABELS } from '@/config/notebook';
 import { handleError } from '@/lib/error';
-import type { NotebookType } from '@/config/notebook';
+import { NOTEBOOK_INFO, type NotebookType } from '@/config/notebook';
+import { queryEntries } from '@/api/notebooks';
+import type { Entry } from '@/types/notebook';
 
 export type PageMode = 'create' | 'edit' | 'batch-update';
 
@@ -15,11 +15,11 @@ export const NotebookEditPage: React.FC = () => {
   const location = useLocation();
   const store = useNotebookStore();
   const userData = useCurrentNotebookData();
-  const [entry, setEntry] = useState<Record<string, unknown> | null>(null);
+  const [entry, setEntry] = useState<Entry | null>(null);
   const [loading, setLoading] = useState(true);
 
   const type = notetype as NotebookType;
-  const label = TYPE_LABELS[type] || type;
+  const label = NOTEBOOK_INFO[type].label || type;
 
   const mode: PageMode = location.pathname.endsWith('/batch-update')
     ? 'batch-update'
@@ -41,22 +41,20 @@ export const NotebookEditPage: React.FC = () => {
     const load = async () => {
       try {
         setLoading(true);
-        if (!userData || userData.currentType !== type) {
+        if (!userData || userData.type !== type) {
           await store.setCurrentType(type);
         }
         if (mode === 'edit' && id) {
-          let found = userData?.entries?.find(e => e['id'] === id) as Record<string, unknown> | undefined;
+          let found = userData?.entries?.find(e => e['id'] === id) as Entry | undefined;
           if (!found) {
             if (!userData?.schema){
               return;
             }
-            const res = await notebookApi.queryEntries(type, {
-              filter: JSON.stringify({ column: 'id', op: '=', value: id }),
-              offset: 0,
+            const res = await queryEntries(type, {
+              view: {[type]: [[userData.schema.columns.map(col => col.name), { col: 'id', op: '=', val: id }]]},
               limit: 1,
-              columns: userData?.schema?.columns?.map(col => col.name) ?? [],
             });
-            found = res.entries[0] || undefined;
+            found = res.results[0] || undefined;
           }
           if (!found) {
             handleError(new Error(`未找到该${label}条目`), '加载失败');
@@ -77,19 +75,19 @@ export const NotebookEditPage: React.FC = () => {
     load();
   }, [type, mode, id, userData, store, label, navigate]);
 
-  const handleSubmit = async (data: Record<string, unknown>) => {
+  const handleSubmit = async (data: Entry) => {
     if (mode === 'batch-update') {
-      const nonEmptyValues: Record<string, unknown> = {};
+      const nonEmptyValues: Entry = {};
       for (const [key, value] of Object.entries(data)) {
         if (value !== '' && value !== null && value !== undefined) {
           nonEmptyValues[key] = value;
         }
       }
       if (Object.keys(nonEmptyValues).length !== 0) {
-        await store.batchUpdateEntries(batchIds, nonEmptyValues);
+        await store.updateEntry(batchIds, nonEmptyValues);
       }
     } else if (mode === 'edit') {
-      await store.updateEntry(id!, data);
+      await store.updateEntry([id!], data);
     } else {
       await store.addEntries([data]);
     }

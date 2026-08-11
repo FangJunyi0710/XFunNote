@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { listNotebooks } from '@/api/notebooks';
 import { useTokenStore } from '@/stores/tokenStore';
-import { NOTEBOOK_ROUTES, getNotebookStyles } from '@/config/notebook';
+import { NOTEBOOK_INFO, NOTEBOOK_ROUTES, getNotebookStyles } from '@/config/notebook';
 import type { NotebookType } from '@/config/notebook';
 import { handleError } from '@/lib/error';
 import type { NotebookSchema } from '@/types/notebook';
@@ -29,7 +29,7 @@ export const Home: React.FC = () => {
     })();
   }, []);
 
-  const visibleNotebooks = notebooks.filter(nb => NOTEBOOK_ROUTES[nb.table_name]);
+  const visibleNotebooks = notebooks.filter(nb => NOTEBOOK_ROUTES[nb.name]);
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -65,11 +65,11 @@ export const Home: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {visibleNotebooks.map(nb => {
-              const route = NOTEBOOK_ROUTES[nb.table_name];
+              const route = NOTEBOOK_ROUTES[nb.name];
               if (!route) return null;
-              const styles = getNotebookStyles(nb.table_name as NotebookType);
+              const styles = getNotebookStyles(nb.name as NotebookType);
               return (
-                <Link key={nb.table_name} to={route.path}>
+                <Link key={nb.name} to={route.path}>
                   <Card className={cn('hover:shadow-lg hover:border-primary/30 transition-all cursor-pointer h-full group border-l-2', styles.border)}>
                     <CardHeader className="p-5 pb-2">
                       <CardTitle className="text-base flex items-center gap-2">
@@ -78,7 +78,7 @@ export const Home: React.FC = () => {
                     </CardHeader>
                     <CardContent className="p-5 pt-2">
                       <p className="text-xs text-muted-foreground line-clamp-2">
-                        {nb.description}
+                        {NOTEBOOK_INFO[nb.name].description}
                       </p>
                     </CardContent>
                   </Card>

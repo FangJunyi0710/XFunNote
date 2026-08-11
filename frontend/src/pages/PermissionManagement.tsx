@@ -5,8 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import * as permissionsApi from '@/api/permissions';
-import type { Permission } from '@/types/permission';
 import { handleError, handleSuccess } from '@/lib/error';
 import { CloseIcon, DeleteIcon, PlusIcon, SubmitIcon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';

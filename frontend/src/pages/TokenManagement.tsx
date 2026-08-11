@@ -8,8 +8,6 @@ import { Switch } from '@/components/ui/switch';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { TokenValueDisplay } from '@/components/ui/TokenValueDisplay';
 import { CloseIcon, DeleteIcon, PlusIcon, SubmitIcon } from '@/components/ui/icons';
-import * as tokensApi from '@/api/tokens';
-import * as permissionsApi from '@/api/permissions';
 import { handleError, handleSuccess } from '@/lib/error';
 import type { Token } from '@/types/token';
 import type { Permission } from '@/types/permission';

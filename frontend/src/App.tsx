@@ -22,13 +22,7 @@ const App: React.FC = () => {
           <Route index element={<Home />} />
           {Object.entries(NOTEBOOK_ROUTES).map(([key, route]) => {
             const PageComponent = NOTEBOOK_PAGES[key as NotebookType];
-            return (
-              <Route
-                key={key}
-                path={route.path.replace(/^\//, '')}
-                element={<PageComponent />}
-              />
-            );
+            return <Route key={key} path={route.path.replace(/^\//, '')} element={<PageComponent />} />;
           })}
           <Route path="notebooks/:notetype/new" element={<NotebookEditPage />} />
           <Route path="notebooks/:notetype/edit/:id" element={<NotebookEditPage />} />

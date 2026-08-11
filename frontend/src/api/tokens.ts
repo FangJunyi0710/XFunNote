@@ -1,5 +1,4 @@
 import { api } from '@/api/client';
-import type { Token, TokenCreateRequest, TokenUpdateRequest, ShortcutExchangeRequest, ShortcutExchangeResponse } from '@/types/token';
 
 export interface TokenInfo {
   name: string;

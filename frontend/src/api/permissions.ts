@@ -1,5 +1,4 @@
 import { api } from '@/api/client';
-import type { Permission, PermissionCreateRequest, PermissionUpdateRequest } from '@/types/permission';
 
 export const listPermissions = async (): Promise<Permission[]> =>
   api.get<Permission[]>('/permissions');

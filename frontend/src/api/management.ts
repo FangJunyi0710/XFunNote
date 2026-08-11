@@ -1,5 +1,4 @@
 import { api } from '@/api/client';
-import type { InitDbResponse, BackupDbResponse, ResetDbResponse, RestoreDbResponse, ListBackupsResponse } from '@/types/api';
 
 export const initDb = async (): Promise<InitDbResponse> =>
   api.post<InitDbResponse>('/db/init');
