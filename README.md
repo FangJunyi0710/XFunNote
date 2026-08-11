@@ -1,5 +1,7 @@
 # XFunNote — 小方的万用本
 
+> 此文件主体内容自 2026-07-15 后未更新，已过时于代码库
+
 > **XFunNote** = e**X**ploratory **Fun**damental **Note**book  
 > 小方的万用本，个人效率与 AI 助手的实验场。
 
@@ -263,7 +265,6 @@ XFunNote/
 │   │   ├── __init__.py
 │   │   ├── ai.py
 │   │   ├── manage_db.py
-│   │   ├── manage_filter.py
 │   │   ├── manage_permission.py
 │   │   ├── manage_token.py
 │   │   ├── manage_view.py
@@ -287,7 +288,6 @@ XFunNote/
 │   │   ├── api/
 │   │   │   ├── ai.ts
 │   │   │   ├── client.ts
-│   │   │   ├── filters.ts
 │   │   │   ├── management.ts
 │   │   │   ├── notebooks.ts
 │   │   │   ├── permissions.ts
@@ -327,7 +327,6 @@ XFunNote/
 │   │   │   └── notebook.ts
 │   │   ├── lib/
 │   │   │   ├── error.ts
-│   │   │   ├── type-guards.ts
 │   │   │   └── utils.ts
 │   │   ├── pages/
 │   │   │   ├── AiChat.tsx
@@ -355,12 +354,8 @@ XFunNote/
 │   │   │   ├── themeStore.ts
 │   │   │   └── tokenStore.ts
 │   │   ├── types/
-│   │   │   ├── api.ts
 │   │   │   ├── filter.ts
-│   │   │   ├── notebook.ts
-│   │   │   ├── permission.ts
-│   │   │   ├── token.ts
-│   │   │   └── view.ts
+│   │   │   └── notebook.ts
 │   │   ├── App.tsx
 │   │   ├── index.css
 │   │   ├── main.tsx
@@ -383,41 +378,6 @@ XFunNote/
 │   ├── replace.py
 │   ├── update_avahi_hostname.sh
 │   └── update_readme.sh
-├── tests/
-│   ├── backend/
-│   │   ├── conftest.py
-│   │   ├── test_ai.py
-│   │   ├── test_db_management.py
-│   │   ├── test_deps.py
-│   │   ├── test_filters.py
-│   │   ├── test_main.py
-│   │   ├── test_notebooks.py
-│   │   ├── test_permissions.py
-│   │   ├── test_tokens.py
-│   │   └── test_views.py
-│   ├── xfun/
-│   │   ├── conftest.py
-│   │   ├── test_accumulation.py
-│   │   ├── test_ai_agent.py
-│   │   ├── test_ai_prompts.py
-│   │   ├── test_ai_schema.py
-│   │   ├── test_ai_tools.py
-│   │   ├── test_aimemory.py
-│   │   ├── test_db.py
-│   │   ├── test_diary.py
-│   │   ├── test_extras.py
-│   │   ├── test_filter.py
-│   │   ├── test_notebook.py
-│   │   ├── test_ops.py
-│   │   ├── test_plan.py
-│   │   ├── test_registry.py
-│   │   ├── test_schedule.py
-│   │   ├── test_time_utils.py
-│   │   ├── test_timeline.py
-│   │   ├── test_token.py
-│   │   ├── test_view.py
-│   │   └── test_word.py
-│   └── __init__.py
 ├── xfun/
 │   ├── ai/
 │   │   ├── __init__.py
@@ -429,7 +389,6 @@ XFunNote/
 │   │   ├── __init__.py
 │   │   ├── db.py
 │   │   ├── errors.py
-│   │   ├── extras.py
 │   │   ├── filter.py
 │   │   ├── notebook.py
 │   │   ├── ops.py
@@ -474,82 +433,40 @@ graph LR
         scripts_replace(replace)
     end
     style scripts fill:#d4f0c0,stroke:#333,stroke-width:1px,color:#333
-    subgraph tests[tests]
-        tests___init__(__init__)
-    end
-    style tests fill:#e8f4fd,stroke:#333,stroke-width:1px,color:#333
     subgraph backend[backend]
         backend___init__(__init__)
         backend_deps(deps)
         backend_main(main)
         backend_schemas(schemas)
     end
-    style backend fill:#ffe0f0,stroke:#333,stroke-width:1px,color:#333
+    style backend fill:#e8f4fd,stroke:#333,stroke-width:1px,color:#333
     subgraph backend_routers[backend/routers]
         backend_routers___init__(__init__)
         backend_routers_ai(ai)
         backend_routers_manage_db(manage_db)
-        backend_routers_manage_filter(manage_filter)
         backend_routers_manage_permission(manage_permission)
         backend_routers_manage_token(manage_token)
         backend_routers_manage_view(manage_view)
         backend_routers_notebooks(notebooks)
     end
-    style backend_routers fill:#f0e6ff,stroke:#333,stroke-width:1px,color:#333
+    style backend_routers fill:#ffe0f0,stroke:#333,stroke-width:1px,color:#333
     subgraph backend_services[backend/services]
         backend_services___init__(__init__)
         backend_services_ai_service(ai_service)
         backend_services_management_service(management_service)
         backend_services_notebook_service(notebook_service)
     end
-    style backend_services fill:#fff3cd,stroke:#333,stroke-width:1px,color:#333
+    style backend_services fill:#f0e6ff,stroke:#333,stroke-width:1px,color:#333
     subgraph _[.]
         cli(cli)
     end
-    style _ fill:#ffe0e0,stroke:#333,stroke-width:1px,color:#333
-    subgraph tests_backend[tests/backend]
-        tests_backend_conftest(conftest)
-        tests_backend_test_ai(test_ai)
-        tests_backend_test_db_management(test_db_management)
-        tests_backend_test_deps(test_deps)
-        tests_backend_test_filters(test_filters)
-        tests_backend_test_main(test_main)
-        tests_backend_test_notebooks(test_notebooks)
-        tests_backend_test_permissions(test_permissions)
-        tests_backend_test_tokens(test_tokens)
-        tests_backend_test_views(test_views)
-    end
-    style tests_backend fill:#d5f5e3,stroke:#333,stroke-width:1px,color:#333
-    subgraph tests_xfun[tests/xfun]
-        tests_xfun_conftest(conftest)
-        tests_xfun_test_accumulation(test_accumulation)
-        tests_xfun_test_ai_agent(test_ai_agent)
-        tests_xfun_test_ai_prompts(test_ai_prompts)
-        tests_xfun_test_ai_schema(test_ai_schema)
-        tests_xfun_test_ai_tools(test_ai_tools)
-        tests_xfun_test_aimemory(test_aimemory)
-        tests_xfun_test_db(test_db)
-        tests_xfun_test_diary(test_diary)
-        tests_xfun_test_extras(test_extras)
-        tests_xfun_test_filter(test_filter)
-        tests_xfun_test_notebook(test_notebook)
-        tests_xfun_test_ops(test_ops)
-        tests_xfun_test_plan(test_plan)
-        tests_xfun_test_registry(test_registry)
-        tests_xfun_test_schedule(test_schedule)
-        tests_xfun_test_time_utils(test_time_utils)
-        tests_xfun_test_timeline(test_timeline)
-        tests_xfun_test_token(test_token)
-        tests_xfun_test_view(test_view)
-        tests_xfun_test_word(test_word)
-    end
-    style tests_xfun fill:#fdebd0,stroke:#333,stroke-width:1px,color:#333
+    style _ fill:#fff3cd,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun[xfun]
         xfun___init__(__init__)
         xfun_config(config)
         xfun_system_tables(system_tables)
     end
-    style xfun fill:#d6eaf8,stroke:#333,stroke-width:1px,color:#333
+    style xfun fill:#ffe0e0,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun_ai[xfun/ai]
         xfun_ai___init__(__init__)
         xfun_ai_agent(agent)
@@ -557,18 +474,17 @@ graph LR
         xfun_ai_schema(schema)
         xfun_ai_tools(tools)
     end
-    style xfun_ai fill:#e8daef,stroke:#333,stroke-width:1px,color:#333
+    style xfun_ai fill:#d5f5e3,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun_core[xfun/core]
         xfun_core___init__(__init__)
         xfun_core_db(db)
         xfun_core_errors(errors)
-        xfun_core_extras(extras)
         xfun_core_filter(filter)
         xfun_core_notebook(notebook)
         xfun_core_ops(ops)
         xfun_core_view(view)
     end
-    style xfun_core fill:#d4f0c0,stroke:#333,stroke-width:1px,color:#333
+    style xfun_core fill:#fdebd0,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun_notebooks[xfun/notebooks]
         xfun_notebooks___init__(__init__)
         xfun_notebooks_accumulation(accumulation)
@@ -580,14 +496,14 @@ graph LR
         xfun_notebooks_timeline(timeline)
         xfun_notebooks_word(word)
     end
-    style xfun_notebooks fill:#e8f4fd,stroke:#333,stroke-width:1px,color:#333
+    style xfun_notebooks fill:#d6eaf8,stroke:#333,stroke-width:1px,color:#333
     subgraph xfun_utils[xfun/utils]
         xfun_utils___init__(__init__)
         xfun_utils_file_utils(file_utils)
         xfun_utils_time_utils(time_utils)
         xfun_utils_token_utils(token_utils)
     end
-    style xfun_utils fill:#ffe0f0,stroke:#333,stroke-width:1px,color:#333
+    style xfun_utils fill:#e8daef,stroke:#333,stroke-width:1px,color:#333
     backend_deps --> xfun___init__
     backend_deps --> xfun_config
     backend_deps --> xfun_core___init__
@@ -600,7 +516,6 @@ graph LR
     backend_main --> backend_routers___init__
     backend_main --> backend_routers_ai
     backend_main --> backend_routers_manage_db
-    backend_main --> backend_routers_manage_filter
     backend_main --> backend_routers_manage_permission
     backend_main --> backend_routers_manage_token
     backend_main --> backend_routers_manage_view
@@ -615,10 +530,6 @@ graph LR
     backend_routers_manage_db --> backend_services___init__
     backend_routers_manage_db --> backend_services_management_service
     backend_routers_manage_db --> xfun_config
-    backend_routers_manage_filter --> backend_deps
-    backend_routers_manage_filter --> xfun_core___init__
-    backend_routers_manage_filter --> xfun_core_filter
-    backend_routers_manage_filter --> xfun_core_ops
     backend_routers_manage_permission --> backend_deps
     backend_routers_manage_permission --> xfun_core___init__
     backend_routers_manage_permission --> xfun_core_filter
@@ -643,7 +554,7 @@ graph LR
     backend_routers_notebooks --> backend_schemas
     backend_routers_notebooks --> backend_services___init__
     backend_routers_notebooks --> backend_services_notebook_service
-    backend_routers_notebooks --> xfun_ai_schema
+    backend_routers_notebooks --> xfun_core_view
     backend_services_ai_service --> xfun_ai_agent
     backend_services_ai_service --> xfun_ai_prompts
     backend_services_ai_service --> xfun_ai_tools
@@ -666,83 +577,6 @@ graph LR
     cli --> xfun_core_view
     cli --> xfun_system_tables
     cli --> xfun_utils_file_utils
-    tests_backend_conftest --> backend_deps
-    tests_backend_conftest --> backend_main
-    tests_backend_conftest --> backend_routers___init__
-    tests_backend_conftest --> backend_routers_manage_db
-    tests_backend_conftest --> xfun___init__
-    tests_backend_conftest --> xfun_config
-    tests_backend_conftest --> xfun_core___init__
-    tests_backend_conftest --> xfun_core_db
-    tests_backend_conftest --> xfun_core_filter
-    tests_backend_conftest --> xfun_core_ops
-    tests_backend_conftest --> xfun_core_view
-    tests_backend_conftest --> xfun_utils_token_utils
-    tests_backend_test_ai --> xfun___init__
-    tests_backend_test_ai --> xfun_core_view
-    tests_backend_test_ai --> xfun_utils_time_utils
-    tests_backend_test_deps --> backend_main
-    tests_backend_test_deps --> xfun_utils_time_utils
-    tests_backend_test_main --> backend_main
-    tests_backend_test_notebooks --> backend_services_notebook_service
-    tests_backend_test_tokens --> backend_deps
-    tests_backend_test_tokens --> backend_routers_manage_token
-    tests_backend_test_tokens --> xfun___init__
-    tests_backend_test_tokens --> xfun_core___init__
-    tests_backend_test_tokens --> xfun_core_filter
-    tests_backend_test_tokens --> xfun_core_ops
-    tests_backend_test_tokens --> xfun_core_view
-    tests_backend_test_tokens --> xfun_utils_time_utils
-    tests_backend_test_tokens --> xfun_utils_token_utils
-    tests_xfun_conftest --> xfun_core_db
-    tests_xfun_conftest --> xfun_core_notebook
-    tests_xfun_conftest --> xfun_notebooks_accumulation
-    tests_xfun_conftest --> xfun_notebooks_aimemory
-    tests_xfun_conftest --> xfun_notebooks_diary
-    tests_xfun_conftest --> xfun_notebooks_plan
-    tests_xfun_conftest --> xfun_notebooks_schedule
-    tests_xfun_conftest --> xfun_notebooks_timeline
-    tests_xfun_conftest --> xfun_notebooks_word
-    tests_xfun_test_accumulation --> xfun_core_filter
-    tests_xfun_test_ai_agent --> xfun_ai_agent
-    tests_xfun_test_ai_prompts --> xfun_ai___init__
-    tests_xfun_test_ai_prompts --> xfun_ai_prompts
-    tests_xfun_test_ai_prompts --> xfun_core_errors
-    tests_xfun_test_ai_schema --> xfun_ai_schema
-    tests_xfun_test_ai_schema --> xfun_core_errors
-    tests_xfun_test_ai_tools --> xfun___init__
-    tests_xfun_test_ai_tools --> xfun_ai_schema
-    tests_xfun_test_ai_tools --> xfun_ai_tools
-    tests_xfun_test_ai_tools --> xfun_core_db
-    tests_xfun_test_ai_tools --> xfun_core_errors
-    tests_xfun_test_ai_tools --> xfun_core_view
-    tests_xfun_test_aimemory --> xfun_core_errors
-    tests_xfun_test_aimemory --> xfun_core_filter
-    tests_xfun_test_db --> xfun_core_db
-    tests_xfun_test_db --> xfun_core_errors
-    tests_xfun_test_diary --> xfun_core_filter
-    tests_xfun_test_extras --> xfun_core_filter
-    tests_xfun_test_filter --> xfun_core_errors
-    tests_xfun_test_filter --> xfun_core_filter
-    tests_xfun_test_notebook --> xfun_core_db
-    tests_xfun_test_notebook --> xfun_core_errors
-    tests_xfun_test_notebook --> xfun_core_filter
-    tests_xfun_test_notebook --> xfun_core_notebook
-    tests_xfun_test_ops --> xfun_core_filter
-    tests_xfun_test_ops --> xfun_core_ops
-    tests_xfun_test_ops --> xfun_core_view
-    tests_xfun_test_plan --> xfun_core_filter
-    tests_xfun_test_plan --> xfun_notebooks_plan
-    tests_xfun_test_registry --> xfun___init__
-    tests_xfun_test_registry --> xfun_utils_time_utils
-    tests_xfun_test_schedule --> xfun_core_filter
-    tests_xfun_test_time_utils --> xfun_utils_time_utils
-    tests_xfun_test_timeline --> xfun_core_filter
-    tests_xfun_test_token --> xfun_system_tables
-    tests_xfun_test_token --> xfun_utils_token_utils
-    tests_xfun_test_view --> xfun_core_filter
-    tests_xfun_test_view --> xfun_core_view
-    tests_xfun_test_word --> xfun_core_errors
     xfun___init__ --> xfun_core_db
     xfun___init__ --> xfun_core_notebook
     xfun___init__ --> xfun_notebooks_accumulation
@@ -774,11 +608,8 @@ graph LR
     xfun_core_db --> xfun_core_filter
     xfun_core_db --> xfun_utils_time_utils
     xfun_core_errors --> xfun_core_filter
-    xfun_core_extras --> xfun_core_filter
     xfun_core_filter --> xfun_core_db
     xfun_core_filter --> xfun_core_errors
-    xfun_core_filter --> xfun_core_extras
-    xfun_core_filter --> xfun_core_filter
     xfun_core_notebook --> xfun_core_db
     xfun_core_notebook --> xfun_core_errors
     xfun_core_ops --> xfun_core_db
@@ -817,7 +648,6 @@ graph LR
     xfun_notebooks_word --> xfun_utils_time_utils
     xfun_system_tables --> xfun_core_db
     xfun_system_tables --> xfun_core_errors
-    xfun_system_tables --> xfun_core_filter
     xfun_system_tables --> xfun_core_view
     xfun_system_tables --> xfun_utils_time_utils
     xfun_system_tables --> xfun_utils_token_utils
