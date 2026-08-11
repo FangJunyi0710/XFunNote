@@ -106,7 +106,6 @@ sudo ./scripts/update_avahi_hostname.sh
   |------|------|
   | `_token` | API 鉴权，支持 Shortcut 一次性兑换、过期/停用 |
   | `_view` | 存储命名的 View 定义，通过 `name` 引用 |
-  | `_filter` | 存储命名的 Filter 条件，通过 REF 运算符引用复用 |
   | `_permission` | 定义 `(读视图, 写视图)` 身份 |
 
   四张系统表通过对应管理路由（`/views/*`、`/permissions/*`、`/tokens/*`、`/filters/*`）进行 CRUD。

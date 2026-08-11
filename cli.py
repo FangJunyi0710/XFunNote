@@ -5,23 +5,6 @@ XFunNote CLI — 命令行接口
 所有 CRUD 命令参数均为 JSON 格式，输出统一为 JSON。
 设计目的：为后续 FastAPI 后端接口预演，而非日常使用。
 
-命令列表::
-
-    xfun list                    [--all]    → 列出笔记本名称（--all 含系统表）
-    xfun schema    TABLE                    → 查看字段结构（系统表亦可）
-    xfun query     TABLE VIEW_JSON          → 通用查询（系统表亦可）
-    xfun add       TABLE ENTRIES_JSON       → 通用添加（系统表亦可）
-    xfun update    TABLE FILTER_JSON V_JSON → 通用更新（系统表亦可）
-    xfun delete    TABLE FILTER_JSON        → 通用删除（系统表亦可）
-    xfun ai sync   --messages JSON [--tool-names] [--permission-name]
-    xfun ai chat                          [--tool-names] [--permission-name]
-    xfun init                               → 初始化数据库
-    xfun backup                             → 在线热备份数据库
-    xfun restore  BACKUP_PATH [--list] [--no-backup]  → 从备份恢复数据库
-    xfun reset               [--no-backup]  → 重置数据库
-
-系统表 (可通过 list --all 查看): _token, _permission, _view, _filter
-Token/Permission/View/Filter 管理直接复用 query / add / update / delete 命令
 """
 
 from __future__ import annotations
@@ -71,7 +54,7 @@ def main_callback(
     XFunNote 命令行接口 — 轻量级无模式笔记系统。
 
     所有 CRUD 命令参数均为 JSON 格式，输出统一为 JSON。
-    系统表 (_token, _permission, _view, _filter) 可直接通过 query/add/update/delete 操作。
+    系统表可直接通过 query/add/update/delete 操作。
     """
     if not user:
         typer.echo("必须指定用户名", err = True)
