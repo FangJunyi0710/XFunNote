@@ -18,6 +18,6 @@ const AccumulationCard: React.FC<{ entry: Entry }> = ({ entry }) => {
 
 registerCard('accumulation', AccumulationCard);
 
-export const NotebookAccumulation: React.FC = () => {
+export const AccumulationNotebook: React.FC = () => {
   return <NotebookLayout notetype="accumulation" />;
 };

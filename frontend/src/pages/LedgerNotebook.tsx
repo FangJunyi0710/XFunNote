@@ -38,6 +38,6 @@ const LedgerCard: React.FC<{ entry: Entry }> = ({ entry }) => {
 
 registerCard('ledger', LedgerCard);
 
-export const NotebookLedger: React.FC = () => {
+export const LedgerNotebook: React.FC = () => {
   return <NotebookLayout notetype="ledger" />;
 };

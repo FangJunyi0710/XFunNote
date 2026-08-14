@@ -25,6 +25,6 @@ const PlanCard: React.FC<{ entry: Entry }> = ({ entry }) => {
 
 registerCard('plan', PlanCard);
 
-export const NotebookPlan: React.FC = () => {
+export const PlanNotebook: React.FC = () => {
   return <NotebookLayout notetype="plan" />;
 };

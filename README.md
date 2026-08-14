@@ -265,9 +265,6 @@ XFunNote/
 │   │   ├── __init__.py
 │   │   ├── ai.py
 │   │   ├── manage_db.py
-│   │   ├── manage_permission.py
-│   │   ├── manage_token.py
-│   │   ├── manage_view.py
 │   │   └── notebooks.py
 │   ├── services/
 │   │   ├── __init__.py
@@ -286,13 +283,8 @@ XFunNote/
 │   │   └── xfun.svg
 │   ├── src/
 │   │   ├── api/
-│   │   │   ├── ai.ts
 │   │   │   ├── client.ts
-│   │   │   ├── management.ts
-│   │   │   ├── notebooks.ts
-│   │   │   ├── permissions.ts
-│   │   │   ├── tokens.ts
-│   │   │   └── views.ts
+│   │   │   └── notebooks.ts
 │   │   ├── components/
 │   │   │   ├── layout/
 │   │   │   │   ├── Layout.tsx
@@ -329,26 +321,19 @@ XFunNote/
 │   │   │   ├── error.ts
 │   │   │   └── utils.ts
 │   │   ├── pages/
-│   │   │   ├── AiChat.tsx
-│   │   │   ├── DatabaseManagement.tsx
+│   │   │   ├── AccumulationNotebook.tsx
+│   │   │   ├── AimemoryNotebook.tsx
+│   │   │   ├── DiaryNotebook.tsx
 │   │   │   ├── Home.tsx
-│   │   │   ├── Management.tsx
-│   │   │   ├── NotebookAccumulation.tsx
-│   │   │   ├── NotebookAimemory.tsx
-│   │   │   ├── NotebookDiary.tsx
+│   │   │   ├── LedgerNotebook.tsx
 │   │   │   ├── NotebookEditPage.tsx
 │   │   │   ├── NotebookFilter.tsx
-│   │   │   ├── NotebookLedger.tsx
-│   │   │   ├── NotebookPlan.tsx
-│   │   │   ├── NotebookSchedule.tsx
-│   │   │   ├── NotebookTimeline.tsx
-│   │   │   ├── NotebookWord.tsx
-│   │   │   ├── PermissionManagement.tsx
+│   │   │   ├── PlanNotebook.tsx
+│   │   │   ├── ScheduleNotebook.tsx
+│   │   │   ├── TimelineNotebook.tsx
 │   │   │   ├── TokenInputPanel.tsx
-│   │   │   ├── TokenManagement.tsx
-│   │   │   └── ViewManagement.tsx
+│   │   │   └── WordNotebook.tsx
 │   │   ├── stores/
-│   │   │   ├── chatStore.ts
 │   │   │   ├── notebookStore.ts
 │   │   │   ├── sidebarStore.ts
 │   │   │   ├── themeStore.ts
@@ -444,9 +429,6 @@ graph LR
         backend_routers___init__(__init__)
         backend_routers_ai(ai)
         backend_routers_manage_db(manage_db)
-        backend_routers_manage_permission(manage_permission)
-        backend_routers_manage_token(manage_token)
-        backend_routers_manage_view(manage_view)
         backend_routers_notebooks(notebooks)
     end
     style backend_routers fill:#ffe0f0,stroke:#333,stroke-width:1px,color:#333
@@ -516,9 +498,6 @@ graph LR
     backend_main --> backend_routers___init__
     backend_main --> backend_routers_ai
     backend_main --> backend_routers_manage_db
-    backend_main --> backend_routers_manage_permission
-    backend_main --> backend_routers_manage_token
-    backend_main --> backend_routers_manage_view
     backend_main --> backend_routers_notebooks
     backend_main --> xfun_config
     backend_main --> xfun_core_errors
@@ -530,26 +509,6 @@ graph LR
     backend_routers_manage_db --> backend_services___init__
     backend_routers_manage_db --> backend_services_management_service
     backend_routers_manage_db --> xfun_config
-    backend_routers_manage_permission --> backend_deps
-    backend_routers_manage_permission --> xfun_core___init__
-    backend_routers_manage_permission --> xfun_core_filter
-    backend_routers_manage_permission --> xfun_core_ops
-    backend_routers_manage_permission --> xfun_core_view
-    backend_routers_manage_token --> backend_deps
-    backend_routers_manage_token --> xfun___init__
-    backend_routers_manage_token --> xfun_config
-    backend_routers_manage_token --> xfun_core___init__
-    backend_routers_manage_token --> xfun_core_db
-    backend_routers_manage_token --> xfun_core_filter
-    backend_routers_manage_token --> xfun_core_ops
-    backend_routers_manage_token --> xfun_core_view
-    backend_routers_manage_token --> xfun_utils_file_utils
-    backend_routers_manage_token --> xfun_utils_time_utils
-    backend_routers_manage_view --> backend_deps
-    backend_routers_manage_view --> xfun_core___init__
-    backend_routers_manage_view --> xfun_core_filter
-    backend_routers_manage_view --> xfun_core_ops
-    backend_routers_manage_view --> xfun_core_view
     backend_routers_notebooks --> backend_deps
     backend_routers_notebooks --> backend_schemas
     backend_routers_notebooks --> backend_services___init__

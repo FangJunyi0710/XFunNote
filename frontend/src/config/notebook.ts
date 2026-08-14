@@ -1,11 +1,12 @@
-import { NotebookPlan } from '@/pages/NotebookPlan';
-import { NotebookDiary } from '@/pages/NotebookDiary';
-import { NotebookWord } from '@/pages/NotebookWord';
-import { NotebookAccumulation } from '@/pages/NotebookAccumulation';
-import { NotebookAimemory } from '@/pages/NotebookAimemory';
-import { NotebookTimeline } from '@/pages/NotebookTimeline';
-import { NotebookSchedule } from '@/pages/NotebookSchedule';
-import { NotebookLedger } from '@/pages/NotebookLedger';
+import { PlanNotebook } from '@/pages/PlanNotebook';
+import { DiaryNotebook } from '@/pages/DiaryNotebook';
+import { WordNotebook } from '@/pages/WordNotebook';
+import { AccumulationNotebook } from '@/pages/AccumulationNotebook';
+import { AimemoryNotebook } from '@/pages/AimemoryNotebook';
+import { TimelineNotebook } from '@/pages/TimelineNotebook';
+import { ScheduleNotebook } from '@/pages/ScheduleNotebook';
+import { LedgerNotebook } from '@/pages/LedgerNotebook';
+
 import { getMajorityMonthForWeek } from '@/lib/utils';
 import type { ColumnDef } from '@/types/notebook';
 
@@ -215,14 +216,14 @@ export interface EntryTypeMap {
 // -------------------------------------------------------
 
 export const NOTEBOOK_PAGES: Record<NotebookType, React.FC> = {
-  plan: NotebookPlan,
-  diary: NotebookDiary,
-  word: NotebookWord,
-  accumulation: NotebookAccumulation,
-  aimemory: NotebookAimemory,
-  timeline: NotebookTimeline,
-  schedule: NotebookSchedule,
-  ledger: NotebookLedger,
+  plan: PlanNotebook,
+  diary: DiaryNotebook,
+  word: WordNotebook,
+  accumulation: AccumulationNotebook,
+  aimemory: AimemoryNotebook,
+  timeline: TimelineNotebook,
+  schedule: ScheduleNotebook,
+  ledger: LedgerNotebook,
 };
 
 // -------------------------------------------------------

@@ -22,6 +22,6 @@ const AimemoryCard: React.FC<{ entry: Entry }> = ({ entry }) => {
 
 registerCard('aimemory', AimemoryCard);
 
-export const NotebookAimemory: React.FC = () => {
+export const AimemoryNotebook: React.FC = () => {
   return <NotebookLayout notetype="aimemory" />;
 };

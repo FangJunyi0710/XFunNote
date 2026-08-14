@@ -23,6 +23,6 @@ const ScheduleCard: React.FC<{ entry: Entry }> = ({ entry }) => {
 
 registerCard('schedule', ScheduleCard);
 
-export const NotebookSchedule: React.FC = () => {
+export const ScheduleNotebook: React.FC = () => {
   return <NotebookLayout notetype="schedule" />;
 };

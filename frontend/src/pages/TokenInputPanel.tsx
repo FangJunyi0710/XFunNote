@@ -5,16 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useTokenStore } from '@/stores/tokenStore';
-import { exchangeTokenByShortcut, getTokenInfo } from '@/api/tokens';
+// import { exchangeTokenByShortcut, getTokenInfo } from '@/api/tokens';
 import { handleError, handleSuccess } from '@/lib/error';
-import type { TokenInfo } from '@/api/tokens';
+// import type { TokenInfo } from '@/api/tokens';
 import { Switch } from '@/components/ui/switch';
 import { TokenValueDisplay } from '@/components/ui/TokenValueDisplay';
 import { DeleteIcon, PlusIcon } from '@/components/ui/icons';
-import { cn, maskKey } from '@/lib/utils';
+import { cn, isToken, maskKey } from '@/lib/utils';
 import { Timestamp } from '@/components/ui/Timestamp';
-
-const TOKEN_REGEX = /^sk-[-A-Za-z0-9_]{32}$/;
 
 export const TokenInputPanel: React.FC = () => {
   const {
@@ -127,7 +125,7 @@ export const TokenInputPanel: React.FC = () => {
       handleError(new Error('请先选择或创建一个用户'), '提交 Token');
       return;
     }
-    if (TOKEN_REGEX.test(value)) {
+    if (isToken(value)) {
       handleAddToken(value);
       setKey('');
       handleSuccess('Token 已添加成功');
@@ -258,13 +256,13 @@ export const TokenInputPanel: React.FC = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              {key.trim() ? (TOKEN_REGEX.test(key.trim()) ? '添加 Token' : '兑换 Shortcut') : '添加 Token'}
+              {key.trim() ? (isToken(key.trim()) ? '添加 Token' : '兑换 Shortcut') : '添加 Token'}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="token-key">
-                {key.trim() ? (TOKEN_REGEX.test(key.trim()) ? 'Token 值' : 'Shortcut 码') : 'Token 值 / Shortcut 码'}
+                {key.trim() ? (isToken(key.trim()) ? 'Token 值' : 'Shortcut 码') : 'Token 值 / Shortcut 码'}
               </Label>
               <div className="flex gap-2">
                 <Input

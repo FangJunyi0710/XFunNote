@@ -23,6 +23,6 @@ const TimelineCard: React.FC<{ entry: Entry }> = ({ entry }) => {
 
 registerCard('timeline', TimelineCard);
 
-export const NotebookTimeline: React.FC = () => {
+export const TimelineNotebook: React.FC = () => {
   return <NotebookLayout notetype="timeline" />;
 };

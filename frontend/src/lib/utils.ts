@@ -69,3 +69,7 @@ export const getMajorityMonthForWeek = (date: Date): {year: number, month: numbe
     wednesday.setDate(wednesday.getDate() - wednesday.getDay() + 3);
     return {year: wednesday.getFullYear(), month: wednesday.getMonth() + 1};
 }
+
+const TOKEN_REGEX = /^sk-[-A-Za-z0-9_]{32}$/;
+export const isToken = (str: string): boolean => 
+  TOKEN_REGEX.test(str)

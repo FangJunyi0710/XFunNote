@@ -21,6 +21,6 @@ const DiaryCard: React.FC<{ entry: Entry }> = ({ entry }) => {
 
 registerCard('diary', DiaryCard);
 
-export const NotebookDiary: React.FC = () => {
+export const DiaryNotebook: React.FC = () => {
   return <NotebookLayout notetype="diary" />;
 };

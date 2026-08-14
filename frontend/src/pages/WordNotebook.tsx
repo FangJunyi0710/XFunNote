@@ -39,6 +39,6 @@ const WordCard: React.FC<{ entry: Entry }> = ({ entry }) => {
 
 registerCard('word', WordCard);
 
-export const NotebookWord: React.FC = () => {
+export const WordNotebook: React.FC = () => {
   return <NotebookLayout notetype="word" />;
 };
