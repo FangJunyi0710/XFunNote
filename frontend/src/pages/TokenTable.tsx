@@ -10,13 +10,17 @@ const TokenCard: React.FC<{ entry: Entry }> = ({ entry }) => {
   const isActive = e.is_active === 1;
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold">{e.name || '（未命名）'}</span>
-        <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded',
-          isActive ? 'text-green-600 bg-green-600/10' : 'text-red-600 bg-red-600/10')}>
-          {isActive ? '启用' : '停用'}
-        </span>
-      </div>
+      {(e.name || e.is_active !== null) && (
+        <div className="flex items-center justify-between">
+          {e.name && <span className="text-sm font-semibold">{e.name}</span>}
+          {e.is_active !== null && (
+            <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded',
+              isActive ? 'text-green-600 bg-green-600/10' : 'text-red-600 bg-red-600/10')}>
+              {isActive ? '启用' : '停用'}
+            </span>
+          )}
+        </div>
+      )}
       {e.token && (
         <div className="text-xs font-mono text-muted-foreground">{maskKey(e.token)}</div>
       )}

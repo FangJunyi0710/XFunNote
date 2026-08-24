@@ -36,7 +36,7 @@ export const Timestamp: React.FC<TimestampProps> = ({
   className = '',
   timezoneClassName = '',
 }) => {
-  if (!date) return <span className={className}>-</span>;
+  if (!date) return null;
 
   const d = typeof date === 'string' ? new Date(date) : date;
   if (isNaN(d.getTime())) return <span className={className}>无效日期</span>;

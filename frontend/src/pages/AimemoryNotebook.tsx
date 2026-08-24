@@ -8,13 +8,15 @@ const AimemoryCard: React.FC<{ entry: Entry }> = ({ entry }) => {
   const e = asEntry('aimemory', entry);
   return (
     <div className="space-y-1">
-      <div className="flex items-center gap-2">
-        <span className="font-medium">{e.title || '(无标题)'}</span>
-        {e.source && (
-          <span className="text-xs text-muted-foreground">来源: {e.source}</span>
-        )}
-      </div>
-      <MarkdownRenderer className="text-sm text-muted-foreground line-clamp-2">{e.content}</MarkdownRenderer>
+      {(e.title || e.source) && (
+        <div className="flex items-center gap-2">
+          {e.title && <span className="font-medium">{e.title}</span>}
+          {e.source && (
+            <span className="text-xs text-muted-foreground">来源: {e.source}</span>
+          )}
+        </div>
+      )}
+      {e.content && <MarkdownRenderer className="text-sm text-muted-foreground line-clamp-2">{e.content}</MarkdownRenderer>}
 
     </div>
   );

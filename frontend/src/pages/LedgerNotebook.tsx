@@ -20,18 +20,20 @@ const LedgerCard: React.FC<{ entry: Entry }> = ({ entry }) => {
           {transactionId}
         </span>
       )}
-      <div className="text-xs text-muted-foreground gap-2 items-center flex">
-        <Timestamp date={e.date} from="year" to="day" showTimezone={false} />
-        {e.account && <span className="text-xs text-muted-foreground">{e.account}</span>}
-        <span className="font-mono text-sm">
-          {e.amount_cents !== undefined && e.amount_cents !== null ? (
-            <span className={e.amount_cents >= 0 ? 'text-green-600' : 'text-red-600'}>
-              {e.amount_cents > 0 ? '+' : ''}{(e.amount_cents / 100).toFixed(2)}
+      {(e.date || e.account || e.amount_cents !== null) && (
+        <div className="text-xs text-muted-foreground gap-2 items-center flex">
+          {e.date && <Timestamp date={e.date} from="year" to="day" showTimezone={false} />}
+          {e.account && <span className="text-xs text-muted-foreground">{e.account}</span>}
+          {e.amount_cents !== null && (
+            <span className="font-mono text-sm">
+              <span className={e.amount_cents >= 0 ? 'text-green-600' : 'text-red-600'}>
+                {e.amount_cents > 0 ? '+' : ''}{(e.amount_cents / 100).toFixed(2)}
+              </span>
             </span>
-          ) : null}
-        </span>
-      </div>
-      <MarkdownRenderer className="text-sm line-clamp-3">{e.content || '(空)'}</MarkdownRenderer>
+          )}
+        </div>
+      )}
+      {e.content && <MarkdownRenderer className="text-sm line-clamp-3">{e.content}</MarkdownRenderer>}
     </div>
   );
 };

@@ -54,7 +54,7 @@ export const NotebookCard: React.FC<NotebookCardProps> = React.memo(({
         )}
         <div className="flex justify-between items-center border-t border-border/30 -mb-5">
           <div className="flex flex-col text-xs text-muted-foreground space-y-0.5">
-            <Timestamp date={created} />
+            {created && <Timestamp date={created} />}
             {showUpdated && <Timestamp date={updated} />}
           </div>
           <div className="flex gap-1" onClick={e => e.stopPropagation()}>
