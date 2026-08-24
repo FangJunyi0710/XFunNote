@@ -27,9 +27,6 @@ from backend.routers import (
     notebooks,
     ai,
     manage_db,
-    manage_view,
-    manage_token,
-    manage_permission,
 )
 
 
@@ -162,9 +159,6 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 app.include_router(notebooks.router, prefix=API_PREFIX)
 app.include_router(ai.router, prefix=API_PREFIX)
 app.include_router(manage_db.router, prefix=API_PREFIX)
-app.include_router(manage_view.router, prefix=API_PREFIX)
-app.include_router(manage_token.router, prefix=API_PREFIX)
-app.include_router(manage_permission.router, prefix=API_PREFIX)
 # TODO 添加流式返回 AI 结果的路由及前端支持
 # TODO 添加 SSE 事件驱动的后端避免轮询
 # TODO 提供获取预定义 permission 的接口

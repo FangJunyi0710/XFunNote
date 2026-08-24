@@ -20,8 +20,8 @@ const notebookNav: NavItem[] = Object.values(NOTEBOOK_ROUTES).map(route => ({
 }));
 
 const bottomNav: NavItem[] = [
-  { label: 'AI 对话', path: '/ai' },
-  { label: '管理', path: '/management' },
+  // { label: 'AI 对话', path: '/ai' },
+  // { label: '管理', path: '/management' },
   { label: 'Token 管理', path: '/token-input' },
 ];
 
