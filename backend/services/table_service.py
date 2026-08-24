@@ -1,21 +1,20 @@
-"""本子 CRUD 业务逻辑，封装 xfun.core.ops。"""
+"""表 CRUD 业务逻辑，封装 xfun.core.ops。"""
 
 from typing import Any
 
 from fastapi import HTTPException, status
 
-from xfun import registry
 from xfun.core import ops
 from xfun.core.db import DB
 from xfun.core.view import DB_Permission
 from xfun.core.filter import TRUE_CONDITION, parse_filter_json
 
 
-def list_notebooks() -> list[dict]:
+def list_tables(db: DB) -> list[dict]:
     from dataclasses import asdict
     result = []
-    for name, nb in registry.items():
-        columns = [asdict(c) for c in nb.columns]
+    for name, cols in db.table_infos.items():
+        columns = [asdict(c) for c in cols]
         result.append({
             "table_name": name,
             "columns": columns,
@@ -23,15 +22,15 @@ def list_notebooks() -> list[dict]:
     return result
 
 
-def get_schema(notetype: str) -> list[dict]:
-    _validate_notetype(notetype)
+def get_schema(db: DB, table: str) -> list[dict]:
+    _validate_table(db, table)
     from dataclasses import asdict
-    return [asdict(c) for c in registry[notetype].columns]
+    return [asdict(c) for c in db.table_infos[table]]
 
 
 def query_entries(
     db: DB,
-    notetype: str,
+    table: str,
     permission: DB_Permission,
     view: dict | None,
     limit: int,
@@ -51,58 +50,57 @@ def query_entries(
     tuple[list[dict], int]
         (条目列表, 总记录数)
     """
-    _validate_notetype(notetype)
+    _validate_table(db, table)
 
     if view is None:
-        nb = registry[notetype]
-        view = {notetype: [([c.name for c in nb.columns], TRUE_CONDITION)]}
+        view = {table: [(db.cols(table), TRUE_CONDITION)]}
 
     with db.read_transaction() as conn:
-        total = ops.count(conn, permission, notetype, view)
-        results = ops.query(conn, permission, notetype, view,
+        total = ops.count(conn, permission, table, view)
+        results = ops.query(conn, permission, table, view,
                             order_by=order_by, limit=limit, offset=offset)
         return results, total
 
 
 def add_entries(
     db: DB,
-    notetype: str,
+    table: str,
     entries: list[dict],
     permission: DB_Permission,
 ) -> list[dict]:
-    _validate_notetype(notetype)
+    _validate_table(db, table)
     with db.transaction() as conn:
-        return ops.add(conn, permission, notetype, entries)
+        return ops.add(conn, permission, table, entries)
 
 
 def update_entries(
     db: DB,
-    notetype: str,
+    table: str,
     filter_obj: Any,
     values: dict,
     permission: DB_Permission,
 ) -> list[dict]:
-    _validate_notetype(notetype)
+    _validate_table(db, table)
     flt = parse_filter_json(filter_obj)
     with db.transaction() as conn:
-        return ops.update(conn, permission, notetype, flt, values)
+        return ops.update(conn, permission, table, flt, values)
 
 
 def delete_entries(
     db: DB,
-    notetype: str,
+    table: str,
     filter_obj: Any,
     permission: DB_Permission,
 ) -> list[dict]:
-    _validate_notetype(notetype)
+    _validate_table(db, table)
     flt = parse_filter_json(filter_obj)
     with db.transaction() as conn:
-        return ops.delete(conn, permission, notetype, flt)
+        return ops.delete(conn, permission, table, flt)
 
 
-def _validate_notetype(notetype: str) -> None:
-    if notetype not in registry:
+def _validate_table(db: DB, table: str) -> None:
+    if table not in db.table_infos:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"未知笔记本类型: {notetype!r}，可用: {list(registry.keys())}",
+            detail=f"未知表: {table!r}，可用: {list(db.table_infos.keys())}",
         )

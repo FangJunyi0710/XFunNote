@@ -24,9 +24,10 @@ assert PROJECT_ROOT == _PROJECT_ROOT
 API_PREFIX = f"/api/v{VERSION.split('.')[0]}"
 
 from backend.routers import (
-    notebooks,
+    tables,
     ai,
     manage_db,
+    tokens,
 )
 
 
@@ -44,9 +45,9 @@ XFunNote 是一个轻量级、无模式的笔记系统后端。
 
 ## 功能特性
 
-- **📓 本子 CRUD** — 对任意笔记本进行增删改查操作，支持视图筛选与分页
+- **📓 表 CRUD** — 对任意表（本子与系统表）进行增删改查操作，支持视图筛选与分页
 - **🤖 AI 对话** — 集成 LLM 的智能对话与工具调用（查询/添加/更新/删除条目）
-- **🔑 Token 管理** — API 密钥的创建、更新、删除与 Shortcut 快捷兑换
+- **🔑 Token 管理** — API 密钥的查询与 Shortcut 快捷兑换
 - **🛡️ 权限管理** — 基于 View 的细粒度读写权限控制
 - **👁️ 视图管理** — 保存/加载自定义查询视图
 - **🔍 筛选管理** — 保存/加载自定义筛选条件
@@ -57,12 +58,12 @@ XFunNote 是一个轻量级、无模式的笔记系统后端。
 所有 API（除 `POST {API_PREFIX}/tokens/exchange` 和 `/docs` 外）需要在 HTTP 头中携带 `Authorization: Bearer Token`。
 
 - **ROOT_TOKEN**：超级管理员权限，在 `.env` 文件中设置
-- **普通 Token**：通过 `POST {API_PREFIX}/tokens` 创建，可绑定不同权限级别
+- **普通 Token**：通过通用表 CRUD 接口向 `_token` 表添加，可绑定不同权限级别
 
 ## 数据模型
 
-- **笔记本（Notebook）**：由代码注册的动态表，无固定 Schema
-- **系统表**：`_token`（令牌）、`_permission`（权限）、`_view`（视图）、`_filter`（筛选）
+- **表（Table）**：由代码注册的动态表（本子 + 系统表），无固定 Schema，统一通过 `/tables/{{name}}/entries` 接口访问
+- **系统表**：`_token`（令牌）、`_permission`（权限）、`_view`（视图）
 """,
     summary="XFunNote 无模式笔记系统 API",
     version=VERSION,
@@ -156,9 +157,10 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     )
 
 
-app.include_router(notebooks.router, prefix=API_PREFIX)
+app.include_router(tables.router, prefix=API_PREFIX)
 app.include_router(ai.router, prefix=API_PREFIX)
 app.include_router(manage_db.router, prefix=API_PREFIX)
+app.include_router(tokens.router, prefix=API_PREFIX)
 # TODO 添加流式返回 AI 结果的路由及前端支持
 # TODO 添加 SSE 事件驱动的后端避免轮询
 # TODO 提供获取预定义 permission 的接口

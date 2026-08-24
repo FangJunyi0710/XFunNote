@@ -1,9 +1,8 @@
-"""本子 CRUD 路由。"""
+"""表 CRUD 路由。"""
 
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import ValidationError
+from fastapi import APIRouter, Depends, Query, status
 
 from backend.schemas import (
     EntryBatchResponse,
@@ -11,28 +10,28 @@ from backend.schemas import (
     EntryDelete,
     EntryUpdate,
 )
-from backend.services import notebook_service as svc
+from backend.services import table_service as svc
 from backend.deps import get_api_permission, ApiPermission
 from xfun.core.view import View, parse_view_json
 
-router = APIRouter(tags=["notebooks"])
+router = APIRouter(tags=["tables"])
 
 
-@router.get("/notebooks", summary="列出所有笔记本及字段结构", response_description="笔记本列表（含字段定义）")
-def list_notebooks(api_perm: ApiPermission = Depends(get_api_permission)):
-    return svc.list_notebooks()
+@router.get("/tables", summary="列出所有表及字段结构", response_description="表列表（含字段定义）")
+def list_tables(api_perm: ApiPermission = Depends(get_api_permission)):
+    return svc.list_tables(api_perm.db)
 
 
-@router.get("/notebooks/{name}/schema", summary="查看笔记本字段结构", response_description="字段定义列表")
+@router.get("/tables/{name}/schema", summary="查看表字段结构", response_description="字段定义列表")
 def get_schema(name: str, api_perm: ApiPermission = Depends(get_api_permission)):
-    return svc.get_schema(name)
+    return svc.get_schema(api_perm.db, name)
 
 
 def parse_view_param(view: str = Query(..., description="View JSON 字符串")) -> View:
     return parse_view_json(json.loads(view))
 
 
-@router.get("/notebooks/{name}/entries", summary="通用查询条目", response_description="匹配的条目列表（含总数）")
+@router.get("/tables/{name}/entries", summary="通用查询条目", response_description="匹配的条目列表（含总数）")
 def query_entries(
     name: str,
     order_by: str = Query("", description="排序，如 `created_at DESC`"),
@@ -47,7 +46,7 @@ def query_entries(
 
 
 @router.post(
-    "/notebooks/{name}/entries",
+    "/tables/{name}/entries",
     status_code=status.HTTP_201_CREATED,
     summary="批量添加条目",
     response_description="新增条目的完整信息",
@@ -61,7 +60,7 @@ def add_entries(
     return EntryBatchResponse(count=len(results), results=results)
 
 
-@router.put("/notebooks/{name}/entries", summary="批量更新条目", response_description="更新后条目的完整信息")
+@router.put("/tables/{name}/entries", summary="批量更新条目", response_description="更新后条目的完整信息")
 def update_entries(
     name: str,
     body: EntryUpdate,
@@ -71,7 +70,7 @@ def update_entries(
     return EntryBatchResponse(count=len(results), results=results)
 
 
-@router.delete("/notebooks/{name}/entries", summary="批量删除条目", response_description="被删除条目的完整信息")
+@router.delete("/tables/{name}/entries", summary="批量删除条目", response_description="被删除条目的完整信息")
 def delete_entries(
     name: str,
     body: EntryDelete,

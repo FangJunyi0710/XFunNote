@@ -32,7 +32,7 @@ const convertColumns = (raw: RawColumn[]): ColumnDef[] =>
 
 /** 获取笔记本列表（后端一次返回所有 schema，前端组装为 NotebookSchema[]） */
 export const listNotebooks = async (): Promise<NotebookSchema[]> => {
-  const rawList = await api.get<RawNotebookSchema[]>('/notebooks');
+  const rawList = await api.get<RawNotebookSchema[]>('/tables');
   return rawList.map(raw => ({
     name: raw.table_name as NotebookType,
     columns: convertColumns(raw.columns)
@@ -41,7 +41,7 @@ export const listNotebooks = async (): Promise<NotebookSchema[]> => {
 
 /** 获取笔记本 Schema（后端返回列定义，前端组装为完整 NotebookSchema） */
 export const getSchema = async (type: NotebookType): Promise<NotebookSchema> => {
-  const rawColumns = await api.get<RawColumn[]>(`/notebooks/${type}/schema`);
+  const rawColumns = await api.get<RawColumn[]>(`/tables/${type}/schema`);
   return {
     name: type,
     columns: convertColumns(rawColumns),
@@ -80,7 +80,7 @@ export const queryEntries = async(
 
   // 响应映射：后端 { count, results } → 前端 { total, entries, offset, limit }
   return await api.get<{ count: number; results: Entry[] }>(
-    `/notebooks/${type}/entries`,
+    `/tables/${type}/entries`,
     queryParams,
   );
 }
@@ -89,7 +89,7 @@ export const addEntries = async(
   type: NotebookType,
   entries: Entry[]
 ): Promise<EntriesResponse> =>
-  api.post(`/notebooks/${type}/entries`, {entries});
+  api.post(`/tables/${type}/entries`, {entries});
 
 export const updateEntries = async(
   type: NotebookType,
@@ -97,7 +97,7 @@ export const updateEntries = async(
   values: Entry
 ): Promise<EntriesResponse> =>
   // 前端格式 { id, updates } → 后端格式 { filter: [[{column, op, value}]], values }
-  api.put(`/notebooks/${type}/entries`, {
+  api.put(`/tables/${type}/entries`, {
     filter: { column: 'id', op: 'IN', value: ids },
     values
   });
@@ -108,6 +108,6 @@ export const deleteEntries = async(
 ): Promise<EntriesResponse> =>
   // 前端 ids 列表 → 后端 filter: [[{column, op, value}]]
   api.delete(
-    `/notebooks/${type}/entries`,
+    `/tables/${type}/entries`,
     { filter: { column: 'id', op: 'IN', value: ids } },
   );
