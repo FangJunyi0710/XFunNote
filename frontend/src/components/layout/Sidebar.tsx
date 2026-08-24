@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useThemeStore } from '@/stores/themeStore';
 import { useSidebarStore } from '@/stores/sidebarStore';
-import { NOTEBOOK_ROUTES } from '@/config/notebook';
+import { NOTEBOOK_ROUTES, isSystemTable } from '@/config/notebook';
 import { ArrowIcon, MoonIcon, SunIcon } from '@/components/ui/icons';
 import pkg from '../../../package.json';
 
@@ -14,10 +14,13 @@ interface NavItem {
 
 const topNav: NavItem[] = [{ label: '首页', path: '/' }];
 
-const notebookNav: NavItem[] = Object.values(NOTEBOOK_ROUTES).map(route => ({
-  label: route.label,
-  path: route.path,
-}));
+const notebookNav: NavItem[] = Object.entries(NOTEBOOK_ROUTES)
+  .filter(([key]) => !isSystemTable(key))
+  .map(([, route]) => ({ label: route.label, path: route.path }));
+
+const systemTableNav: NavItem[] = Object.entries(NOTEBOOK_ROUTES)
+  .filter(([key]) => isSystemTable(key))
+  .map(([, route]) => ({ label: route.label, path: route.path }));
 
 const bottomNav: NavItem[] = [
   // { label: 'AI 对话', path: '/ai' },
@@ -39,6 +42,7 @@ export const Sidebar: React.FC = () => {
   const { mode, toggle } = useThemeStore();
   const { isCollapsed, toggleCollapsed, dragOffset, isMobile, touchDetected } = useSidebarStore();
   const [notebookOpen, setNotebookOpen] = useState(true);
+  const [systemTableOpen, setSystemTableOpen] = useState(false);
   const handleNavClick = () => {
     if (isMobile) {
       toggleCollapsed();
@@ -123,6 +127,36 @@ export const Sidebar: React.FC = () => {
                 <div className="overflow-hidden min-h-0">
                   <div className="space-y-0.5 pt-1">
                     {notebookNav.map(item => (
+                      <NavLink
+                        key={item.path}
+                        to={item.path}
+                        onClick={handleNavClick}
+                        className={({ isActive }) => navLinkClass(isActive, 'pl-7')}
+                      >
+                        <span>{item.label}</span>
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 系统表分组 */}
+            <div className="pt-2">
+              <button
+                onClick={() => setSystemTableOpen(v => !v)}
+                className="flex items-center gap-2 w-full px-3 py-2.5 rounded-md text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                <ArrowIcon direction='right' className={cn('transition-transform duration-100 origin-center',
+                  systemTableOpen && 'rotate-90'
+                )} />
+                系统表
+              </button>
+
+              <div className={cn("grid transition-all duration-200", systemTableOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
+                <div className="overflow-hidden min-h-0">
+                  <div className="space-y-0.5 pt-1">
+                    {systemTableNav.map(item => (
                       <NavLink
                         key={item.path}
                         to={item.path}

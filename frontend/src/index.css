@@ -32,6 +32,10 @@
     --notebook-timeline: 180 100% 35%;
     --notebook-schedule: 330 100% 45%;
     --notebook-ledger: 200 100% 50%;
+    /* 系统表标识色 */
+    --notebook-token: 45 93% 47%;
+    --notebook-view: 173 80% 40%;
+    --notebook-permission: 240 73% 65%;
 
     /* 语义状态色 */
     --success: 142.1 76.2% 36.3%;
@@ -68,6 +72,10 @@
     --notebook-timeline: 180 100% 50%;
     --notebook-schedule: 330 100% 60%;
     --notebook-ledger: 200 100% 65%;
+    /* 深色模式的系统表标识色（调亮） */
+    --notebook-token: 45 93% 60%;
+    --notebook-view: 173 80% 55%;
+    --notebook-permission: 240 73% 72%;
 
     /* 深色模式的语义状态色 */
     --success: 142.1 76.2% 55%;

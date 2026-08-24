@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { listNotebooks } from '@/api/notebooks';
 import { useTokenStore } from '@/stores/tokenStore';
-import { NOTEBOOK_INFO, NOTEBOOK_ROUTES, getNotebookStyles } from '@/config/notebook';
+import { NOTEBOOK_INFO, NOTEBOOK_ROUTES, getNotebookStyles, isSystemTable } from '@/config/notebook';
 import type { NotebookType } from '@/config/notebook';
 import { handleError } from '@/lib/error';
 import type { NotebookSchema } from '@/types/notebook';
@@ -29,7 +29,7 @@ export const Home: React.FC = () => {
     })();
   }, []);
 
-  const visibleNotebooks = notebooks.filter(nb => NOTEBOOK_ROUTES[nb.name]);
+  const visibleNotebooks = notebooks.filter(nb => NOTEBOOK_ROUTES[nb.name] && !isSystemTable(nb.name));
 
   return (
     <div className="space-y-8 animate-fade-in">

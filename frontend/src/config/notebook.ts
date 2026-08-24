@@ -6,6 +6,9 @@ import { AimemoryNotebook } from '@/pages/AimemoryNotebook';
 import { TimelineNotebook } from '@/pages/TimelineNotebook';
 import { ScheduleNotebook } from '@/pages/ScheduleNotebook';
 import { LedgerNotebook } from '@/pages/LedgerNotebook';
+import { TokenTable } from '@/pages/TokenTable';
+import { ViewTable } from '@/pages/ViewTable';
+import { PermissionTable } from '@/pages/PermissionTable';
 
 import { getMajorityMonthForWeek } from '@/lib/utils';
 import type { ColumnDef } from '@/types/notebook';
@@ -15,8 +18,11 @@ import type { ColumnDef } from '@/types/notebook';
 // 所有样式、标签、颜色均由此派生，禁止在各组件中重复定义。
 // ============================================================
 
-/** 笔记本类型标识 */
-export type NotebookType = 'plan' | 'diary' | 'word' | 'accumulation' | 'aimemory' | 'timeline' | 'schedule' | 'ledger';
+/** 笔记本类型标识（含系统表） */
+export type NotebookType = 'plan' | 'diary' | 'word' | 'accumulation' | 'aimemory' | 'timeline' | 'schedule' | 'ledger' | '_token' | '_view' | '_permission';
+
+/** 判断是否为系统表（以 _ 开头） */
+export const isSystemTable = (type: string): boolean => type.startsWith('_');
 
 /** 元信息：标签 + 描述 */
 export const NOTEBOOK_INFO: Record<NotebookType, { label: string; description: string }> = {
@@ -28,6 +34,9 @@ export const NOTEBOOK_INFO: Record<NotebookType, { label: string; description: s
   timeline: { label: '时间线', description: '记录实际时间花费' },
   schedule: { label: '日程', description: '规划未来日程' },
   ledger: { label: '账本', description: '记录收支流水' },
+  _token: { label: 'Token', description: 'API 令牌管理' },
+  _view: { label: '视图', description: '保存的查询视图' },
+  _permission: { label: '权限', description: '读写权限定义' },
 };
 
 // -------------------------------------------------------
@@ -44,6 +53,9 @@ const TYPE_COLORS: Record<NotebookType, string> = {
   timeline: 'border-l-notebook-timeline',
   schedule: 'border-l-notebook-schedule',
   ledger: 'border-l-notebook-ledger',
+  _token: 'border-l-notebook-token',
+  _view: 'border-l-notebook-view',
+  _permission: 'border-l-notebook-permission',
 };
 
 /** 聚焦环颜色类名 */
@@ -56,6 +68,9 @@ const TYPE_RING_COLORS: Record<NotebookType, string> = {
   timeline: 'ring-notebook-timeline',
   schedule: 'ring-notebook-schedule',
   ledger: 'ring-notebook-ledger',
+  _token: 'ring-notebook-token',
+  _view: 'ring-notebook-view',
+  _permission: 'ring-notebook-permission',
 };
 
 /** 背景色类名 */
@@ -68,6 +83,9 @@ const TYPE_BG_COLORS: Record<NotebookType, string> = {
   timeline: 'bg-notebook-timeline/10',
   schedule: 'bg-notebook-schedule/10',
   ledger: 'bg-notebook-ledger/10',
+  _token: 'bg-notebook-token/10',
+  _view: 'bg-notebook-view/10',
+  _permission: 'bg-notebook-permission/10',
 };
 
 /** 文字颜色类名 */
@@ -80,6 +98,9 @@ const TYPE_TEXT_COLORS: Record<NotebookType, string> = {
   timeline: 'text-notebook-timeline',
   schedule: 'text-notebook-schedule',
   ledger: 'text-notebook-ledger',
+  _token: 'text-notebook-token',
+  _view: 'text-notebook-view',
+  _permission: 'text-notebook-permission',
 };
 
 // -------------------------------------------------------
@@ -116,6 +137,9 @@ export const NOTEBOOK_ROUTES: Record<string, { path: string; label: string }> = 
   timeline: { path: '/notebooks/timeline', label: '时间线' },
   schedule: { path: '/notebooks/schedule', label: '日程' },
   ledger: { path: '/notebooks/ledger', label: '账本' },
+  _view: { path: '/notebooks/_view', label: '视图' },
+  _permission: { path: '/notebooks/_permission', label: '权限' },
+  _token: { path: '/notebooks/_token', label: 'Token' },
 };
 
 // -------------------------------------------------------
@@ -200,6 +224,41 @@ interface ScheduleEntry extends EntryBase {
   location?: string;
 }
 
+// 系统表：_token（对应 system_tables.py _token 列定义）
+interface TokenEntry {
+  id: string;
+  token: string;
+  name: string;
+  permission: string;
+  is_active: number;
+  shortcut: string | null;
+  shortcut_expire_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// 系统表：_view
+interface ViewEntry {
+  id: string;
+  name: string;
+  data: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// 系统表：_permission
+interface PermissionEntry {
+  id: string;
+  uuid: string;
+  name: string;
+  description: string | null;
+  read_view: string;
+  write_view: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface EntryTypeMap {
   plan: PlanEntry;
   diary: DiaryEntry;
@@ -209,6 +268,9 @@ export interface EntryTypeMap {
   timeline: TimelineEntry;
   schedule: ScheduleEntry;
   ledger: LedgerEntry;
+  _token: TokenEntry;
+  _view: ViewEntry;
+  _permission: PermissionEntry;
 }
 
 // -------------------------------------------------------
@@ -224,6 +286,9 @@ export const NOTEBOOK_PAGES: Record<NotebookType, React.FC> = {
   timeline: TimelineNotebook,
   schedule: ScheduleNotebook,
   ledger: LedgerNotebook,
+  _token: TokenTable,
+  _view: ViewTable,
+  _permission: PermissionTable,
 };
 
 // -------------------------------------------------------
@@ -239,12 +304,18 @@ const COLUMN_TYPES: Record<string, string> = {
   created_at: 'DateTime',
   updated_at: 'DateTime',
   expires_at: 'DateTime',
-  shortcut_expires_at: 'DateTime',
+  shortcut_expire_at: 'DateTime',
   start_time: 'DateTime',
   end_time: 'DateTime',
   next_review: 'DateTime',
   last_review: 'DateTime',
   state: 'Select',
+  // 系统表字段
+  token: 'Textarea',
+  data: 'Textarea',
+  read_view: 'Textarea',
+  write_view: 'Textarea',
+  is_active: 'Boolean',
 };
 
 export const getColumnType = (col: ColumnDef): string =>
@@ -306,6 +377,22 @@ export const FIELD_LABEL_MAP: Record<string, { label: string; priority: number }
   transaction_id: { label: '交易ID', priority: 1200 },
   account: { label: '账户', priority: 1100 },
   amount_cents: { label: '金额', priority: 1010 },
+
+  // 系统表：_token
+  token: { label: 'Token', priority: 1200 },
+  permission: { label: '权限标识', priority: 1100 },
+  is_active: { label: '启用状态', priority: 1050 },
+  shortcut: { label: '快捷码', priority: 1000 },
+  shortcut_expire_at: { label: '快捷码过期', priority: 950 },
+
+  // 系统表：_view
+  data: { label: '视图数据', priority: 1100 },
+
+  // 系统表：_permission
+  uuid: { label: 'UUID', priority: 1200 },
+  description: { label: '描述', priority: 1000 },
+  read_view: { label: '读视图', priority: 1100 },
+  write_view: { label: '写视图', priority: 1050 },
 };
 
 export const getFieldLabel = (fieldName: string): string => FIELD_LABEL_MAP[fieldName]?.label ?? fieldName;
@@ -380,6 +467,7 @@ export const FIELD_TRANSFORMS: Record<string, {
   done: makeEnumTransform({ 0: '未完成', 1: '已完成' }),
   is_ai_gen: makeEnumTransform({ 0: '否', 1: '是' }),
   state: makeEnumTransform({ 0: '全新', 1: '学习', 2: '复习', 3: '重学' }),
+  is_active: makeEnumTransform({ 0: '停用', 1: '启用' }),
 };
 
 const TYPE_TRANSFORMS: Record<string, {
@@ -401,7 +489,8 @@ const FIELD_DEFAULTS: Record<string, () => unknown> = {
   month: () => {
     const { year, month } = getMajorityMonthForWeek(new Date);
     return `${String(year).slice(-2)}${String(month).padStart(2, '0')}`;
-  }
+  },
+  is_active: () => 1,
 };
 
 /** 渲染器类型级别默认值生成器（字段名未匹配时使用） */

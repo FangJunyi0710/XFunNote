@@ -44,6 +44,9 @@ const config: Config = {
           timeline: 'hsl(var(--notebook-timeline))',
           schedule: 'hsl(var(--notebook-schedule))',
           ledger: 'hsl(var(--notebook-ledger))',
+          token: 'hsl(var(--notebook-token))',
+          view: 'hsl(var(--notebook-view))',
+          permission: 'hsl(var(--notebook-permission))',
         },
         success: {
           DEFAULT: 'hsl(var(--success))',
@@ -73,7 +76,7 @@ const config: Config = {
   safelist: [
     // 笔记本类型动态样式 — 由 getNotebookStyles() 工厂函数派生
     {
-      pattern: /^(border-l-|border-b-|ring-|bg-|text-)notebook-(plan|diary|word|accumulation|aimemory|timeline|schedule|ledger)/,
+      pattern: /^(border-l-|border-b-|ring-|bg-|text-)notebook-(plan|diary|word|accumulation|aimemory|timeline|schedule|ledger|token|view|permission)/,
       variants: ['hover'],
     },
   ],
