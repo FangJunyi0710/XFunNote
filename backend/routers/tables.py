@@ -2,7 +2,7 @@
 
 import json
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from backend.schemas import (
     EntryBatchResponse,
@@ -12,7 +12,7 @@ from backend.schemas import (
 )
 from backend.services import table_service as svc
 from backend.deps import get_api_permission, ApiPermission
-from xfun.core.view import View, parse_view_json
+from xfun.core.filter import Filter, parse_filter_json
 
 router = APIRouter(tags=["tables"])
 
@@ -27,8 +27,16 @@ def get_schema(name: str, api_perm: ApiPermission = Depends(get_api_permission))
     return svc.get_schema(api_perm.db, name)
 
 
-def parse_view_param(view: str = Query(..., description="View JSON 字符串")) -> View:
-    return parse_view_json(json.loads(view))
+def parse_filter_param(filter: str = Query("", description='筛选 JSON，如 {"col":"id","op":"=","val":1}')) -> Filter | None:
+    if not filter.strip():
+        return None
+    try:
+        return parse_filter_json(json.loads(filter))
+    except json.JSONDecodeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"filter 不是合法 JSON: {e}",
+        )
 
 
 @router.get("/tables/{name}/entries", summary="通用查询条目", response_description="匹配的条目列表（含总数）")
@@ -37,11 +45,13 @@ def query_entries(
     order_by: str = Query("", description="排序，如 `created_at DESC`"),
     limit: int = Query(ge=-1, description="最大返回条数，-1 不限"),
     offset: int = Query(0, ge=0, description="偏移量"),
-    view: View = Depends(parse_view_param),
+    view: str = Query("", description="视图名称；为空表示全表"),
+    filter: Filter | None = Depends(parse_filter_param),
     api_perm: ApiPermission = Depends(get_api_permission),
 ):
-    results, total = svc.query_entries(api_perm.db, name, api_perm.permission, view,
-                                       limit, offset, order_by)
+    stored_view = svc.resolve_view(api_perm.db, api_perm.permission, view) if view else None
+    results, total = svc.query_entries(api_perm.db, name, api_perm.permission, stored_view,
+                                       limit, offset, order_by, filter=filter)
     return EntryBatchResponse(count=total, results=results)
 
 

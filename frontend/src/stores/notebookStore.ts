@@ -4,7 +4,7 @@ import type { NotebookType } from '@/config/notebook';
 import { handleError } from '@/lib/error';
 import { useTokenStore } from '@/stores/tokenStore';
 import { addEntries, deleteEntries, getSchema, queryEntries, updateEntries } from '@/api/notebooks';
-import type { Filter, View } from '@/types/filter';
+import type { Filter } from '@/types/filter';
 
 // ── 默认分页大小 ──────────────────────────────────────────────────────
 export const DEFAULT_PAGE_LIMIT = 20;
@@ -23,7 +23,7 @@ const getCachedSchema = async (type: NotebookType): Promise<NotebookSchema> => {
 
 // ── Store 状态（按用户隔离） ──────────────────────────────────────────
 interface UserNotebookData {
-  view: View,
+  view: string,
   type: NotebookType | null;
   schema: NotebookSchema | null;
   entries: Entry[];
@@ -39,7 +39,7 @@ interface UserNotebookData {
 const getCurrentUserName = () => useTokenStore.getState().activeUserName;
 
 const defaultUserData = (): UserNotebookData => ({
-  view: {},
+  view: '',
   type: null,
   schema: null,
   entries: [],

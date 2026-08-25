@@ -47,12 +47,9 @@ export const NotebookEditPage: React.FC = () => {
         if (mode === 'edit' && id) {
           let found = userData?.entries?.find(e => e['id'] === id) as Entry | undefined;
           if (!found) {
-            if (!userData?.schema){
-              return;
-            }
             const res = await queryEntries(type, {
-              view: {[type]: [[userData.schema.columns.map(col => col.name), { col: 'id', op: '=', val: id }]]},
               limit: 1,
+              filter: { col: 'id', op: '=', val: id },
             });
             found = res.results[0] || undefined;
           }

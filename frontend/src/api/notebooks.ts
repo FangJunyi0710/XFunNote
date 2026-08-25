@@ -6,7 +6,7 @@ import type {
   OrderBy,
 } from '@/types/notebook';
 import { sortColumns, type NotebookType } from '@/config/notebook';
-import type { Filter, View } from '@/types/filter';
+import type { Filter } from '@/types/filter';
 
 /** 后端 list 路由返回的原始格式 */
 interface RawColumn {
@@ -56,7 +56,7 @@ interface EntriesResponse {
 export const queryEntries = async(
   type: NotebookType,
   params: {
-    view: View;
+    view?: string;
     filter?: Filter;
     limit: number;
     offset?: number;
@@ -75,8 +75,13 @@ export const queryEntries = async(
   // 参数映射：前端 order_by → 后端 order_by
   queryParams['order_by'] = params.order_by?.map(([col, dir]) => `${col} ${dir}`).join(", ") ?? "";
 
-  const combinedView: View = {[type]: params.view[type]?.map(([cols, flt]) => [cols, [[flt, params.filter ?? [[]]]]]) ?? []};
-  queryParams['view'] = JSON.stringify(combinedView);
+  if (params.view) {
+    queryParams['view'] = params.view;
+  }
+
+  if (params.filter !== undefined) {
+    queryParams['filter'] = JSON.stringify(params.filter);
+  }
 
   // 响应映射：后端 { count, results } → 前端 { total, entries, offset, limit }
   return await api.get<{ count: number; results: Entry[] }>(
@@ -96,9 +101,9 @@ export const updateEntries = async(
   ids: string[],
   values: Entry
 ): Promise<EntriesResponse> =>
-  // 前端格式 { id, updates } → 后端格式 { filter: [[{column, op, value}]], values }
+  // 前端格式 { id, updates } → 后端格式 { filter: {col, op, val}, values }
   api.put(`/tables/${type}/entries`, {
-    filter: { column: 'id', op: 'IN', value: ids },
+    filter: { col: 'id', op: 'IN', val: ids },
     values
   });
 
@@ -106,8 +111,8 @@ export const deleteEntries = async(
   type: NotebookType,
   ids: string[],
 ): Promise<EntriesResponse> =>
-  // 前端 ids 列表 → 后端 filter: [[{column, op, value}]]
+  // 前端 ids 列表 → 后端 filter Condition（col/op/val）
   api.delete(
     `/tables/${type}/entries`,
-    { filter: { column: 'id', op: 'IN', value: ids } },
+    { filter: { col: 'id', op: 'IN', val: ids } },
   );
