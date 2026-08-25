@@ -3,10 +3,9 @@ import type {
   NotebookSchema,
   ColumnDef,
   Entry,
-  OrderBy,
 } from '@/types/notebook';
 import { sortColumns, type NotebookType } from '@/config/notebook';
-import type { Filter } from '@/types/filter';
+import type { QueryParam } from '@/api/queryparam';
 
 /** 后端 list 路由返回的原始格式 */
 interface RawColumn {
@@ -55,20 +54,14 @@ interface EntriesResponse {
 
 export const queryEntries = async(
   type: NotebookType,
-  params: {
-    view?: string;
-    filter?: Filter;
-    limit: number;
-    offset?: number;
-    order_by?: OrderBy;
-  },
+  params: Partial<QueryParam>,
 ): Promise<EntriesResponse> => {
   const queryParams: Record<string, string> = {};
 
   // 参数映射：前端 offset/limit → 后端 offset/limit
   params.offset = params.offset ?? 0;
   const offset = Math.max(0, params.offset);
-  const limit = params.limit + params.offset - offset;
+  const limit = (params.limit ?? -1) + params.offset - offset;
   queryParams['offset'] = String(offset);
   queryParams['limit'] = String(limit);
 

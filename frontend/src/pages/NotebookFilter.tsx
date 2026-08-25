@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { FilterEditor } from '@/components/notebook/FilterEditor';
 import { useNotebookStore, useCurrentNotebookData } from '@/stores/notebookStore';
@@ -10,6 +10,7 @@ import type { Filter } from '@/types/filter';
 export const NotebookFilter: React.FC = () => {
   const { notetype } = useParams<{ notetype: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const store = useNotebookStore();
   const userData = useCurrentNotebookData();
   const type = notetype as NotebookType;
@@ -29,8 +30,10 @@ export const NotebookFilter: React.FC = () => {
     e.preventDefault();
     setApplying(true);
     try {
-      store.setFilter(currentFilter);
-      navigate(`/notebooks/${type}`);
+      const next = new URLSearchParams(location.search);
+      next.set('filter', JSON.stringify(currentFilter));
+      next.set('offset', '0');
+      navigate(`/notebooks/${type}?${next.toString()}`);
     } finally {
       setApplying(false);
     }

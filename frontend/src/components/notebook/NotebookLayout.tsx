@@ -5,27 +5,20 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { NotebookCard } from '@/components/notebook/NotebookCard';
 import { Pagination } from '@/components/notebook/Pagination';
 import { PlusIcon, FilterIcon, BatchEditIcon, DeleteIcon, SelectAllIcon, DeselectAllIcon, ArrowIcon } from '@/components/ui/icons';
-import { useNotebookStore, useCurrentNotebookData, DEFAULT_PAGE_LIMIT } from '@/stores/notebookStore';
+import { useNotebookStore, useCurrentNotebookData } from '@/stores/notebookStore';
 import { NOTEBOOK_INFO, type NotebookType } from '@/config/notebook';
 import { useSidebarStore } from '@/stores/sidebarStore';
 import { useTokenStore } from '@/stores/tokenStore';
 import type { Entry } from '@/types/notebook';
-
-const paginationKey = (userName: string, notetype: NotebookType) => `xfun-pagination-${userName}-${notetype}`;
-
-const readStoredPagination = (userName: string, notetype: NotebookType): { limit: number; offset: number } | null => {
-  const raw = localStorage.getItem(paginationKey(userName, notetype));
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-};
-
-const writeStoredPagination = (userName: string, notetype: NotebookType, limit: number, offset: number) => {
-  localStorage.setItem(paginationKey(userName, notetype), JSON.stringify({ limit, offset }));
-};
+import {
+  defaultQueryParam,
+  encodeQueryParam,
+  orderByToUrl,
+  readStoredQueryParams,
+  urlToOrderBy,
+  writeStoredQueryParams,
+  type QueryParam,
+} from '@/api/queryparam';
 
 interface NotebookLayoutProps {
   notetype: NotebookType;
@@ -41,10 +34,13 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
   const { isCollapsed, toggleCollapsed } = useSidebarStore();
   const activeUserName = useTokenStore(s => s.activeUserName);
   const [searchParams, setSearchParams] = useSearchParams();
-  const applyPagination = useNotebookStore(s => s.applyPagination);
+  const applyQueryParams = useNotebookStore(s => s.applyQueryParams);
+  const urlView = searchParams.get('view');
+  const urlOrderBy = searchParams.get('order_by');
+  const urlFilter = searchParams.get('filter');
   const urlLimit = searchParams.get('limit');
   const urlOffset = searchParams.get('offset');
-  const ready = urlLimit !== null && urlOffset !== null;
+  const ready = urlView !== null && urlOrderBy !== null && urlFilter !== null && urlLimit !== null && urlOffset !== null;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showTopButton, setShowTopButton] = useState(false);
   const getStorageKey = (userName: string) => `xfun-selected-ids-${userName}-${notetype}`;
@@ -132,21 +128,37 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
 
   useEffect(() => {
     if (!activeUserName) return;
-    const stored = readStoredPagination(activeUserName, notetype);
-    const dLimit = stored?.limit ?? DEFAULT_PAGE_LIMIT;
-    const dOffset = stored?.offset ?? 0;
+    const base = defaultQueryParam(readStoredQueryParams(activeUserName, notetype));
     let limit = parseInt(urlLimit ?? '', 10);
     let offset = parseInt(urlOffset ?? '', 10);
-    if (Number.isNaN(limit)) limit = dLimit;
+    if (Number.isNaN(limit)) limit = base.limit;
     if (limit < 0) limit = -1;
-    if (Number.isNaN(offset)) offset = dOffset;
-    if (String(limit) !== urlLimit || String(offset) !== urlOffset) {
-      setSearchParams({ limit: String(limit), offset: String(offset) }, { replace: true });
+    if (Number.isNaN(offset)) offset = base.offset;
+    const view = urlView ?? base.view;
+    const order_by = urlOrderBy === null ? base.order_by : urlToOrderBy(urlOrderBy) ?? base.order_by;
+    let filter = base.filter;
+    if (urlFilter !== null) {
+      try {
+        filter = JSON.parse(urlFilter);
+      } catch {
+        filter = base.filter;
+      }
+    }
+    const qp: QueryParam = { view, filter, order_by, limit, offset };
+    if (
+      !ready ||
+      view !== urlView ||
+      orderByToUrl(qp.order_by) !== urlOrderBy ||
+      JSON.stringify(qp.filter) !== urlFilter ||
+      String(limit) !== urlLimit ||
+      String(offset) !== urlOffset
+    ) {
+      setSearchParams(encodeQueryParam(qp), { replace: true });
       return;
     }
-    writeStoredPagination(activeUserName, notetype, limit, offset);
-    applyPagination(offset, limit);
-  }, [activeUserName, notetype, urlLimit, urlOffset, setSearchParams, applyPagination]);
+    writeStoredQueryParams(activeUserName, notetype, qp);
+    applyQueryParams(qp);
+  }, [activeUserName, notetype, urlView, urlOrderBy, urlFilter, urlLimit, urlOffset, setSearchParams, applyQueryParams]);
 
   const handleOffsetChange = useCallback((offset: number) => {
     setSearchParams(prev => {
@@ -176,7 +188,8 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
 
   const entryList = useMemo(() => {
     if (store.loading || !userData || userData.entries.length === 0) return null;
-    const { entries, offset, limit, total } = userData;
+    const { entries, total } = userData;
+    const { offset, limit } = userData.queryparam;
     return (
       <>
         <div className="sticky top-12 z-10 bg-background py-2 border-b -mx-6 px-6">

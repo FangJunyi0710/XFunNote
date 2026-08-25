@@ -1,13 +1,10 @@
 import { create } from 'zustand';
-import { type Entry, type NotebookSchema, type OrderBy } from '@/types/notebook';
+import { type Entry, type NotebookSchema } from '@/types/notebook';
 import type { NotebookType } from '@/config/notebook';
 import { handleError } from '@/lib/error';
+import { defaultQueryParam, type QueryParam } from '@/api/queryparam';
 import { useTokenStore } from '@/stores/tokenStore';
 import { addEntries, deleteEntries, getSchema, queryEntries, updateEntries } from '@/api/notebooks';
-import type { Filter } from '@/types/filter';
-
-// ── 默认分页大小 ──────────────────────────────────────────────────────
-export const DEFAULT_PAGE_LIMIT = 20;
 
 // ── 全局 schema 缓存（所有用户共享） ──────────────────────────────────
 let schemaCache: Partial<Record<NotebookType, NotebookSchema>> = {};
@@ -23,32 +20,24 @@ const getCachedSchema = async (type: NotebookType): Promise<NotebookSchema> => {
 
 // ── Store 状态（按用户隔离） ──────────────────────────────────────────
 interface UserNotebookData {
-  view: string,
+  queryparam: QueryParam;
   type: NotebookType | null;
   schema: NotebookSchema | null;
   entries: Entry[];
   total: number;
   loaded: boolean;
-  offset: number;
-  limit: number;
-  filter: Filter;
-  order_by: OrderBy;
 }
 // TODO 前端实现真正的视图筛选
 
 const getCurrentUserName = () => useTokenStore.getState().activeUserName;
 
 const defaultUserData = (): UserNotebookData => ({
-  view: '',
+  queryparam: defaultQueryParam(),
   type: null,
   schema: null,
   entries: [],
   total: 0,
   loaded: false,
-  offset: 0,
-  limit: DEFAULT_PAGE_LIMIT,
-  filter: [[]],
-  order_by: [['id', 'DESC']],
 });
 
 export const useNotebookStore = create<{
@@ -56,8 +45,7 @@ export const useNotebookStore = create<{
   loading: boolean;
   setCurrentType: (type: NotebookType) => Promise<void>;
   fetchEntries: () => Promise<void>;
-  applyPagination: (offset: number, limit: number) => void;
-  setFilter: (filter: Filter | null) => void;
+  applyQueryParams: (qp: QueryParam) => void;
   addEntries: (entries: Entry[]) => Promise<void>;
   updateEntry: (ids: string[], values: Entry) => Promise<void>;
   deleteEntries: (ids: string[]) => Promise<void>;
@@ -80,7 +68,7 @@ export const useNotebookStore = create<{
         const existing = state.users[userName];
         return {
           users: { ...state.users,
-            [userName]: existing ? { ...existing, type, entries: [], schema: null, filter: [[]], loaded: false }
+            [userName]: existing ? { ...existing, type, entries: [], schema: null, loaded: false }
               : { ...defaultUserData(), type: type },
           },
           loading: true,
@@ -109,13 +97,10 @@ export const useNotebookStore = create<{
     if (!userName) return;
     const userData = get().users[userName];
     if (!userData || !userData.type) return;
-    const { type, offset, limit, filter, order_by, view } = userData;
+    const { type, queryparam } = userData;
     try {
       set({ loading: true });
-      const queryParams: Parameters<typeof queryEntries>[1] = {
-        view, offset, limit, order_by, filter
-      };
-      const res = await queryEntries(type, queryParams);
+      const res = await queryEntries(type, queryparam);
       set(state => {
         const existing = state.users[userName];
         return {
@@ -144,7 +129,7 @@ export const useNotebookStore = create<{
     }
   },
 
-  applyPagination: (offset: number, limit: number) => {
+  applyQueryParams: (queryparam: QueryParam) => {
     const userName = getCurrentUserName();
     if (!userName) return;
     const userData = get().users[userName];
@@ -154,24 +139,7 @@ export const useNotebookStore = create<{
       return {
         users: {
           ...state.users,
-          [userName]: existing ? { ...existing, offset, limit } : { ...defaultUserData(), offset, limit },
-        },
-      };
-    });
-    get().fetchEntries();
-  },
-
-  setFilter: (filter: Filter | null) => {
-    const userName = getCurrentUserName();
-    if (!userName) return;
-    set(state => {
-      const existing = state.users[userName];
-      return {
-        users: {
-          ...state.users,
-          [userName]: existing
-            ? { ...existing, filter: filter ?? [[]] }
-            : { ...defaultUserData(), filter: filter ?? [[]] },
+          [userName]: existing ? { ...existing, queryparam } : { ...defaultUserData(), queryparam },
         },
       };
     });
