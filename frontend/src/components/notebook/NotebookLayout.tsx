@@ -1,15 +1,31 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { NotebookCard } from '@/components/notebook/NotebookCard';
 import { Pagination } from '@/components/notebook/Pagination';
 import { PlusIcon, FilterIcon, BatchEditIcon, DeleteIcon, SelectAllIcon, DeselectAllIcon, ArrowIcon } from '@/components/ui/icons';
-import { useNotebookStore, useCurrentNotebookData } from '@/stores/notebookStore';
+import { useNotebookStore, useCurrentNotebookData, DEFAULT_PAGE_LIMIT } from '@/stores/notebookStore';
 import { NOTEBOOK_INFO, type NotebookType } from '@/config/notebook';
 import { useSidebarStore } from '@/stores/sidebarStore';
 import { useTokenStore } from '@/stores/tokenStore';
 import type { Entry } from '@/types/notebook';
+
+const paginationKey = (userName: string, notetype: NotebookType) => `xfun-pagination-${userName}-${notetype}`;
+
+const readStoredPagination = (userName: string, notetype: NotebookType): { limit: number; offset: number } | null => {
+  const raw = localStorage.getItem(paginationKey(userName, notetype));
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
+const writeStoredPagination = (userName: string, notetype: NotebookType, limit: number, offset: number) => {
+  localStorage.setItem(paginationKey(userName, notetype), JSON.stringify({ limit, offset }));
+};
 
 interface NotebookLayoutProps {
   notetype: NotebookType;
@@ -24,6 +40,11 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
   const userData = useCurrentNotebookData();
   const { isCollapsed, toggleCollapsed } = useSidebarStore();
   const activeUserName = useTokenStore(s => s.activeUserName);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const applyPagination = useNotebookStore(s => s.applyPagination);
+  const urlLimit = searchParams.get('limit');
+  const urlOffset = searchParams.get('offset');
+  const ready = urlLimit !== null && urlOffset !== null;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showTopButton, setShowTopButton] = useState(false);
   const getStorageKey = (userName: string) => `xfun-selected-ids-${userName}-${notetype}`;
@@ -109,6 +130,40 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     store.setCurrentType(notetype);
   }, [notetype]);
 
+  useEffect(() => {
+    if (!activeUserName) return;
+    const stored = readStoredPagination(activeUserName, notetype);
+    const dLimit = stored?.limit ?? DEFAULT_PAGE_LIMIT;
+    const dOffset = stored?.offset ?? 0;
+    let limit = parseInt(urlLimit ?? '', 10);
+    let offset = parseInt(urlOffset ?? '', 10);
+    if (Number.isNaN(limit)) limit = dLimit;
+    if (limit < 0) limit = -1;
+    if (Number.isNaN(offset)) offset = dOffset;
+    if (String(limit) !== urlLimit || String(offset) !== urlOffset) {
+      setSearchParams({ limit: String(limit), offset: String(offset) }, { replace: true });
+      return;
+    }
+    writeStoredPagination(activeUserName, notetype, limit, offset);
+    applyPagination(offset, limit);
+  }, [activeUserName, notetype, urlLimit, urlOffset, setSearchParams, applyPagination]);
+
+  const handleOffsetChange = useCallback((offset: number) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('offset', String(offset));
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const handleLimitChange = useCallback((limit: number) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('limit', String(limit));
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
   const executeDelete = useCallback(async () => {
     const ids = confirmDeleteRef.current;
     if (ids.length === 0) return;
@@ -125,13 +180,13 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     return (
       <>
         <div className="sticky top-12 z-10 bg-background py-2 border-b -mx-6 px-6">
-          {entries.length > 0 && offset !== undefined && store.setOffset ? (
+          {entries.length > 0 && offset !== undefined ? (
             <Pagination
               offset={offset}
               limit={limit}
               total={total!}
-              onOffsetChange={store.setOffset}
-              onLimitChange={store.setLimit}
+              onOffsetChange={handleOffsetChange}
+              onLimitChange={handleLimitChange}
             />
           ) : undefined}
         </div>
@@ -148,7 +203,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
         </div>
       </>
     );
-  }, [userData, notetype, selectedIds, toggleSelect, store.loading, store.setOffset, store.setLimit]);
+  }, [userData, notetype, selectedIds, toggleSelect, store.loading, handleOffsetChange, handleLimitChange]);
 
   const label = NOTEBOOK_INFO[notetype].label;
 
@@ -205,7 +260,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
         </div>
       </div>
 
-      {store.loading ? (
+      {(!ready || store.loading || !userData?.loaded) ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground">
           加载中...
         </div>

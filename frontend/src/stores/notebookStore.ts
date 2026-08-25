@@ -7,7 +7,7 @@ import { addEntries, deleteEntries, getSchema, queryEntries, updateEntries } fro
 import type { Filter, View } from '@/types/filter';
 
 // ── 默认分页大小 ──────────────────────────────────────────────────────
-const DEFAULT_PAGE_LIMIT = 20;
+export const DEFAULT_PAGE_LIMIT = 20;
 
 // ── 全局 schema 缓存（所有用户共享） ──────────────────────────────────
 let schemaCache: Partial<Record<NotebookType, NotebookSchema>> = {};
@@ -28,6 +28,7 @@ interface UserNotebookData {
   schema: NotebookSchema | null;
   entries: Entry[];
   total: number;
+  loaded: boolean;
   offset: number;
   limit: number;
   filter: Filter;
@@ -43,6 +44,7 @@ const defaultUserData = (): UserNotebookData => ({
   schema: null,
   entries: [],
   total: 0,
+  loaded: false,
   offset: 0,
   limit: DEFAULT_PAGE_LIMIT,
   filter: [[]],
@@ -54,8 +56,7 @@ export const useNotebookStore = create<{
   loading: boolean;
   setCurrentType: (type: NotebookType) => Promise<void>;
   fetchEntries: () => Promise<void>;
-  setOffset: (offset: number) => void;
-  setLimit: (limit: number) => void;
+  applyPagination: (offset: number, limit: number) => void;
   setFilter: (filter: Filter | null) => void;
   addEntries: (entries: Entry[]) => Promise<void>;
   updateEntry: (ids: string[], values: Entry) => Promise<void>;
@@ -79,7 +80,7 @@ export const useNotebookStore = create<{
         const existing = state.users[userName];
         return {
           users: { ...state.users,
-            [userName]: existing ? { ...existing, type, entries: [], schema: null, filter: [[]] }
+            [userName]: existing ? { ...existing, type, entries: [], schema: null, filter: [[]], loaded: false }
               : { ...defaultUserData(), type: type },
           },
           loading: true,
@@ -96,8 +97,6 @@ export const useNotebookStore = create<{
           },
         };
       });
-
-      await get().fetchEntries();
     } catch (e: unknown) {
       handleError(e, '加载失败');
     } finally {
@@ -127,11 +126,13 @@ export const useNotebookStore = create<{
                   ...existing,
                   entries: res.results,
                   total: res.count,
+                  loaded: true,
                 }
               : {
                   ...defaultUserData(),
                   entries: res.results,
                   total: res.count,
+                  loaded: true,
                 },
           },
         };
@@ -143,7 +144,7 @@ export const useNotebookStore = create<{
     }
   },
 
-  setOffset: (offset: number) => {
+  applyPagination: (offset: number, limit: number) => {
     const userName = getCurrentUserName();
     if (!userName) return;
     const userData = get().users[userName];
@@ -153,24 +154,7 @@ export const useNotebookStore = create<{
       return {
         users: {
           ...state.users,
-          [userName]: existing ? { ...existing, offset } : { ...defaultUserData(), offset },
-        },
-      };
-    });
-    get().fetchEntries();
-  },
-
-  setLimit: (limit: number) => {
-    const userName = getCurrentUserName();
-    if (!userName) return;
-    const userData = get().users[userName];
-    if (!userData) return;
-    set(state => {
-      const existing = state.users[userName];
-      return {
-        users: {
-          ...state.users,
-          [userName]: existing ? { ...existing, limit } : { ...defaultUserData(), limit },
+          [userName]: existing ? { ...existing, offset, limit } : { ...defaultUserData(), offset, limit },
         },
       };
     });
