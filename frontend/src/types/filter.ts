@@ -34,6 +34,9 @@ export const isNegation = (filter: Filter): filter is [Filter, boolean] =>
 export const isDNF = (filter: Filter): filter is Filter[][] =>
   Array.isArray(filter) && typeof filter[1] !== 'boolean';
 
+export const isEmpty = (filter: Filter): filter is [] =>
+  isDNF(filter) && filter.length === 0
+
 export type Leaf = Condition | [Condition, boolean];
 export const isLeaf = (flt: Filter): flt is Leaf => isCondition(flt) || isNegation(flt) && isCondition(flt[0]);
 export const getCond = (leaf: Leaf): Condition => isNegation(leaf) ? leaf[0] : leaf;
@@ -101,7 +104,7 @@ export const toState = (filter: Filter): FilterState => {
 export const toFilter = (state: FilterState): Filter =>
   simplifyFilter([groupsToDNF(state.groups), state.negate]);
 
-export const useFilterState = (value: Filter, onChange: (filter: Filter) => void, defaultCond: () => Condition) => {
+export const useFilterState = (value: Filter, onChange: (filter: Filter | null) => void, defaultCond: () => Condition) => {
   const [state, setState] = useState<FilterState>(() => toState(value));
   const setGroups = (action: React.SetStateAction<FilterGroup[]>): void => setState(prev => ({...prev, groups: typeof action === 'function' ? action(prev.groups) : action}));
   const setNegate = (action: React.SetStateAction<boolean>): void => setState(prev => ({...prev, negate: typeof action === 'function' ? action(prev.negate) : action}));
@@ -112,7 +115,7 @@ export const useFilterState = (value: Filter, onChange: (filter: Filter) => void
   }, [onChange]);
 
   useEffect(() => {
-    onChangeRef.current(toFilter(state));
+    onChangeRef.current(state.groups.length === 0 ? null : toFilter(state));
   }, [state]);
 
   const addGroup = (cond?: Filter) => setGroups(prev => [...prev, filterToGroup(cond ?? defaultCond())]);

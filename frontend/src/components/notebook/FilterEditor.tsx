@@ -1,22 +1,25 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { FILTER_OPS_LABEL, type Condition, type Filter, type FilterOp, type Leaf, isLeaf, getCond, getLeafNegate, isSimpleDNF, useFilterState, flattenGroups, setCond, setLeafNegate, isDNF } from '@/types/filter';
-import { ArrowIcon, CloseIcon, DeleteIcon, PlusIcon, WrapperIcon } from '@/components/ui/icons';
+import { FILTER_OPS_LABEL, type Condition, type Filter, type FilterOp, type Leaf, isLeaf, getCond, getLeafNegate, isSimpleDNF, useFilterState, flattenGroups, setCond, setLeafNegate, isEmpty } from '@/types/filter';
+import { ArrowIcon, CloseIcon, DeleteIcon, NegateIcon, PlusIcon, WrapperIcon } from '@/components/ui/icons';
 import type { ColumnDef } from '@/types/notebook';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { ValueEditor } from '@/components/notebook/ValueEditor';
 import { getFieldLabel } from '@/config/notebook';
 import { Select } from '@/components/ui/select';
+import { DropdownMenu } from '@/components/ui/dropdown-menu';
 
 interface FilterEditorProps {
   columns: ColumnDef[];
   value: Filter;
   onChange: (filter: Filter | null) => void;
+  /** 移动端 ⋮ 菜单追加的操作（由外层下发，如切换/转为分类讨论） */
+  extraActions?: { label: string; onSelect: () => void }[];
 }
 
-const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange}) => {
+const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange, extraActions}) => {
   const {
     state,
     setNegate,
@@ -30,17 +33,13 @@ const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange
   const isSameCondLeaves = (flt: Leaf[]): boolean =>
     !flt[0] || flt.every(leaf => isSameCond(getCond(flt[0]!), getCond(leaf)))
 
-  const fallbackDisplay = <p>{JSON.stringify(value)}</p>;
-  if (!isSimpleDNF(state.groups)) {
-    return fallbackDisplay;
-  }
-
   const renderCond = (updateList: [string, string][], leaf: Leaf, incNegate?: boolean) => {
     const cond = getCond(leaf);
     const updateConds = (patch: Partial<Condition>): void => updateList.forEach(([gid, rid]) => updateRow(gid, rid, setCond(leaf, {...cond, ...patch})));
     const removeConds = (): void => updateList.forEach(([gid, rid]) => removeRow(gid, rid));
     return <span className="flex items-center gap-2">
-      {incNegate && <Switch checked={state.negate} onCheckedChange={() => setNegate(prev => !prev)} />}
+      {incNegate && state.negate && <span className="sm:hidden">NOT</span>}
+      {incNegate && <Switch checked={state.negate} onCheckedChange={() => setNegate(prev => !prev)} className="hidden sm:inline-flex" />}
       <Select value={cond.col} onChange={e => updateConds({ col: e.target.value, val: null })}>
         {columns.map(col => <option key={col.name} value={col.name}>{getFieldLabel(col.name)}</option>)}
       </Select>
@@ -49,7 +48,16 @@ const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange
           <option key={value} value={value}>{label}</option>
         ))}
       </Select>
-      <Button variant="outline" size="sm" onClick={() => removeConds()} className="text-destructive"><DeleteIcon/></Button>
+      <Button variant="outline" size="sm" onClick={() => removeConds()} className="text-destructive hidden sm:inline-flex"><DeleteIcon/></Button>
+      <DropdownMenu
+        className="sm:hidden"
+        title="更多操作"
+        items={[
+          ...(incNegate ? [{ label: '切换取反', icon: <NegateIcon />, onSelect: () => setNegate(prev => !prev) }] : []),
+          { label: '删除条件',  danger: true, icon: <DeleteIcon />, onSelect: removeConds },
+          ...extraActions ?? [],
+        ]}
+      />
     </span>
   };
   const renderValue = (gid: string, rid: string, leaf: Leaf, addCond: () => void, isLast?: boolean) => {
@@ -81,21 +89,38 @@ const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange
     const renderValueArea = opRenderers[cond.op] ?? ((): React.ReactNode => <ValueEditor col={colDef} value={cond.val} onChange={v => updateRow(gid, rid, setCond(leaf, {...cond, val: v}))} placeholder={`${getFieldLabel(cond.col)} ${FILTER_OPS_LABEL[cond.op]} 的值`} />);
 
     return <span key={rid} className="flex items-center gap-1">
-      <Switch checked={getLeafNegate(leaf)} onCheckedChange={() => updateRow(gid, rid, setLeafNegate(leaf, !getLeafNegate(leaf)))} />
+      {getLeafNegate(leaf) && <span className="sm:hidden">NOT</span>}
+      <Switch checked={getLeafNegate(leaf)} onCheckedChange={() => updateRow(gid, rid, setLeafNegate(leaf, !getLeafNegate(leaf)))} className="hidden sm:inline-flex" />
       {renderValueArea()}
-      {!(isLast && cond.val) && <Button variant="ghost" size="sm" onClick={() => removeRow(gid, rid)} className="text-destructive">
+      {!(isLast && cond.val) && <Button variant="ghost" size="sm" onClick={() => removeRow(gid, rid)} className="text-destructive hidden sm:inline-flex">
         <DeleteIcon/>
       </Button>}
       {isLast && <Button variant="ghost" size="sm" onClick={addCond}>
         <PlusIcon/>
       </Button>}
+      <DropdownMenu
+        className="sm:hidden"
+        title="更多操作"
+        items={[
+          { label: '切换取反', icon: <NegateIcon />, onSelect: () => updateRow(gid, rid, setLeafNegate(leaf, !getLeafNegate(leaf))) },
+          { label: '删除此行', danger: true, icon: <DeleteIcon />, onSelect: () => removeRow(gid, rid) },
+        ]}
+      />
     </span>;
   };
 
+  const fallbackDisplay = <span className='flex'>
+    <p>{JSON.stringify(value)}</p>
+    <DropdownMenu className="sm:hidden ml-auto" title="更多操作" items={extraActions ?? []} />
+  </span>;
+
+  if (!isSimpleDNF(state.groups)) {
+    return fallbackDisplay;
+  }
   const flatLeaves = flattenGroups(state.groups);
 
   if (flatLeaves.length === 0) {
-    return null;
+    return fallbackDisplay;
   }
 
   const type: 'AND' | 'OR' | undefined = 
@@ -108,7 +133,7 @@ const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange
     const updateList: [string, string][] = flatLeaves.map(([gid, rid, _]) => [gid, rid]);
     const addCond = (cond: Condition) => type === 'OR' ? addGroup(cond) : addRow(first_gid, cond);
     return <>
-      {type === 'AND' && <div className='absolute z-10 pointer-events-none -left-3'>AND</div>}
+      {type === 'AND' && <div>(AND)</div>}
       {renderCond(updateList, leaf, true)}
       {flatLeaves.map(([gidx, ridx, leaf], idx) => renderValue(gidx, ridx, leaf, () => addCond({...getCond(leaf), val: null}), idx === flatLeaves.length - 1))}
     </>
@@ -117,7 +142,7 @@ const FlatFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange
   return fallbackDisplay;
 };
 
-const DNFFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange}) => {
+const DNFFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange, extraActions}) => {
   const {
     state,
     setNegate,
@@ -131,15 +156,15 @@ const DNFFilterEditor: React.FC<FilterEditorProps> = ({columns, value, onChange}
 
   return (
     <Card className="ring-1">
-      <CardContent className="">
+      <CardContent className="px-1">
         {/** 编辑器首行 */}
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">分类讨论</span>
           <div className="flex gap-2 items-center">
-            {state.negate && <p>排除下列情况</p>}
             <Switch checked={state.negate} onCheckedChange={() => setNegate(prev => !prev)} />
             <Button variant={state.groups.length ? 'outline' : 'default'} size="sm" onClick={() => addGroup()} title='添加情况'><PlusIcon/></Button>
-            <Button variant="ghost" size="sm" onClick={clearGroups} title="清除"><CloseIcon /></Button>
+            <Button variant="ghost" size="sm" className='text-destructive' onClick={clearGroups} title="清除"><CloseIcon /></Button>
+            <DropdownMenu className="sm:hidden" title="更多操作" items={extraActions ?? []} />
           </div>
         </div>
         {/** 渲染条件组 */}
@@ -168,14 +193,19 @@ export const FilterEditor: React.FC<FilterEditorProps> = ({ columns, value, onCh
   if (!columns[0]?.name) return null;
 
   const Editor = isDNFMode ? DNFFilterEditor : FlatFilterEditor;
+  const displayWrapping: boolean = !isDNFMode && !isLeaf(value) && !isEmpty(value);
+  const actions = [
+    { label: isDNFMode ? '收起讨论' : '展开讨论', icon: <ArrowIcon direction={isDNFMode?'left':'down'}/>, onSelect: () => setIsDNFMode(prev => !prev) },
+    ...(displayWrapping ? [{ label: '作为情况', icon: <WrapperIcon />, onSelect: () => { onChange([[value]]); setIsDNFMode(true); } }] : []),
+  ];
   return <div className='relative'>
-    <Button variant='ghost' className='absolute top-0 -right-10 z-10' onClick={() => setIsDNFMode(prev => !prev)}>
+    <Button variant='ghost' className='absolute top-0 -right-10 z-10 hidden sm:inline-flex' onClick={() => setIsDNFMode(prev => !prev)}>
       <ArrowIcon direction="left" className={cn('transition-transform duration-100 origin-center', isDNFMode && '-rotate-90')}/>
     </Button>
-    {!isDNFMode && !isLeaf(value) && (!isDNF(value) || value.length !== 0) && <Button variant='ghost' className='absolute top-8 -right-10 z-10' onClick={() => {onChange([[value]]); setIsDNFMode(true)}}>
+    {displayWrapping && <Button variant='ghost' className='absolute top-8 -right-10 z-10 hidden sm:inline-flex' onClick={() => {onChange([[value]]); setIsDNFMode(true)}}>
       <WrapperIcon />
     </Button>}
-    <Editor columns={columns} value={value} onChange={onChange} />
+    <Editor columns={columns} value={value} onChange={onChange} extraActions={actions} />
   </div>;
 };
 // TODO 添加新组等时，取之前值作为初始值。

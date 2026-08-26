@@ -15,7 +15,6 @@ export const NotebookFilter: React.FC = () => {
   const userData = useCurrentNotebookData();
   const type = notetype as NotebookType;
 
-  const [currentFilter, setCurrentFilter] = useState<Filter>({col: "content", val: null, op: "GLOB"});
   const [applying, setApplying] = useState<boolean>(false);
 
   useEffect(() => {
@@ -25,6 +24,7 @@ export const NotebookFilter: React.FC = () => {
   }, [type, userData, store]);
 
   const columns = userData?.schema?.columns ?? [];
+  const [currentFilter, setCurrentFilter] = useState<Filter>({col: columns[0]?.name ?? 'content', val: null, op: "GLOB"});
 
   const handleApply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +43,7 @@ export const NotebookFilter: React.FC = () => {
     <div className="space-y-4 animate-fade-in">
       <form onSubmit={handleApply}>
         <span className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold"><FilterIcon className="inline-block align-middle" /> 筛选{NOTEBOOK_INFO[type].label || ''}</h1>
+          <h1 className="text-xl font-bold min-w-0 truncate"><FilterIcon className="inline-block align-middle shrink-0" /> 筛选{NOTEBOOK_INFO[type].label || ''}</h1>
           <span className="flex gap-2">
             <Button variant="outline" onClick={() => navigate(`/notebooks/${type}`)} title="返回">
               <ReplyIcon />
@@ -56,7 +56,7 @@ export const NotebookFilter: React.FC = () => {
         <FilterEditor
           columns={columns}
           value={currentFilter}
-          onChange={state => setCurrentFilter(state ?? [])}
+          onChange={filter => setCurrentFilter(filter ?? [[]])}
         />
       </form>
     </div>

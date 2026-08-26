@@ -245,3 +245,19 @@ export const WrapperIcon: React.FC<IconProps> = ({ ...props }) => (
     />
   </Icon>
 );
+
+/** 更多（竖三点）图标 */
+export const MoreIcon: React.FC<IconProps> = ({ ...props }) => (
+  <Icon {...props}>
+    <circle cx="12" cy="5" r="1" />
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="12" cy="19" r="1" />
+  </Icon>
+);
+
+/** 取反（否定符号 ¬）图标 */
+export const NegateIcon: React.FC<IconProps> = ({ ...props }) => (
+  <Icon {...props}>
+    <path d="M 4 9 L 20 9 L 20 16" />
+  </Icon>
+);
