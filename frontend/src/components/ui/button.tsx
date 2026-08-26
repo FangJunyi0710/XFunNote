@@ -26,9 +26,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             'hover:bg-accent hover:text-accent-foreground': variant === 'ghost',
           },
           {
-            'h-8 px-3 text-xs': size === 'sm',
-            'h-9 px-4 text-sm': size === 'md',
-            'h-10 px-6 text-base': size === 'lg',
+            'h-8 px-2 text-xs sm:px-3': size === 'sm',
+            'h-9 px-2.5 text-sm sm:px-4': size === 'md',
+            'h-10 px-4 text-base sm:px-6': size === 'lg',
           },
           className,
         )}

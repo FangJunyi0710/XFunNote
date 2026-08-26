@@ -192,7 +192,7 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     const { offset, limit } = userData.queryparam;
     return (
       <>
-        <div className="sticky top-12 z-10 bg-background py-2 border-b -mx-6 px-6">
+        <div className="sticky top-12 z-10 bg-background py-2 border-b -mx-4 px-4 md:-mx-6 md:px-6">
           {entries.length > 0 && offset !== undefined ? (
             <Pagination
               offset={offset}
@@ -222,10 +222,10 @@ export const NotebookLayout: React.FC<NotebookLayoutProps> = ({
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="sticky top-0 z-10 flex items-center justify-between bg-background py-2 -mx-6 px-6">
-        <div className="flex items-center gap-2">
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-background py-2 -mx-4 px-4 md:-mx-6 md:px-6">
+        <div className="flex items-center gap-2 min-w-0">
           <h1
-            className="text-xl font-bold cursor-pointer select-none"
+            className="text-xl font-bold cursor-pointer select-none min-w-0 truncate"
             onClick={() => { if (isCollapsed) toggleCollapsed(); else navigate('/'); }}
           >
             {label}
