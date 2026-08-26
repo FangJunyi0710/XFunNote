@@ -53,11 +53,11 @@ const request = async<T>(
   // 从 store 获取当前用户和 Token
   const state = useTokenStore.getState();
   const userName = state.activeUserName;
-  const apiKey = state.getActiveTokenKey();
+  const token = state.getActiveToken();
   if (userName) {
     options.headers = {
       ...options.headers,
-      'Authorization': `Bearer ${apiKey}`,
+      'Authorization': `Bearer ${token}`,
       'User': userName,
     };
   } else {

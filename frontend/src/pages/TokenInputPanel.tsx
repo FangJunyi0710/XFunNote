@@ -25,7 +25,7 @@ export const TokenInputPanel: React.FC = () => {
     addToken,
     removeToken,
     setActiveToken,
-    getActiveTokenKey,
+    getActiveToken,
   } = useTokenStore();
 
   const [key, setKey] = useState('');
@@ -35,7 +35,7 @@ export const TokenInputPanel: React.FC = () => {
   const [infoLoading, setInfoLoading] = useState(false);
 
   const currentTokens = getCurrentUserTokens();
-  const activeTokenKey = getActiveTokenKey();
+  const activeTokenKey = getActiveToken();
   const activeToken = currentTokens.find(t => t.key === activeTokenKey);
 
   useEffect(() => {
@@ -109,7 +109,7 @@ export const TokenInputPanel: React.FC = () => {
 
   const handleAddToken = (tokenKey: string) => {
     const newId = addToken(tokenKey);
-    if (newId && !getActiveTokenKey()) {
+    if (newId && !getActiveToken()) {
       setActiveToken(newId);
     }
     return newId;

@@ -21,11 +21,11 @@ interface TokenStoreState {
   removeUser: (userName: string) => void;
   setActiveUser: (userName: string | null) => void;
   getCurrentUserTokens: () => LocalTokenEntry[];
-  getActiveTokenKey: () => string | null;
+  getActiveToken: () => string | null;
   addToken: (key: string) => string | null;
   removeToken: (id: string) => void;
   setActiveToken: (id: string | null) => void;
-  updateTokenKey: (id: string, key: string) => void;
+  updateToken: (id: string, key: string) => void;
 }
 
 const defaultUserData = (): UserData => ({
@@ -71,7 +71,7 @@ export const useTokenStore = create<TokenStoreState>()(
         return users[activeUserName].tokens;
       },
 
-      getActiveTokenKey: () => {
+      getActiveToken: () => {
         const { users, activeUserName } = get();
         if (!activeUserName || !users[activeUserName]) return null;
         const user = users[activeUserName];
@@ -145,7 +145,7 @@ export const useTokenStore = create<TokenStoreState>()(
         });
       },
 
-      updateTokenKey: (id: string, key: string) => {
+      updateToken: (id: string, key: string) => {
         const { users, activeUserName } = get();
         if (!activeUserName || !users[activeUserName]) return;
         set(state => {

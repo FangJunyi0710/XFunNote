@@ -14,7 +14,7 @@ export const Home: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   // 从 zustand store 读取 API-Key 状态
-  const hasActiveKey = useTokenStore(s => !!s.getActiveTokenKey());
+  const hasActiveToken = useTokenStore(s => !!s.getActiveToken());
 
   useEffect(() => {
     (async () => {
@@ -39,12 +39,11 @@ export const Home: React.FC = () => {
         <p className="text-muted-foreground text-sm mt-1">小方的万用本 — 个人数据与 AI 操作系统</p>
       </div>
 
-      {/* API-Key 状态提示 — 未配置时才显示 */}
-      {!hasActiveKey && (
+      {!hasActiveToken && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-lg border text-sm bg-warning/10 border-warning/30 text-warning">
           <div className="flex-1 min-w-0">
             <span>
-              未配置 API Key —{' '}
+              未配置 Token —
               <Link to="/token-input" className="underline underline-offset-2 hover:text-primary">
                 前往设置
               </Link>
