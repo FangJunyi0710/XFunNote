@@ -72,6 +72,9 @@ const createInputRenderer = (type?: string, extras?: Record<string, unknown>): V
 
 const renderTextareaField: ValueEditorComponent = ({col, value, onChange, ...props}) => {
   const [inputText, setInputText] = useState<string>((value ?? '') as string);
+  useEffect(() => {
+    setInputText((value ?? '') as string);
+  }, [value]);
   return <Textarea
     key={col.name}
     value={inputText}
