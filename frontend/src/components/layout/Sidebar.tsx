@@ -71,7 +71,7 @@ export const Sidebar: React.FC = () => {
       )}
 
       <aside
-        className={cn('absolute left-0 top-0 z-40 h-screen border-r bg-card flex flex-col w-56 transition-transform duration-300 ease-in-out', dragOffset && 'transition-none')}
+        className={cn('absolute left-0 top-0 z-40 h-screen border-r bg-card flex flex-col w-56 transition-transform duration-300 ease-in-out', dragOffset && 'duration-0')}
         style={{
           transform: isCollapsed
             ? `translateX(calc(-100% + ${dragOffset}px))`
