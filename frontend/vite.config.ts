@@ -17,7 +17,6 @@ dotenv.config({ path: path.join(rootPath, '.env') });
 // 从环境变量读取，提供默认值
 export const VITE_HTTPS_PORT = parseInt(process.env.VITE_HTTPS_PORT || '443', 10);
 export const VITE_HTTP_PORT = parseInt(process.env.VITE_HTTP_PORT || '80', 10);
-export const VITE_HOST = process.env.VITE_HOST || 'localhost';
 export const BACKEND_PORT = parseInt(process.env.BACKEND_PORT || '8000', 10);
 
 /**
@@ -59,17 +58,26 @@ const redirectPlugin = isHttps ? {
   configureServer(server: ViteDevServer) {
     const redirectPort = VITE_HTTP_PORT;
     const httpsPort = VITE_HTTPS_PORT;
-    const httpsHost = VITE_HOST;
 
     const redirectServer = http.createServer((req, res) => {
-      const httpsUrl = `https://${httpsHost}:${httpsPort}${req.url}`;
+      // 使用请求的原始主机名，仅替换端口（与 launcher 一致）
+      const hostHeader = req.headers.host || `127.0.0.1:${redirectPort}`;
+      let name: string;
+      if (hostHeader.startsWith('[')) {
+        name = hostHeader.slice(0, hostHeader.indexOf(']') + 1);
+      } else if (hostHeader.includes(':')) {
+        name = hostHeader.slice(0, hostHeader.lastIndexOf(':'));
+      } else {
+        name = hostHeader;
+      }
+      const httpsUrl = `https://${name}:${httpsPort}${req.url || ''}`;
       res.writeHead(301, { Location: httpsUrl, Connection: 'close' });
       res.end();
     });
 
     redirectServer.listen(redirectPort, '0.0.0.0', () => {
       console.log(
-        `[redirect] HTTP 重定向服务启动于 http://0.0.0.0:${redirectPort} -> https://${httpsHost}:${httpsPort}`
+        `[redirect] HTTP 重定向服务启动于 http://0.0.0.0:${redirectPort} -> https://<原主机>:${httpsPort}`
       );
     });
 
@@ -127,7 +135,7 @@ export default defineConfig({
   server: {
     port: isHttps ? VITE_HTTPS_PORT : VITE_HTTP_PORT,
     https: httpsConfig,
-    allowedHosts: ['localhost', '127.0.0.1', '::1', VITE_HOST],
+    allowedHosts: true,
     proxy: {
       '/api': {
         target: `http://localhost:${BACKEND_PORT}`,

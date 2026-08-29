@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">XFunNote</string>
+    <string name="management_title">服务管理</string>
+    <string name="channel_name">XFunNote 服务</string>
+    <string name="service_running">XFunNote 服务运行中</string>
+    <string name="open_management">管理</string>
+</resources>

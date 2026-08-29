@@ -1,6 +1,6 @@
 #!/bin/bash
 # 用法：sudo ./update_avahi_hostname.sh
-# 从项目根目录的 .env 文件读取 VITE_HOST，并自动去除 .local 后缀作为 Avahi 主机名。
+# 从项目根目录的 .env 文件读取 HOST，并自动去除 .local 后缀作为 Avahi 主机名。
 
 set -euo pipefail
 
@@ -15,23 +15,23 @@ if [ ! -f "$ENV_FILE" ]; then
     exit 1
 fi
 
-# 读取 VITE_HOST，去除首尾空格、引号
-VITE_HOST=$(grep -E '^VITE_HOST=' "$ENV_FILE" | head -n1 | sed -E 's/^VITE_HOST=//' | sed -E 's/^["\x27]//;s/["\x27]$//' | sed -E 's/\s*$//')
+# 读取 HOST，去除首尾空格、引号
+HOST=$(grep -E '^HOST=' "$ENV_FILE" | head -n1 | sed -E 's/^HOST=//' | sed -E 's/^["\x27]//;s/["\x27]$//' | sed -E 's/\s*$//')
 
-if [ -z "$VITE_HOST" ]; then
-    echo "错误：.env 中未找到 VITE_HOST 变量或值为空。"
+if [ -z "$HOST" ]; then
+    echo "错误：.env 中未找到 HOST 变量或值为空。"
     exit 1
 fi
 
 # 去掉 .local 后缀（如果存在）
-NEW_HOSTNAME="${VITE_HOST%.local}"
+NEW_HOSTNAME="${HOST%.local}"
 
 if [ -z "$NEW_HOSTNAME" ]; then
     echo "错误：提取的主机名为空。"
     exit 1
 fi
 
-echo "从 .env 读取 VITE_HOST=${VITE_HOST}，提取主机名：${NEW_HOSTNAME}"
+echo "从 .env 读取 HOST=${HOST}，提取主机名：${NEW_HOSTNAME}"
 
 CONFIG_FILE="/etc/avahi/avahi-daemon.conf"
 BACKUP_FILE="${CONFIG_FILE}.bak.$(date +%Y%m%d_%H%M%S)"

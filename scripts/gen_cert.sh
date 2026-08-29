@@ -13,13 +13,13 @@ if [[ -f "$CERT_DIR_ABS/cert.pem" && -f "$CERT_DIR_ABS/key.pem" ]]; then
     exit 0
 fi
 
-# 尝试从 .env 读取 VITE_HOST
+# 尝试从 .env 读取 HOST
 ENV_FILE="$SCRIPT_DIR/../.env"
 HOSTNAME=""
 if [ -f "$ENV_FILE" ]; then
-    VITE_HOST=$(grep -E '^VITE_HOST=' "$ENV_FILE" | head -n1 | cut -d '=' -f2- | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
-    if [ -n "$VITE_HOST" ]; then
-        HOSTNAME="$VITE_HOST"
+    HOST=$(grep -E '^HOST=' "$ENV_FILE" | head -n1 | cut -d '=' -f2- | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+    if [ -n "$HOST" ]; then
+        HOSTNAME="$HOST"
     fi
 fi
 

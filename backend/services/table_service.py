@@ -1,6 +1,7 @@
 """表 CRUD 业务逻辑，封装 xfun.core.ops。"""
 
 import json
+from dataclasses import asdict
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -12,7 +13,6 @@ from xfun.core.filter import TRUE_CONDITION, Condition, Filter, parse_filter_jso
 
 
 def list_tables(db: DB) -> list[dict]:
-    from dataclasses import asdict
     result = []
     for name, cols in db.table_infos.items():
         columns = [asdict(c) for c in cols]
@@ -25,7 +25,6 @@ def list_tables(db: DB) -> list[dict]:
 
 def get_schema(db: DB, table: str) -> list[dict]:
     _validate_table(db, table)
-    from dataclasses import asdict
     return [asdict(c) for c in db.table_infos[table]]
 
 
