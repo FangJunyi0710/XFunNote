@@ -1,0 +1,65 @@
+plugins {
+    id 'com.android.application'
+    id 'com.chaquo.python'
+}
+
+android {
+    namespace 'com.xfunnote.xfunnote'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.xfunnote.xfunnote"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "0.1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+python {
+    version "3.11"
+    pip {
+        install "fastapi"
+        install "uvicorn"
+        install "starlette"
+        install "pydantic"
+        install "langchain"
+        install "langchain-anthropic"
+        install "langchain-core"
+        install "typer"
+        install "python-dotenv"
+        install "future-uuid"
+        install "fsrs"
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.webkit:webkit:1.11.0'
+    implementation 'com.google.android.material:material:1.12.0'
+}
+
+// 将 Python 源码与前端构建产物并入 Chaquopy 的 python 源目录
+task copyPythonSources(type: Copy) {
+    from '../../../backend'
+    into 'src/main/python/backend'
+    from '../../../xfun'
+    into 'src/main/python/xfun'
+    from '../../../launcher.py'
+    into 'src/main/python'
+    from '../../../frontend/dist'
+    into 'src/main/python/frontend/dist'
+}
+
+preBuild.dependsOn copyPythonSources

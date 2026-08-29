@@ -49,3 +49,22 @@ certs/
 
 *.swp
 opencode.json
+
+# ===== 部署运行时产物（launcher.py） =====
+data/.env
+data/.xfunnote.pid
+data/.xfunnote.log
+
+# ===== 打包产物 =====
+*.deb
+*.apk
+*.aab
+*.keystore
+
+# ===== Android (Chaquopy / Gradle) =====
+deploy/android/.gradle/
+deploy/android/local.properties
+deploy/android/app/build/
+deploy/android/app/.cxx/
+# Gradle 拷贝生成的 Python 源码与前端产物（由 preBuild 任务生成，非源）
+deploy/android/app/src/main/python/

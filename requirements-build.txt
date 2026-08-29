@@ -1,0 +1,20 @@
+# 打包运行时依赖（供 PyInstaller / Chaquopy 使用）
+# 与 requirements.txt 的区别：
+#   - 去掉 pytest / pytest-cov（仅测试用）
+#   - uvicorn 使用纯版（不含 uvloop / httptools / watchfiles 等 C 扩展，
+#     在 Windows / Android 上更稳定，reload 在打包后也不需要）
+
+typer
+python-dotenv
+future-uuid
+langchain
+langchain-anthropic
+langchain-core
+pydantic
+fsrs
+
+fastapi
+uvicorn
+
+# 备注：PyInstaller / Chaquopy 还需把 backend/ 与 xfun/ 作为源码打包，
+# 见 deploy/win/XFunNote.spec 与 deploy/android/build.gradle。

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=XFunNote
+Comment=本地优先笔记与 AI 助手
+Exec=xfunnote start --open
+Terminal=true
+Type=Application
+Categories=Utility;Office;

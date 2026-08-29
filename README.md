@@ -720,3 +720,35 @@ echo "sk-$(openssl rand -base64 24 | tr '+/' '-_' | tr -d '=')"
 
 - **许可证**：Apache 2.0 © 2026 FangJunyi0710
 - **作者**：FangJunyi0710（@小_方_）
+
+---
+
+## 部署
+
+XFunNote 前后端一体：FastAPI 后端直接托管 `frontend/dist` 静态产物（见 `backend/main.py` 的 SPA 兜底路由），因此任一平台只需跑**一个进程**，浏览器/WebView 访问即可。生产启动器为 `launcher.py`（与开发用 `cli.py` 无关）。
+
+### 通用前提
+1. 构建前端：`cd frontend && npm install && npm run build`（产出 `frontend/dist`）。
+2. 数据库/配置目录由环境变量 `XFUN_DATA_DIR` 控制（打包后程序目录只读时必须设置）；默认 `data/`。
+
+### 服务管理（launcher.py）
+```
+python launcher.py start [--host 0.0.0.0] [--port 8000] [--open]   # 启动
+python launcher.py stop | restart | status | open | logs         # 管理
+python launcher.py config init                                     # 生成 ROOT_TOKEN
+python launcher.py config set LLM_API_KEY=sk-xxx LLM_MODEL=...     # 写配置
+python launcher.py install-service                                # Linux 注册用户守护进程
+```
+
+### Windows（exe）
+- `deploy/win/build_win.sh`：构建前端后用 PyInstaller 打包为单文件 `dist/XFunNote.exe`（控制台）。
+- 依赖清单见 `requirements-build.txt`（已剔除 pytest 与 uvicorn 的 C 扩展）。
+
+### Linux（deb）
+- 本机先 `pyinstaller deploy/win/XFunNote.spec` 产出单文件二进制，再 `deploy/linux/build_deb.sh` 打包为 `.deb`。
+- 安装后运行 `xfunnote install-service` 注册为 **systemd 用户守护进程**（`~/.config/systemd/user/xfunnote.service`，随用户会话自启）。
+
+### Android（apk）
+- `deploy/android/` 为 Chaquopy 工程：前台 `ServerService` 内嵌 Python 运行 uvicorn，前台 `MainActivity` 用 WebView 加载 `http://127.0.0.1:8000`，透明可拖动悬浮按钮进入原生 `ManagementActivity`（状态/重启/ROOT_TOKEN/LLM 配置/导出数据库/日志）。
+- Android Studio 打开 `deploy/android/`，先构建前端，再 `Build → Build Bundle(s) / APK`。
+- ⚠️ **风险闸门**：`pydantic`（Rust 的 pydantic-core）与 `fsrs` 在 Android aarch64 上的 wheel 需实测；缺失则需交叉编译或降级 AI 层。

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tv_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="状态：运行中"
+        android:textSize="16sp"
+        android:layout_marginBottom="12dp" />
+
+    <Button
+        android:id="@+id/btn_open"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="在浏览器中打开" />
+
+    <Button
+        android:id="@+id/btn_restart"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="重启服务" />
+
+    <Button
+        android:id="@+id/btn_root"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="设置 / 重置 ROOT_TOKEN" />
+
+    <Button
+        android:id="@+id/btn_llm"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="配置 LLM (API Key / 模型)" />
+
+    <Button
+        android:id="@+id/btn_export"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="导出数据库" />
+
+    <Button
+        android:id="@+id/btn_logs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="查看日志" />
+
+    <TextView
+        android:id="@+id/tv_log"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:scrollbars="vertical"
+        android:textSize="12sp"
+        android:maxLines="200" />
+
+</LinearLayout>
