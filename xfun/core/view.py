@@ -1,6 +1,8 @@
+import json
 from typing import Any
 
 from .db import Column, DB
+from .errors import EntryInvalidError
 from .filter import TRUE_CONDITION, FALSE_CONDITION, Filter, filter_to_json, filter_to_sql, parse_filter_json
 
 TableSpec = tuple[list[str], Filter]
@@ -123,9 +125,6 @@ def no_permission(db: DB) -> DB_Permission:
     return (no_view(db), no_view(db))
 
 def validate_view(data: str) -> None:
-    import json
-    from .filter import filter_to_sql
-    from .db import Column
     try:
         obj = json.loads(data)
         view = parse_view_json(obj)
@@ -136,5 +135,4 @@ def validate_view(data: str) -> None:
                     Column.check(col)
                 sql, params = filter_to_sql(flt)
     except Exception as e:
-        from .errors import EntryInvalidError
         raise EntryInvalidError("_view", f"data 不是有效的 View JSON: {e}")

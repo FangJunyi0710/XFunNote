@@ -10,6 +10,7 @@ from future_uuid import uuid7
 
 from ..utils.time_utils import now_str, timestamp_str
 from .errors import EntryInvalidError, SQLInvalidError
+from .filter import filter_to_sql
 
 
 # ---------------------------------------------------------------------------
@@ -481,8 +482,6 @@ class DB:
 
     def list_ids(self, conn, table_name: str, filter, *, order_by: str = "", limit: int = -1, offset: int = 0) -> list[str]:
         """按筛选条件列出 ID。"""
-        from .filter import filter_to_sql
-
         where_sql, params = filter_to_sql(filter)
         parts = [f"SELECT id FROM {table_name}"]
         if where_sql:

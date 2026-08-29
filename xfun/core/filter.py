@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import Any, ClassVar
 from collections.abc import Sequence as Seq
 
-from .db import Column
 from .errors import FilterInvalidError
 
 
@@ -49,6 +48,7 @@ class Condition:
         ------
         FilterInvalidError
         """
+        from .db import Column
         Column.check(self.col)
 
         handler = self._op_registry.get(self.op)
