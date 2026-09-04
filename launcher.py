@@ -1,55 +1,33 @@
 #!/usr/bin/env python3
-"""
-XFunNote 生产启动器 — 服务管理 CLI（与开发用 cli.py 无关）。
-
-职责：管理前后端一体的服务进程（启动 / 停止 / 重启 / 状态 / 打开浏览器 /
-配置 / 注册守护进程 / 查看日志）。用户通过浏览器（PC）或 WebView（安卓）访问。
-
-架构（复刻 Vite 开发模式）：
-- 后端 API 进程：127.0.0.1:BACKEND_PORT（默认 8000），仅处理 /api，内部端口。
-- 浏览器侧前端服务器：0.0.0.0:VITE_HTTP_PORT/VITE_HTTPS_PORT（默认 80/443），
-  托管 frontend/dist 静态 SPA，并把 /api/* 反向代理到后端；HTTPS 时 80→443 跳转。
-"""
 
 from __future__ import annotations
 
 import mimetypes
 import os
 import secrets
-import signal
 import ssl
 import subprocess
 import sys
 import threading
-import webbrowser
 import http.server
+import socketserver
+import traceback
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import List, Optional
+from backend.main import app as backend
 
 import typer
 import uvicorn
 from xfun.config import (
-    BACKEND_PORT, DATA_DIR, LOG_FILE, PID_FILE, PROJECT_ROOT,
+    BACKEND_PORT, DATA_DIR, PROJECT_ROOT,
     VITE_HTTP_PORT, VITE_HTTPS_PORT, SSL_PARAMS,
 )
 
-app = typer.Typer(help="XFunNote 服务管理", no_args_is_help=True)
-
-
-def _is_running(pid: int) -> bool:
-    if sys.platform == "win32":
-        out = subprocess.run(
-            ["tasklist", "/FI", f"PID eq {pid}"],
-            capture_output=True, text=True,
-        )
-        return str(pid) in out.stdout
-    try:
-        os.kill(pid, 0)
-    except OSError:
-        return False
-    return True
+app = typer.Typer(
+    help="XFunNote 服务管理",
+    no_args_is_help=True,
+)
 
 
 def _guess_content_type(path: Path) -> str:
@@ -60,6 +38,7 @@ def _guess_content_type(path: Path) -> str:
 def _frontend_handler_factory(dist_dir: Path, backend_api: str):
     class _Handler(http.server.BaseHTTPRequestHandler):
         def _proxy(self):
+            client = self.address_string()
             length = int(self.headers.get("Content-Length", 0) or 0)
             body = self.rfile.read(length) if length else None
             req = urllib.request.Request(backend_api + self.path, data=body, method=self.command)
@@ -71,6 +50,12 @@ def _frontend_handler_factory(dist_dir: Path, backend_api: str):
                 resp = urllib.request.urlopen(req)
             except urllib.error.HTTPError as e:
                 resp = e
+            except urllib.error.URLError as e:
+                self.send_error(502, f"上游不可达: {e.reason}")
+                self.log_message(
+                    "[PROXY] %s %s %s -> 502 (%s)", client, self.command, self.path, e.reason
+                )
+                return
             self.send_response(resp.status)
             for k, v in resp.getheaders():
                 if k.lower() in ("transfer-encoding", "connection"):
@@ -78,11 +63,16 @@ def _frontend_handler_factory(dist_dir: Path, backend_api: str):
                 self.send_header(k, v)
             self.end_headers()
             self.wfile.write(resp.read())
+            self.log_message(
+                "[PROXY] %s %s %s -> %s", client, self.command, self.path, resp.status
+            )
 
         def _static(self):
+            client = self.address_string()
             index = dist_dir / "index.html"
             if not index.exists():
                 self.send_error(404, "前端未构建，请先执行 vite build")
+                self.log_message("[STATIC] %s %s -> 404 (未构建)", client, self.path)
                 return
             rel = self.path.split("?", 1)[0].lstrip("/")
             candidate = (dist_dir / rel).resolve()
@@ -98,6 +88,7 @@ def _frontend_handler_factory(dist_dir: Path, backend_api: str):
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)
+            self.log_message("[STATIC] %s %s -> 200", client, self.path)
 
         def do_GET(self):
             if self.path.startswith("/api"):
@@ -114,10 +105,21 @@ def _frontend_handler_factory(dist_dir: Path, backend_api: str):
         def do_DELETE(self):
             self._proxy() if self.path.startswith("/api") else self.send_error(405)
 
-        def log_message(self, *args):
-            pass
+        def log_message(self, fmt, *args):
+            sys.stderr.write((fmt % args) + "\n")
 
     return _Handler
+
+
+class _NoFQDNHTTPServer(http.server.HTTPServer):
+    """与标准 HTTPServer 相同，但 server_bind 不做反向 DNS (socket.getfqdn)，
+    避免 DNS 解析阻塞导致监听端口迟迟不就绪（开发/部署机 DNS 不可达时尤为明显）。"""
+
+    def server_bind(self):
+        socketserver.TCPServer.server_bind(self)
+        host, port = self.server_address[:2]
+        self.server_name = str(host)
+        self.server_port = port
 
 
 def _redirect_server(host: str, from_port: int, to_scheme: str, to_port: int) -> None:
@@ -139,10 +141,14 @@ def _redirect_server(host: str, from_port: int, to_scheme: str, to_port: int) ->
         do_GET = _redirect
         do_HEAD = _redirect
 
-        def log_message(self, *args):
-            pass
+        def log_message(self, fmt, *args):
+            sys.stderr.write((fmt % args) + "\n")
 
-    http.server.HTTPServer((host, from_port), _R).serve_forever()
+    _NoFQDNHTTPServer((host, from_port), _R).serve_forever()
+
+
+def _serve_backend() -> None:
+    uvicorn.run(backend, host="127.0.0.1", port=BACKEND_PORT, reload=False)
 
 
 def run_server(host: str = "0.0.0.0", port: int = BACKEND_PORT) -> None:
@@ -151,19 +157,14 @@ def run_server(host: str = "0.0.0.0", port: int = BACKEND_PORT) -> None:
     后端 API 运行在 127.0.0.1:BACKEND_PORT（内部），浏览器侧前端服务器运行在
     VITE_HTTP_PORT / VITE_HTTPS_PORT（默认 80/443）。
     """
-    threading.Thread(
-        target=lambda: uvicorn.run(
-            "backend.main:app", host="127.0.0.1", port=BACKEND_PORT, reload=False
-        ),
-        daemon=True,
-    ).start()
+    threading.Thread(target=_serve_backend, daemon=True).start()
 
     dist_dir = PROJECT_ROOT / "frontend" / "dist"
     handler = _frontend_handler_factory(dist_dir, f"http://127.0.0.1:{BACKEND_PORT}")
     key, cert = SSL_PARAMS
     if key and cert:
         # 有证书：443 承载内容(HTTPS)，80 跳转至 443
-        httpd = http.server.HTTPServer((host, VITE_HTTPS_PORT), handler)
+        httpd = _NoFQDNHTTPServer((host, VITE_HTTPS_PORT), handler)
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ctx.load_cert_chain(cert, key)
         httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
@@ -174,103 +175,9 @@ def run_server(host: str = "0.0.0.0", port: int = BACKEND_PORT) -> None:
         ).start()
         httpd.serve_forever()
     else:
-        # 无证书：80 承载内容(HTTP)，443 反向跳转至 80（明文 HTTP 重定向）
-        threading.Thread(
-            target=_redirect_server,
-            args=(host, VITE_HTTPS_PORT, "http", VITE_HTTP_PORT),
-            daemon=True,
-        ).start()
-        http.server.HTTPServer((host, VITE_HTTP_PORT), handler).serve_forever()
-
-
-def _open_url(scheme: str, frontend_port: int) -> str:
-    return f"{scheme}://127.0.0.1:{frontend_port}"
-
-
-def _do_start(host: str, do_open: bool) -> None:
-    pf = PID_FILE
-    if pf.exists():
-        try:
-            old = int(pf.read_text().strip())
-        except ValueError:
-            old = None
-        if old and _is_running(old):
-            typer.echo(f"服务已在运行 (PID {old})")
-            return
-        pf.unlink(missing_ok=True)
-
-    key, _ = SSL_PARAMS
-    scheme = "https" if key else "http"
-    frontend_port = VITE_HTTPS_PORT if key else VITE_HTTP_PORT
-
-    env = dict(os.environ)
-    env.setdefault("XFUN_DATA_DIR", str(DATA_DIR))
-
-    bootstrap = (
-        "from launcher import run_server\n"
-        f"run_server(host={host!r})\n"
-    )
-    log = LOG_FILE.open("ab")
-    proc = subprocess.Popen(
-        [sys.executable, "-c", bootstrap],
-        cwd=str(PROJECT_ROOT),
-        env=env,
-        stdout=log,
-        stderr=subprocess.STDOUT,
-        start_new_session=True,
-    )
-    pf.write_text(str(proc.pid))
-    url = _open_url(scheme, frontend_port)
-    typer.echo(f"服务已启动 (PID {proc.pid})，访问: {url}")
-    if key:
-        typer.echo(f"HTTP :{VITE_HTTP_PORT} 将自动跳转至 HTTPS :{VITE_HTTPS_PORT}")
-    else:
-        typer.echo(f"HTTPS :{VITE_HTTPS_PORT} 将自动跳转至 HTTP :{VITE_HTTP_PORT}")
-    typer.echo(f"日志: {LOG_FILE}")
-    if do_open:
-        webbrowser.open(url)
-
-
-def _do_stop() -> None:
-    pf = PID_FILE
-    if not pf.exists():
-        typer.echo("服务未运行")
-        return
-    try:
-        pid = int(pf.read_text().strip())
-    except ValueError:
-        pf.unlink(missing_ok=True)
-        typer.echo("服务未运行（pid 文件损坏）")
-        return
-    if not _is_running(pid):
-        pf.unlink(missing_ok=True)
-        typer.echo("服务未运行")
-        return
-    if sys.platform == "win32":
-        subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True)
-    else:
-        try:
-            os.kill(pid, signal.SIGTERM)
-        except OSError:
-            pass
-    pf.unlink(missing_ok=True)
-    typer.echo("服务已停止")
-
-
-def _do_status() -> None:
-    pf = PID_FILE
-    if pf.exists():
-        try:
-            pid = int(pf.read_text().strip())
-        except ValueError:
-            pid = None
-        if pid and _is_running(pid):
-            key, _ = SSL_PARAMS
-            scheme = "https" if key else "http"
-            fp = VITE_HTTPS_PORT if key else VITE_HTTP_PORT
-            typer.echo(f"运行中 (PID {pid})，URL: {_open_url(scheme, fp)}")
-            return
-    typer.echo("未运行")
+        # 无证书：仅 80 承载内容(HTTP)；不监听 443，避免对 https 客户端
+        # 返回明文 400 引发 SSL_ERROR_RX_RECORD_TOO_LONG
+        _NoFQDNHTTPServer((host, VITE_HTTP_PORT), handler).serve_forever()
 
 
 def _read_env_file() -> dict[str, str]:
@@ -293,34 +200,12 @@ def _write_env_file(kv: dict[str, str]) -> None:
     )
 
 
-def _do_config(action: str, pairs: List[str]) -> None:
+def _ensure_root_token() -> None:
     kv = _read_env_file()
-    if action == "get":
-        if pairs:
-            for key in pairs:
-                typer.echo(f"{key}={kv.get(key, '')}")
-        else:
-            for k, v in kv.items():
-                typer.echo(f"{k}={v}")
-    elif action == "set":
-        changed = False
-        for pair in pairs:
-            if "=" not in pair:
-                typer.echo(f"跳过非法参数（需 KEY=VALUE）: {pair}", err=True)
-                continue
-            k, v = pair.split("=", 1)
-            kv[k.strip()] = v.strip()
-            changed = True
-        if changed:
-            _write_env_file(kv)
-            typer.echo("已更新配置（需 restart 生效）")
-    elif action == "init":
-        if "ROOT_TOKEN" not in kv or not kv["ROOT_TOKEN"]:
-            kv["ROOT_TOKEN"] = "sk-" + secrets.token_urlsafe(24)
-            _write_env_file(kv)
-            typer.echo("已生成 ROOT_TOKEN")
-        else:
-            typer.echo("ROOT_TOKEN 已存在")
+    if not kv.get("ROOT_TOKEN"):
+        kv["ROOT_TOKEN"] = "sk-" + secrets.token_urlsafe(24)
+        _write_env_file(kv)
+        typer.echo("已生成 ROOT_TOKEN（数据目录 .env）")
 
 
 def _systemd_unit_path() -> Path:
@@ -337,9 +222,9 @@ def _unit_content() -> str:
         "After=network.target\n\n"
         "[Service]\n"
         "Type=simple\n"
-        f"WorkingDirectory={PROJECT_ROOT}\n"
-        f"Environment=XFUN_DATA_DIR={DATA_DIR}\n"
-        "ExecStart=" + exe + " start --host 0.0.0.0\n"
+        "WorkingDirectory=%h/.local/share/xfunnote\n"
+        "Environment=XFUN_DATA_DIR=%h/.local/share/xfunnote\n"
+        "ExecStart=" + exe + " serve --host 0.0.0.0\n"
         "Restart=on-failure\n\n"
         "[Install]\n"
         "WantedBy=default.target\n"
@@ -348,7 +233,7 @@ def _unit_content() -> str:
 
 def _do_install_service() -> None:
     if sys.platform == "win32":
-        typer.echo("Windows 暂不支持守护进程注册（直接运行 exe 即可）", err=True)
+        typer.echo("Windows 暂不支持守护进程注册", err=True)
         raise typer.Exit(code=1)
     unit = _systemd_unit_path()
     unit.parent.mkdir(parents=True, exist_ok=True)
@@ -375,65 +260,27 @@ def _do_uninstall_service() -> None:
 
 
 @app.command()
-def start(
+def serve(
     host: str = typer.Option("0.0.0.0", "--host", help="监听地址（默认 0.0.0.0 局域网）"),
-    open: bool = typer.Option(False, "--open", help="启动后打开浏览器"),
 ):
-    """启动服务"""
-    _do_start(host, open)
+    """前台启动服务（供 systemd / 直接运行）"""
+    _ensure_root_token()
+    run_server(host=host)
 
 
 @app.command()
-def stop():
-    """停止服务"""
-    _do_stop()
-
-
-@app.command()
-def restart(
-    host: str = typer.Option("0.0.0.0", "--host"),
-    open: bool = typer.Option(False, "--open"),
-):
-    """重启服务"""
-    _do_stop()
-    _do_start(host, open)
-
-
-@app.command()
-def status():
-    """查看状态"""
-    _do_status()
-
-
-@app.command()
-def open():
-    """打开浏览器"""
-    key, _ = SSL_PARAMS
-    scheme = "https" if key else "http"
-    fp = VITE_HTTPS_PORT if key else VITE_HTTP_PORT
-    webbrowser.open(_open_url(scheme, fp))
-
-
-@app.command()
-def config(
-    action: str = typer.Argument(..., help="get | set | init"),
-    pairs: Optional[List[str]] = typer.Argument(None, help="get: KEY...；set: KEY=VALUE..."),
-):
-    """读写配置 (.env)"""
-    _do_config(action, pairs or [])
-
-
-@app.command("install-service")
-def install_service():
-    """注册用户守护进程 (Linux systemd --user)"""
+def install():
+    """注册并启用 systemd 用户守护进程（Linux）"""
     _do_install_service()
 
 
-@app.command("uninstall-service")
-def uninstall_service():
-    """卸载用户守护进程"""
+@app.command()
+def uninstall():
+    """卸载 systemd 用户守护进程"""
     _do_uninstall_service()
 
 
 if __name__ == "__main__":
+    if len(sys.argv) == 1:
+        sys.argv.append("serve")
     app()
