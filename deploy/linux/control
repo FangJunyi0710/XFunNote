@@ -1,12 +1,11 @@
 Package: xfunnote
-Version: 0.1.0
+Version: __VERSION__
 Section: utils
 Priority: optional
-Architecture: amd64
+Architecture: __ARCH__
 Depends: libc6
 Recommends: systemd
-Maintainer: FangJunyi0710 <fangjunyi0710@example.com>
+Maintainer: FangJunyi0710 <junyi.fang@qq.com>
 Description: XFunNote 小方的万用本（本地优先笔记 + AI）
  前后端一体的本地服务：FastAPI 后端直接托管 React 前端构建产物，
  用户通过浏览器访问。本包包含独立 Python 运行时，无需系统 Python。
- 安装后可运行 `xfunnote install-service` 注册为用户守护进程。

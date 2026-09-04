@@ -9,7 +9,7 @@
 backend/xfun/langchain 的导入，因此这里用 collect_submodules 显式收集。
 """
 import os
-from PyInstaller.utils.hooks import collect_submodules, Tree
+from PyInstaller.utils.hooks import collect_submodules
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(SPEC), "..", ".."))
 
@@ -25,11 +25,11 @@ hiddenimports = (
     + collect_submodules("uvicorn")
     + collect_submodules("pydantic")
     + collect_submodules("pydantic_core")
-    + ["typer", "python_dotenv", "future_uuid", "fsrs", "dotenv"]
+    + ["typer", "future_uuid", "fsrs", "dotenv"]
 )
 
 datas = [
-    (Tree(os.path.join(PROJECT_ROOT, "frontend", "dist"), prefix="frontend/dist")),
+    (os.path.join(PROJECT_ROOT, "frontend", "dist"), "frontend/dist"),
 ]
 
 a = Analysis(
