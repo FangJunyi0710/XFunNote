@@ -50,7 +50,7 @@ certs/
 *.swp
 opencode.json
 
-# ===== 部署运行时产物（launcher.py） =====
+# ===== 部署运行时产物 =====
 data/.env
 data/.xfunnote.pid
 data/.xfunnote.log

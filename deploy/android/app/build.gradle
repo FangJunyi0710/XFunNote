@@ -56,8 +56,8 @@ task copyPythonSources(type: Copy) {
     into 'src/main/python/backend'
     from '../../../xfun'
     into 'src/main/python/xfun'
-    from '../../../launcher.py'
-    into 'src/main/python'
+    from '../../../backend/embedded_server.py'
+    into 'src/main/python/backend'
     from '../../../frontend/dist'
     into 'src/main/python/frontend/dist'
 }

@@ -3,31 +3,22 @@
 from __future__ import annotations
 
 import mimetypes
-import os
-import secrets
 import ssl
-import subprocess
 import sys
 import threading
 import http.server
 import socketserver
-import traceback
 import urllib.error
 import urllib.request
 from pathlib import Path
-from backend.main import app as backend
 
-import typer
-import uvicorn
+from backend.main import app as backend_app
 from xfun.config import (
-    BACKEND_PORT, DATA_DIR, PROJECT_ROOT,
+    BACKEND_PORT, PROJECT_ROOT,
     VITE_HTTP_PORT, VITE_HTTPS_PORT, SSL_PARAMS,
 )
 
-app = typer.Typer(
-    help="XFunNote 服务管理",
-    no_args_is_help=True,
-)
+import uvicorn
 
 
 def _guess_content_type(path: Path) -> str:
@@ -126,7 +117,6 @@ def _redirect_server(host: str, from_port: int, to_scheme: str, to_port: int) ->
     class _R(http.server.BaseHTTPRequestHandler):
         def _redirect(self):
             host_header = self.headers.get("Host", f"127.0.0.1:{from_port}")
-            # 提取主机名：处理 IPv6 [::1]:80 与 host:port
             if host_header.startswith("["):
                 name = host_header[: host_header.find("]") + 1]
             elif ":" in host_header:
@@ -148,139 +138,35 @@ def _redirect_server(host: str, from_port: int, to_scheme: str, to_port: int) ->
 
 
 def _serve_backend() -> None:
-    uvicorn.run(backend, host="127.0.0.1", port=BACKEND_PORT, reload=False)
+    uvicorn.run(backend_app, host="127.0.0.1", port=BACKEND_PORT, reload=False)
 
 
-def run_server(host: str = "0.0.0.0", port: int = BACKEND_PORT) -> None:
-    """启动组合服务（安卓端子线程 / PC 端子进程调用）。
-
-    后端 API 运行在 127.0.0.1:BACKEND_PORT（内部），浏览器侧前端服务器运行在
-    VITE_HTTP_PORT / VITE_HTTPS_PORT（默认 80/443）。
-    """
+def run_server() -> None:
+    """启动组合服务（后端 uvicorn 线程 + 前端静态/代理 HTTP(S) 服务器主线程）。"""
     threading.Thread(target=_serve_backend, daemon=True).start()
 
-    dist_dir = PROJECT_ROOT / "frontend" / "dist"
-    handler = _frontend_handler_factory(dist_dir, f"http://127.0.0.1:{BACKEND_PORT}")
+    static_dir = PROJECT_ROOT / "frontend" / "dist"
+    backend_api = f"http://127.0.0.1:{BACKEND_PORT}"
+
+    handler = _frontend_handler_factory(static_dir, backend_api)
+
     key, cert = SSL_PARAMS
     if key and cert:
         # 有证书：443 承载内容(HTTPS)，80 跳转至 443
-        httpd = _NoFQDNHTTPServer((host, VITE_HTTPS_PORT), handler)
+        httpd = _NoFQDNHTTPServer(("0.0.0.0", VITE_HTTPS_PORT), handler)
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ctx.load_cert_chain(cert, key)
         httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
         threading.Thread(
             target=_redirect_server,
-            args=(host, VITE_HTTP_PORT, "https", VITE_HTTPS_PORT),
+            args=("0.0.0.0", VITE_HTTP_PORT, "https", VITE_HTTPS_PORT),
             daemon=True,
         ).start()
         httpd.serve_forever()
     else:
         # 无证书：仅 80 承载内容(HTTP)；不监听 443，避免对 https 客户端
         # 返回明文 400 引发 SSL_ERROR_RX_RECORD_TOO_LONG
-        _NoFQDNHTTPServer((host, VITE_HTTP_PORT), handler).serve_forever()
-
-
-def _read_env_file() -> dict[str, str]:
-    path = DATA_DIR / ".env"
-    kv: dict[str, str] = {}
-    if path.exists():
-        for line in path.read_text(errors="replace").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, v = line.split("=", 1)
-            kv[k.strip()] = v.strip()
-    return kv
-
-
-def _write_env_file(kv: dict[str, str]) -> None:
-    path = DATA_DIR / ".env"
-    path.write_text(
-        "\n".join(f"{k}={v}" for k, v in kv.items()) + "\n", encoding="utf-8"
-    )
-
-
-def _ensure_root_token() -> None:
-    kv = _read_env_file()
-    if not kv.get("ROOT_TOKEN"):
-        kv["ROOT_TOKEN"] = "sk-" + secrets.token_urlsafe(24)
-        _write_env_file(kv)
-        typer.echo("已生成 ROOT_TOKEN（数据目录 .env）")
-
-
-def _systemd_unit_path() -> Path:
-    base = os.environ.get("XDG_CONFIG_HOME")
-    cfg = Path(base) if base else (Path.home() / ".config")
-    return cfg / "systemd" / "user" / "xfunnote.service"
-
-
-def _unit_content() -> str:
-    exe = os.path.realpath(sys.argv[0])
-    return (
-        "[Unit]\n"
-        "Description=XFunNote 本地服务\n"
-        "After=network.target\n\n"
-        "[Service]\n"
-        "Type=simple\n"
-        "WorkingDirectory=%h/.local/share/xfunnote\n"
-        "Environment=XFUN_DATA_DIR=%h/.local/share/xfunnote\n"
-        "ExecStart=" + exe + " serve --host 0.0.0.0\n"
-        "Restart=on-failure\n\n"
-        "[Install]\n"
-        "WantedBy=default.target\n"
-    )
-
-
-def _do_install_service() -> None:
-    if sys.platform == "win32":
-        typer.echo("Windows 暂不支持守护进程注册", err=True)
-        raise typer.Exit(code=1)
-    unit = _systemd_unit_path()
-    unit.parent.mkdir(parents=True, exist_ok=True)
-    unit.write_text(_unit_content(), encoding="utf-8")
-    subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
-    r = subprocess.run(
-        ["systemctl", "--user", "enable", "--now", "xfunnote.service"],
-        capture_output=True, text=True,
-    )
-    typer.echo(r.stdout or r.stderr or "已注册并启动用户守护进程")
-
-
-def _do_uninstall_service() -> None:
-    if sys.platform == "win32":
-        typer.echo("Windows 暂不支持守护进程注册", err=True)
-        raise typer.Exit(code=1)
-    subprocess.run(
-        ["systemctl", "--user", "disable", "--now", "xfunnote.service"],
-        capture_output=True, text=True,
-    )
-    _systemd_unit_path().unlink(missing_ok=True)
-    subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
-    typer.echo("已卸载用户守护进程")
-
-
-@app.command()
-def serve(
-    host: str = typer.Option("0.0.0.0", "--host", help="监听地址（默认 0.0.0.0 局域网）"),
-):
-    """前台启动服务（供 systemd / 直接运行）"""
-    _ensure_root_token()
-    run_server(host=host)
-
-
-@app.command()
-def install():
-    """注册并启用 systemd 用户守护进程（Linux）"""
-    _do_install_service()
-
-
-@app.command()
-def uninstall():
-    """卸载 systemd 用户守护进程"""
-    _do_uninstall_service()
-
+        _NoFQDNHTTPServer(("0.0.0.0", VITE_HTTP_PORT), handler).serve_forever()
 
 if __name__ == "__main__":
-    if len(sys.argv) == 1:
-        sys.argv.append("serve")
-    app()
+    run_server()
