@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+
+# 停止并禁用 systemd 服务
+systemctl stop xfunnote || true
+systemctl disable xfunnote || true
+
+# 移除 nginx 站点链接
+rm -f /etc/nginx/sites-enabled/xfunnote
+nginx -t && systemctl reload nginx || true
+
+# 可选：删除用户（保留数据目录供手动清理）
+# deluser xfunnote || true

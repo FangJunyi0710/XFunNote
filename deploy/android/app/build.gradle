@@ -3,6 +3,25 @@ plugins {
     id 'com.chaquo.python'
 }
 
+// 读取版本号（从 frontend/package.json）
+def getVersionName() {
+    def result = exec {
+        commandLine 'python3', '../../../scripts/read_version.py'
+    }
+    return result.output.trim()
+}
+
+def getVersionCode(versionName) {
+    def parts = versionName.split('\\.')
+    def major = parts[0] as int
+    def minor = parts[1] as int
+    def patch = parts[2] as int
+    return major * 10000 + minor * 100 + patch
+}
+
+def versionName = getVersionName()
+def versionCode = getVersionCode(versionName)
+
 android {
     namespace 'com.xfunnote.xfunnote'
     compileSdk 34
@@ -11,8 +30,8 @@ android {
         applicationId "com.xfunnote.xfunnote"
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName "0.1.0"
+        versionCode versionCode
+        versionName versionName
     }
 
     buildTypes {

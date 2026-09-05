@@ -1,11 +1,10 @@
 Package: xfunnote
 Version: __VERSION__
-Section: utils
+Architecture: all
+Depends: nginx, python3 (>= 3.10), python3-venv, python3-pip, gunicorn, systemd
+Section: web
 Priority: optional
-Architecture: __ARCH__
-Depends: libc6
-Recommends: systemd
 Maintainer: FangJunyi0710 <junyi.fang@qq.com>
-Description: XFunNote 小方的万用本（本地优先笔记 + AI）
- 前后端一体的本地服务：FastAPI 后端直接托管 React 前端构建产物，
- 用户通过浏览器访问。本包包含独立 Python 运行时，无需系统 Python。
+Description: XFunNote - Local-first note taking with AI
+ A self-hosted note taking system with FastAPI backend and React frontend.
+ Deployed via nginx + gunicorn systemd service.

@@ -1,0 +1,26 @@
+#!/bin/sh
+set -e
+
+# 创建系统用户
+adduser --system --group --no-create-home xfunnote || true
+
+# 创建虚拟环境并安装依赖
+python3 -m venv /opt/xfunnote/.venv
+/opt/xfunnote/.venv/bin/pip install --no-cache-dir -r /opt/xfunnote/backend/requirements.txt uvicorn
+
+# 数据目录权限
+mkdir -p /var/lib/xfunnote
+chown -R xfunnote:xfunnote /opt/xfunnote /var/lib/xfunnote
+
+# 启用 nginx 站点
+ln -sf /etc/nginx/sites-available/xfunnote /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx || true
+
+# 安装并启动 systemd 服务
+systemctl daemon-reload
+systemctl enable xfunnote
+systemctl start xfunnote
+
+# 提示证书配置
+echo "⚠️ 安装完成。请用 certbot 配置 SSL 证书，替换 /etc/ssl/certs/placeholder.crt 与 placeholder.key"
+echo "   例如：sudo certbot --nginx -d your-domain.com"
