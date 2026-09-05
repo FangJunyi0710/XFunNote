@@ -5,8 +5,7 @@
     pyinstaller XFunNote.spec
 生成 dist/XFunNote.exe（单文件控制台程序）。
 
-注意：launcher.py 通过子进程字符串启动 uvicorn，静态分析看不到
-backend/xfun/langchain 的导入，因此这里用 collect_submodules 显式收集。
+入口：backend/embedded_server.py（内嵌前端静态 + /api 代理 + uvicorn 后端）。
 """
 import os
 from PyInstaller.utils.hooks import collect_submodules
@@ -33,7 +32,7 @@ datas = [
 ]
 
 a = Analysis(
-    [os.path.join(PROJECT_ROOT, "launcher.py")],
+    [os.path.join(PROJECT_ROOT, "backend", "embedded_server.py")],
     pathex=[PROJECT_ROOT],
     binaries=[],
     datas=datas,
