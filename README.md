@@ -725,34 +725,44 @@ echo "sk-$(openssl rand -base64 24 | tr '+/' '-_' | tr -d '=')"
 
 ## 部署
 
-XFunNote 前后端一体：FastAPI 后端直接托管 `frontend/dist` 静态产物（见 `backend/main.py` 的 SPA 兜底路由），因此任一平台只需跑**一个进程**，浏览器/WebView 访问即可。生产启动器为 `launcher.py`（与开发用 `cli.py` 无关）。
+XFunNote 前后端一体：任一平台只需跑**一个服务**，浏览器/WebView 访问即可。
+
+> 说明：本节反映当前实际部署方式。AI 层已移除，产品仅提供 REST API。
 
 ### 通用前提
 1. 构建前端：`cd frontend && npm install && npm run build`（产出 `frontend/dist`）。
-2. 数据库/配置目录由环境变量 `XFUN_DATA_DIR` 控制；默认 `data/`。打包后由 `install` 自动指向持久目录 `~/.local/share/xfunnote`（无需手设）。
+2. 数据库/配置目录由环境变量 `XFUN_DATA_DIR` 控制；默认 `data/`。
 
-### 服务管理（launcher.py）
-进程的生命周期交由 **systemd 用户会话**管理（`start/stop/status/restart` 用 `systemctl --user`），`launcher.py` 只负责前台运行与服务注册：
+### Linux（Docker）
+单容器方案：镜像内 **nginx**（对外 80，托管前端 + 反代 `/api/`）与 **uvicorn**（内部 8000）由入口脚本共同监督运行。
+
+```bash
+# 构建并启动（对外 80 端口，数据持久化到命名卷 xfunnote-data）
+docker compose up -d --build
+
+# 或不用 compose：
+docker build -t xfunnote:latest .
+docker run -d --name xfunnote -p 80:80 -v xfunnote-data:/data \
+    --restart unless-stopped xfunnote:latest
 ```
-xfunnote                                            # 无参数 = 前台启动服务（serve）
-xfunnote serve [--host 0.0.0.0]                      # 前台启动服务（供 systemd / 直接运行）
-xfunnote install                                # 注册并启用 systemd 用户守护进程
-xfunnote uninstall                              # 卸载守护进程
-```
-- 日志：`journalctl --user -u xfunnote -f`（或 `systemctl --user status xfunnote`）。
-- 配置：编辑数据目录 `.env`（默认 `~/.local/share/xfunnote/.env`）后重启服务生效；首次 `serve` 时若未设置 `ROOT_TOKEN` 会自动生成并写入。
-- 打开浏览器：访问 `http://xfunnote.local`（无证书）或 `https://xfunnote.local`（有证书）。
+
+- 首次启动若未提供 `ROOT_TOKEN`，入口脚本会自动生成并写入数据卷的 `/data/.env`。
+- 自定义 `ROOT_TOKEN`：`docker run ... -e ROOT_TOKEN="sk-..."`，或在 `docker-compose.yml` 的 `environment` 中设置。
+- 数据（SQLite/备份/`.env`）位于卷 `xfunnote-data`（容器内 `/data`）；`docker volume inspect xfunnote-data` 查看宿主机路径。
+- 改对外端口：`docker-compose.yml` 的 `ports: "8080:80"`。
+- 日志：`docker logs -f xfunnote`。
+- 升级：`git pull && docker compose up -d --build`（数据卷保留）。
+
+相关文件：`Dockerfile`、`docker-compose.yml`、`.dockerignore`、`deploy/docker/`（`nginx.conf` / `entrypoint.sh`）。
 
 ### Windows（exe）
 - `deploy/win/build_win.sh`：构建前端后用 PyInstaller 打包为单文件 `dist/XFunNote.exe`（控制台）。
 - 依赖清单见 `requirements-build.txt`（已剔除 pytest 与 uvicorn 的 C 扩展）。
 - 直接运行 `XFunNote.exe`（无参数）即前台启动服务；关闭窗口即停止。
 
-### Linux（deb）
-- 本机先 `pyinstaller deploy/win/XFunNote.spec` 产出单文件二进制，再 `deploy/linux/build_deb.sh` 打包为 `.deb`。
-- 安装后运行 `xfunnote install` 注册为 **systemd 用户守护进程**（`~/.config/systemd/user/xfunnote.service`，随用户会话自启，数据目录指向 `~/.local/share/xfunnote`）；之后用 `systemctl --user start|stop|restart|status xfunnote` 管理服务，`journalctl --user -u xfunnote -f` 查看日志。
-
 ### Android（apk）
-- `deploy/android/` 为 Chaquopy 工程：前台 `ServerService` 内嵌 Python 运行 uvicorn，前台 `MainActivity` 用 WebView 加载 `http://127.0.0.1:8000`，透明可拖动悬浮按钮进入原生 `ManagementActivity`（状态/重启/ROOT_TOKEN/LLM 配置/导出数据库/日志）。
-- Android Studio 打开 `deploy/android/`，先构建前端，再 `Build → Build Bundle(s) / APK`。
-- ⚠️ **风险闸门**：`pydantic`（Rust 的 pydantic-core）与 `fsrs` 在 Android aarch64 上的 wheel 需实测；缺失则需交叉编译或降级 AI 层。
+- `deploy/android/` 为 Chaquopy 工程：前台 `ServerService` 内嵌 Python 运行 `backend.embedded_server`（uvicorn 后端 8000 + 前端静态/代理 8080），`MainActivity` 用 WebView 加载 `http://127.0.0.1:8080`。
+- 命令行构建：`cd deploy/android && ./gradlew assembleDebug`（需 Android SDK；已带 Gradle Wrapper）。
+- 依赖：`fastapi==0.115.*` + `pydantic==1.10.*`（纯 Python，规避 `pydantic-core` 的 Rust 核心在 Android 无 wheel 的问题）。
+- 仅打包 `arm64-v8a`（现代真机）。
+
