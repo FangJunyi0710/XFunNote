@@ -3,16 +3,13 @@
 typer               # 命令行工具（cli.py）
 python-dotenv       # 环境变量管理（config.py）
 future-uuid         # uuid7 生成
-langchain           # AI Agent 框架
-langchain-anthropic # Anthropic / DeepSeek 兼容封装
-langchain-core      # LangChain 核心抽象
-pydantic            # 数据模型与校验
+pydantic==1.10.*    # 数据模型与校验（1.x 为纯 Python，Android/Chaquopy 可安装）
 
 fsrs                # 单词复习调度器
 
 # ===================== 后端 API =====================
 
-fastapi             # RESTful API（backend/）
+fastapi==0.115.*    # RESTful API（最后一个支持 pydantic v1 的系列）
 uvicorn[standard]   # ASGI 服务器
 
 # ===================== 测试 =====================

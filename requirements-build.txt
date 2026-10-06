@@ -7,13 +7,10 @@
 typer
 python-dotenv
 future-uuid
-langchain
-langchain-anthropic
-langchain-core
-pydantic
+pydantic==1.10.*
 fsrs
 
-fastapi
+fastapi==0.115.*
 uvicorn
 
 # 备注：PyInstaller / Chaquopy 还需把 backend/ 与 xfun/ 作为源码打包，

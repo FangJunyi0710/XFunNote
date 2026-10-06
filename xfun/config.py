@@ -31,10 +31,6 @@ load_dotenv(str(PROJECT_ROOT / ".env"))
 # 加载数据目录下的 .env（打包后用户可覆盖配置，优先级更高）
 load_dotenv(str(DATA_DIR / ".env"))
 
-LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
-LLM_BASE_URL = os.environ.get("LLM_BASE_URL")
-LLM_MODEL = os.environ.get("LLM_MODEL")
-
 SSL_CERT_PATH = os.environ.get("SSL_CERT_PATH", "")
 SSL_KEY_PATH = os.environ.get("SSL_KEY_PATH", "")
 

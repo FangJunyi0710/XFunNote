@@ -35,22 +35,30 @@ cp -r xfun "$STAGE/opt/xfunnote/"
 cp -r frontend/dist "$STAGE/opt/xfunnote/frontend/"
 cp deploy/linux/gunicorn.conf.py "$STAGE/opt/xfunnote/"
 
-# 2. 复制配置文件
-echo "复制配置 ..."
-cp deploy/linux/nginx-xfunnote.conf "$STAGE/etc/nginx/sites-available/xfunnote"
+# 2. 复制部署脚本（含 switch-nginx-mode.sh）
+echo "复制部署脚本 ..."
+cp -r deploy/linux "$STAGE/opt/xfunnote/deploy/"
+chmod +x "$STAGE/opt/xfunnote/deploy/linux/switch-nginx-mode.sh"
+
+# 3. 复制 nginx 配置文件
+echo "复制 nginx 配置 ..."
+cp deploy/linux/nginx-http.conf "$STAGE/etc/nginx/sites-available/xfunnote-http.conf"
+cp deploy/linux/nginx-https.conf.template "$STAGE/etc/nginx/sites-available/xfunnote-https.conf.template"
+
+# 4. 复制 systemd 服务
 cp deploy/linux/xfunnote.service "$STAGE/etc/systemd/system/"
 
-# 3. 复制维护脚本
+# 5. 复制维护脚本
 echo "复制维护脚本 ..."
 cp deploy/linux/xfunnote.postinst "$STAGE/DEBIAN/postinst"
 cp deploy/linux/xfunnote.prerm "$STAGE/DEBIAN/prerm"
 chmod 755 "$STAGE/DEBIAN/postinst" "$STAGE/DEBIAN/prerm"
 
-# 4. 生成 control 文件
+# 6. 生成 control 文件
 echo "生成 control ..."
 sed -e "s/__VERSION__/$VERSION/" -e "s/__ARCH__/$ARCH/" deploy/linux/control > "$STAGE/DEBIAN/control"
 
-# 5. 打包
+# 7. 打包
 echo "打包 ..."
 dpkg-deb --build --root-owner-group "$STAGE" "$PKG.deb"
 

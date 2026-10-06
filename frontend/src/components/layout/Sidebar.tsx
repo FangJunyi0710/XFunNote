@@ -23,7 +23,6 @@ const systemTableNav: NavItem[] = Object.entries(NOTEBOOK_ROUTES)
   .map(([, route]) => ({ label: route.label, path: route.path }));
 
 const bottomNav: NavItem[] = [
-  // { label: 'AI 对话', path: '/ai' },
   // { label: '管理', path: '/management' },
   { label: 'Token 管理', path: '/token-input' },
 ];
