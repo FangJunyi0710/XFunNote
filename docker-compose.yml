@@ -1,0 +1,30 @@
+services:
+  xfunnote:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: xfunnote:latest
+    container_name: xfunnote
+    restart: unless-stopped
+    ports:
+      # 对外 80；如需改端口改左侧，如 "8080:80"
+      - "80:80"
+    environment:
+      # 首次启动若不设置，入口脚本会生成并写入 /data/.env
+      # 也可在此显式指定：
+      # ROOT_TOKEN: "sk-your-token"
+      BACKEND_PORT: "8000"
+      UVICORN_WORKERS: "1"
+      SHOW_DOCS: "false"
+    volumes:
+      # SQLite 数据库 / .env / 备份 持久化
+      - xfunnote-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('127.0.0.1',8000),3); s.close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  xfunnote-data:

@@ -1,0 +1,58 @@
+# ===== 版本控制 / 文档 =====
+.git
+.gitignore
+.gitattributes
+
+# ===== Python 虚拟环境与缓存 =====
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+
+# ===== 环境与密钥（绝不入镜像）=====
+.env
+certs/
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+
+# ===== 数据与备份 =====
+data/
+!data/backups/.gitkeep
+input/
+output/
+*.db
+*.db-shm
+*.db-wal
+
+# ===== 前端产物与依赖（镜像内自行构建）=====
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# ===== 打包/构建产物 =====
+dist/
+build/
+*.deb
+*.apk
+*.aab
+*.spec~
+deploy/android/
+deploy/win/
+
+# ===== IDE / 杂项 =====
+.vscode/
+.idea/
+*.swp
+*.orig
+*.rej
+opencode.json
+*.tmp*
