@@ -60,9 +60,6 @@ hiddenimports = (
     ["backend", "xfun"]
     + collect_submodules("backend")
     + collect_submodules("xfun")
-    + collect_submodules("langchain")
-    + collect_submodules("langchain_core")
-    + collect_submodules("langchain_anthropic")
     + collect_submodules("fastapi")
     + collect_submodules("starlette")
     + collect_submodules("uvicorn")

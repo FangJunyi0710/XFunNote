@@ -10,29 +10,17 @@ XFunNote CLI — 命令行接口
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 import json
 from pathlib import Path
 import traceback
 
 import typer
-from typer import Abort, Argument, Option
+from typer import Argument, Option
 
 from xfun import init_db, registry
-from xfun.ai.agent import (
-    StreamLevel,
-    accumulate_messages,
-    agent_invoke,
-    ensure_system_message,
-    extract_content_parts,
-    messages_to_json,
-    parse_messages_json,
-)
-from xfun.ai.prompts import SYSTEM_PROMPT
-from langchain_core.messages import AIMessageChunk, BaseMessage, HumanMessage, ToolMessage
-from xfun.ai.tools import DEFAULT_TOOL_NAMES, make_tools
 from xfun.core.db import DB
-from xfun.core.filter import Condition, parse_filter_json
+from xfun.core.filter import parse_filter_json
 from xfun.core.ops import add as ops_add
 from xfun.core.ops import delete as ops_delete
 from xfun.core.ops import query as ops_query
@@ -42,7 +30,6 @@ from xfun.system_tables import SYSTEM_TABLES
 from xfun.utils.file_utils import get_db_path
 
 app = typer.Typer(no_args_is_help=True)
-ai_app = typer.Typer(no_args_is_help=True)
 
 db: DB
 
@@ -216,181 +203,6 @@ def delete(
             results = ops_delete(conn, perm, table, flt)
         typer.echo(json.dumps(results, ensure_ascii=False, default=str))
 
-
-# ════════════════════════════════════════════════════════════
-#  内部辅助：_lookup_permission — 查询权限定义
-# ════════════════════════════════════════════════════════════
-
-
-def _lookup_permission(permission_name: str):
-    """从 _permission 表查询权限定义，返回 DB_Permission。"""
-    with db.read_transaction() as conn:
-        results = ops_query(conn, root_permission(db), "_permission", full_view(db),
-                            Condition("id", permission_name, "="), limit=1)
-    if not results:
-        typer.echo(_error(f"未知权限: {permission_name!r}"))
-        raise typer.Exit(code=1)
-    row = results[0]
-    read_view = parse_view_json(json.loads(row["read_view"]))
-    write_view = parse_view_json(json.loads(row["write_view"]))
-    return (read_view, write_view)
-
-
-# ════════════════════════════════════════════════════════════
-#  命令：ai — AI 对话命令组
-# ════════════════════════════════════════════════════════════
-
-
-@dataclass
-class AIConfig:
-    """AI 命令组共享参数。"""
-    messages_json: str | None = None
-    max_iterations: int = 10
-    system_prompt: str | None = None
-    llm_kwargs_json: str | None = None
-    tool_names_json: str | None = None
-    permission_name: str = "ai"
-
-    def make_tools(self):
-        """根据 tool_names_json 和 permission_name 动态构建工具列表。"""
-        return make_tools(
-            json.loads(self.tool_names_json) if self.tool_names_json else DEFAULT_TOOL_NAMES,
-            _lookup_permission(self.permission_name),
-        )
-
-
-def _load_system_prompt(custom: str | None) -> str:
-    """返回用户自定义系统提示词或默认提示词。"""
-    if custom:
-        return custom
-    return SYSTEM_PROMPT
-
-
-def _build_llm_kwargs(cfg: AIConfig) -> dict:
-    """从 AIConfig 的 llm_kwargs_json 字段解析 LLM 关键字参数。"""
-    extra = json.loads(cfg.llm_kwargs_json)
-    if not isinstance(extra, dict):
-        raise ValueError("--llm-kwargs 必须是 JSON 对象")
-    return extra
-
-
-def _echo_token(chunk: AIMessageChunk) -> None:
-    """
-    流式输出单个 AIMessageChunk，将 thinking 及其他非 text 字段以灰色输出到 stderr。
-    """
-    parts = extract_content_parts(chunk)
-    if "thinking" in parts:
-        typer.echo(f"\033[2m{parts['thinking']}\033[0m", err=True, nl=False)
-    if "text" in parts:
-        typer.echo(parts["text"], nl=False, err=True)
-    # 其余字段统一在末尾用灰色输出
-    other = {k: v for k, v in parts.items() if k not in ("thinking", "text")}
-    if other:
-        typer.echo(f"\033[2m{json.dumps(other, ensure_ascii=False)}\033[0m", err=True, nl=False)
-    
-
-def _read_multiline_input() -> str:
-    """读取用户输入，支持 \\ 续行。如果某行不以 \\ 结尾，表示输入结束。"""
-    l = typer.prompt("\n>>> ", prompt_suffix="", err=True)
-    lines = [l]
-    while l.endswith("\\"):
-        lines[-1] = lines[-1][:-1]
-        l = typer.prompt("..> ", prompt_suffix="", err=True)
-        lines.append(l)
-    return "\n".join(lines)
-
-_DEFAULT_LLM_KWARGS = {"thinking": {"type": "disabled"}, "timeout": 30.0, "max_retries": 2}
-@ai_app.callback()
-def ai(
-    ctx: typer.Context,
-    messages_json: str | None = Option(None, "--messages", "-m", help="消息历史 JSON 数组"),
-    max_iterations: int = Option(10, "--max-iterations", "-n", help="最大迭代轮次"),
-    system_prompt: str | None = Option(None, "--system-prompt", "--sp", help="自定义系统提示词，留空使用默认"),
-    llm_kwargs_json: str | None = Option(json.dumps(_DEFAULT_LLM_KWARGS, ensure_ascii=False), "--llm-kwargs", help="LLM 参数 JSON 字典。"),
-    tool_names_json: str | None = Option(None, "--tool-names", "-t", help="工具名称列表 JSON 数组，如 '[\"query_entries\",\"add_entries\"]'，默认全部"),
-    permission_name: str = Option("ai", "--permission-name", "-p", help="权限名称，对应 _permission 表记录"),
-):
-    """AI 对话系列命令。所有子命令最终 stdout 输出完整消息列表 JSON。"""
-    ctx.obj = AIConfig(
-        messages_json=messages_json,
-        max_iterations=max_iterations,
-        system_prompt=system_prompt,
-        llm_kwargs_json=llm_kwargs_json,
-        tool_names_json=tool_names_json,
-        permission_name=permission_name,
-    )
-
-
-@ai_app.command("sync")
-def ai_sync(ctx: typer.Context):
-    """同步模式：静默调用 LLM，仅 stdout 输出完整消息列表 JSON。"""
-    cfg: AIConfig = ctx.obj
-    if cfg.messages_json is None:
-        typer.echo("sync 模式必须提供 --messages", err=True)
-        raise typer.Exit(code=1)
-    with _cli_handle():
-        system_prompt_text = _load_system_prompt(cfg.system_prompt)
-        messages = parse_messages_json(json.loads(cfg.messages_json))
-        ensure_system_message(messages, system_prompt_text)
-        tools = cfg.make_tools()
-        gen = agent_invoke(
-            messages, tools=tools,
-            stream_level=StreamLevel.SYNC,
-            max_iterations=cfg.max_iterations,
-            **_build_llm_kwargs(cfg),
-        )
-        new_messages: list[BaseMessage] = []
-        for msg in gen:
-            accumulate_messages(new_messages, msg)
-        typer.echo(json.dumps(messages_to_json(messages + new_messages), ensure_ascii=False))
-
-
-@ai_app.command("chat")
-def ai_chat(ctx: typer.Context):
-    """交互模式：stderr 流式输出（含思考内容），退出后 stdout JSON。"""
-    cfg: AIConfig = ctx.obj
-    with _cli_handle():
-        system_prompt_text = _load_system_prompt(cfg.system_prompt)
-        messages: list = []
-        if cfg.messages_json:
-            messages = parse_messages_json(json.loads(cfg.messages_json))
-        ensure_system_message(messages, system_prompt_text)
-        tools = cfg.make_tools()
-
-        try:
-            while True:
-                try:
-                    messages.append(HumanMessage(content=_read_multiline_input()))
-                except (EOFError, KeyboardInterrupt, Abort):
-                    break
-                gen = agent_invoke(
-                    messages, tools=tools,
-                    stream_level=StreamLevel.TOKEN,
-                    max_iterations=cfg.max_iterations,
-                    **_build_llm_kwargs(cfg),
-                )
-                extension: list[BaseMessage] = []
-                try:
-                    for yielded in gen:
-                        accumulate_messages(extension, yielded)
-                        if isinstance(yielded, AIMessageChunk):
-                            _echo_token(yielded)
-                        elif isinstance(yielded, ToolMessage):
-                            typer.echo(f"\n{yielded.name}: {json.dumps(yielded.additional_kwargs.get("args",""), ensure_ascii=False, default=str)}\n{yielded.content}\n", err=True)
-                except KeyboardInterrupt:
-                    gen.close()
-                except Exception as e:
-                    typer.echo(json.dumps(_error(str(e)), ensure_ascii=False), err=True)
-
-                accumulate_messages(extension, None)
-                messages.extend(extension)
-                typer.echo(err=True)
-        finally:
-            # 退出后 stdout JSON
-            typer.echo(json.dumps(messages_to_json(messages), ensure_ascii=False))
-
-
-app.add_typer(ai_app, name="ai")
 
 # ════════════════════════════════════════════════════════════
 #  命令：view — 输出视图定义

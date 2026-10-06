@@ -3,15 +3,17 @@ plugins {
     id 'com.chaquo.python'
 }
 
+// 仓库根目录（deploy/android/../..）
+ext.repoRoot = rootProject.projectDir.parentFile.parentFile
+
 // 读取版本号（从 frontend/package.json）
-def getVersionName() {
-    def result = exec {
-        commandLine 'python3', '../../../scripts/read_version.py'
-    }
-    return result.output.trim()
+ext.getVersionName = {
+    def proc = ['python3', 'scripts/read_version.py'].execute(null, repoRoot)
+    proc.waitFor()
+    return proc.text.trim()
 }
 
-def getVersionCode(versionName) {
+ext.getVersionCode = { versionName ->
     def parts = versionName.split('\\.')
     def major = parts[0] as int
     def minor = parts[1] as int
@@ -19,8 +21,8 @@ def getVersionCode(versionName) {
     return major * 10000 + minor * 100 + patch
 }
 
-def versionName = getVersionName()
-def versionCode = getVersionCode(versionName)
+def verName = getVersionName()
+def verCode = getVersionCode(verName)
 
 android {
     namespace 'com.xfunnote.xfunnote'
@@ -30,8 +32,13 @@ android {
         applicationId "com.xfunnote.xfunnote"
         minSdk 24
         targetSdk 34
-        versionCode versionCode
-        versionName versionName
+        versionCode verCode
+        versionName verName
+
+        // 仅保留 64 位 ARM（当前绝大多数真机）；如需兼容老旧 32 位设备再补 armeabi-v7a
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
     }
 
     buildTypes {
@@ -46,20 +53,19 @@ android {
     }
 }
 
-python {
-    version "3.11"
-    pip {
-        install "fastapi"
-        install "uvicorn"
-        install "starlette"
-        install "pydantic"
-        install "langchain"
-        install "langchain-anthropic"
-        install "langchain-core"
-        install "typer"
-        install "python-dotenv"
-        install "future-uuid"
-        install "fsrs"
+chaquopy {
+    defaultConfig {
+        version "3.11"
+        pip {
+            install "fastapi==0.115.*"
+            install "uvicorn"
+            install "starlette"
+            install "pydantic==1.10.*"
+            install "typer"
+            install "python-dotenv"
+            install "future-uuid"
+            install "fsrs"
+        }
     }
 }
 
@@ -71,14 +77,23 @@ dependencies {
 
 // 将 Python 源码与前端构建产物并入 Chaquopy 的 python 源目录
 task copyPythonSources(type: Copy) {
-    from '../../../backend'
-    into 'src/main/python/backend'
-    from '../../../xfun'
-    into 'src/main/python/xfun'
-    from '../../../backend/embedded_server.py'
-    into 'src/main/python/backend'
-    from '../../../frontend/dist'
-    into 'src/main/python/frontend/dist'
+    exclude '**/__pycache__/**'
+    from(new File(repoRoot, 'backend')) {
+        into 'backend'
+        exclude '**/__pycache__/**'
+    }
+    from(new File(repoRoot, 'xfun')) {
+        into 'xfun'
+        exclude '**/__pycache__/**'
+    }
+    from(new File(repoRoot, 'frontend/dist')) {
+        into 'frontend/dist'
+    }
+    into 'src/main/python'
 }
 
+// 让所有合并 Python 源目录的任务先执行复制（显式声明依赖，满足 Gradle 任务校验）
+tasks.matching { it.name.startsWith('merge') && it.name.endsWith('PythonSources') }.configureEach {
+    dependsOn copyPythonSources
+}
 preBuild.dependsOn copyPythonSources

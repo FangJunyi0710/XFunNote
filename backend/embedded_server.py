@@ -141,7 +141,7 @@ def _serve_backend() -> None:
     uvicorn.run(backend_app, host="127.0.0.1", port=BACKEND_PORT, reload=False)
 
 
-def run_server() -> None:
+def run_server(host: str = "0.0.0.0") -> None:
     """启动组合服务（后端 uvicorn 线程 + 前端静态/代理 HTTP(S) 服务器主线程）。"""
     threading.Thread(target=_serve_backend, daemon=True).start()
 
@@ -153,20 +153,20 @@ def run_server() -> None:
     key, cert = SSL_PARAMS
     if key and cert:
         # 有证书：443 承载内容(HTTPS)，80 跳转至 443
-        httpd = _NoFQDNHTTPServer(("0.0.0.0", VITE_HTTPS_PORT), handler)
+        httpd = _NoFQDNHTTPServer((host, VITE_HTTPS_PORT), handler)
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ctx.load_cert_chain(cert, key)
         httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
         threading.Thread(
             target=_redirect_server,
-            args=("0.0.0.0", VITE_HTTP_PORT, "https", VITE_HTTPS_PORT),
+            args=(host, VITE_HTTP_PORT, "https", VITE_HTTPS_PORT),
             daemon=True,
         ).start()
         httpd.serve_forever()
     else:
         # 无证书：仅 80 承载内容(HTTP)；不监听 443，避免对 https 客户端
         # 返回明文 400 引发 SSL_ERROR_RX_RECORD_TOO_LONG
-        _NoFQDNHTTPServer(("0.0.0.0", VITE_HTTP_PORT), handler).serve_forever()
+        _NoFQDNHTTPServer((host, VITE_HTTP_PORT), handler).serve_forever()
 
 if __name__ == "__main__":
     run_server()

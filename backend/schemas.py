@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 
 # ===== 通用 =====
@@ -22,7 +22,7 @@ class EntryCreate(BaseModel):
     """添加条目请求体。"""
     entries: list[dict[str, Any]] = Field(
         description="条目列表，每个元素为字段名到值的映射",
-        min_length=1,
+        min_items=1,
     )
 
 
@@ -31,8 +31,13 @@ class EntryUpdate(BaseModel):
     filter: Any = Field(description="筛选条件，Filter JSON 格式")
     values: dict[str, Any] = Field(
         description="要更新的字段值字典",
-        min_length=1,
     )
+
+    @validator("values")
+    def _values_not_empty(cls, v):
+        if not v:
+            raise ValueError("values 不能为空")
+        return v
 
 
 class EntryDelete(BaseModel):
