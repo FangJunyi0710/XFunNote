@@ -39,7 +39,12 @@ class ServerService : Service() {
         val dataDir = getFilesDir().toString() + "/data"
         // 必须在导入 backend.main 之前设置数据目录
         // Android 普通应用无法绑定特权端口，前端服务器改用 8080（后端 API 仍在 127.0.0.1:8000）
-        py.exec("import os; os.environ['XFUN_DATA_DIR'] = '$dataDir'; os.environ['VITE_HTTP_PORT'] = '8080'; os.environ['VITE_HTTPS_PORT'] = '8443'")
+        // 说明：不能用 builtins.exec（Java 线程无 Python frame，会报 "frame does not exist"），
+        // 改为直接对 os.environ 赋值。
+        val environ = py.getModule("os").get("environ")!!
+        environ.callAttr("__setitem__", "XFUN_DATA_DIR", dataDir)
+        environ.callAttr("__setitem__", "VITE_HTTP_PORT", "8080")
+        environ.callAttr("__setitem__", "VITE_HTTPS_PORT", "8443")
         val embeddedServer = py.getModule("backend.embedded_server")
         // 阻塞在当前线程，作为常驻服务（前端 8080 代理 /api 到后端 8000）
         embeddedServer.callAttr("run_server", "0.0.0.0")

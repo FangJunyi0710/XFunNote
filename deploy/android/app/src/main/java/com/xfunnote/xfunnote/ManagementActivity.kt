@@ -15,10 +15,10 @@ import java.util.UUID
 
 class ManagementActivity : AppCompatActivity() {
 
-    private val dataDir by lazy { File(getFilesDir(), "data") }
-    private val envFile by lazy { File(dataDir, ".env") }
-    private val dbFile by lazy { File(dataDir, "default.db") }
-    private val logFile by lazy { File(dataDir, ".xfunnote.log") }
+    private val xfunDataDir by lazy { File(getFilesDir(), "data") }
+    private val envFile by lazy { File(xfunDataDir, ".env") }
+    private val dbFile by lazy { File(xfunDataDir, "default.db") }
+    private val logFile by lazy { File(xfunDataDir, ".xfunnote.log") }
 
     private val exportLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("*/*")
@@ -85,7 +85,7 @@ class ManagementActivity : AppCompatActivity() {
     }
 
     private fun updateEnv(key: String, value: String) {
-        dataDir.mkdirs()
+        xfunDataDir.mkdirs()
         val kv = mutableMapOf<String, String>()
         if (envFile.exists()) {
             envFile.readLines().forEach { line ->

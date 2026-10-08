@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 应用主题：AppCompat 系列，满足 AppCompatActivity 要求 -->
+    <style name="Theme.XFunNote" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/xfun_bg</item>
+        <item name="android:statusBarColor">@color/xfun_bg</item>
+    </style>
+</resources>

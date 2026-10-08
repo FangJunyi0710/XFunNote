@@ -11,6 +11,7 @@ pydantic==1.10.*
 fsrs
 
 fastapi==0.115.*
+starlette>=0.40.0,<0.47.0
 uvicorn
 
 # 备注：PyInstaller / Chaquopy 还需把 backend/ 与 xfun/ 作为源码打包，

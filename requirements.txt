@@ -10,6 +10,7 @@ fsrs                # 单词复习调度器
 # ===================== 后端 API =====================
 
 fastapi==0.115.*    # RESTful API（最后一个支持 pydantic v1 的系列）
+starlette>=0.40.0,<0.47.0  # FastAPI 0.115 兼容上限（1.x 移除了 on_startup）
 uvicorn[standard]   # ASGI 服务器
 
 # ===================== 测试 =====================
