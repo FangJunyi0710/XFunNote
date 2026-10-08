@@ -1,5 +1,6 @@
 plugins {
     id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
     id 'com.chaquo.python'
 }
 
@@ -51,15 +52,19 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
 }
 
 chaquopy {
     defaultConfig {
-        version "3.11"
+        version "3.12"
         pip {
             install "fastapi==0.115.*"
+            install "starlette>=0.40.0,<0.47.0"
             install "uvicorn"
-            install "starlette"
             install "pydantic==1.10.*"
             install "typer"
             install "python-dotenv"
@@ -71,6 +76,8 @@ chaquopy {
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.activity:activity-ktx:1.9.2'
     implementation 'androidx.webkit:webkit:1.11.0'
     implementation 'com.google.android.material:material:1.12.0'
 }
