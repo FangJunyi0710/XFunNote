@@ -29,7 +29,11 @@ fun main() {
 }
 
 fun Application.configureServer() {
-    install(DefaultHeaders)
+    install(DefaultHeaders) {
+        header("X-Frame-Options", "SAMEORIGIN")
+        header("X-Content-Type-Options", "nosniff")
+        header("Referrer-Policy", "strict-origin-when-cross-origin")
+    }
     install(ContentNegotiation) {
         json(Json {
             prettyPrint = false
@@ -53,9 +57,9 @@ fun Application.configureServer() {
         }
 
         // Static file serving + SPA fallback
-        get("/*") {
-            serveStatic(call, PROJECT_ROOT.resolve("frontend").resolve("dist"))
-        }
+        // Ktor 的 tailcard 语法为 "/{...}"，匹配任意剩余路径（含多级子目录与根路径）
+        val distDir = PROJECT_ROOT.resolve("frontend").resolve("dist")
+        get("/{...}") { serveStatic(call, distDir) }
     }
 }
 

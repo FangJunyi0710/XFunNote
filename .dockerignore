@@ -48,6 +48,11 @@ build/
 deploy/android/
 deploy/win/
 
+# ===== Kotlin 后端本地产物（镜像内用 Gradle 重新构建）=====
+server/build/
+server/.gradle/
+server/.kotlin/
+
 # ===== IDE / 杂项 =====
 .vscode/
 .idea/
