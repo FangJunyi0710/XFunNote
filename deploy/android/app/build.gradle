@@ -75,9 +75,9 @@ dependencies {
     // :core 用到 java.time / java.nio.file，minSdk24 需库脱糖
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
 
-    // SQLite JDBC 驱动（java.sql 运行时提供者）。
-    // 注意：xerial 的 .so 是 glibc 版，Android bionic 上能否加载需真机验证，
-    // 若失败再换 Willena(JitPack)/SQLDroid；此依赖主要用于让 assembleDebug 编译打包通过。
+    // SQLite JDBC 驱动。xerial 3.47 自带 Android bionic 原生库，但其运行时从 jar 内解压加载在
+    // Android 上失败；改为把 libsqlitejdbc.so 预置到 src/main/jniLibs/arm64-v8a/（见下），
+    // 由 AGP 打进 APK 的 lib/，System.loadLibrary("sqlitejdbc") 即可加载。
     runtimeOnly 'org.xerial:sqlite-jdbc:3.47.0.0'
 }
 

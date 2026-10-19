@@ -4,10 +4,13 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.MotionEvent
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
+import androidx.webkit.WebViewAssetLoader
 import java.io.File
 import java.util.UUID
 
@@ -16,7 +19,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
 
     private companion object {
-        const val START_URL = "file:///android_asset/www/index.html"
+        // 用 WebViewAssetLoader 把 assets 映射到虚拟 https origin，
+        // 否则 Vite 的 ESM <script type=module> 在 file://(origin null) 下被 CORS 拦截。
+        const val START_URL = "https://appassets.androidplatform.net/assets/www/index.html"
         const val PREFS = "xfun_prefs"
         const val KEY_ROOT_TOKEN = "root_token"
     }
@@ -37,7 +42,15 @@ class MainActivity : AppCompatActivity() {
         XFunBridge.configure(File(filesDir, "data"), bootstrapRootToken())
         webView.addJavascriptInterface(XFunBridge(), "XFunBridge")
 
-        webView.webViewClient = WebViewClient()
+        val assetLoader = WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+            .build()
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(
+                view: WebView,
+                request: WebResourceRequest,
+            ): WebResourceResponse? = assetLoader.shouldInterceptRequest(request.url)
+        }
         webView.loadUrl(START_URL)
 
         setupDraggableFab(findViewById(R.id.fab))
