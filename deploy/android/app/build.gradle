@@ -1,7 +1,6 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
-    id 'com.chaquo.python'
 }
 
 // 仓库根目录（deploy/android/../..）
@@ -36,6 +35,9 @@ android {
         versionCode verCode
         versionName verName
 
+        // :core 用到 java.time / java.nio.file（API<26），需库脱糖；方法数也会超 64k
+        multiDexEnabled true
+
         // 仅保留 64 位 ARM（当前绝大多数真机）；如需兼容老旧 32 位设备再补 armeabi-v7a
         ndk {
             abiFilters 'arm64-v8a'
@@ -49,6 +51,7 @@ android {
     }
 
     compileOptions {
+        coreLibraryDesugaringEnabled = true
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
@@ -58,49 +61,32 @@ android {
     }
 }
 
-chaquopy {
-    defaultConfig {
-        version "3.12"
-        pip {
-            install "fastapi==0.115.*"
-            install "starlette>=0.40.0,<0.47.0"
-            install "uvicorn"
-            install "pydantic==1.10.*"
-            install "typer"
-            install "python-dotenv"
-            install "future-uuid"
-            install "fsrs"
-        }
-    }
-}
-
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.core:core-ktx:1.13.1'
     implementation 'androidx.activity:activity-ktx:1.9.2'
     implementation 'androidx.webkit:webkit:1.11.0'
     implementation 'com.google.android.material:material:1.12.0'
+
+    // 三端共享：Kotlin 业务内核（传输无关，含 ApiService/ApiRouter/AppConfig）。
+    // 由 composite build (settings 里 includeBuild '../../server') 解析为 :core 工程。
+    implementation 'com.xfunnote:core:0.1.0'
+
+    // :core 用到 java.time / java.nio.file，minSdk24 需库脱糖
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+
+    // SQLite JDBC 驱动（java.sql 运行时提供者）。
+    // 注意：xerial 的 .so 是 glibc 版，Android bionic 上能否加载需真机验证，
+    // 若失败再换 Willena(JitPack)/SQLDroid；此依赖主要用于让 assembleDebug 编译打包通过。
+    runtimeOnly 'org.xerial:sqlite-jdbc:3.47.0.0'
 }
 
-// 将 Python 源码与前端构建产物并入 Chaquopy 的 python 源目录
-task copyPythonSources(type: Copy) {
-    exclude '**/__pycache__/**'
-    from(new File(repoRoot, 'backend')) {
-        into 'backend'
-        exclude '**/__pycache__/**'
-    }
-    from(new File(repoRoot, 'xfun')) {
-        into 'xfun'
-        exclude '**/__pycache__/**'
-    }
+// 将前端构建产物并入 Android assets（WebView 用 file:///android_asset/www/index.html 加载）
+task copyFrontendToAssets(type: Copy) {
     from(new File(repoRoot, 'frontend/dist')) {
-        into 'frontend/dist'
+        into 'www'
     }
-    into 'src/main/python'
+    into 'src/main/assets'
 }
 
-// 让所有合并 Python 源目录的任务先执行复制（显式声明依赖，满足 Gradle 任务校验）
-tasks.matching { it.name.startsWith('merge') && it.name.endsWith('PythonSources') }.configureEach {
-    dependsOn copyPythonSources
-}
-preBuild.dependsOn copyPythonSources
+preBuild.dependsOn copyFrontendToAssets

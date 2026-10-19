@@ -22,6 +22,14 @@ kotlin {
     jvmToolchain(21)
 }
 
+// 与 :core 一致，产物降到 Java 17 字节码。
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+}
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(17)
+}
+
 application {
     mainClass.set("xfun.MainKt")
 }

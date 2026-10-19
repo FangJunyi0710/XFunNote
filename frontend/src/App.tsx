@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Home } from '@/pages/Home';
 import { NotebookFilter } from '@/pages/NotebookFilter';
@@ -13,7 +13,7 @@ import { ToastContainer } from '@/components/ui/Toast';
 
 const App: React.FC = () => {
   return (
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
         {/* 需要鉴权的应用路由 */}
         <Route path="/" element={<Layout />}>
@@ -30,7 +30,7 @@ const App: React.FC = () => {
         </Route>
       </Routes>
       <ToastContainer />
-    </BrowserRouter>
+    </HashRouter>
   );
 };
 
