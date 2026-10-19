@@ -23,13 +23,15 @@ FROM gradle:8.7-jdk21 AS server-builder
 
 WORKDIR /build/server
 
-# 先拷贝构建脚本，利用 Gradle 依赖缓存层
-COPY server/build.gradle.kts server/settings.gradle.kts server/gradle.properties ./
-RUN gradle dependencies --no-daemon || true
+# 先只放构建脚本，预解析依赖（缓存层：只要 *.gradle.kts 不变，此层复用，源码改动不触发重下）
+COPY server/settings.gradle.kts server/build.gradle.kts server/gradle.properties ./
+COPY server/core/build.gradle.kts ./core/
+COPY server/app/build.gradle.kts ./app/
+RUN gradle :app:dependencies --no-daemon >/dev/null 2>&1 || true
 
-# 拷贝源码并打包 fat jar
-COPY server/src ./src
-RUN gradle shadowJar --no-daemon
+# 再拷源码并打包 fat jar（:app 产物；.dockerignore 已排除各 build/.gradle/.kotlin 本地产物）
+COPY server/ ./
+RUN gradle :app:shadowJar --no-daemon
 
 
 # ============================================================
@@ -43,8 +45,8 @@ ENV XFUN_DATA_DIR=/data \
 
 WORKDIR /app
 
-# 后端 fat jar
-COPY --from=server-builder /build/server/build/libs/*-all.jar /app/xfunnote-server.jar
+# 后端 fat jar（:app 产物）
+COPY --from=server-builder /build/server/app/build/libs/*-all.jar /app/xfunnote-server.jar
 
 # 前端构建产物（Kotlin 服务器从 CWD/frontend/dist 提供静态文件）
 COPY --from=frontend-builder /build/frontend/dist /app/frontend/dist
