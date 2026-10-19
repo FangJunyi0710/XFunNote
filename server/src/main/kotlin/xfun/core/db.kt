@@ -283,7 +283,7 @@ class DB(val dbPath: String) {
                 "表 $tableName 列 ${col.name} 类型冲突：代码定义 ${col.colType}，数据库中为 $existingType"
             )
         }
-        val existingNotNull = (existing["notnull"] as Long).toInt() != 0
+        val existingNotNull = (existing["notnull"] as Number).toInt() != 0
         if (!col.nullable != existingNotNull) {
             throw SQLInvalidError(
                 "表 $tableName 列 ${col.name} 约束冲突：代码定义 nullable=${col.nullable}，" +
@@ -291,7 +291,7 @@ class DB(val dbPath: String) {
             )
         }
         val colPk = if (col.primary_key) 1 else 0
-        val existingPk = (existing["pk"] as Long).toInt()
+        val existingPk = (existing["pk"] as Number).toInt()
         if (colPk != existingPk) {
             throw SQLInvalidError(
                 "表 $tableName 列 ${col.name} 主键属性冲突：代码定义 primary_key=${col.primary_key}，" +
