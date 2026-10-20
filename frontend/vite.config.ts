@@ -123,6 +123,7 @@ const redirectPlugin = isHttps ? {
 } : null;
 
 export default defineConfig({
+  base: './',
   plugins: [
     react(),
     ...(redirectPlugin ? [redirectPlugin] : []),

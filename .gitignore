@@ -70,6 +70,14 @@ deploy/android/app/build/
 deploy/android/app/.cxx/
 # Gradle 拷贝生成的 Python 源码与前端产物（由 preBuild 任务生成，非源）
 deploy/android/app/src/main/python/
+# Gradle copyFrontendToAssets 生成的前端产物（由 preBuild 任务生成，非源）
+deploy/android/app/src/main/assets/www/
+
+# ===== Kotlin/Ktor 后端 (server/) =====
+server/.gradle/
+server/.kotlin/
+server/build/
+server/local.properties
 
 # ===== TypeScript 增量编译 =====
 *.tsbuildinfo

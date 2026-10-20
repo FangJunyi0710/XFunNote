@@ -17,36 +17,41 @@ RUN npm run build
 
 
 # ============================================================
-# Stage 2: 运行时（Python 3.12 + nginx + uvicorn）
+# Stage 2: 构建后端（Kotlin + Ktor → fat jar）
 # ============================================================
-FROM python:3.12-slim AS runtime
+FROM gradle:8.7-jdk21 AS server-builder
 
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    XFUN_DATA_DIR=/data
+WORKDIR /build/server
 
-# nginx + 基础工具（head/base64 来自 coreutils，slim 已含）
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends nginx \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -f /etc/nginx/sites-enabled/default
+# 先只放构建脚本，预解析依赖（缓存层：只要 *.gradle.kts 不变，此层复用，源码改动不触发重下）
+COPY server/settings.gradle.kts server/build.gradle.kts server/gradle.properties ./
+COPY server/core/build.gradle.kts ./core/
+COPY server/app/build.gradle.kts ./app/
+RUN gradle :app:dependencies --no-daemon >/dev/null 2>&1 || true
+
+# 再拷源码并打包 fat jar（:app 产物；.dockerignore 已排除各 build/.gradle/.kotlin 本地产物）
+COPY server/ ./
+RUN gradle :app:shadowJar --no-daemon
+
+
+# ============================================================
+# Stage 3: 运行时（JRE 21，单进程同时托管 API + 前端静态）
+# ============================================================
+FROM eclipse-temurin:21-jre AS runtime
+
+ENV XFUN_DATA_DIR=/data \
+    BACKEND_PORT=80 \
+    JAVA_OPTS="-Xmx512m"
 
 WORKDIR /app
 
-# 安装 Python 依赖（仅运行时依赖，无 pytest）
-COPY requirements-build.txt ./
-RUN pip install -r requirements-build.txt
+# 后端 fat jar（:app 产物）
+COPY --from=server-builder /build/server/app/build/libs/*-all.jar /app/xfunnote-server.jar
 
-# 拷贝后端与核心引擎源码
-COPY backend/ ./backend/
-COPY xfun/ ./xfun/
+# 前端构建产物（Kotlin 服务器从 CWD/frontend/dist 提供静态文件）
+COPY --from=frontend-builder /build/frontend/dist /app/frontend/dist
 
-# 拷贝前端构建产物
-COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
-
-# 拷贝 nginx 配置与入口脚本
-COPY deploy/docker/nginx.conf /etc/nginx/conf.d/xfunnote.conf
+# 入口脚本
 COPY deploy/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
@@ -54,7 +59,7 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 VOLUME ["/data"]
 EXPOSE 80
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import socket; s=socket.create_connection(('127.0.0.1',8000),3); s.close()" || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD bash -c "</dev/tcp/127.0.0.1/${BACKEND_PORT}" || exit 1
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

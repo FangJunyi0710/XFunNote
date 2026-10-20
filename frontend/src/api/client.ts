@@ -1,9 +1,12 @@
-// 基础 HTTP 客户端
+// 基础 API 客户端：只负责组装请求 + 处理响应，具体走 HTTP 还是 JS 桥由 transport 决定。
 import pkg from '../../package.json';
 import { useTokenStore } from '@/stores/tokenStore';
+import { detectTransport, type ApiRequest, type RawResponse } from '@/api/transport';
 
 const API_VERSION = pkg.version.split('.')[0];
 const BASE_URL = `/api/v${API_VERSION}`;
+
+const transport = detectTransport();
 
 export class ApiError extends Error {
   constructor(
@@ -16,61 +19,52 @@ export class ApiError extends Error {
   }
 }
 
-const handleResponse = async <T>(res: Response): Promise<T> => {
-  if (!res.ok) {
-    let detail = `HTTP ${res.status}`;
+// 与原 handleResponse 逐分支等价：非 2xx 抛 ApiError(detail)，204 无内容，其余解析 JSON。
+const handle = async <T>(raw: RawResponse): Promise<T> => {
+  if (raw.status < 200 || raw.status >= 300) {
+    let detail = `HTTP ${raw.status}`;
     try {
-      const body = await res.json();
+      const body = JSON.parse(raw.body || '{}');
       detail = body.detail || body.message || detail;
     } catch {
       // ignore parse error
     }
-    throw new ApiError(res.status, detail);
+    throw new ApiError(raw.status, detail);
   }
-  // 204 No Content
-  if (res.status === 204) return undefined as T;
-  return res.json();
-}
+  if (raw.status === 204 || !raw.body) return undefined as T;
+  return JSON.parse(raw.body) as T;
+};
 
-const request = async<T>(
+const request = async <T>(
   method: string,
   path: string,
   body?: unknown,
   params?: Record<string, string>,
 ): Promise<T> => {
-  const url = new URL(`${BASE_URL}${path}`, window.location.origin);
-  if (params) {
-    Object.entries(params).forEach(([k, v]) => {
-      if (v !== undefined && v !== null) url.searchParams.set(k, v);
-    });
-  }
-
-  const options: RequestInit = {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-  };
-
   // 从 store 获取当前用户和 Token
   const state = useTokenStore.getState();
   const userName = state.activeUserName;
   const token = state.getActiveToken();
-  if (userName) {
-    options.headers = {
-      ...options.headers,
-      'Authorization': `Bearer ${token}`,
-      'User': userName,
-    };
-  } else {
-    throw new Error("未设置用户名");
+  if (!userName) throw new Error('未设置用户名');
+
+  const query: Record<string, string> = {};
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      if (v !== undefined && v !== null) query[k] = v;
+    }
   }
 
-  if (body !== undefined) {
-    options.body = JSON.stringify(body);
-  }
+  const req: ApiRequest = {
+    method,
+    path: `${BASE_URL}${path}`,
+    query,
+    token,
+    user: userName,
+    body,
+  };
 
-  const res = await fetch(url.toString(), options);
-  return handleResponse<T>(res);
-}
+  return handle<T>(await transport(req));
+};
 
 export const api = {
   get: <T>(path: string, params?: Record<string, string>) =>

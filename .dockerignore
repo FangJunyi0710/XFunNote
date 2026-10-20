@@ -48,6 +48,18 @@ build/
 deploy/android/
 deploy/win/
 
+# ===== Kotlin 后端本地产物（镜像内用 Gradle 重新构建）=====
+# 注意多工程：core/app 各有 build/.gradle/.kotlin，用 ** 递归排除
+server/build/
+server/core/build/
+server/app/build/
+server/.gradle/
+server/core/.gradle/
+server/app/.gradle/
+server/.kotlin/
+server/core/.kotlin/
+server/app/.kotlin/
+
 # ===== IDE / 杂项 =====
 .vscode/
 .idea/

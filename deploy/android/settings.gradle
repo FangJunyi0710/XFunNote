@@ -13,3 +13,7 @@ dependencyResolutionManagement {
     }
 }
 include ':app'
+
+// 三端共享：把 server 作为 composite 构建纳入，app 里 com.xfunnote:core
+// 会被自动替换为该 included build 的 :core 工程（group/name 坐标匹配）。
+includeBuild('../../server')
